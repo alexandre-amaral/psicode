@@ -24,3 +24,6 @@ desktop.ini
 
 # Godot deixa isso para tras as vezes
 *.translation
+
+# Config de MCP: o caminho do servidor e por maquina, nao vale versionar.
+.mcp.json

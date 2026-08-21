@@ -1,101 +1,184 @@
-# Contexto do Projeto
+# psicode — contexto para agente de IA
 
-Este é o projeto **"Ciberpsicose"** (título provisório), feito na **Godot Engine (2D)** usando **GDScript**.
+Twin-stick shooter / bullet hell / roguelike cyberpunk em **Godot 4.7-stable**
+(versao standard, nao .NET) com **GDScript**. Renderer **Compatibility (GL)**,
+obrigatorio para o export web.
 
-> ⚠️ Este documento é a fonte da verdade do design do jogo. Ao sugerir código, mecânicas,
-> nomes de sistemas ou conteúdo, sempre siga o que está descrito aqui. Se um pedido do
-> usuário parecer contradizer o GDD (gênero, câmera, mecânicas centrais), aponte a
-> divergência antes de implementar, em vez de simplesmente seguir o pedido.
+Feito por tres pessoas. Objetivo declarado: **diversao e aprender fazendo** —
+ter algo jogavel rapido vale mais que infraestrutura bonita.
 
-## 1. Visão Geral
+> O titulo antigo era "Ciberpsicose". O nome fechado e **psicode**.
 
-- **Gênero:** Ação rápida / Twin-stick shooter / Bullet hell / Roguelike.
-- **Engine:** Godot (2D).
-- **Câmera:** Top-down (vista de cima).
-- **Referências:** Enter the Gungeon (ritmo, estrutura de salas, combate), Nuclear Throne (agressividade), The Binding of Isaac (exploração).
-- **Identidade narrativa:** Distopia cyberpunk underground. O protagonista é um ciborgue/mercenário lutando contra a própria corrupção mental e física enquanto busca a cura antes do colapso total de seu sistema.
+## Onde esta a verdade
 
-## 2. Core Loop
+Este arquivo diz como trabalhar no repositorio. O que o jogo **e** esta nos
+documentos abaixo — leia antes de propor mecanica nova:
 
-1. **Entrar na sala** — portas trancam (lockdown).
-2. **Sobreviver** — evadir bullet hell com esquivas táticas (baseadas em aprimoramentos corporais) e destruir inimigos com armas encontradas no cenário.
-3. **Gerenciar Deterioração** — lutar contra o relógio; tempo e implantes aumentam a Deterioração, afetando a percepção da realidade do protagonista e a dificuldade.
-4. **Limpar a sala** — portas abrem, coletar loot (Créditos/Recursos), seguir em frente.
-5. **Morte** — consciência restaurada em backup na base (Loja Clandestina); jogador gasta "Núcleos de Memória" (meta-progressão) para liberar novos implantes e armas em runs futuras.
+| Documento | Para que |
+|---|---|
+| `docs/GDD.md` | Design: core loop, Deterioracao, mira preditiva, o chefe, escopo |
+| `docs/ROADMAP.md` | As cinco fases e o que falta em cada uma |
+| `docs/CONVENCOES.md` | Git, divisao de arquivos, estilo de codigo |
+| `docs/HANDOFF.md` | Passo a passo para quem nao conhece Godot nem Git |
+| `docs/BUILD.md` | Export Windows e web |
+| `docs/MCP.md` | Servidor MCP que liga assistente de IA ao editor aberto |
 
-## 3. Mecânicas Principais
+Quando o codigo e o texto discordarem, **o codigo ganha e o texto se
+atualiza**. Se um pedido contradiz o GDD — genero, camera, mecanica central —
+aponte a divergencia antes de implementar, em vez de so seguir o pedido.
 
-### Sistema de Deterioração (Sanidade/Percepção)
-Aumenta passivamente e/ou ao abusar de aprimoramentos de alto nível.
+## As duas regras que sustentam o projeto
 
-- **Fase 1 (Baixa):** inimigos padrão.
-- **Fase 2 (Média):** inimigos mais rápidos (cadência e movimento).
-- **Fase 3 (Alta — Alucinações):** inimigos usam *predictive aiming* (miram no ponto futuro do jogador); ataques ganham efeitos visuais de falha/glitch, representando a mente corrompida completando lacunas com imaginação.
+**1. Comunicacao por `EventBus`, nunca por caminho de no.**
+Quem faz algo emite; quem se importa escuta. A HUD nao conhece o Player.
+Unica excecao legitima: busca por grupo (`get_first_node_in_group("player")`).
 
-### Movimentação e Esquiva
-- Começa com um rolamento de invulnerabilidade (i-frames).
-- Pode ser alterada por implantes (ex: dash cortante, jetpack, escudo estacionário).
+```gdscript
+# ruim
+get_node("/root/Main/HUD").atualizar_vida(vida)
+# bom
+EventBus.player_dano_recebido.emit(vida, vida_maxima)
+```
 
-### IA Diretora (Heurística)
-O jogo analisa o estilo do jogador (distância média mantida, uso de esquiva) para popular as próximas salas com composições de inimigos que "counterem" essas estratégias, forçando adaptação.
+**2. Toda dificuldade le o autoload `Deterioracao` no frame em que precisa.**
+Nada guarda um numero ja multiplicado — e isso que faz a barra subindo afetar
+inclusive os inimigos que ja estao em tela.
 
-## 4. Escopo do MVP (Primeiro Protótipo)
+```gdscript
+# ruim -- congela a dificuldade no spawn
+velocidade = 120.0 * Deterioracao.multiplicador_velocidade()
+# bom
+func velocidade_atual() -> float:
+    return velocidade_base * Deterioracao.multiplicador_velocidade()
+```
 
-- **Personagem:** movimentação WASD + mira no mouse.
-- **Combate:** 1 arma básica (pistola infinita) + 1 arma de loot (shotgun).
-- **Defesa:** rolamento (com cooldown e i-frames).
-- **Inimigos (IA básica):** 1 melee (corre atrás do jogador) e 1 ranged (atira na posição atual do jogador).
-- **O diferencial:** barra de Deterioração na UI que, ao passar de 50%, ativa mira preditiva no inimigo ranged e aumenta a velocidade do melee.
-- **Cenário:** apenas uma arena quadrada fechada, sem transição de salas ainda.
+## Estilo
 
-> Ao trabalhar no MVP, não sugerir ou implementar por conta própria sistemas fora deste
-> escopo (ex: múltiplas salas, loja clandestina, meta-progressão) a menos que o usuário
-> peça explicitamente. Esses sistemas existem no GDD mas são pós-MVP.
+- Codigo, sinais, variaveis e comentarios em **portugues**. O que o Godot impoe
+  (`_ready`, `velocity`, `queue_free`) fica como e.
+- `class_name PascalCase`, `var snake_case`, `const MAIUSCULA`,
+  `func _privado()`, sinais no passado (`onda_limpa`).
+- **Tipar sempre** que der.
+- Todo script abre com um bloco `##` dizendo o que ele faz e **qual decisao de
+  design ele carrega**.
+- Comentar o **porque**, nunca o **que**.
+- Numero que alguem vai querer ajustar sem programar vira `@export` ou
+  `Resource` `.tres`.
+- Preferir composicao por no e cena reutilizavel a heranca profunda de script.
+- Nada de `get_node("../../Algo")`. Use `%Nome` (unique name), grupo ou
+  `EventBus`.
 
-## 5. Pós-MVP: Estrutura de Salas/Mapa (Geração Procedural)
+## Estrutura real
 
-> Esta seção documenta decisões já tomadas para uma fase **pós-MVP**. O MVP atual
-> continua sendo apenas uma arena única fechada (ver seção 4). Não implementar o
-> conteúdo abaixo a menos que o usuário peça explicitamente para avançar para esta fase.
+```
+src/
+  autoload/    event_bus, deterioracao, game_state, juice
+  player/      player, eco de rolamento
+  weapons/     arma.gd, dados_arma.gd, *.tres (pistola, shotgun, armas do chefe)
+  enemies/     inimigo_base, rastejante, vigia, diretora (chefe)
+  projectiles/ projetil
+  arena/       gerenciador_ondas, dados_onda, onda_*.tres, pickup de arma
+  mapa/        gerenciador_mapa, sala, porta, sala_*.tscn
+  ui/          hud, barra_vida, barra_deterioracao, tela_fim
+  fx/          explosao, impacto
+  util/        balistica (matematica da mira preditiva)
+  main/        main.tscn — cena inicial
+assets/shaders/  glitch.gdshader
+tools/           teste_fumaca, capturar
+docs/
+```
 
-- **Geração:** o layout do andar é gerado **proceduralmente a cada run**, no estilo *The Binding of Isaac* (grid de salas conectadas por portas, não geração livre/orgânica).
-- **Visibilidade do mapa:** o jogador tem acesso a um **mapa visível do andar** (como em Isaac) — salas já visitadas/descobertas aparecem no mapa; salas não visitadas ficam ocultas ou mostradas apenas como "existe uma sala aqui" sem revelar o conteúdo.
-- **Tipos de sala definidos:**
-  - **Combate:** sala padrão, portas trancam até limpar (ver Core Loop, seção 2).
-  - **Loja:** sala **dentro da run**, onde o jogador compra itens/armas/implantes usando Créditos (a moeda de run, coletada como loot). Não confundir com a "Loja Clandestina" da seção 2 (Core Loop), que é a base entre runs onde se gasta Núcleos de Memória — são dois sistemas de loja diferentes: um in-run (Créditos) e um de meta-progressão entre runs (Núcleos de Memória).
-  - **Tesouro:** sala com um item ou arma gratuita, tipicamente sem combate ou com desafio opcional para acessar.
-  - **Boss:** sala final do andar, encontro mais difícil que marca a progressão para o próximo andar/nível de Deterioração.
+`.gd`, `.tscn` e `.tres` moram **juntos por dominio**, nao separados por tipo.
 
-> Tipos de sala pendentes de decisão (não confirmados ainda): sala Elite. Não assumir
-> detalhes sobre esse tipo até o usuário confirmar se e como será incluído.
+## Onde mexer em que
 
-## Estrutura de pastas
+| Ajuste | Arquivo |
+|---|---|
+| Composicao e escalada das ondas | `src/arena/onda_*.tres` |
+| Dano, cadencia, municao, spread | `src/weapons/*.tres` |
+| Vida e velocidade dos inimigos | `@export` em `src/enemies/*.tscn` |
+| Limiares de 50% e 85% | `src/autoload/deterioracao.gd` |
+| Matematica de mira preditiva | `src/util/balistica.gd` |
+| Chefe | `src/enemies/diretora.gd` |
+| Layout e conexao das salas | `src/mapa/gerenciador_mapa.gd`, `src/mapa/sala_*.tscn` |
+| Lockdown e abertura de porta | `src/mapa/porta.gd`, `src/mapa/sala.gd` |
+| Glitch de alucinacao | `assets/shaders/glitch.gdshader` |
 
-> Preencher/ajustar conforme a estrutura real do projeto:
-- `scenes/` — arquivos `.tscn`
-- `scripts/` — arquivos `.gd`
-- `assets/` — sprites, sons, fontes
-- `resources/` — arquivos `.tres` (armas, inimigos, implantes como Resources customizados)
+**Balanceamento quase nunca exige codigo.** Se a resposta a um pedido de tuning
+for "vou editar um `.gd`", verifique antes se nao deveria ser um `.tres`.
 
-## Convenções de código (GDScript)
+## Antes de entregar qualquer alteracao
 
-- Classes em `PascalCase` (ex: `PlayerController`, `DeteriorationManager`).
-- Variáveis e funções em `snake_case` (ex: `move_speed`, `take_damage()`).
-- Constantes em `MAIÚSCULAS_COM_UNDERSCORE`.
-- Sinais nomeados como evento (ex: `deterioration_changed`, `room_cleared`, `player_died`).
-- Preferir `@export` para variáveis ajustáveis no editor.
-- Preferir Resources customizados (`.tres`) para dados de armas/inimigos/implantes, permitindo balanceamento sem mexer em código.
-- Preferir composição via nós e cenas reutilizáveis a heranças profundas de script.
-- Evitar `get_node("../../Algo")` com caminhos frágeis; usar `@onready var` com unique names (`%Nome`) ou grupos.
+```bash
+godot --headless --path . tools/teste_fumaca.tscn      # precisa imprimir PASSOU
+godot --path . tools/capturar.tscn --resolution 1280x720   # se mexeu no visual
+```
+
+O teste sobe o jogo inteiro sem janela, avanca as ondas, mata o chefe e falha
+em qualquer erro de script.
+
+## Armadilhas que ja custaram tempo aqui
+
+- **`Array[Node].filter()` devolve `Array` sem tipo.** Atribuir de volta a uma
+  variavel tipada explode em runtime. Use loop explicito.
+- **Referencia de no exportada nao resolve.** Use `NodePath` explicito e
+  `get_node_or_null` no `_ready`.
+- **Corrotina reentrante no gerenciador de ondas.** Toda funcao que `await`
+  antes de mexer em estado global precisa de trava, senao pula uma onda
+  inteira — inclusive a do chefe.
+- **A onda do chefe nao termina por contagem de inimigos**, so pela morte dele.
+- **Timer de hitstop precisa ignorar `time_scale`**:
+  `create_timer(d, true, false, true)`.
+- **Clarao de dano nao pode reiniciar em andamento** — com dano continuo o
+  inimigo fica branco permanente e some a silhueta.
+- **Sub-resource num `.tscn` e compartilhado entre instancias.** Crie a forma
+  de colisao em codigo no `_ready`.
+- **`Line2D` de rastro precisa de `top_level = true`.**
+- **MSAA 2D nao existe no renderer Compatibility.** Nao tente ligar.
+- **`SCREEN_TEXTURE` quebra no export web.** Prefira efeito procedural — o
+  shader de glitch e procedural de proposito.
+
+## Ambiente
+
+- O projeto esta em `C:\Users\alcyn\OneDrive\Documents\psicode`. Isso e dentro
+  do OneDrive, contra a recomendacao geral, por decisao consciente. Se aparecer
+  arquivo travado, reimport fantasma ou "abriu tudo vermelho", suspeite da
+  sincronizacao antes de qualquer outra coisa.
+- A pasta `.godot/` e cache. Nunca commitar. Apagar resolve a maioria dos
+  problemas de import.
+- Os arquivos `.uid` (Godot 4.4+) **devem** ser commitados.
+- Ativar o plugin `godot_mcp` injeta tres autoloads no `project.godot` e os
+  remove ao desativar. Nao commitar essas linhas, e **desativar o plugin antes
+  de exportar build**.
+
+## Trabalho em equipe
+
+Dois dos tres **nao conhecem Godot nem Git**. Ao propor qualquer coisa que eles
+vao executar, escreva no nivel do `docs/HANDOFF.md`: passo a passo, comando
+literal, sem jargao.
+
+Branches: `feat/`, `fix/`, `tune/`, `docs/`. Nunca commitar no `main`.
+Commits em portugues, imperativo, minusculo. **Uma pessoa por cena `.tscn` por
+vez** — cena e onde o merge doi.
+
+## Disciplina de escopo
+
+A **Fase 1 do roadmap (tuning + primeiro playtest) esta aberta e nao foi
+feita**: falta a sessao de tuning a tres, o ajuste da onda 4, o rebalance do
+chefe, o export e o link de playtest para 5–8 amigos.
+
+A **Fase 3 (salas) ja comecou** — `src/mapa/` existe com sete salas, portas e
+gerenciador. Isso e conteudo novo com a Fase 1 em aberto.
+
+Ao receber pedido de conteudo novo antes do playtest, **aponte o custo**: cada
+sala nova encarece a descoberta de que a base precisa mudar. Nao recuse — e o
+jogo deles — mas diga o preco.
 
 ## O que evitar
 
-- Não sugerir código em outra engine ou linguagem (o projeto é Godot/GDScript).
-- Não expandir escopo além do MVP sem confirmação.
-- Não introduzir plugins/dependências externas sem avisar antes.
-
-## Fluxo de trabalho preferido
-
-- Ao editar um script, resumir a mudança antes de aplicar, se for grande.
-- Ao propor uma cena nova (`.tscn`), explicar a hierarquia de nós em texto antes.
-- Ao implementar mecânicas (ex: Deterioração, IA Diretora), relacionar explicitamente com a seção correspondente deste GDD.
+- Sugerir codigo em outra engine ou linguagem.
+- Introduzir plugin ou dependencia externa sem avisar antes.
+- Efeito visual que atrapalha a leitura do combate, por mais bonito que seja.
+  O shader tem `alpha_maximo` justamente para isso.
+- Ataque sem telegrafo. Bullet hell so e justo se da para ler a intencao antes
+  do projetil existir. Telegrafo encurta com a fase, nunca some.

@@ -8,7 +8,7 @@
 | | |
 |---|---|
 | Gênero | Ação rápida · twin-stick shooter · bullet hell · roguelike |
-| Engine | Godot 4.6 (2D), GDScript |
+| Engine | Godot 4.7 (2D), GDScript |
 | Câmera | Top-down |
 | Referências | *Enter the Gungeon* (ritmo, salas, combate), *Nuclear Throne* (agressividade) |
 

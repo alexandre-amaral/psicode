@@ -1,0 +1,30 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/enemies/rastejante.gd" id="1_rast"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_rast"]
+radius = 13.0
+
+[node name="Rastejante" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 6
+script = ExtResource("1_rast")
+vida_maxima = 4
+velocidade_base = 118.0
+dano_contato = 1
+creditos = 3
+cor_base = Color(1, 0.3, 0.42, 1)
+raio_contato = 28.0
+
+[node name="Forma" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_rast")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Corpo" type="Polygon2D" parent="Visual"]
+color = Color(1, 0.3, 0.42, 1)
+polygon = PackedVector2Array(17, 0, -6, 11, -10, 0, -6, -11)
+
+[node name="Olho" type="Polygon2D" parent="Visual"]
+color = Color(1, 0.92, 0.6, 1)
+polygon = PackedVector2Array(9, 0, 3, 3.5, 3, -3.5)

@@ -1,0 +1,75 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/ui/tela_fim.gd" id="1_fim"]
+
+[node name="TelaFim" type="CanvasLayer"]
+layer = 20
+script = ExtResource("1_fim")
+
+[node name="Fundo" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+color = Color(0.02, 0.02, 0.05, 0.86)
+
+[node name="Painel" type="Control" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Titulo" type="Label" parent="Painel"]
+anchor_left = 0.5
+anchor_top = 0.24
+anchor_right = 0.5
+anchor_bottom = 0.24
+offset_left = -420.0
+offset_top = -36.0
+offset_right = 420.0
+offset_bottom = 36.0
+theme_override_font_sizes/font_size = 52
+text = "CONSCIENCIA PERDIDA"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Subtitulo" type="Label" parent="Painel"]
+modulate = Color(0.72, 0.78, 0.92, 1)
+anchor_left = 0.5
+anchor_top = 0.24
+anchor_right = 0.5
+anchor_bottom = 0.24
+offset_left = -420.0
+offset_top = 40.0
+offset_right = 420.0
+offset_bottom = 76.0
+theme_override_font_sizes/font_size = 17
+text = "Restaurando do ultimo backup..."
+horizontal_alignment = 1
+
+[node name="Stats" type="Label" parent="Painel"]
+modulate = Color(0.6, 0.9, 1, 1)
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -60.0
+offset_right = 260.0
+offset_bottom = 90.0
+theme_override_font_sizes/font_size = 16
+text = "stats"
+horizontal_alignment = 1
+
+[node name="Dica" type="Label" parent="Painel"]
+modulate = Color(0.55, 0.62, 0.75, 1)
+anchor_left = 0.5
+anchor_top = 0.82
+anchor_right = 0.5
+anchor_bottom = 0.82
+offset_left = -320.0
+offset_top = -20.0
+offset_right = 320.0
+offset_bottom = 20.0
+theme_override_font_sizes/font_size = 16
+text = "R  reiniciar"
+horizontal_alignment = 1
+vertical_alignment = 1

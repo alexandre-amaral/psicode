@@ -1,0 +1,20 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/fx/fx_autodestroi.gd" id="1_fx"]
+
+[node name="Explosao" type="CPUParticles2D"]
+emitting = false
+amount = 26
+lifetime = 0.6
+one_shot = true
+explosiveness = 1.0
+lifetime_randomness = 0.5
+spread = 180.0
+gravity = Vector2(0, 0)
+initial_velocity_min = 120.0
+initial_velocity_max = 420.0
+damping_min = 200.0
+damping_max = 500.0
+scale_amount_min = 2.0
+scale_amount_max = 5.0
+script = ExtResource("1_fx")

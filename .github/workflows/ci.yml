@@ -1,0 +1,38 @@
+name: CI
+
+# Roda o teste de fumaca a cada push e a cada pull request.
+# O teste sobe o jogo inteiro sem janela, avanca as 5 ondas, mata o chefe e
+# falha se aparecer qualquer erro de script. E barato e pega 90% do que
+# costuma quebrar num projeto de Godot em time.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  teste-de-fumaca:
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSAO: 4.6-stable
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baixar Godot ${{ env.GODOT_VERSAO }}
+        run: |
+          set -euo pipefail
+          URL="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSAO}/Godot_v${GODOT_VERSAO}_linux.x86_64.zip"
+          curl -fsSL -o godot.zip "$URL"
+          unzip -q godot.zip
+          mv Godot_v${GODOT_VERSAO}_linux.x86_64 /usr/local/bin/godot
+          chmod +x /usr/local/bin/godot
+          godot --headless --version
+
+      - name: Importar o projeto
+        # A primeira importacao gera .godot/. Roda em passo separado para que
+        # um erro de importacao apareca como erro de importacao, e nao como
+        # falha misteriosa do teste.
+        run: godot --headless --path . --import
+
+      - name: Teste de fumaca
+        run: godot --headless --path . tools/teste_fumaca.tscn

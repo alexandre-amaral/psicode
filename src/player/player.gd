@@ -1,0 +1,255 @@
+extends CharacterBody2D
+## O protagonista. Twin-stick classico: WASD anda, mouse mira, botao esquerdo
+## atira, espaco (ou botao direito) rola.
+##
+## O rolamento e o coracao do jogo. Ele da i-frames, e a partir de 50% de
+## Deterioracao os inimigos passam a prever exatamente para onde voce vai
+## rolar. Todo o balanceamento gira em torno desse par.
+
+signal vida_alterada(atual: int, maximo: int)
+
+const GRUPO := "player"
+const CENA_ECO := preload("res://src/player/eco_rolamento.tscn")
+
+enum Estado { NORMAL, ROLANDO, MORTO }
+
+@export_group("Movimento")
+@export var velocidade_max: float = 330.0
+@export var aceleracao: float = 2600.0
+@export var atrito: float = 2200.0
+
+@export_group("Rolamento")
+@export var roll_velocidade: float = 720.0
+@export var roll_duracao: float = 0.22
+@export var roll_cooldown: float = 0.55
+## Sobra de invulnerabilidade depois que o rolamento termina. Perdoa o jogador
+## que rolou um frame cedo demais -- e o que separa "dificil" de "injusto".
+@export var roll_graca: float = 0.06
+
+@export_group("Vida")
+@export var vida_maxima: int = 6
+@export var iframes_apos_dano: float = 1.0
+
+@export_group("Armas")
+@export var arma_inicial: DadosArma
+
+var vida: int = 6
+var estado: int = Estado.NORMAL
+
+var _dir_roll: Vector2 = Vector2.RIGHT
+var _t_roll: float = 0.0
+var _t_roll_cd: float = 0.0
+var _t_invuln: float = 0.0
+var _t_eco: float = 0.0
+
+var _arma: Arma
+var _visual: Node2D
+var _corpo: Polygon2D
+var _camera: Camera2D
+
+## Slot 0 e sempre a pistola infinita; slot 1 e o loot. Q alterna.
+var _slots: Array[DadosArma] = [null, null]
+var _slot_ativo: int = 0
+
+
+func _ready() -> void:
+	add_to_group(GRUPO)
+	_visual = $Visual
+	_corpo = $Visual/Corpo
+	_arma = $Visual/Arma
+	_camera = $Camera
+
+	Juice.registrar_camera(_camera)
+
+	vida = vida_maxima
+	_slots[0] = arma_inicial
+	_arma.hostil = false
+	if arma_inicial != null:
+		_arma.equipar(arma_inicial)
+
+	_arma.municao_alterada.connect(_ao_mudar_municao)
+	_arma.ficou_sem_municao.connect(_ao_acabar_municao)
+	_arma.disparou.connect(_ao_disparar)
+
+	EventBus.player_pronto.emit(self)
+	vida_alterada.emit(vida, vida_maxima)
+	EventBus.player_dano_recebido.emit(vida, vida_maxima)
+	EventBus.arma_equipada.emit(_slots[0], 0)
+
+
+func _physics_process(delta: float) -> void:
+	if estado == Estado.MORTO:
+		return
+
+	_t_roll_cd = maxf(_t_roll_cd - delta, 0.0)
+	_t_invuln = maxf(_t_invuln - delta, 0.0)
+
+	_mirar()
+
+	match estado:
+		Estado.NORMAL:
+			_processar_normal(delta)
+		Estado.ROLANDO:
+			_processar_rolamento(delta)
+
+	move_and_slide()
+	_atualizar_visual()
+
+
+func _processar_normal(delta: float) -> void:
+	var entrada := Input.get_vector("mover_esquerda", "mover_direita", "mover_cima", "mover_baixo")
+
+	if entrada != Vector2.ZERO:
+		velocity = velocity.move_toward(entrada * velocidade_max, aceleracao * delta)
+	else:
+		velocity = velocity.move_toward(Vector2.ZERO, atrito * delta)
+
+	if Input.is_action_just_pressed("rolar") and _t_roll_cd <= 0.0:
+		_iniciar_rolamento(entrada)
+		return
+
+	if Input.is_action_just_pressed("trocar_arma"):
+		_alternar_slot()
+
+	_arma.atualizar_gatilho(Input.is_action_pressed("atirar"))
+	if Input.is_action_pressed("atirar"):
+		_arma.atirar(_direcao_mira())
+
+
+func _processar_rolamento(delta: float) -> void:
+	_t_roll -= delta
+	# Desacelera no fim do rolamento em vez de parar seco: o corpo "assenta".
+	var progresso := clampf(_t_roll / roll_duracao, 0.0, 1.0)
+	var vel := lerpf(velocidade_max * 0.8, roll_velocidade, progresso)
+	velocity = _dir_roll * vel
+
+	_t_eco -= delta
+	if _t_eco <= 0.0:
+		_t_eco = 0.045
+		_soltar_eco()
+
+	if _t_roll <= 0.0:
+		estado = Estado.NORMAL
+		_t_invuln = maxf(_t_invuln, roll_graca)
+
+
+func _iniciar_rolamento(entrada: Vector2) -> void:
+	# Sem direcao de movimento, rola para onde estiver mirando.
+	_dir_roll = entrada.normalized() if entrada != Vector2.ZERO else _direcao_mira()
+	estado = Estado.ROLANDO
+	_t_roll = roll_duracao
+	_t_roll_cd = roll_cooldown
+	_t_invuln = maxf(_t_invuln, roll_duracao)
+	_t_eco = 0.0
+	EventBus.player_rolou.emit()
+
+
+func _mirar() -> void:
+	_visual.rotation = _direcao_mira().angle()
+
+
+func _direcao_mira() -> Vector2:
+	var d := get_global_mouse_position() - global_position
+	if d.length_squared() < 1.0:
+		return Vector2.RIGHT.rotated(_visual.rotation)
+	return d.normalized()
+
+
+func _atualizar_visual() -> void:
+	# Pisca durante a invulnerabilidade pos-dano (mas nao durante o rolamento,
+	# senao o eco ja comunica e vira poluicao visual).
+	if estado != Estado.ROLANDO and _t_invuln > 0.0:
+		_visual.modulate.a = 0.35 + 0.65 * absf(sin(Time.get_ticks_msec() * 0.02))
+	else:
+		_visual.modulate.a = 1.0
+
+
+func _soltar_eco() -> void:
+	var eco := CENA_ECO.instantiate()
+	get_parent().add_child(eco)
+	eco.global_position = global_position
+	eco.rotation = _visual.rotation
+	eco.iniciar(_corpo.polygon, Color(0.35, 0.95, 1.0, 0.5))
+
+
+# ---------------------------------------------------------------- combate ---
+
+func invulneravel() -> bool:
+	return estado == Estado.ROLANDO or _t_invuln > 0.0
+
+
+## Contrato usado por projeteis e inimigos. Devolve true se o dano valeu --
+## quem chamou usa isso para decidir se gasta o projetil.
+func receber_dano(quantidade: int, impulso: Vector2 = Vector2.ZERO) -> bool:
+	if estado == Estado.MORTO or invulneravel():
+		return false
+
+	vida = maxi(vida - quantidade, 0)
+	_t_invuln = iframes_apos_dano
+	velocity += impulso * 0.5
+
+	vida_alterada.emit(vida, vida_maxima)
+	EventBus.player_dano_recebido.emit(vida, vida_maxima)
+	EventBus.pedido_shake.emit(11.0, 0.35)
+	EventBus.pedido_hitstop.emit(0.1, 0.04)
+
+	if vida <= 0:
+		_morrer()
+	return true
+
+
+func curar(quantidade: int) -> void:
+	if estado == Estado.MORTO:
+		return
+	vida = mini(vida + quantidade, vida_maxima)
+	vida_alterada.emit(vida, vida_maxima)
+	EventBus.player_curado.emit(vida, vida_maxima)
+
+
+func _morrer() -> void:
+	estado = Estado.MORTO
+	velocity = Vector2.ZERO
+	set_deferred("collision_layer", 0)
+	var fx := preload("res://src/fx/explosao.tscn").instantiate()
+	fx.global_position = global_position
+	fx.modulate = Color(0.4, 0.95, 1.0)
+	get_parent().add_child(fx)
+	_visual.visible = false
+	EventBus.pedido_shake.emit(20.0, 0.7)
+	EventBus.player_morreu.emit()
+	GameState.terminar_run(false)
+
+
+# ----------------------------------------------------------------- armas ---
+
+func equipar_arma_loot(dados: DadosArma) -> void:
+	_slots[1] = dados
+	_slot_ativo = 1
+	_arma.equipar(dados)
+	EventBus.arma_equipada.emit(dados, 1)
+
+
+func _alternar_slot() -> void:
+	if _slots[1] == null:
+		return
+	_slot_ativo = 1 - _slot_ativo
+	_arma.equipar(_slots[_slot_ativo])
+	EventBus.arma_equipada.emit(_slots[_slot_ativo], _slot_ativo)
+
+
+func _ao_acabar_municao() -> void:
+	# Arma de loot sem municao e descartada e voltamos para a pistola.
+	_slots[1] = null
+	_slot_ativo = 0
+	_arma.equipar(_slots[0])
+	EventBus.arma_equipada.emit(_slots[0], 0)
+
+
+func _ao_mudar_municao(atual: int, maximo: int) -> void:
+	EventBus.municao_mudou.emit(atual, maximo)
+
+
+func _ao_disparar(direcao: Vector2, dados: DadosArma) -> void:
+	EventBus.pedido_shake.emit(dados.shake_intensidade, dados.shake_duracao)
+	if dados.recuo_player > 0.0:
+		velocity -= direcao * dados.recuo_player

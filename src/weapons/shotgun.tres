@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+
+[resource]
+script = ExtResource("1_dados")
+nome = "BRK-12 \"Corta-Fila\""
+descricao = "Doze fragmentos por disparo. Encosta e resolve. Municao e um problema seu."
+dano = 2
+knockback = 300.0
+perfuracao = 1
+cadencia = 1.7
+automatica = false
+projeteis_por_tiro = 8
+abertura_graus = 34.0
+impressao_graus = 3.0
+velocidade_projetil = 780.0
+alcance = 420.0
+raio_projetil = 3.5
+cor_projetil = Color(1, 0.72, 0.29, 1)
+municao_maxima = 24
+shake_intensidade = 7.0
+shake_duracao = 0.16
+recuo_player = 190.0

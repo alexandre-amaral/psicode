@@ -1,0 +1,26 @@
+# --- Godot 4 ---
+# Cache do editor. NUNCA commite: e gerado localmente e e a fonte numero 1
+# de conflito bobo em time.
+.godot/
+/android/
+
+# Builds locais
+/builds/
+/build/
+*.exe
+*.pck
+*.zip
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*~
+
+# Godot deixa isso para tras as vezes
+*.translation

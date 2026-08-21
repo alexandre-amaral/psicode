@@ -1,0 +1,47 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/enemies/vigia.gd" id="1_vigia"]
+[ext_resource type="Script" path="res://src/weapons/arma.gd" id="2_arma"]
+[ext_resource type="Resource" path="res://src/weapons/tiro_vigia.tres" id="3_tiro"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_vigia"]
+radius = 15.0
+
+[node name="Vigia" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 6
+script = ExtResource("1_vigia")
+vida_maxima = 6
+velocidade_base = 96.0
+dano_contato = 1
+creditos = 5
+cor_base = Color(0.78, 0.36, 1, 1)
+raio_contato = 30.0
+distancia_ideal = 300.0
+intervalo_disparo = 2.1
+tempo_mira = 0.55
+
+[node name="Forma" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_vigia")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Corpo" type="Polygon2D" parent="Visual"]
+color = Color(0.78, 0.36, 1, 1)
+polygon = PackedVector2Array(15, 0, 7.5, 13, -7.5, 13, -15, 0, -7.5, -13, 7.5, -13)
+
+[node name="Lente" type="Polygon2D" parent="Visual"]
+color = Color(1, 0.35, 0.5, 1)
+polygon = PackedVector2Array(14, -4, 20, 0, 14, 4)
+
+[node name="Arma" type="Node2D" parent="Visual"]
+position = Vector2(20, 0)
+script = ExtResource("2_arma")
+dados = ExtResource("3_tiro")
+hostil = true
+
+[node name="Laser" type="Line2D" parent="."]
+z_index = -2
+points = PackedVector2Array(0, 0, 1, 0)
+width = 2.0
+default_color = Color(1, 0.25, 0.35, 0.5)

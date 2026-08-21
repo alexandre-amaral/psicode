@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+
+[resource]
+script = ExtResource("1_dados")
+nome = "Feixe do Vigia"
+descricao = "Disparo unico e lento o bastante para ser esquivado -- se voce nao rolar em linha reta."
+dano = 1
+knockback = 60.0
+perfuracao = 0
+cadencia = 1.0
+automatica = false
+projeteis_por_tiro = 1
+abertura_graus = 0.0
+impressao_graus = 0.6
+velocidade_projetil = 430.0
+alcance = 1400.0
+raio_projetil = 6.0
+cor_projetil = Color(1, 0.28, 0.42, 1)
+municao_maxima = -1
+shake_intensidade = 0.0
+shake_duracao = 0.0
+recuo_player = 0.0

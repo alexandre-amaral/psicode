@@ -1,0 +1,36 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/arena/pickup_arma.gd" id="1_pick"]
+[ext_resource type="Resource" path="res://src/weapons/shotgun.tres" id="2_shot"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_pick"]
+radius = 22.0
+
+[node name="PickupArma" type="Area2D"]
+collision_layer = 32
+collision_mask = 1
+script = ExtResource("1_pick")
+dados = ExtResource("2_shot")
+
+[node name="Forma" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_pick")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Halo" type="Polygon2D" parent="Visual"]
+z_index = -1
+color = Color(1, 0.72, 0.29, 0.15)
+polygon = PackedVector2Array(26, 0, 18.38, 18.38, 0, 26, -18.38, 18.38, -26, 0, -18.38, -18.38, 0, -26, 18.38, -18.38)
+
+[node name="Corpo" type="Polygon2D" parent="Visual"]
+color = Color(1, 0.72, 0.29, 1)
+polygon = PackedVector2Array(14, 0, 0, 10, -14, 0, 0, -10)
+
+[node name="Rotulo" type="Label" parent="."]
+offset_left = -90.0
+offset_top = 26.0
+offset_right = 90.0
+offset_bottom = 48.0
+theme_override_font_sizes/font_size = 13
+text = "ARMA"
+horizontal_alignment = 1

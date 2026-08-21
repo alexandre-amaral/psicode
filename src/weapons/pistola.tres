@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+
+[resource]
+script = ExtResource("1_dados")
+nome = "PST-9 \"Teimosa\""
+descricao = "Pistola de servico com celula de energia auto-recarregavel. Nao acaba. Tambem nao impressiona."
+dano = 2
+knockback = 90.0
+perfuracao = 0
+cadencia = 6.5
+automatica = true
+projeteis_por_tiro = 1
+abertura_graus = 0.0
+impressao_graus = 1.5
+velocidade_projetil = 1000.0
+alcance = 900.0
+raio_projetil = 4.0
+cor_projetil = Color(0.43, 0.9, 1, 1)
+municao_maxima = -1
+shake_intensidade = 2.0
+shake_duracao = 0.07
+recuo_player = 0.0

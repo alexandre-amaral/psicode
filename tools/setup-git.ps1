@@ -13,11 +13,22 @@
 #    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 # =============================================================================
 
-$ErrorActionPreference = "Stop"
+# NAO usar "Stop" aqui. No PowerShell 5.1 (o que vem no Windows), qualquer
+# coisa que git ou gh escrevam em stderr vira um NativeCommandError que aborta
+# o script -- inclusive mensagens que sao a resposta certa, como "voce ainda
+# nao esta logado". Checamos o codigo de saida na mao.
+$ErrorActionPreference = "Continue"
 
 function Passo($texto) { Write-Host "`n=== $texto ===" -ForegroundColor Cyan }
 function Ok($texto)    { Write-Host "  [ok] $texto"    -ForegroundColor Green }
 function Aviso($texto) { Write-Host "  [!]  $texto"    -ForegroundColor Yellow }
+
+# Roda um comando externo capturando saida e codigo, sem deixar o stderr
+# derrubar o script.
+function Exec([string]$programa, [string[]]$argumentos) {
+    $saida = & $programa @argumentos 2>&1 | Out-String
+    return [pscustomobject]@{ Texto = $saida.Trim(); Codigo = $LASTEXITCODE }
+}
 
 # -----------------------------------------------------------------------------
 Passo "1/5  Instalando Git, Git LFS e GitHub CLI"
@@ -57,8 +68,8 @@ Ok (gh --version | Select-Object -First 1)
 # -----------------------------------------------------------------------------
 Passo "2/5  Sua identidade nos commits"
 
-$nomeAtual  = git config --global user.name
-$emailAtual = git config --global user.email
+$nomeAtual  = (Exec git @("config", "--global", "user.name")).Texto
+$emailAtual = (Exec git @("config", "--global", "user.email")).Texto
 
 if ([string]::IsNullOrWhiteSpace($nomeAtual)) {
     $nome = Read-Host "  Seu nome (aparece em todo commit)"
@@ -108,14 +119,14 @@ Ok "filtros do LFS registrados"
 # -----------------------------------------------------------------------------
 Passo "5/5  Autenticacao no GitHub"
 
-$statusGh = gh auth status 2>&1
-if ($LASTEXITCODE -ne 0) {
+$statusGh = Exec gh @("auth", "status")
+if ($statusGh.Codigo -ne 0) {
     Write-Host "  Vai abrir o navegador. Escolha:" -ForegroundColor DarkGray
     Write-Host "    GitHub.com  ->  HTTPS  ->  Yes (autenticar o Git)  ->  Login with a web browser" -ForegroundColor DarkGray
     gh auth login
 } else { Ok "ja autenticado" }
 
-gh auth setup-git
+Exec gh @("auth", "setup-git") | Out-Null
 Ok "Git passa a usar as credenciais do gh -- sem digitar senha em push"
 
 Write-Host "`nSetup concluido." -ForegroundColor Green

@@ -4,14 +4,33 @@
 #  Rode DEPOIS de .\tools\setup-git.ps1, e de dentro de C:\dev\psicode.
 #  Cria o repositorio privado ja com o codigo dentro -- nao precisa criar
 #  nada pelo site antes.
+#
+#  Pode rodar quantas vezes quiser: ele detecta o que ja foi feito e continua
+#  de onde parou.
 # =============================================================================
 
-$ErrorActionPreference = "Stop"
+# NAO usar "Stop" aqui. No PowerShell 5.1 (o que vem no Windows), qualquer
+# coisa que o git escreva em stderr vira um NativeCommandError que aborta o
+# script -- inclusive mensagens que sao a resposta certa. Checamos o codigo de
+# saida na mao, que e o que de fato importa.
+$ErrorActionPreference = "Continue"
 
 function Passo($texto) { Write-Host "`n=== $texto ===" -ForegroundColor Cyan }
 function Ok($texto)    { Write-Host "  [ok] $texto"    -ForegroundColor Green }
 function Erro($texto)  { Write-Host "  [X]  $texto"    -ForegroundColor Red }
+function Info($texto)  { Write-Host "  $texto"         -ForegroundColor Gray }
 
+# Roda um comando externo capturando saida e codigo, sem deixar o stderr
+# derrubar o script.
+function Exec([string]$programa, [string[]]$argumentos) {
+    $saida = & $programa @argumentos 2>&1 | Out-String
+    return [pscustomobject]@{
+        Texto  = $saida.Trim()
+        Codigo = $LASTEXITCODE
+    }
+}
+
+# -----------------------------------------------------------------------------
 if (-not (Test-Path ".\project.godot")) {
     Erro "project.godot nao encontrado aqui."
     Erro "Rode este script de dentro da pasta do projeto (C:\dev\psicode)."
@@ -20,52 +39,84 @@ if (-not (Test-Path ".\project.godot")) {
 
 if ((Get-Location).Path -match "OneDrive|Google Drive|Dropbox") {
     Erro "O projeto esta dentro de uma pasta sincronizada: $((Get-Location).Path)"
-    Erro "Mova para C:\dev\psicode antes de continuar. O Godot corrompe o"
-    Erro "proprio cache quando o servico de sync trava arquivo no meio."
+    Erro "Mova para C:\dev\psicode antes de continuar. O Godot nem consegue"
+    Erro "criar a pasta de cache .godot dentro do OneDrive."
     exit 1
 }
 
-Passo "1/4  Inicializando o repositorio local"
+foreach ($prog in @("git", "gh")) {
+    if (-not (Get-Command $prog -ErrorAction SilentlyContinue)) {
+        Erro "'$prog' nao encontrado. Rode antes:  .\tools\setup-git.ps1"
+        Erro "Se ja rodou, feche este PowerShell e abra outro."
+        exit 1
+    }
+}
+
+# -----------------------------------------------------------------------------
+Passo "1/4  Repositorio local"
+
 if (Test-Path ".git") {
     Ok "ja existe um repositorio aqui"
 } else {
-    git init | Out-Null
-    git branch -M main
+    $r = Exec git @("init")
+    if ($r.Codigo -ne 0) { Erro "git init falhou: $($r.Texto)"; exit 1 }
+    Exec git @("branch", "-M", "main") | Out-Null
     Ok "repositorio criado no branch main"
 }
 
-Passo "2/4  Primeiro commit"
-git add .
-$temAlgo = git diff --cached --name-only
-if ([string]::IsNullOrWhiteSpace($temAlgo)) {
+# -----------------------------------------------------------------------------
+Passo "2/4  Commit"
+
+Exec git @("add", ".") | Out-Null
+
+$staged = Exec git @("diff", "--cached", "--name-only")
+if ([string]::IsNullOrWhiteSpace($staged.Texto)) {
     Ok "nada novo para commitar"
 } else {
-    $qtd = ($temAlgo -split "`n").Count
-    git commit -m "primeira build jogavel do vertical slice" | Out-Null
+    $qtd = ($staged.Texto -split "`r?`n").Count
+    $c = Exec git @("commit", "-m", "primeira build jogavel do vertical slice")
+    if ($c.Codigo -ne 0) { Erro "commit falhou: $($c.Texto)"; exit 1 }
     Ok "$qtd arquivos commitados"
 }
 
-# Conferencia: a pasta .godot e cache e nunca deve entrar no repositorio.
-if (git ls-files --error-unmatch ".godot" 2>$null) {
+# Conferencia: .godot e cache do editor e nunca deve entrar no repositorio.
+# 'git ls-files -- .godot' devolve vazio e codigo 0 quando nada casa, sem
+# escrever em stderr -- por isso NAO usamos --error-unmatch aqui.
+$cache = Exec git @("ls-files", "--", ".godot")
+if (-not [string]::IsNullOrWhiteSpace($cache.Texto)) {
     Erro ".godot foi commitado. Isso vira conflito garantido no time."
-    Erro "Rode:  git rm -r --cached .godot  &&  git commit -m 'remove cache do godot'"
+    Info "Rode:  git rm -r --cached .godot ; git commit -m 'remove cache do godot'"
     exit 1
 }
 Ok ".godot ficou de fora, como esperado"
 
-Passo "3/4  Criando o repositorio no GitHub"
-$remoto = git remote get-url origin 2>$null
-if ($remoto) {
-    Ok "remoto ja configurado: $remoto"
-    git push -u origin main
+# -----------------------------------------------------------------------------
+Passo "3/4  Repositorio no GitHub"
+
+$remoto = Exec git @("remote", "get-url", "origin")
+if ($remoto.Codigo -eq 0 -and -not [string]::IsNullOrWhiteSpace($remoto.Texto)) {
+    Ok "remoto ja configurado: $($remoto.Texto)"
+    $p = Exec git @("push", "-u", "origin", "main")
+    if ($p.Codigo -ne 0) { Erro "push falhou:"; Info $p.Texto; exit 1 }
+    Ok "codigo enviado"
 } else {
-    # Cria privado, aponta o remoto para esta pasta e ja sobe o codigo.
-    gh repo create psicode --private --source=. --remote=origin --push
+    $g = Exec gh @("repo", "create", "psicode", "--private", "--source=.", "--remote=origin", "--push")
+    if ($g.Codigo -ne 0) {
+        Erro "gh repo create falhou:"
+        Info $g.Texto
+        Info ""
+        Info "Se a mensagem disser que o repositorio ja existe, conecte na mao:"
+        Info "  git remote add origin https://github.com/SEU-USUARIO/psicode.git"
+        Info "  git push -u origin main"
+        exit 1
+    }
     Ok "repositorio privado criado e codigo enviado"
 }
 
+# -----------------------------------------------------------------------------
 Passo "4/4  O que fazer agora no site"
-$url = git remote get-url origin
+
+$url = (Exec git @("remote", "get-url", "origin")).Texto
 Write-Host @"
 
   Repositorio: $url

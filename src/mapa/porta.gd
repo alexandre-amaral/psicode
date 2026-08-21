@@ -9,8 +9,17 @@ enum Direcao { NORTE, SUL, LESTE, OESTE }
 var sala_pai: Node2D
 
 func _ready() -> void:
-	sala_pai = get_parent().get_parent() # Estrutura: Sala -> Portas -> Porta
+	sala_pai = get_parent().get_parent() 
 	body_entered.connect(_ao_corpo_entrar)
+	
+	# Forçar Layer e Mask para 1 (Colisao de Parede/Player)
+	set_collision_layer_value(1, true)
+	set_collision_mask_value(1, true)
+	# Limpar outras layers caso tenham vindo com 3
+	for i in range(2, 32):
+		set_collision_layer_value(i, false)
+		set_collision_mask_value(i, false)
+		
 	_atualizar_visual()
 
 func abrir() -> void:
@@ -33,12 +42,11 @@ func _ao_corpo_entrar(corpo: Node2D) -> void:
 			Direcao.LESTE: dir_vetor = Vector2.RIGHT
 			Direcao.OESTE: dir_vetor = Vector2.LEFT
 		
-		# Emitimos o desejo de transicao. O GerenciadorMapa escuta.
-		EventBus.transicao_iniciada.emit(dir_vetor, null) # null porque o manager decide a sala nova
+		EventBus.transicao_iniciada.emit(dir_vetor, null)
 
 func _atualizar_visual() -> void:
-	# Placeholder para feedback visual/colisao
-	# No futuro, troca de sprite ou animação
-	set_deferred("monitoring", aberta)
+	set_monitoring(aberta)
+	set_monitorable(aberta)
+	
 	if has_node("Collision"):
 		$Collision.disabled = !aberta

@@ -218,7 +218,7 @@ func _finalizar(venceu: bool) -> void:
 		return
 	rodando = false
 	run_completa.emit(venceu)
-	GameState.terminar_run(venceu)
+	# GameState.terminar_run(venceu) # Removido para desacoplar de salas
 
 
 func parar() -> void:

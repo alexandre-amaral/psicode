@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://src/mapa/sala.gd" id="1_s"]
 [ext_resource type="PackedScene" uid="uid://d1p2q3r4s5t6u" path="res://src/mapa/porta.tscn" id="2_p"]
 [ext_resource type="Script" path="res://src/arena/gerenciador_ondas.gd" id="3_w"]
-[ext_resource type="Resource" uid="uid://df2g3h4j5k6l7" path="res://src/arena/onda_sala_l_shape.tres" id="4_o"]
+[ext_resource type="Resource" path="res://src/arena/onda_sala_l_shape.tres" id="4_o"]
 
 [node name="Sala_2_L_Shape" type="Node2D"]
 script = ExtResource("1_s")
@@ -32,6 +32,6 @@ direcao = 2
 
 [node name="Ondas" type="Node" parent="."]
 script = ExtResource("3_w")
-ondas = Array[ExtResource("res://src/arena/dados_onda.gd")]([ExtResource("4_o")])
+ondas = Array[Resource]([ExtResource("4_o")])
 caminho_container_inimigos = NodePath("../ContainerInimigos")
 area_spawn = Rect2(-600, -300, 1200, 600)

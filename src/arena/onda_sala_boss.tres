@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="DadosOnda" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/arena/dados_onda.gd" id="1_x"]
+
+[resource]
+script = ExtResource("1_x")
+titulo = "CONFRONTO FINAL"
+subtitulo = "A Diretora da Rede se manifesta."
+rastejantes = 0
+vigias = 0
+intervalo_spawn = 0.0
+deterioracao_minima_inicial = 88.0
+deterioracao_ao_limpar = 0.0
+solta_arma = false
+eh_chefe = true
+respiro = 0.0

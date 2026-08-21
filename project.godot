@@ -1,6 +1,10 @@
-; Engine configuration file — psicode
-; Vertical slice: twin-stick shooter roguelike cyberpunk
-; NAO edite este arquivo na mao. Mude pelo Editor: Projeto > Configuracoes do Projeto.
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
 
 config_version=5
 
@@ -10,7 +14,7 @@ config/name="psicode"
 config/description="Vertical slice de um twin-stick shooter roguelike cyberpunk. Sobreviva as ondas enquanto a Deterioracao corrompe sua percepcao."
 config/version="0.1.0"
 run/main_scene="res://src/main/main.tscn"
-config/features=PackedStringArray("4.6", "GL Compatibility")
+config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [autoload]
@@ -92,13 +96,13 @@ debug_deterioracao={
 
 [layer_names]
 
+2d_render/layer_1="mundo"
 2d_physics/layer_1="player"
 2d_physics/layer_2="inimigo"
 2d_physics/layer_3="parede"
 2d_physics/layer_4="projetil_player"
 2d_physics/layer_5="projetil_inimigo"
 2d_physics/layer_6="pickup"
-2d_render/layer_1="mundo"
 
 [physics]
 
@@ -106,7 +110,7 @@ debug_deterioracao={
 
 [rendering]
 
+textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-textures/canvas_textures/default_texture_filter=0
 environment/defaults/default_clear_color=Color(0.043137, 0.047059, 0.078431, 1)

@@ -1,0 +1,69 @@
+[gd_scene load_steps=6 format=3 uid="uid://o0p9q8r7s6t5u"]
+
+[ext_resource type="Script" path="res://src/mapa/sala.gd" id="1_s"]
+[ext_resource type="PackedScene" uid="uid://d1p2q3r4s5t6u" path="res://src/mapa/porta.tscn" id="2_p"]
+[ext_resource type="Script" path="res://src/arena/gerenciador_ondas.gd" id="3_w"]
+[ext_resource type="Resource" uid="uid://df4e3w2q1a0s9" path="res://src/arena/onda_sala_pilar.tres" id="4_o"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_pilar"]
+size = Vector2(240, 240)
+
+[node name="Sala_5_Pilar" type="Node2D"]
+script = ExtResource("1_s")
+tamanho_celula = Vector2(1600, 1600)
+
+[node name="Chao" type="ColorRect" parent="."]
+offset_left = -800.0
+offset_top = -800.0
+offset_right = 800.0
+offset_bottom = 800.0
+color = Color(0.0431373, 0.0509804, 0.0862745, 1)
+
+[node name="Parede" type="Line2D" parent="."]
+points = PackedVector2Array(-800, -800, 800, -800, 800, 800, -800, 800, -800, -800)
+width = 8.0
+default_color = Color(0.3, 0.9, 1, 0.55)
+
+[node name="Obstaculos" type="Node2D" parent="."]
+
+[node name="Pilar" type="StaticBody2D" parent="Obstaculos"]
+collision_layer = 1
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Obstaculos/Pilar"]
+shape = SubResource("RectangleShape2D_pilar")
+
+[node name="Visual" type="ColorRect" parent="Obstaculos/Pilar"]
+offset_left = -120.0
+offset_top = -120.0
+offset_right = 120.0
+offset_bottom = 120.0
+color = Color(0.2, 0.55, 0.8, 0.4)
+
+[node name="Portas" type="Node2D" parent="."]
+
+[node name="Porta_Norte" parent="Portas" instance=ExtResource("2_p")]
+position = Vector2(0, -800)
+
+[node name="Porta_Sul" parent="Portas" instance=ExtResource("2_p")]
+position = Vector2(0, 800)
+rotation = 3.14159
+direcao = 1
+
+[node name="Porta_Leste" parent="Portas" instance=ExtResource("2_p")]
+position = Vector2(800, 0)
+rotation = 1.5708
+direcao = 2
+
+[node name="Porta_Oeste" parent="Portas" instance=ExtResource("2_p")]
+position = Vector2(-800, 0)
+rotation = -1.5708
+direcao = 3
+
+[node name="ContainerInimigos" type="Node2D" parent="."]
+
+[node name="Ondas" type="Node" parent="."]
+script = ExtResource("3_w")
+ondas = Array[ExtResource("res://src/arena/dados_onda.gd")]([ExtResource("4_o")])
+caminho_container_inimigos = NodePath("../ContainerInimigos")
+area_spawn = Rect2(-700, -700, 1400, 1400)

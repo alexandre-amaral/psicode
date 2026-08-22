@@ -133,11 +133,29 @@ sessão de tuning?" Se sim, exporte.
 ## Antes de abrir o PR
 
 ```bash
-godot --headless --path . tools/teste_fumaca.tscn
+godot --headless --path . tools/testes/runner.tscn   # segundos
+godot --headless --path . tools/teste_fumaca.tscn    # minutos
 ```
 
-Precisa imprimir `PASSOU`. O mesmo teste roda no CI, mas rodar local economiza
-a viagem.
+Os dois precisam imprimir `PASSOU`. Rodam no CI também, mas rodar local
+economiza a viagem — e o de cima termina em segundos, então rode ele primeiro.
+
+São dois níveis de propósito:
+
+| | Responde | Quando quebra |
+|---|---|---|
+| `tools/testes/` | "a conta está certa?" | você mexeu em lógica: Deterioração, Balística, um `.tres` |
+| `tools/teste_fumaca.gd` | "a run inteira funciona?" | você mexeu em cena, spawn, fluxo de ondas ou salas |
+
+**Mexeu num número de balanceamento?** Rode o unitário. Boa parte das suites
+existe justamente para pegar erro de tuning: cadência 0 virando divisão por
+zero, onda comum sem nenhum inimigo (a run trava ali), pistola perdendo a
+munição infinita que o GDD promete.
+
+**Criou lógica pura nova?** Adicione uma suite: crie o arquivo em
+`tools/testes/`, herde de `TesteBase`, implemente `executar()` e liste em
+`SUITES` no `runner.gd`. Não há framework — `ok`, `igual`, `perto` e `entre`
+dão conta, e cada falha já diz o esperado e o obtido.
 
 Se você mexeu em algo visual:
 

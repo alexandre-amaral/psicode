@@ -4,6 +4,37 @@ As duas presets já estão configuradas em `export_presets.cfg` e **foram
 testadas**: a build de Windows gera um `.exe` único e a build web roda em
 navegador sem erro de console.
 
+## O caminho normal: deixar o CI gerar
+
+Desde a alpha, quem gera as builds oficiais é o GitHub Actions
+(`.github/workflows/release.yml`). Exportar na mão continua funcionando e é
+útil para testar rápido, mas **a build que vai para o testador sai da tag** —
+assim ela é sempre reproduzível e sempre passou nos testes antes de sair.
+
+Para lançar uma versão:
+
+```bash
+# 1. suba o config/version no project.godot (ex.: 0.1.0-alpha)
+# 2. com o main já atualizado e verde:
+git tag v0.1.0-alpha
+git push origin v0.1.0-alpha
+```
+
+A partir daí o workflow sozinho: baixa o Godot e os templates, roda os testes
+unitários e o teste de fumaça, exporta Windows e Web, e publica uma **GitHub
+Release marcada como pre-release** com `psicode-web.zip` e
+`psicode-windows.zip` anexados.
+
+O `psicode-web.zip` já sai com o `index.html` na raiz — é só subir no itch.io
+sem remontar nada.
+
+> Para só gerar os arquivos sem publicar release, use **Actions → Release →
+> Run workflow**. Os zips ficam em Artifacts por 30 dias.
+
+Convenção de tag: `v<versão>`, igual ao `config/version` do `project.godot`.
+Enquanto for pré-lançamento, o sufixo entra na versão (`0.1.0-alpha`) e a
+release fica marcada como pre-release automaticamente.
+
 ## Pré-requisito, uma vez por máquina
 
 O Godot precisa dos *export templates* (≈1,2 GB, download único):

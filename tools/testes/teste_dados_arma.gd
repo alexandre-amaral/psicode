@@ -53,13 +53,13 @@ func _contrato() -> void:
 ## Sanidade de todas as armas do projeto. Sao invariantes, nao gosto: uma arma
 ## que viole qualquer uma delas esta quebrada, nao "balanceada diferente".
 func _armas_do_projeto() -> void:
-	for caminho in ARMAS:
+	for caminho: String in ARMAS:
 		var arma: DadosArma = load(caminho)
 		if arma == null:
 			ok(false, "%s carrega" % caminho)
 			continue
 
-		var etiqueta := caminho.get_file()
+		var etiqueta: String = caminho.get_file()
 		ok(arma.dano > 0, "%s: dano e positivo" % etiqueta)
 		ok(arma.cadencia > 0.0, "%s: cadencia e positiva" % etiqueta)
 		ok(arma.projeteis_por_tiro >= 1, "%s: dispara ao menos um projetil" % etiqueta)

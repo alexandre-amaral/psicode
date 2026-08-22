@@ -40,13 +40,15 @@ func _rodar() -> void:
 	var falhas: Array[String] = []
 	var suites_quebradas := 0
 
-	for caminho in SUITES:
+	for caminho: String in SUITES:
 		var script: GDScript = load(caminho)
-		if script == null:
-			# Uma suite que nao carrega e uma falha, nao um aviso. Sem isso um
-			# erro de sintaxe faria a suite sumir silenciosamente do relatorio
-			# e o CI passaria verde sem ter rodado nada dela.
-			print("  [FALHA] nao consegui carregar a suite %s" % caminho)
+		# Um script com erro de parse NAO volta null: volta um GDScript
+		# invalido, em que `new()` nao existe. Testar so por null deixava o
+		# .new() estourar e o runner morria antes de imprimir o relatorio --
+		# sem encerrar o processo, segurando o job de CI ate o timeout.
+		# can_instantiate() e o que de fato separa um dos outros.
+		if script == null or not script.can_instantiate():
+			print("  [FALHA] a suite %s nao carregou (erro de sintaxe?)" % caminho)
 			falhas.append("suite nao carregou: %s" % caminho)
 			suites_quebradas += 1
 			continue
@@ -67,7 +69,11 @@ func _rodar() -> void:
 		print("  PASSOU: %d verificacoes em %d suites\n" % [total, SUITES.size()])
 		get_tree().quit(0)
 	else:
-		print("  FALHOU: %d de %d verificacoes" % [falhas.size(), total])
+		# Conta as suites que rodaram de verdade: dizer "em 4 suites" quando
+		# uma nem carregou esconde justamente o pior caso.
+		print("  FALHOU: %d problema(s) em %d verificacoes (%d de %d suites rodaram)" % [
+			falhas.size(), total, SUITES.size() - suites_quebradas, SUITES.size(),
+		])
 		for f in falhas:
 			print("    - " + f)
 		print("")

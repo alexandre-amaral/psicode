@@ -47,7 +47,7 @@ func _curva_das_ondas() -> void:
 		"res://src/arena/onda_5.tres",
 	]
 	var ondas: Array[DadosOnda] = []
-	for c in caminhos:
+	for c: String in caminhos:
 		var d: DadosOnda = load(c)
 		ok(d != null, "%s carrega" % c.get_file())
 		if d != null:

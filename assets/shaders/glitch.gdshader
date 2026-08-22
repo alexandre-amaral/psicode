@@ -59,5 +59,10 @@ void fragment() {
 	cor += cor_glitch.rgb * pulso * vinheta * 2.0;
 	alpha = max(alpha, pulso * vinheta);
 
+	// --- Brilho leve e contínuo no estado crítico ---
+	float brilho_critico = max(0.0, intensidade - 0.8) * 0.25;
+	cor += vec3(brilho_critico);
+	alpha = max(alpha, brilho_critico);
+
 	COLOR = vec4(cor, clamp(alpha, 0.0, alpha_maximo));
 }

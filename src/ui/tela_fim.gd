@@ -47,3 +47,12 @@ func _ao_terminar(venceu: bool, dados: Dictionary) -> void:
 	t.tween_property($Painel, "modulate:a", 1.0, 0.6)
 
 	get_tree().paused = true
+
+func _input(event: InputEvent) -> void:
+	if not visible:
+		return
+	if event.is_action_pressed("reiniciar"):
+		get_tree().paused = false
+		get_tree().change_scene_to_file("res://src/ui/menu_inicial.tscn")
+	elif event.is_action_pressed("pausar"): # Usa pausar(ESC) para sair do jogo a partir da tela de game over
+		get_tree().quit()

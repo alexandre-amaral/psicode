@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://r31arl3fwci2" path="res://src/main/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://src/ui/hud.tscn" id="3_hud"]
 [ext_resource type="PackedScene" path="res://src/ui/tela_fim.tscn" id="4_fim"]
+[ext_resource type="PackedScene" path="res://src/ui/menu_pausa.tscn" id="5_pausa"]
 [ext_resource type="Script" uid="uid://gtup6u4crmq2" path="res://src/mapa/gerenciador_mapa.gd" id="5_jkpqq"]
 [ext_resource type="PackedScene" uid="uid://b1c2d3e4f5g6h" path="res://src/mapa/sala_1_retangular.tscn" id="6_km7bn"]
 [ext_resource type="PackedScene" uid="uid://k2l3m4n5o6p7q" path="res://src/mapa/sala_2_l_shape.tscn" id="7_erw1m"]
@@ -19,6 +20,10 @@ script = ExtResource("1_main")
 [node name="HUD" parent="." unique_id=1549194468 instance=ExtResource("3_hud")]
 
 [node name="TelaFim" parent="." unique_id=290745800 instance=ExtResource("4_fim")]
+
+[node name="TelaFim" parent="." instance=ExtResource("4_fim")]
+
+[node name="MenuPausa" parent="." instance=ExtResource("5_pausa")]
 
 [node name="GerenciadorMapa" type="Node2D" parent="." unique_id=2082792232]
 script = ExtResource("5_jkpqq")

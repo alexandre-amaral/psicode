@@ -49,8 +49,8 @@ func _ready() -> void:
 	_arma_salva = $ArmaSalva
 	_arma_preditiva.hostil = true
 	_arma_salva.hostil = true
-	_anel = $Visual/Anel
-	_nucleo = $Visual/Nucleo
+	_anel = get_node_or_null("Visual/Anel")
+	_nucleo = get_node_or_null("Visual/Nucleo")
 	_aviso = $Aviso
 	_laser = $Laser
 	_laser.top_level = true

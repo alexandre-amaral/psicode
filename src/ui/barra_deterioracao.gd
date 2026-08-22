@@ -28,17 +28,18 @@ func _draw() -> void:
 	draw_rect(r, Color(0.06, 0.07, 0.11, 0.85), true)
 
 	var cor := Deterioracao.cor_fase()
-	var preenchida := Rect2(Vector2.ZERO, Vector2(largura * _valor_exibido, altura_barra))
+	var comprimento_preenchido = largura * (1.0 - _valor_exibido)
+	var preenchida := Rect2(Vector2.ZERO, Vector2(comprimento_preenchido, altura_barra))
 	draw_rect(preenchida, cor, true)
 
 	# Brilho na ponta -- dá a sensacao de energia acumulando.
-	if _valor_exibido > 0.01:
-		var ponta := Rect2(Vector2(largura * _valor_exibido - 3.0, 0.0), Vector2(3.0, altura_barra))
+	if (1.0 - _valor_exibido) > 0.01:
+		var ponta := Rect2(Vector2(comprimento_preenchido - 3.0, 0.0), Vector2(3.0, altura_barra))
 		draw_rect(ponta, Color(1, 1, 1, 0.85), true)
 
 	# Marcas dos limiares.
-	_marca(largura, Deterioracao.LIMIAR_MEDIO / Deterioracao.MAXIMO, Color(1, 1, 1, 0.55))
-	_marca(largura, Deterioracao.LIMIAR_CRITICO / Deterioracao.MAXIMO, Color(1, 0.3, 0.4, 0.8))
+	_marca(largura, 1.0 - (Deterioracao.LIMIAR_MEDIO / Deterioracao.MAXIMO), Color(1, 1, 1, 0.55))
+	_marca(largura, 1.0 - (Deterioracao.LIMIAR_CRITICO / Deterioracao.MAXIMO), Color(1, 0.3, 0.4, 0.8))
 
 	draw_rect(r, Color(cor.r, cor.g, cor.b, 0.7), false, 1.5)
 

@@ -1,0 +1,39 @@
+[gd_scene load_steps=5 format=3 uid="uid://c7d6e5f4g3h2i"]
+
+[ext_resource type="Script" path="res://src/mapa/sala.gd" id="1_s"]
+[ext_resource type="PackedScene" uid="uid://d1p2q3r4s5t6u" path="res://src/mapa/porta.tscn" id="2_p"]
+[ext_resource type="Script" path="res://src/arena/gerenciador_ondas.gd" id="3_w"]
+[ext_resource type="Resource" path="res://src/arena/onda_sala_corredor.tres" id="4_o"]
+
+[node name="Sala_4_Corredor" type="Node2D"]
+script = ExtResource("1_s")
+
+[node name="Chao" type="ColorRect" parent="."]
+offset_left = -600.0
+offset_top = -800.0
+offset_right = 600.0
+offset_bottom = 800.0
+color = Color(0.0431373, 0.0509804, 0.0862745, 1)
+
+[node name="Parede" type="Line2D" parent="."]
+points = PackedVector2Array(-600, -800, 600, -800, 600, 800, -600, 800, -600, -800)
+width = 8.0
+default_color = Color(0.3, 0.9, 1, 0.55)
+
+[node name="Portas" type="Node2D" parent="."]
+
+[node name="Porta_Norte" parent="Portas" instance=ExtResource("2_p")]
+position = Vector2(0, -800)
+
+[node name="Porta_Sul" parent="Portas" instance=ExtResource("2_p")]
+position = Vector2(0, 800)
+rotation = 3.14159
+direcao = 1
+
+[node name="ContainerInimigos" type="Node2D" parent="."]
+
+[node name="Ondas" type="Node" parent="."]
+script = ExtResource("3_w")
+ondas = Array[Resource]([ExtResource("4_o")])
+caminho_container_inimigos = NodePath("../ContainerInimigos")
+area_spawn = Rect2(-500, -700, 1000, 1400)

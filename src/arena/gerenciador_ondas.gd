@@ -4,6 +4,12 @@ extends Node
 ##
 ## Contrato: ele so SPAWNA e CONTA. Nao sabe desenhar nada, nao sabe de HUD.
 ## Tudo que a interface precisa sai pelo EventBus.
+##
+## Decisao de design: `area_spawn` e LOCAL a sala e a conversao para o espaco
+## global acontece na hora do spawn. Quem edita uma sala no editor pensa em
+## coordenadas da propria sala, nao do andar; e e justamente isso que permite
+## varias salas usarem o mesmo gerenciador em posicoes diferentes do mapa sem
+## que nenhuma delas precise saber onde foi parar.
 
 signal onda_completa(indice: int)
 signal run_completa(venceu: bool)
@@ -19,7 +25,9 @@ const CENA_PICKUP := preload("res://src/arena/pickup_arma.tscn")
 ## e sobrevive a quem mover o no no editor sem reconectar nada.
 @export var caminho_container_inimigos: NodePath = ^"../ContainerInimigos"
 @export var caminho_container_pickups: NodePath = ^"../ContainerPickups"
-## Retangulo util onde inimigos podem nascer (em coordenadas locais da arena).
+## Retangulo util onde inimigos podem nascer, em coordenadas LOCAIS da sala.
+## Quem consome converte para global via _para_global(); nunca use este valor
+## direto como posicao de mundo.
 @export var area_spawn: Rect2 = Rect2(-700, -370, 1400, 740)
 ## Distancia minima entre um spawn e o jogador. Impede spawn na cara.
 @export var distancia_minima_player: float = 300.0
@@ -52,8 +60,6 @@ const ONDAS_PADRAO := [
 
 
 func _ready() -> void:
-	# A HUD encontra o gerenciador por grupo para ler o titulo da onda atual.
-	add_to_group("gerenciador_ondas")
 	container_inimigos = get_node_or_null(caminho_container_inimigos) as Node2D
 	container_pickups = get_node_or_null(caminho_container_pickups) as Node2D
 	if container_inimigos == null:
@@ -73,6 +79,10 @@ func iniciar() -> void:
 		return
 	indice = -1
 	rodando = true
+	# Com salas existe um gerenciador por sala vivo ao mesmo tempo. So o
+	# que esta de fato rodando pertence ao grupo -- senao quem consulta o
+	# grupo pega um gerenciador dormente e anuncia a onda errada.
+	add_to_group("gerenciador_ondas")
 	GameState.total_ondas = ondas.size()
 	_proxima_onda(0.9)
 
@@ -99,6 +109,7 @@ func _proxima_onda(atraso: float) -> void:
 			Deterioracao.valor = dados.deterioracao_minima_inicial
 
 	EventBus.onda_iniciada.emit(indice, ondas.size())
+	EventBus.onda_anunciada.emit(dados.titulo, dados.subtitulo)
 
 	if dados.eh_chefe:
 		_spawnar_chefe()
@@ -124,33 +135,45 @@ func _spawnar_onda(dados: DadosOnda) -> void:
 
 
 func _agendar_spawn(cena: PackedScene) -> void:
+	if container_inimigos == null:
+		return
 	var pos := _sortear_posicao()
 	var marcador := CENA_MARCADOR.instantiate()
-	marcador.global_position = pos
 	container_inimigos.add_child(marcador)
+	# global_position so tem significado depois de entrar na arvore: fora dela
+	# o setter cai no position local e o pai reaplica a propria transform em
+	# cima, deslocando o spawn pelo offset da sala.
+	marcador.global_position = pos
 	marcador.terminou.connect(func(p: Vector2) -> void:
-		if not rodando or not is_inside_tree():
+		if not rodando or not is_inside_tree() or container_inimigos == null:
 			return
 		var inimigo := cena.instantiate()
-		inimigo.global_position = p
 		container_inimigos.add_child(inimigo)
+		# p ja vem global -- o marcador emite a propria global_position.
+		inimigo.global_position = p
 		_registrar(inimigo)
 	)
 
 
 func _spawnar_chefe() -> void:
+	if container_inimigos == null:
+		return
+	# O chefe nasce no centro da area util da SALA dona deste gerenciador. Assim
+	# quem monta a sala do chefe decide onde ele aparece so mexendo no .tscn, e
+	# ele nunca cai na origem do mundo por acidente.
+	var pos := _para_global(area_spawn.get_center())
 	var marcador := CENA_MARCADOR.instantiate()
-	marcador.global_position = Vector2.ZERO
 	marcador.duracao = 1.4
 	marcador.cor = Color(0.85, 0.3, 1.0)
 	marcador.scale = Vector2(3.0, 3.0)
 	container_inimigos.add_child(marcador)
-	marcador.terminou.connect(func(_p: Vector2) -> void:
-		if not rodando or not is_inside_tree():
+	marcador.global_position = pos
+	marcador.terminou.connect(func(p: Vector2) -> void:
+		if not rodando or not is_inside_tree() or container_inimigos == null:
 			return
 		_chefe = CENA_DIRETORA.instantiate()
-		_chefe.global_position = Vector2.ZERO
 		container_inimigos.add_child(_chefe)
+		_chefe.global_position = p
 		_chefe.morreu.connect(func(_pos: Vector2) -> void: _finalizar(true))
 	)
 
@@ -208,36 +231,60 @@ func _limpar_onda() -> void:
 
 
 func _soltar_arma() -> void:
+	if container_pickups == null:
+		return
+	var pos := _sortear_posicao(180.0)
 	var pickup := CENA_PICKUP.instantiate()
-	pickup.global_position = _sortear_posicao(180.0)
 	container_pickups.add_child(pickup)
+	pickup.global_position = pos
 
 
 func _finalizar(venceu: bool) -> void:
 	if not rodando:
 		return
 	rodando = false
+	remove_from_group("gerenciador_ondas")
 	run_completa.emit(venceu)
-	GameState.terminar_run(venceu)
+	# GameState.terminar_run(venceu) # Removido para desacoplar de salas
 
 
 func parar() -> void:
 	rodando = false
+	remove_from_group("gerenciador_ondas")
 
 
-## Sorteia um ponto util longe do jogador. Tenta algumas vezes e, se nao
-## conseguir, aceita o melhor candidato -- nunca trava o spawn num loop.
+## Leva um ponto do espaco local da sala para o espaco global.
+##
+## O referencial e o ContainerInimigos, e nao este no: `area_spawn` e escrito no
+## editor da sala, e o container e irmao do "Ondas" -- os dois filhos diretos da
+## sala, sem offset. Multiplicar pela global_transform em vez de somar
+## global_position custa o mesmo e sobrevive a alguem dar offset, rotacao ou
+## escala no container depois.
+func _para_global(ponto_local: Vector2) -> Vector2:
+	if container_inimigos == null:
+		return ponto_local
+	return container_inimigos.global_transform * ponto_local
+
+
+## Sorteia um ponto util longe do jogador e devolve ja em coordenadas GLOBAIS.
+## Tenta algumas vezes e, se nao conseguir, aceita o melhor candidato -- nunca
+## trava o spawn num loop.
 func _sortear_posicao(distancia_min: float = -1.0) -> Vector2:
 	var minimo := distancia_min if distancia_min >= 0.0 else distancia_minima_player
 	var player := get_tree().get_first_node_in_group("player")
-	var melhor := Vector2.ZERO
+	var melhor := _para_global(area_spawn.get_center())
 	var melhor_dist := -1.0
 
 	for tentativa in 24:
-		var p := Vector2(
+		var ponto_local := Vector2(
 			randf_range(area_spawn.position.x, area_spawn.end.x),
 			randf_range(area_spawn.position.y, area_spawn.end.y)
 		)
+		# A conversao vem antes de medir: comparar distancia entre um ponto
+		# local e a global_position do jogador media espacos diferentes, e a
+		# garantia de "nao spawnar na cara" so valia por acidente na sala que
+		# estivesse na origem do mundo.
+		var p := _para_global(ponto_local)
 		if player == null or not is_instance_valid(player):
 			return p
 		var d := p.distance_to(player.global_position)

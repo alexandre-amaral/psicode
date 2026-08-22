@@ -33,7 +33,7 @@ func _ao_terminar(venceu: bool, dados: Dictionary) -> void:
 		_sub.text = "Restaurando do ultimo backup..."
 
 	_stats.text = "\n".join([
-		"ONDAS SOBREVIVIDAS      %d / %d" % [dados.get("ondas", 0), dados.get("total_ondas", 0)],
+		"SALAS LIMPAS            %d / %d" % [dados.get("salas_limpas", 0), dados.get("total_salas", 0)],
 		"HOSTIS NEUTRALIZADOS    %d" % dados.get("inimigos_mortos", 0),
 		"CREDITOS                %d" % dados.get("creditos", 0),
 		"TEMPO                   %s" % GameState.formatar_tempo(dados.get("tempo", 0.0)),

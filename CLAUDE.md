@@ -1,0 +1,100 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+# psicode
+
+Fonte unica de contexto deste repositorio: **`GEMINI.md`**. Ele vale para
+qualquer assistente que trabalhe aqui — o arquivo esta importado abaixo, entao
+nao duplique nada nele neste arquivo. Se algo precisar mudar, mude no
+`GEMINI.md`.
+
+@GEMINI.md
+
+## Comandos
+
+Nao ha runner de teste unitario nem linter. O portao de qualidade e uma cena
+unica que sobe o jogo inteiro sem janela:
+
+```bash
+godot --headless --path . --import                          # gera .godot/ ; rode antes do resto em maquina limpa
+godot --headless --path . tools/teste_fumaca.tscn           # precisa imprimir PASSOU ; saida 0 = passou
+godot --path . tools/capturar.tscn --resolution 1280x720    # screenshots em user://capturas
+godot --headless --path . --export-release "Windows Desktop"
+godot --headless --path . --export-release "Web"
+```
+
+**Nao da para rodar "um teste so".** `tools/teste_fumaca.gd` e monolitico: os
+asserts unitarios (balistica, limiares da Deterioracao) vivem em
+`_testar_balistica()` e rodam no `_ready`, antes de o jogo subir; o resto e um
+`_process` que mata os inimigos por script ate a run terminar. Para iterar num
+assert isolado, comente a linha que instancia `main.tscn` no `_ready`.
+
+O mesmo teste roda em todo push e PR pelo `.github/workflows/ci.yml`.
+
+## Versao do Godot — conferir antes de confiar
+
+Os arquivos discordam entre si. Se algo quebrar por versao, e aqui:
+
+| Onde | Diz |
+|---|---|
+| `GEMINI.md` | 4.7-stable |
+| `project.godot` (`config/features`) | 4.7 |
+| `README.md` | 4.6 |
+| `.github/workflows/ci.yml` (`GODOT_VERSAO`) | 4.6-stable |
+
+O editor instalado nesta maquina e **4.7.2-stable**, e nao esta no PATH:
+
+```bash
+GODOT="/c/Users/alcyn/Downloads/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe"
+```
+
+Use a variante `_console.exe` — a outra nao devolve stdout, e o teste de fumaca
+se comunica imprimindo. O risco real: **local roda 4.7.2 e o CI roda 4.6**, entao
+um recurso de 4.7 passa aqui e quebra no PR.
+
+## Arquitetura que so aparece lendo varios arquivos
+
+**Ciclo de vida da run.** Nenhum autoload se inicia sozinho. `GameState` fica em
+`Estado.MENU` ate alguem chamar `iniciar_run()`, e e essa chamada que liga
+`Deterioracao.passiva_ativa` e destrava `alternar_pausa()`. O fim vem de
+`GameState.terminar_run(venceu)`, que emite `EventBus.run_terminada` — o unico
+sinal que a `tela_fim` e o teste de fumaca escutam. Derrota sai de
+`player.gd`; a vitoria precisa de alguem chamando `terminar_run(true)`.
+Ao mexer em quem hospeda a run, **verifique que essas duas chamadas
+sobreviveram** — ja se perderam uma vez ao trocar a arena pelo sistema de salas,
+e o sintoma foi silencioso: a Deterioracao passiva simplesmente parou de subir.
+
+**`GerenciadorOndas` e um componente, nao um singleton.** Ele so spawna e conta
+(`src/arena/gerenciador_ondas.gd`). Cada arena ou sala instancia o seu, entao
+pode haver varios na arvore ao mesmo tempo — cuidado com o grupo
+`gerenciador_ondas` e com os campos globais `GameState.onda_atual` /
+`total_ondas`, que sao unicos e o ultimo a escrever vence. Quem termina a
+sequencia e `run_completa(venceu)`, emitido tanto quando as ondas acabam quanto
+quando o chefe morre; `onda_completa(indice)` **nao** dispara na onda do chefe.
+
+**Camada de mapa em obra.** `src/mapa/` (salas, portas, gerenciador) e da Fase 3
+e ainda nao fecha o loop: geracao, colisao de parede e travessia de porta estao
+sendo refeitas. Trate o que esta la como rascunho, nao como padrao a imitar, e
+confirme o estado real antes de construir em cima.
+
+**Layers de fisica sao nomeadas** em `project.godot` — 1 `player`, 2 `inimigo`,
+3 `parede`, 4 `projetil_player`, 5 `projetil_inimigo`, 6 `pickup`. Cena nova que
+inventa layer numerica sem olhar essa tabela quebra colisao de um jeito dificil
+de enxergar.
+
+## So para o Claude
+
+- Em sessao no Claude.ai ou no Cowork existe uma **skill `psicode`** com o
+  mesmo conteudo mais `references/gdd.md`, `references/decisoes.md` e
+  `references/armadilhas.md`. Ela e carregada sozinha quando o assunto e o
+  jogo. No Claude Code, vale este arquivo.
+- Com o MCP do Godot ativo (`docs/MCP.md`), prefira **ler o estado real** a
+  supor: `get_scene_tree`, `get_node_properties`, `get_editor_errors`,
+  `validate_script`. Um `.tscn` lido pelo MCP e mais confiavel que um lido como
+  texto.
+- Ferramenta de MCP dando timeout quase sempre significa **Godot fechado**, nao
+  bug. Conferir antes de investigar qualquer outra coisa.
+- Editar cena pelo MCP passa pelo undo do editor, mas **grava em disco so no
+  save**. Depois de mexer em `.tscn`, chame `save_scene` — senao o `git status`
+  nao vai ver a mudanca.

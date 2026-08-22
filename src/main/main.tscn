@@ -1,15 +1,29 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene format=3 uid="uid://qdbdsohqtvwq"]
 
-[ext_resource type="Script" path="res://src/main/main.gd" id="1_main"]
-[ext_resource type="PackedScene" path="res://src/arena/arena.tscn" id="2_arena"]
+[ext_resource type="Script" uid="uid://r31arl3fwci2" path="res://src/main/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://src/ui/hud.tscn" id="3_hud"]
 [ext_resource type="PackedScene" path="res://src/ui/tela_fim.tscn" id="4_fim"]
+[ext_resource type="Script" uid="uid://gtup6u4crmq2" path="res://src/mapa/gerenciador_mapa.gd" id="5_jkpqq"]
+[ext_resource type="PackedScene" uid="uid://b1c2d3e4f5g6h" path="res://src/mapa/sala_1_retangular.tscn" id="6_km7bn"]
+[ext_resource type="PackedScene" uid="uid://k2l3m4n5o6p7q" path="res://src/mapa/sala_2_l_shape.tscn" id="7_erw1m"]
+[ext_resource type="PackedScene" uid="uid://j9k8l7m6n5o4p" path="res://src/mapa/sala_3_grande.tscn" id="8_w0wra"]
+[ext_resource type="PackedScene" uid="uid://c7d6e5f4g3h2i" path="res://src/mapa/sala_4_corredor.tscn" id="9_ibsor"]
+[ext_resource type="PackedScene" uid="uid://o0p9q8r7s6t5u" path="res://src/mapa/sala_5_pilar.tscn" id="10_pilar"]
+[ext_resource type="PackedScene" uid="uid://u6i7o8p9q0a1b" path="res://src/mapa/sala_6_boss.tscn" id="10_hc2u7"]
+[ext_resource type="PackedScene" uid="uid://x1y2z3a4b5c6d" path="res://src/mapa/sala_7_tesouro.tscn" id="11_tesouro"]
+[ext_resource type="PackedScene" path="res://src/player/player.tscn" id="10_km7bn"]
 
-[node name="Main" type="Node"]
+[node name="Main" type="Node" unique_id=614128192]
 script = ExtResource("1_main")
 
-[node name="Arena" parent="." instance=ExtResource("2_arena")]
+[node name="HUD" parent="." unique_id=1549194468 instance=ExtResource("3_hud")]
 
-[node name="HUD" parent="." instance=ExtResource("3_hud")]
+[node name="TelaFim" parent="." unique_id=290745800 instance=ExtResource("4_fim")]
 
-[node name="TelaFim" parent="." instance=ExtResource("4_fim")]
+[node name="GerenciadorMapa" type="Node2D" parent="." unique_id=2082792232]
+script = ExtResource("5_jkpqq")
+cenas_salas = Array[PackedScene]([ExtResource("6_km7bn"), ExtResource("7_erw1m"), ExtResource("8_w0wra"), ExtResource("9_ibsor"), ExtResource("10_pilar")])
+cena_boss = ExtResource("10_hc2u7")
+cena_tesouro = ExtResource("11_tesouro")
+
+[node name="Player" parent="." unique_id=220117599 groups=["player"] instance=ExtResource("10_km7bn")]

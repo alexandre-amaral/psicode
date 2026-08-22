@@ -71,6 +71,7 @@ func _ready() -> void:
 	_arma.ficou_sem_municao.connect(_ao_acabar_municao)
 	_arma.disparou.connect(_ao_disparar)
 
+	# A camera agora e gerenciada pelo mapa ou sala. 
 	EventBus.player_pronto.emit(self)
 	vida_alterada.emit(vida, vida_maxima)
 	EventBus.player_dano_recebido.emit(vida, vida_maxima)

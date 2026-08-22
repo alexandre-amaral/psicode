@@ -29,6 +29,7 @@ var _t_acao: float = 0.0
 var _ataque_atual: String = ""
 var _fila: Array[String] = []
 var _centro: Vector2 = Vector2.ZERO
+var _centro_definido: bool = false
 var _angulo_orbita: float = 0.0
 var _invocados: Array[Node] = []
 var _ponto_previsto: Vector2 = Vector2.ZERO
@@ -44,7 +45,6 @@ var _aviso: Polygon2D
 
 func _ready() -> void:
 	super._ready()
-	_centro = global_position
 	_arma_preditiva = $Visual/ArmaPreditiva
 	_arma_salva = $ArmaSalva
 	_arma_preditiva.hostil = true
@@ -96,6 +96,13 @@ func _comportamento(delta: float) -> void:
 # ------------------------------------------------------------ movimento ---
 
 func _orbitar(delta: float) -> void:
+	# O centro da orbita e capturado no primeiro frame de movimento, nao no
+	# _ready: quem spawna o chefe so atribui a global_position DEPOIS do
+	# add_child, e o _ready roda durante o add_child. Ler ali daria a origem do
+	# container, e a orbita ignoraria em silencio o area_spawn da sala do chefe.
+	if not _centro_definido:
+		_centro = global_position
+		_centro_definido = true
 	# Ela nao persegue. Circula devagar no centro, como um sistema rodando.
 	_angulo_orbita += velocidade_orbita * delta * Deterioracao.multiplicador_velocidade()
 	var destino := _centro + Vector2.RIGHT.rotated(_angulo_orbita) * raio_orbita
@@ -251,8 +258,12 @@ func _atacar_invocar() -> void:
 			cena = CENA_VIGIA
 		var inimigo := cena.instantiate()
 		var angulo := randf() * TAU
-		inimigo.global_position = global_position + Vector2.RIGHT.rotated(angulo) * randf_range(110.0, 190.0)
+		var destino := global_position + Vector2.RIGHT.rotated(angulo) * randf_range(110.0, 190.0)
+		# add_child ANTES de global_position: fora da arvore o setter nao acha o
+		# pai e cai no position local, e o container reaplica a propria transform
+		# por cima -- o invocado nascia no dobro do offset da sala do chefe.
 		container.add_child(inimigo)
+		inimigo.global_position = destino
 		_invocados.append(inimigo)
 	EventBus.pedido_shake.emit(6.0, 0.25)
 

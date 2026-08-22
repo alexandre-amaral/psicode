@@ -62,7 +62,8 @@ Só depois que a base for divertida.
 
 ## Fase 3 — Roguelike de verdade
 
-- [ ] Sistema de salas: gerar 8–12 salas conectadas, lockdown por sala
+- [x] Sistema de salas: gerar 8–12 salas conectadas, lockdown por sala
+  — ficou de fora o minimapa (ainda não dá para se orientar no andar) e o pathfinding: o melee continua andando em linha reta, e agora há pilares e paredes em L para ele encalhar, exatamente o problema que a tabela de dívidas técnicas já previa para esta fase
 - [ ] Mais dois tipos de inimigo (algo que force reposicionamento, e algo que force priorizar alvo)
 - [ ] 3–4 armas novas — o sistema já suporta: cada arma é um `.tres`
 - [ ] Créditos e loot dropados

@@ -33,4 +33,4 @@ direcao = 2
 script = ExtResource("3_w")
 ondas = Array[Resource]([ExtResource("4_o")])
 caminho_container_inimigos = NodePath("../ContainerInimigos")
-area_spawn = Rect2(-600, -300, 1200, 600)
+area_spawn = Rect2(-700, -350, 1400, 250)

@@ -16,6 +16,14 @@ extends Node
 ## termina a run, entao ir direto para la passaria o teste sem ter tocado no
 ## resto do andar. Entre as demais, o criterio de escolha e aproximar do chefe.
 ##
+## Terceira decisao: o teste mata inimigo por grupo, onde quer que ele esteja --
+## e por isso ele nao enxerga POSICAO de graca. Ja passou verde uma build em que
+## todas as salas spawnavam na origem do mundo, porque `area_spawn` e local a
+## sala e estava sendo usada como coordenada global. Por isso existe aqui a
+## conferencia de que todo inimigo nasce dentro da sala que o spawnou, a
+## Diretora inclusive. Sem ela, esta ferramenta so prova que o andar carrega e
+## limpa, nao que o combate acontece onde o jogador esta.
+##
 ## Use:  godot --headless --path . tools/teste_fumaca.tscn
 ## Saida 0 = passou. Qualquer outra coisa = quebrou.
 
@@ -32,6 +40,18 @@ const TEMPO_ESPERA_MAPA := 5.0
 ## pedir a proxima.
 const INTERVALO_AVANCO := 0.35
 
+## Folga aceita entre a borda da sala e o ponto onde o inimigo foi visto pela
+## primeira vez. Cobre a espessura da parede e o passo que ele pode ter dado no
+## frame entre nascer e ser conferido. E pequena de proposito: o defeito que
+## esta conferencia existe para pegar joga o inimigo salas inteiras de
+## distancia, nao 90 pixels.
+const FOLGA_SPAWN := 96.0
+
+## Um spawn errado costuma errar TODOS os spawns daquela sala. Relatar cada um
+## enterraria o resto do diagnostico; o que passar do limite vira uma linha de
+## contagem no fim, entao nada e escondido.
+const MAX_RELATOS_SPAWN := 6
+
 var _t: float = 0.0
 var _t_tick: float = 0.0
 var _t_avanco: float = 0.0
@@ -43,6 +63,12 @@ var _mapa: GerenciadorMapa = null
 var _celula_atual: Vector2i = Vector2i.ZERO
 var _visitadas: Dictionary = {}
 var _salas_percorridas: int = 0
+
+## id de instancia -> true. Cada inimigo e conferido uma vez so, no primeiro
+## frame em que aparece no grupo.
+var _spawns_conferidos: Dictionary = {}
+var _spawns_fora: int = 0
+var _diretora_conferida: bool = false
 
 
 func _ready() -> void:
@@ -84,6 +110,11 @@ func _process(delta: float) -> void:
 	_t_avanco -= delta
 	_avancar_se_der()
 
+	# Todo frame, e ANTES do tick de dano: quem apanha ali morre e sai do grupo
+	# no mesmo frame. Conferir depois deixaria de olhar justamente os inimigos
+	# que nasceram e morreram entre dois ticks.
+	_conferir_spawns()
+
 	_t_tick -= delta
 	if _t_tick > 0.0:
 		return
@@ -99,6 +130,102 @@ func _bater_nos_inimigos() -> void:
 		# transicoes de fase e os padroes de ataque nunca rodariam.
 		var dano := DANO_POR_TICK_CHEFE if no.get("nome_exibicao") != null else 999
 		no.receber_dano(dano, Vector2.ZERO)
+
+
+# ---------------------------------------------------- spawn dentro da sala ---
+
+## Cada inimigo e conferido no primeiro frame em que existe, que e o mais perto
+## que da para chegar de "no momento em que nasce" sem depender de sinal: o
+## EventBus.inimigo_spawnou e emitido no _ready do InimigoBase, ou seja, durante
+## o add_child -- ANTES de quem spawna atribuir a posicao. Escutar aquele sinal
+## medira sempre a origem do container, e passaria verde com qualquer defeito de
+## coordenada.
+func _conferir_spawns() -> void:
+	for no in get_tree().get_nodes_in_group("inimigo"):
+		var inimigo := no as Node2D
+		if inimigo == null or not is_instance_valid(inimigo):
+			continue
+		var id := inimigo.get_instance_id()
+		if _spawns_conferidos.has(id):
+			continue
+		_spawns_conferidos[id] = true
+		_conferir_um_spawn(inimigo)
+
+
+func _conferir_um_spawn(inimigo: Node2D) -> void:
+	var eh_chefe: bool = inimigo.get("nome_exibicao") != null
+	if eh_chefe:
+		_diretora_conferida = true
+
+	var pos := inimigo.global_position
+	var dona := _sala_hospedeira(inimigo)
+	if dona == null:
+		_relatar_spawn_fora("%s nasceu em %s e nao tem nenhuma Sala acima dele na arvore -- foi parar fora do andar" % [
+			_apelido(inimigo, eh_chefe),
+			_ponto(pos),
+		])
+		return
+
+	var limites := dona.obter_limites()
+	if limites.grow(FOLGA_SPAWN).has_point(pos):
+		# Estar dentro de UMA sala nao basta para o chefe: a Diretora tem de
+		# nascer na sala do chefe.
+		if eh_chefe and dona.tipo != "boss":
+			_relatar_spawn_fora("a Diretora nasceu em %s, dentro da sala %s tipo=%s -- deveria nascer na sala do chefe" % [
+				_ponto(pos),
+				dona.coordenadas_grid,
+				dona.tipo,
+			])
+		return
+
+	var texto := "%s nasceu FORA da sala que o spawnou. posicao=%s | sala=%s tipo=%s | retangulo=%s | folga aceita=%.0fpx | esta a %.0fpx do centro da sala e a %.0fpx da origem do mundo" % [
+		_apelido(inimigo, eh_chefe),
+		_ponto(pos),
+		dona.coordenadas_grid,
+		dona.tipo,
+		_retangulo(limites),
+		FOLGA_SPAWN,
+		pos.distance_to(limites.get_center()),
+		pos.length(),
+	]
+	# O caso que mais engana: Vector2.ZERO literal no spawn parece inocente e
+	# so aparece quando a sala nao esta na origem do mundo.
+	if pos.length() <= FOLGA_SPAWN:
+		texto += " -- nascer colado no (0,0) e sintoma de posicao local usada como global, ou de Vector2.ZERO literal"
+	_relatar_spawn_fora(texto)
+
+
+## Sobe pelos pais ate achar a Sala dona. Em ferramenta de teste isto e leitura
+## de estado, nao acoplamento de jogo: e o unico jeito de saber qual sala
+## spawnou aquele inimigo em particular, incluindo os invocados pelo chefe.
+func _sala_hospedeira(inimigo: Node) -> Sala:
+	var atual: Node = inimigo.get_parent()
+	while atual != null:
+		var sala := atual as Sala
+		if sala != null:
+			return sala
+		atual = atual.get_parent()
+	return null
+
+
+func _relatar_spawn_fora(texto: String) -> void:
+	_spawns_fora += 1
+	if _spawns_fora <= MAX_RELATOS_SPAWN:
+		_falhar(texto)
+
+
+func _apelido(inimigo: Node2D, eh_chefe: bool) -> String:
+	if eh_chefe:
+		return "a Diretora"
+	return "o inimigo '%s'" % inimigo.name
+
+
+func _ponto(v: Vector2) -> String:
+	return "(%.0f, %.0f)" % [v.x, v.y]
+
+
+func _retangulo(r: Rect2) -> String:
+	return "x[%.0f..%.0f] y[%.0f..%.0f]" % [r.position.x, r.end.x, r.position.y, r.end.y]
 
 
 # --------------------------------------------------------------- travessia ---
@@ -268,6 +395,15 @@ func _ao_terminar(venceu: bool, dados: Dictionary) -> void:
 	_log("run_terminada venceu=%s %s" % [venceu, dados])
 	if not venceu:
 		_falhar("a run terminou em derrota")
+
+	# Assercao que nunca olhou ninguem passa verde igual a assercao que passou.
+	# Estes dois checks existem para que a conferencia de spawn nao possa virar
+	# decoracao sem alguem perceber.
+	if _spawns_conferidos.is_empty():
+		_falhar("nenhum inimigo apareceu no grupo 'inimigo' durante a run inteira -- a conferencia de spawn nao chegou a rodar")
+	if venceu and not _diretora_conferida:
+		_falhar("a run venceu sem que o teste visse a Diretora viva -- a posicao de nascimento dela nao foi conferida")
+
 	_encerrar()
 
 
@@ -332,12 +468,22 @@ func _log(texto: String) -> void:
 
 func _encerrar() -> void:
 	_terminou = true
+	if _spawns_fora > MAX_RELATOS_SPAWN:
+		_falhar("e mais %d inimigo(s) nasceram fora da propria sala alem dos %d relatados acima" % [
+			_spawns_fora - MAX_RELATOS_SPAWN,
+			MAX_RELATOS_SPAWN,
+		])
 	print("\n--- linha do tempo ---")
 	for e in _eventos:
 		print("  " + e)
 	print("\n--- resultado ---")
 	if _falhas.is_empty():
-		print("  PASSOU: %d eventos, %d salas, %.1fs simulados\n" % [_eventos.size(), _salas_percorridas, _t])
+		print("  PASSOU: %d eventos, %d salas, %d spawns conferidos, %.1fs simulados\n" % [
+			_eventos.size(),
+			_salas_percorridas,
+			_spawns_conferidos.size(),
+			_t,
+		])
 		get_tree().quit(0)
 	else:
 		print("  FALHOU com %d problema(s):" % _falhas.size())

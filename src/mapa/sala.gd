@@ -11,6 +11,12 @@ extends Node2D
 ##
 ## Segunda decisao: porta sem vizinho do outro lado e SELADA, e parede passa
 ## reta por cima dela. Buraco para o vazio e pior que sala fechada.
+##
+## Terceira decisao: quem precisa de um ponto DENTRO da sala pergunta a ela, e
+## nunca deduz do bounding box. O centro da caixa do L e o canto concavo (fora
+## da sala) e o centro da sala de pilar e o pilar -- os dois casos ja nasceram o
+## jogador dentro de geometria solida. ponto_seguro() e posicao_livre() existem
+## para isso, e olham o contorno real mais os obstaculos.
 
 enum Estado { INATIVA, OCUPADA, LIMPA }
 
@@ -24,6 +30,15 @@ const TOLERANCIA_ENCAIXE := 24.0
 ## Quanto o jogador entra na sala alem da boca da porta. Menos que isso e o
 ## lockdown fecha a parede em cima dele no mesmo frame da chegada.
 const RECUO_ENTRADA := 90.0
+## Folga exigida entre o corpo do jogador e qualquer parede ou obstaculo. O
+## CollisionShape2D do player tem raio 11; o resto e margem para ele nao nascer
+## raspando numa quina e ser empurrado para dentro do solido pela resolucao.
+const FOLGA_CORPO := 24.0
+## Passo da varredura que procura ponto livre. Cada candidato e validado exato,
+## entao o passo so decide o quao estreita pode ser uma passagem para ainda ser
+## encontrada: 64 acha qualquer vao maior que isso e custa poucas centenas de
+## testes na maior sala, uma vez so por sala.
+const PASSO_VARREDURA := 64.0
 
 @export var tipo: String = "combate"
 
@@ -44,6 +59,12 @@ var _ondas: GerenciadorOndas = null
 ## "9 / 10" numa run completa; anunciar no _ready contaria as dez salas do
 ## andar de uma vez, inclusive as que ninguem visitou.
 var _anunciou_limpa: bool = false
+
+## A geometria da sala nao muda em runtime, e a varredura e determinista: vale a
+## pena pagar uma vez e devolver sempre o mesmo ponto. Nascer em lugar diferente
+## a cada reentrada na mesma sala seria ruido, nao variedade.
+var _ponto_seguro_local: Vector2 = Vector2.ZERO
+var _ponto_seguro_pronto: bool = false
 
 
 func _ready() -> void:
@@ -101,6 +122,27 @@ func boca_da_porta(direcao: Vector2) -> Vector2:
 ## porta do lado oposto e ja aparece dentro da sala, nao em cima do vao.
 func ponto_de_entrada(direcao_vinda: Vector2) -> Vector2:
 	return boca_da_porta(-direcao_vinda) + direcao_vinda * RECUO_ENTRADA
+
+
+## Ponto GLOBAL onde cabe um corpo do tamanho do jogador: dentro do contorno
+## real, longe da parede e fora de qualquer obstaculo. Use isto sempre que
+## precisar de "um lugar dentro da sala" sem uma porta para se guiar -- o centro
+## do bounding box NAO serve, ele cai no entalhe do L e em cima do pilar.
+func ponto_seguro() -> Vector2:
+	if not _ponto_seguro_pronto:
+		_ponto_seguro_local = _procurar_ponto_seguro()
+		_ponto_seguro_pronto = true
+	return to_global(_ponto_seguro_local)
+
+
+## Aquele ponto GLOBAL comporta um corpo de raio `folga` sem entrar em parede
+## nem em obstaculo? E o teste que falta a quem sorteia posicao (spawn de
+## inimigo, pickup) para nao largar nada atras da parede.
+func posicao_livre(ponto_global: Vector2, folga: float = FOLGA_CORPO) -> bool:
+	var contorno := _pontos_do_contorno()
+	if contorno.size() < 3:
+		return true
+	return _local_livre(to_local(ponto_global), contorno, folga)
 
 
 ## Idempotente de proposito: reentrar numa sala ja limpa nao pode recomecar as
@@ -194,6 +236,94 @@ func _pontos_do_contorno() -> PackedVector2Array:
 	for ponto in parede.points:
 		pontos.append(parede.transform * ponto)
 	return pontos
+
+
+## Varredura determinista em coordenadas locais. O centro do bounding box e
+## testado primeiro porque, quando ele serve, e o enquadramento que quem montou
+## a sala espera; so quando ele cai em solido a grade entra, e entre os pontos
+## validos vence o mais proximo desse centro -- assim a sala em L larga o
+## jogador no braco, nao numa quina distante.
+func _procurar_ponto_seguro() -> Vector2:
+	var contorno := _pontos_do_contorno()
+	if contorno.size() < 3:
+		return Vector2.ZERO
+
+	var caixa := Rect2(contorno[0], Vector2.ZERO)
+	for i in range(1, contorno.size()):
+		caixa = caixa.expand(contorno[i])
+
+	var centro := caixa.get_center()
+	if _local_livre(centro, contorno, FOLGA_CORPO):
+		return centro
+
+	var melhor := centro
+	var melhor_distancia := INF
+	var x := caixa.position.x
+	while x <= caixa.end.x:
+		var y := caixa.position.y
+		while y <= caixa.end.y:
+			var candidato := Vector2(x, y)
+			var distancia := candidato.distance_squared_to(centro)
+			if distancia < melhor_distancia and _local_livre(candidato, contorno, FOLGA_CORPO):
+				melhor_distancia = distancia
+				melhor = candidato
+			y += PASSO_VARREDURA
+		x += PASSO_VARREDURA
+
+	if melhor_distancia == INF:
+		push_warning("Sala '%s': nenhum ponto livre para o jogador; caindo no centro." % name)
+	return melhor
+
+
+func _local_livre(ponto: Vector2, contorno: PackedVector2Array, folga: float) -> bool:
+	if not Geometry2D.is_point_in_polygon(ponto, contorno):
+		return false
+	# Dentro do contorno ainda pode ser em cima da parede: o teste de poligono
+	# aceita o ponto colado na linha, e ali o corpo do jogador ja atravessa.
+	for i in range(contorno.size() - 1):
+		var perto := Geometry2D.get_closest_point_to_segment(ponto, contorno[i], contorno[i + 1])
+		if perto.distance_to(ponto) < folga:
+			return false
+	return not _dentro_de_obstaculo(ponto, folga)
+
+
+## Usa a propria forma de colisao do obstaculo contra um disco do tamanho do
+## corpo: assim vale para retangulo, circulo ou poligono sem um caso por tipo.
+func _dentro_de_obstaculo(ponto: Vector2, folga: float) -> bool:
+	var raiz := get_node_or_null("Obstaculos")
+	if raiz == null:
+		return false
+	var corpo := CircleShape2D.new()
+	corpo.radius = folga
+	var onde_o_corpo_esta := Transform2D(0.0, ponto)
+	for forma in _formas_de(raiz):
+		if forma.shape == null or forma.disabled:
+			continue
+		if forma.shape.collide(_transform_relativa(forma), corpo, onde_o_corpo_esta):
+			return true
+	return false
+
+
+## Transform do no medida a partir DESTA sala, subindo a cadeia. Nao usa
+## global_transform de proposito: assim a conta tambem vale para a instancia que
+## o gerenciador cria fora da arvore so para ler o catalogo de formas.
+func _transform_relativa(no: Node2D) -> Transform2D:
+	var acumulada := Transform2D.IDENTITY
+	var atual: Node2D = no
+	while atual != null and atual != self:
+		acumulada = atual.transform * acumulada
+		atual = atual.get_parent() as Node2D
+	return acumulada
+
+
+func _formas_de(raiz: Node) -> Array[CollisionShape2D]:
+	var lista: Array[CollisionShape2D] = []
+	for filho in raiz.get_children():
+		var forma := filho as CollisionShape2D
+		if forma != null:
+			lista.append(forma)
+		lista.append_array(_formas_de(filho))
+	return lista
 
 
 func _montar_paredes() -> void:

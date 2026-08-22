@@ -81,6 +81,10 @@ var _direcao_travessia: Vector2 = Vector2.ZERO
 ## estado de sala, e ambos rodam de dentro de um sinal de fisica.
 var _ocupado: bool = false
 
+## Zoom que o Camera2D do player traz da propria cena, lido no primeiro clamp.
+## E o valor para o qual o enquadramento volta em toda sala que cabe na tela.
+var _zoom_base: float = 0.0
+
 
 func _ready() -> void:
 	add_to_group("gerenciador_mapa")
@@ -652,10 +656,16 @@ func _revelar(celula: Vector2i) -> void:
 	if sala.estado == Sala.Estado.INATIVA:
 		_destrancar(sala)
 
+	# So aparece o corredor cujas DUAS pontas ja foram reveladas. Revelar todo
+	# corredor encostado na celula desenhava chao e parede entrando numa sala
+	# ainda oculta: o jogador via um caminho iluminado terminando no escuro, em
+	# lugar onde ele ainda nao pode entrar. O corredor da saida acende no mesmo
+	# frame em que _sair revela o destino, entao a travessia nao perde nada.
 	for ligacao in _corredores:
-		if ligacao["a"] == celula or ligacao["b"] == celula:
-			var no: Corredor = ligacao["no"]
-			no.visible = true
+		if ligacao["a"] != celula and ligacao["b"] != celula:
+			continue
+		var no: Corredor = ligacao["no"]
+		no.visible = _visitadas.has(ligacao["a"]) and _visitadas.has(ligacao["b"])
 
 
 ## Sala nao expoe controle de porta individual, mas as portas sao filhas dela.
@@ -744,10 +754,21 @@ func _cancelar_travessia() -> void:
 
 ## `direcao` e o sentido da caminhada, nao o lado da porta que avisou: quem
 ## chega andando para o leste entra pela porta oeste da sala nova.
+##
+## Sem direcao (primeira sala do andar, ou o salto que o teste de fumaca usa)
+## nao existe porta para se guiar. Aqui ficava o centro do bounding box, e era
+## por isso que o jogador nascia dentro do pilar da sala 5 e no canto concavo da
+## sala em L: bounding box nao sabe onde a sala termina. Quem sabe e a sala.
 func _posicao_de_chegada(destino: Sala, direcao: Vector2) -> Vector2:
 	if direcao == Vector2.ZERO:
-		return destino.obter_limites().get_center()
-	return destino.ponto_de_entrada(direcao)
+		return destino.ponto_seguro()
+	var entrada := destino.ponto_de_entrada(direcao)
+	# A boca da porta so leva a lugar bom se nao houver obstaculo logo atras
+	# dela. Nenhuma sala de hoje cai nisso; a guarda evita que a proxima que
+	# tiver um obstaculo colado na porta reponha o mesmo defeito.
+	if destino.posicao_livre(entrada):
+		return entrada
+	return destino.ponto_seguro()
 
 
 func _uniao_da_travessia(origem: Sala, destino: Sala) -> Rect2:
@@ -782,10 +803,36 @@ func _clampar(limites: Rect2) -> void:
 	var camera := player.get_node_or_null("Camera") as Camera2D
 	if camera == null:
 		return
+	_ajustar_zoom(camera, limites.size)
 	camera.limit_left = roundi(limites.position.x)
 	camera.limit_top = roundi(limites.position.y)
 	camera.limit_right = roundi(limites.end.x)
 	camera.limit_bottom = roundi(limites.end.y)
+
+
+## O clamp sozinho nao basta: Camera2D nao respeita limite menor que o proprio
+## campo de visao, entao numa sala mais estreita que a tela ela desenha o vazio
+## de fora da sala nas bordas e o jogador le aquilo como area que deveria
+## alcancar. Aproximar o zoom ate o campo caber e o unico remedio que nao passa
+## por desenhar coisa nova.
+##
+## Nas salas de hoje, em janela 16:9, isto nao muda nada. Ele existe porque o
+## stretch "expand" do project.godot alarga o campo em janela ultrawide -- e ai
+## a sala mais estreita do andar volta a nao caber, sem ninguem ter mexido em
+## .tscn nenhum.
+func _ajustar_zoom(camera: Camera2D, area: Vector2) -> void:
+	if _zoom_base <= 0.0:
+		_zoom_base = maxf(camera.zoom.x, camera.zoom.y)
+
+	var vista := camera.get_viewport_rect().size
+	var fator := _zoom_base
+	if area.x > 0.0:
+		fator = maxf(fator, vista.x / area.x)
+	if area.y > 0.0:
+		fator = maxf(fator, vista.y / area.y)
+
+	if not is_equal_approx(camera.zoom.x, fator) or not is_equal_approx(camera.zoom.y, fator):
+		camera.zoom = Vector2(fator, fator)
 
 
 # ----------------------------------------------------------- ciclo da run ---

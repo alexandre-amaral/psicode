@@ -27,3 +27,16 @@ desktop.ini
 
 # Config de MCP: o caminho do servidor e por maquina, nao vale versionar.
 .mcp.json
+
+# Grafo de conhecimento (graphify)
+# Saida gerada a partir do proprio codigo: da para refazer a qualquer momento.
+# Sao ~1,8 MB de JSON/HTML que mudam inteiros a cada rodagem, e os arquivos de
+# controle guardam caminho absoluto da maquina de quem rodou -- inuteis e
+# conflitantes para o resto do time.
+graphify-out/
+
+# Config local do Claude Code: e por maquina, como o .mcp.json acima.
+.claude/settings.local.json
+
+# Builds geradas pelo CI de release.
+/builds/

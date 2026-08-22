@@ -1,0 +1,106 @@
+name: Release
+
+# Gera as builds de Windows e Web e publica numa GitHub Release.
+#
+# Dispara de duas formas:
+#   - empurrando uma tag v* (ex.: v0.1.0-alpha)  -> publica a release
+#   - manualmente pela aba Actions                -> so gera os artefatos
+#
+# Por que o teste de fumaca roda aqui de novo, se ja rodou no PR: a tag pode
+# apontar para qualquer commit. Publicar uma build sem reconferir seria confiar
+# que o commit tagueado e exatamente o que passou no PR -- e nao e sempre.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  # Mesma versao do ci.yml. Se mudar aqui, mude la tambem -- e mude o
+  # config/features do project.godot junto.
+  GODOT_VERSAO: 4.6-stable
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Baixar Godot ${{ env.GODOT_VERSAO }}
+        run: |
+          set -euo pipefail
+          URL="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSAO}/Godot_v${GODOT_VERSAO}_linux.x86_64.zip"
+          curl -fsSL -o godot.zip "$URL"
+          unzip -q godot.zip
+          mv "Godot_v${GODOT_VERSAO}_linux.x86_64" /usr/local/bin/godot
+          chmod +x /usr/local/bin/godot
+          godot --headless --version
+
+      - name: Baixar os export templates
+        # Sem os templates a exportacao falha dizendo que nao encontrou o
+        # template. Vao para o caminho que o Godot procura, que inclui o
+        # numero da versao sem o sufixo "-stable".
+        run: |
+          set -euo pipefail
+          URL="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSAO}/Godot_v${GODOT_VERSAO}_export_templates.tpz"
+          curl -fsSL -o templates.tpz "$URL"
+          unzip -q templates.tpz
+          DESTINO="$HOME/.local/share/godot/export_templates/${GODOT_VERSAO%-stable}.stable"
+          mkdir -p "$DESTINO"
+          mv templates/* "$DESTINO/"
+          ls "$DESTINO" | head
+
+      - name: Importar o projeto
+        # Primeira importacao gera .godot/. Em passo separado para que um erro
+        # de importacao apareca como erro de importacao.
+        run: godot --headless --path . --import
+
+      - name: Teste de fumaca
+        run: godot --headless --path . tools/teste_fumaca.tscn
+
+      - name: Exportar Web
+        run: |
+          set -euo pipefail
+          mkdir -p builds/web
+          godot --headless --path . --export-release "Web" builds/web/index.html
+          test -f builds/web/index.html
+
+      - name: Exportar Windows
+        run: |
+          set -euo pipefail
+          mkdir -p builds/windows
+          godot --headless --path . --export-release "Windows Desktop" builds/windows/psicode.exe
+          test -f builds/windows/psicode.exe
+
+      - name: Empacotar
+        # O zip da web tem o index.html na RAIZ, que e o que o itch.io exige
+        # para rodar no navegador.
+        run: |
+          set -euo pipefail
+          (cd builds/web && zip -qr ../../psicode-web.zip .)
+          (cd builds/windows && zip -qr ../../psicode-windows.zip .)
+          ls -lh psicode-*.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: psicode-builds
+          path: psicode-*.zip
+          retention-days: 30
+
+      - name: Publicar a release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release create "${GITHUB_REF_NAME}" \
+            psicode-web.zip psicode-windows.zip \
+            --title "psicode ${GITHUB_REF_NAME}" \
+            --generate-notes \
+            --prerelease

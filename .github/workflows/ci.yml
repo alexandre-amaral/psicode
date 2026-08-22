@@ -28,6 +28,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          # As imagens do menu estao em LFS. Sem isto o checkout traz
+          # ponteiros de texto e o Godot importa arte quebrada.
+          lfs: true
 
       - name: Baixar Godot ${{ env.GODOT_VERSAO }}
         run: |
@@ -52,6 +56,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          # As imagens do menu estao em LFS. Sem isto o checkout traz
+          # ponteiros de texto e o Godot importa arte quebrada.
+          lfs: true
 
       - name: Baixar Godot ${{ env.GODOT_VERSAO }}
         run: |

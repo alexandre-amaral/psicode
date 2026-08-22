@@ -56,27 +56,56 @@ jobs:
           mv templates/* "$DESTINO/"
           ls "$DESTINO" | head
 
+      - name: Preparar rcedit para o export de Windows
+        # A preset de Windows preenche application/product_name, o que faz o
+        # Godot querer reescrever os metadados do .exe. No Linux isso depende de
+        # rcedit rodando sob wine; sem os dois o export falha. Instalar e mais
+        # simples que limpar os campos e perder o nome no Explorer.
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq wine64 > /dev/null
+          mkdir -p "$HOME/.local/share/rcedit"
+          curl -fsSL -o "$HOME/.local/share/rcedit/rcedit-x64.exe" \
+            https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<'EOF'
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/windows/rcedit = "~/.local/share/rcedit/rcedit-x64.exe"
+          export/windows/wine = "/usr/bin/wine64"
+          EOF
+
       - name: Importar o projeto
         # Primeira importacao gera .godot/. Em passo separado para que um erro
         # de importacao apareca como erro de importacao.
         run: godot --headless --path . --import
 
+      - name: Testes unitarios
+        run: godot --headless --path . tools/testes/runner.tscn
+
       - name: Teste de fumaca
         run: godot --headless --path . tools/teste_fumaca.tscn
 
       - name: Exportar Web
+        # O Godot devolve 0 mesmo com erro de export em algumas versoes, entao
+        # quem decide se deu certo e a existencia do arquivo.
         run: |
           set -euo pipefail
           mkdir -p builds/web
           godot --headless --path . --export-release "Web" builds/web/index.html
-          test -f builds/web/index.html
+          test -s builds/web/index.html || { echo "::error::export web nao gerou index.html"; exit 1; }
+          test -s builds/web/index.wasm || { echo "::error::export web nao gerou o .wasm"; exit 1; }
+          ls -lh builds/web
 
       - name: Exportar Windows
         run: |
           set -euo pipefail
           mkdir -p builds/windows
           godot --headless --path . --export-release "Windows Desktop" builds/windows/psicode.exe
-          test -f builds/windows/psicode.exe
+          test -s builds/windows/psicode.exe || { echo "::error::export windows nao gerou o .exe"; exit 1; }
+          ls -lh builds/windows
 
       - name: Empacotar
         # O zip da web tem o index.html na RAIZ, que e o que o itch.io exige

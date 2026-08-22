@@ -7,7 +7,6 @@
 
 [node name="Sala_2_L_Shape" type="Node2D"]
 script = ExtResource("1_s")
-tamanho_celula = Vector2(1600, 900)
 
 [node name="Chao" type="Polygon2D" parent="."]
 color = Color(0.0431373, 0.0509804, 0.0862745, 1)

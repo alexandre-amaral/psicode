@@ -78,7 +78,7 @@ src/
   enemies/     inimigo_base, rastejante, vigia, diretora (chefe)
   projectiles/ projetil
   arena/       gerenciador_ondas, dados_onda, onda_*.tres, pickup de arma
-  mapa/        gerenciador_mapa, sala, porta, sala_*.tscn
+  mapa/        gerenciador_mapa, sala, porta, corredor, sala_*.tscn
   ui/          hud, barra_vida, barra_deterioracao, tela_fim
   fx/          explosao, impacto
   util/        balistica (matematica da mira preditiva)
@@ -101,7 +101,9 @@ docs/
 | Matematica de mira preditiva | `src/util/balistica.gd` |
 | Chefe | `src/enemies/diretora.gd` |
 | Layout e conexao das salas | `src/mapa/gerenciador_mapa.gd`, `src/mapa/sala_*.tscn` |
-| Lockdown e abertura de porta | `src/mapa/porta.gd`, `src/mapa/sala.gd` |
+| Quantas salas o andar tem e o vao do corredor | `@export` do no `GerenciadorMapa` em `src/main/main.tscn` |
+| Forma e parede de uma sala | Line2D `Parede` em `src/mapa/sala_*.tscn` — a colisao nasce dele |
+| Lockdown e abertura de porta | `src/mapa/sala.gd`, `src/mapa/porta.gd` e a barreira fisica de `src/mapa/porta.tscn` |
 | Glitch de alucinacao | `assets/shaders/glitch.gdshader` |
 
 **Balanceamento quase nunca exige codigo.** Se a resposta a um pedido de tuning
@@ -137,6 +139,21 @@ em qualquer erro de script.
 - **MSAA 2D nao existe no renderer Compatibility.** Nao tente ligar.
 - **`SCREEN_TEXTURE` quebra no export web.** Prefira efeito procedural — o
   shader de glitch e procedural de proposito.
+- **Parede de sala e gerada em codigo a partir do Line2D `Parede`.** Poligono
+  de colisao desenhado a mao no `.tscn` desalinha e chega a tapar as portas.
+- **`Area2D` nao bloqueia ninguem.** Porta trancada precisa de `StaticBody2D`
+  com a colisao habilitada.
+- **Layer de fisica e nomeada em `project.godot`.** Parede na layer 1
+  ("player") em vez da 3 ("parede") faz alguem remendar o mask do Player e
+  quebra o resto.
+- **A sala do chefe so fecha por `run_completa`** — `onda_completa` nao dispara
+  na onda dele.
+- **`ativar()` de sala tem de ser idempotente**, senao voltar para uma sala
+  limpa recomeca o combate.
+- **Existe um `GerenciadorOndas` por sala.** Quem entra no grupo
+  `gerenciador_ondas` sem sair engana quem busca pelo grupo.
+- **Quem hospeda a run e dono de `GameState.iniciar_run()`/`terminar_run()`.**
+  Perder essa chamada desliga a Deterioracao passiva sem erro nenhum no console.
 
 ## Ambiente
 
@@ -167,8 +184,10 @@ A **Fase 1 do roadmap (tuning + primeiro playtest) esta aberta e nao foi
 feita**: falta a sessao de tuning a tres, o ajuste da onda 4, o rebalance do
 chefe, o export e o link de playtest para 5–8 amigos.
 
-A **Fase 3 (salas) ja comecou** — `src/mapa/` existe com sete salas, portas e
-gerenciador. Isso e conteudo novo com a Fase 1 em aberto.
+A **Fase 3 (salas) saiu do rascunho e funciona**: o `GerenciadorMapa` sorteia
+um andar de 8–12 salas com ramos a partir das sete cenas de `src/mapa/`, liga
+as vizinhas por corredor atravessado a pe e faz lockdown por sala. Isso e
+conteudo novo entregue com a Fase 1 ainda em aberto.
 
 Ao receber pedido de conteudo novo antes do playtest, **aponte o custo**: cada
 sala nova encarece a descoberta de que a base precisa mudar. Nao recuse — e o

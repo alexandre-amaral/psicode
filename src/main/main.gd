@@ -6,11 +6,6 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	Juice.resetar()
 	randomize()
-	
-	# Inicia o sistema de mapa
-	var mapa := get_node_or_null("GerenciadorMapa")
-	if mapa and mapa.has_method("gerar_mapa"):
-		mapa.gerar_mapa()
 
 
 func _unhandled_input(evento: InputEvent) -> void:

@@ -52,8 +52,6 @@ const ONDAS_PADRAO := [
 
 
 func _ready() -> void:
-	# A HUD encontra o gerenciador por grupo para ler o titulo da onda atual.
-	add_to_group("gerenciador_ondas")
 	container_inimigos = get_node_or_null(caminho_container_inimigos) as Node2D
 	container_pickups = get_node_or_null(caminho_container_pickups) as Node2D
 	if container_inimigos == null:
@@ -73,6 +71,10 @@ func iniciar() -> void:
 		return
 	indice = -1
 	rodando = true
+	# Com salas existe um gerenciador por sala vivo ao mesmo tempo. So o
+	# que esta de fato rodando pertence ao grupo -- senao quem consulta o
+	# grupo pega um gerenciador dormente e anuncia a onda errada.
+	add_to_group("gerenciador_ondas")
 	GameState.total_ondas = ondas.size()
 	_proxima_onda(0.9)
 
@@ -99,6 +101,7 @@ func _proxima_onda(atraso: float) -> void:
 			Deterioracao.valor = dados.deterioracao_minima_inicial
 
 	EventBus.onda_iniciada.emit(indice, ondas.size())
+	EventBus.onda_anunciada.emit(dados.titulo, dados.subtitulo)
 
 	if dados.eh_chefe:
 		_spawnar_chefe()
@@ -217,12 +220,14 @@ func _finalizar(venceu: bool) -> void:
 	if not rodando:
 		return
 	rodando = false
+	remove_from_group("gerenciador_ondas")
 	run_completa.emit(venceu)
 	# GameState.terminar_run(venceu) # Removido para desacoplar de salas
 
 
 func parar() -> void:
 	rodando = false
+	remove_from_group("gerenciador_ondas")
 
 
 ## Sorteia um ponto util longe do jogador. Tenta algumas vezes e, se nao

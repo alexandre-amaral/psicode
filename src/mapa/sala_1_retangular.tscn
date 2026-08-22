@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://b1c2d3e4f5g6h"]
+[gd_scene load_steps=6 format=3 uid="uid://b1c2d3e4f5g6h"]
 
 [ext_resource type="Script" uid="uid://bhv612a7jhlai" path="res://src/mapa/sala.gd" id="1_s"]
 [ext_resource type="PackedScene" uid="uid://d1p2q3r4s5t6u" path="res://src/mapa/porta.tscn" id="2_p"]
@@ -25,24 +25,20 @@ default_color = Color(0.3, 0.9, 1, 0.55)
 
 [node name="Porta_Norte" parent="Portas" unique_id=608271649 instance=ExtResource("2_p")]
 position = Vector2(0, -450)
-collision_mask = 3
 
 [node name="Porta_Sul" parent="Portas" unique_id=1575769679 instance=ExtResource("2_p")]
 position = Vector2(0, 450)
 rotation = 3.14159
-collision_mask = 3
 direcao = 1
 
 [node name="Porta_Leste" parent="Portas" unique_id=1410723305 instance=ExtResource("2_p")]
 position = Vector2(800, 0)
 rotation = 1.5708
-collision_mask = 3
 direcao = 2
 
 [node name="Porta_Oeste" parent="Portas" unique_id=1651728435 instance=ExtResource("2_p")]
 position = Vector2(-800, 0)
 rotation = -1.5708
-collision_mask = 3
 direcao = 3
 
 [node name="ContainerInimigos" type="Node2D" parent="." unique_id=846726411]
@@ -51,17 +47,3 @@ direcao = 3
 script = ExtResource("3_w")
 ondas = Array[ExtResource("4_ohc8v")]([ExtResource("4_o")])
 area_spawn = Rect2(-600, -300, 1200, 600)
-
-[node name="Paredes" type="StaticBody2D" parent="." unique_id=1713794342]
-
-[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="Paredes" unique_id=1833591951]
-polygon = PackedVector2Array(798, -454, 921, -454, 919, 450, 796, 448)
-
-[node name="CollisionPolygon2D2" type="CollisionPolygon2D" parent="Paredes" unique_id=72395483]
-polygon = PackedVector2Array(-808, -581, -802, -454, 919, -458, 913, -598)
-
-[node name="CollisionPolygon2D3" type="CollisionPolygon2D" parent="Paredes" unique_id=1318136715]
-polygon = PackedVector2Array(-809, -583, -952, -587, -961, 458, -808, 452)
-
-[node name="CollisionPolygon2D4" type="CollisionPolygon2D" parent="Paredes" unique_id=715438369]
-polygon = PackedVector2Array(-962, 461, -967, 602, 920, 594, 915, 450)

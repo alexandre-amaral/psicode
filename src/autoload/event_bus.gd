@@ -22,6 +22,9 @@ signal inimigo_spawnou(inimigo: Node2D)
 
 # --- Ondas ---
 signal onda_iniciada(indice: int, total: int)
+## O texto do anuncio viaja junto do evento: assim a HUD nunca precisa
+## procurar o gerenciador de ondas na arvore para descobrir o titulo.
+signal onda_anunciada(titulo: String, subtitulo: String)
 signal onda_limpa(indice: int)
 signal contagem_inimigos_mudou(vivos: int)
 
@@ -39,6 +42,9 @@ signal boss_morreu()
 signal run_terminada(venceu: bool, estatisticas: Dictionary)
 
 # --- Mapa e Salas ---
+## Emitido pela porta atravessada, com a sala de origem e o lado por onde
+## o jogador saiu. Quem monta o mapa decide para onde isso leva.
+signal porta_atravessada(sala: Node2D, direcao: Vector2)
 signal sala_entrada(sala: Node2D)
 signal sala_limpa(sala: Node2D)
 signal transicao_iniciada(direcao: Vector2, sala_nova: Node2D)

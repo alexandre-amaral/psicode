@@ -32,6 +32,7 @@ func _ready() -> void:
 	EventBus.arma_equipada.connect(_ao_equipar_arma)
 	EventBus.municao_mudou.connect(_ao_municao)
 	EventBus.onda_iniciada.connect(_ao_onda_iniciada)
+	EventBus.onda_anunciada.connect(_mostrar_aviso)
 	EventBus.contagem_inimigos_mudou.connect(_ao_contagem)
 	EventBus.boss_revelado.connect(_ao_boss_revelado)
 	EventBus.boss_vida_mudou.connect(_ao_boss_vida)
@@ -83,16 +84,6 @@ func _ao_municao(atual: int, maximo: int) -> void:
 
 func _ao_onda_iniciada(indice: int, total: int) -> void:
 	_rotulo_onda.text = "ONDA %d / %d" % [indice + 1, total]
-	var dados: DadosOnda = _dados_da_onda(indice)
-	if dados != null:
-		_mostrar_aviso(dados.titulo, dados.subtitulo)
-
-
-func _dados_da_onda(indice: int) -> DadosOnda:
-	var g := get_tree().get_first_node_in_group("gerenciador_ondas")
-	if g == null or indice >= g.ondas.size():
-		return null
-	return g.ondas[indice]
 
 
 func _ao_contagem(vivos: int) -> void:

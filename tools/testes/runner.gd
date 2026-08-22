@@ -24,6 +24,16 @@ const SUITES := [
 
 
 func _ready() -> void:
+	# Roda depois da arvore montar. get_tree().quit() chamado de dentro do
+	# _ready nao encerra de forma confiavel -- a cena ainda esta sendo
+	# construida e o pedido se perde, deixando o processo vivo ate o timeout do
+	# runner de CI. O teste de fumaca acerta isso porque so encerra a partir do
+	# _process; aqui nao ha _process, entao o await faz o mesmo papel.
+	await get_tree().process_frame
+	_rodar()
+
+
+func _rodar() -> void:
 	print("\n=== TESTES UNITARIOS: psicode ===\n")
 
 	var total := 0

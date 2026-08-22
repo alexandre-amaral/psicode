@@ -23,6 +23,9 @@ env:
 jobs:
   testes-unitarios:
     runs-on: ubuntu-latest
+    # Logica pura roda em segundos. Se passar disso e porque travou -- melhor
+    # falhar rapido do que segurar o runner ate o limite padrao de 6h.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -44,6 +47,9 @@ jobs:
 
   teste-de-fumaca:
     runs-on: ubuntu-latest
+    # O proprio teste ja tem TEMPO_LIMITE interno; isto cobre o caso de o
+    # processo travar antes de chegar la.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 

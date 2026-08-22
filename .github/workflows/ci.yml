@@ -1,20 +1,49 @@
 name: CI
 
-# Roda o teste de fumaca a cada push e a cada pull request.
-# O teste sobe o jogo inteiro sem janela, avanca as 5 ondas, mata o chefe e
-# falha se aparecer qualquer erro de script. E barato e pega 90% do que
-# costuma quebrar num projeto de Godot em time.
+# Dois niveis de teste, em jobs separados de proposito:
+#
+#   testes-unitarios  - logica pura, sem subir cena. Roda em segundos e diz
+#                       "a conta esta certa?".
+#   teste-de-fumaca   - sobe o jogo inteiro sem janela, percorre o andar, mata
+#                       o chefe. Diz "a run inteira funciona?".
+#
+# Separados porque quebram por motivos diferentes: quando o unitario falha voce
+# sabe que e logica, sem precisar ler o log de gameplay inteiro. E o unitario
+# termina antes, entao o erro mais barato aparece primeiro.
 
 on:
   push:
     branches: [main]
   pull_request:
 
+env:
+  # Tem de casar com o config/features do project.godot e com o release.yml.
+  GODOT_VERSAO: 4.6-stable
+
 jobs:
+  testes-unitarios:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baixar Godot ${{ env.GODOT_VERSAO }}
+        run: |
+          set -euo pipefail
+          URL="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSAO}/Godot_v${GODOT_VERSAO}_linux.x86_64.zip"
+          curl -fsSL -o godot.zip "$URL"
+          unzip -q godot.zip
+          mv Godot_v${GODOT_VERSAO}_linux.x86_64 /usr/local/bin/godot
+          chmod +x /usr/local/bin/godot
+          godot --headless --version
+
+      - name: Importar o projeto
+        run: godot --headless --path . --import
+
+      - name: Testes unitarios
+        run: godot --headless --path . tools/testes/runner.tscn
+
   teste-de-fumaca:
     runs-on: ubuntu-latest
-    env:
-      GODOT_VERSAO: 4.6-stable
     steps:
       - uses: actions/checkout@v4
 

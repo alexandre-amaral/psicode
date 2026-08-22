@@ -12,6 +12,7 @@ func executar() -> void:
 	_formatar_tempo()
 	_estatisticas()
 	_curva_das_ondas()
+	_versao_do_projeto()
 
 
 ## Usado na tela de fim. Erro aqui aparece para o jogador na ultima tela que ele
@@ -87,3 +88,25 @@ func _curva_das_ondas() -> void:
 	var chefe := ondas[ondas.size() - 1]
 	ok(chefe.deterioracao_minima_inicial >= Deterioracao.LIMIAR_MEDIO,
 		"a onda do chefe comeca ao menos na fase MEDIA (valor=%.0f)" % chefe.deterioracao_minima_inicial)
+
+
+## O menu inicial mostra a versao lendo daqui. Ja aconteceu de a cena trazer
+## "v1.0.3" escrito na mao enquanto a build era 0.1.0-alpha -- o testador le a
+## build como final e reporta bug achando que e versao lancada. Estas
+## verificacoes existem para que a versao nunca volte a ser invisivel ou
+## invalida.
+func _versao_do_projeto() -> void:
+	var versao: String = str(ProjectSettings.get_setting("application/config/version", ""))
+	ok(not versao.is_empty(), "project.godot declara config/version")
+	if versao.is_empty():
+		return
+
+	# A tag de release e "v" + esta string. Um espaco aqui gera uma tag
+	# invalida e o workflow de release quebra so na hora de publicar.
+	igual(versao.strip_edges(), versao, "a versao nao tem espaco sobrando")
+	ok(not versao.begins_with("v"), "a versao nao repete o 'v' (quem poe e a tag e o menu)")
+
+	# Formato x.y.z, com sufixo opcional (-alpha, -beta, -rc1).
+	var re := RegEx.new()
+	re.compile("^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.]+)?$")
+	ok(re.search(versao) != null, "a versao segue x.y.z[-sufixo] (obtive '%s')" % versao)

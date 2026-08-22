@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" path="res://src/arena/arena.tscn" id="2_arena"]
 [ext_resource type="PackedScene" path="res://src/ui/hud.tscn" id="3_hud"]
 [ext_resource type="PackedScene" path="res://src/ui/tela_fim.tscn" id="4_fim"]
+[ext_resource type="PackedScene" path="res://src/ui/menu_pausa.tscn" id="5_pausa"]
 
 [node name="Main" type="Node"]
 script = ExtResource("1_main")
@@ -13,3 +14,5 @@ script = ExtResource("1_main")
 [node name="HUD" parent="." instance=ExtResource("3_hud")]
 
 [node name="TelaFim" parent="." instance=ExtResource("4_fim")]
+
+[node name="MenuPausa" parent="." instance=ExtResource("5_pausa")]

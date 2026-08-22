@@ -1,0 +1,155 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/ui/menu_inicial.gd" id="1_menu"]
+[ext_resource type="Texture2D" path="res://assets/bg_menu.jpg" id="2_bg"]
+[ext_resource type="Texture2D" path="res://assets/logo.png" id="3_logo"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_Menu"]
+bg_color = Color(0.05, 0.05, 0.08, 0.85)
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_Btn"]
+
+[node name="MenuInicial" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="TextureRect" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_bg")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Logo" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -550.0
+offset_top = 20.0
+offset_right = 550.0
+offset_bottom = 360.0
+grow_horizontal = 2
+texture = ExtResource("3_logo")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="MenuPanel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -160.0
+offset_top = -340.0
+offset_right = 160.0
+offset_bottom = -60.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_Menu")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MenuPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 30.0
+offset_top = 30.0
+offset_right = -30.0
+offset_bottom = -30.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="BtnJogar" type="Button" parent="MenuPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.2, 1)
+theme_override_colors/font_focus_color = Color(1, 0.8, 0.4, 1)
+theme_override_colors/font_hover_color = Color(1, 0.8, 0.4, 1)
+theme_override_font_sizes/font_size = 28
+theme_override_styles/normal = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_Btn")
+text = "  NEW GAME"
+alignment = 0
+
+[node name="BtnCarregar" type="Button" parent="MenuPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.2, 1)
+theme_override_colors/font_focus_color = Color(1, 0.8, 0.4, 1)
+theme_override_colors/font_hover_color = Color(1, 0.8, 0.4, 1)
+theme_override_font_sizes/font_size = 28
+theme_override_styles/normal = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_Btn")
+text = "  LOAD GAME"
+alignment = 0
+
+[node name="BtnOpcoes" type="Button" parent="MenuPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.2, 1)
+theme_override_colors/font_focus_color = Color(1, 0.8, 0.4, 1)
+theme_override_colors/font_hover_color = Color(1, 0.8, 0.4, 1)
+theme_override_font_sizes/font_size = 28
+theme_override_styles/normal = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_Btn")
+text = "  OPTIONS"
+alignment = 0
+
+[node name="BtnSair" type="Button" parent="MenuPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.2, 1)
+theme_override_colors/font_focus_color = Color(1, 0.8, 0.4, 1)
+theme_override_colors/font_hover_color = Color(1, 0.8, 0.4, 1)
+theme_override_font_sizes/font_size = 28
+theme_override_styles/normal = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_Btn")
+text = "  QUIT"
+alignment = 0
+
+[node name="RodapeEsq" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -32.0
+offset_right = 116.0
+offset_bottom = -9.0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "v1.0.3"
+
+[node name="RodapeDir" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -316.0
+offset_top = -32.0
+offset_right = -16.0
+offset_bottom = -9.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "DEVELOPED BY NEON RIOT GAMES"
+horizontal_alignment = 2

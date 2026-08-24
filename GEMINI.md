@@ -181,6 +181,11 @@ em qualquer erro de script.
 - **`Porta.LARGURA` e `largura_corredor` tem de ser iguais.** A porta e o vao que
   a parede abre; o corredor encaixa nessa boca. Mudar um sem o outro deixa
   parede no meio da passagem.
+- **A sala de arma e obrigatoria** (`opcional = false` em `tipo_arma.tres`),
+  como o chefe: se ela nao couber no grafo sorteado, o andar inteiro e sorteado
+  de novo. Sem isso a run podia acontecer inteira so com a pistola inicial, ja
+  que a sala e a unica fonte de arma. Medido em 120 andares: 100% de presenca,
+  media de 10 salas, zero andares curtos.
 - **Arma so nasce na sala de arma.** O `DadosOnda` tinha um campo `solta_arma`
   que fazia a onda largar uma arma ao ser limpa, e a sala GRANDE usava uma onda
   com ele ligado -- entao uma sala de combate entregava de graca o que devia

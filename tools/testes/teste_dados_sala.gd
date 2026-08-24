@@ -74,19 +74,42 @@ func _regras_do_andar(catalogo: Array[DadosSala]) -> void:
 
 	ok(not comuns.is_empty(), "existe ao menos um tipo de preenchimento")
 
-	# Sem chefe a run nao tem como terminar em vitoria, e com dois o primeiro a
-	# ser limpo encerraria tudo.
-	igual(obrigatorios.size(), 1, "existe exatamente um tipo obrigatorio")
-	if obrigatorios.size() == 1:
-		igual(obrigatorios[0].id, DadosSala.ID_BOSS, "o tipo obrigatorio e o chefe")
+	# Duas propriedades DIFERENTES, que e facil confundir:
+	#
+	#   encerra a run (id == boss) -- tem de ser exatamente um. Com dois, a
+	#     primeira sala limpa terminaria a partida.
+	#   obrigatorio (opcional == false) -- pode ser quantos forem. So quer dizer
+	#     "re-sorteia o andar se este tipo nao couber".
+	#
+	# O chefe e as duas coisas; a sala de arma e so a segunda.
+	var chefes: Array[DadosSala] = []
+	for dados in catalogo:
+		if dados.id == DadosSala.ID_BOSS:
+			chefes.append(dados)
+	igual(chefes.size(), 1, "existe exatamente um tipo que encerra a run")
+	if chefes.size() == 1:
+		ok(not chefes[0].opcional, "o chefe e obrigatorio: sem ele nao ha vitoria")
+
+	# A sala de arma e a UNICA fonte de arma do jogo desde que o drop por onda
+	# saiu. Opcional aqui significa run inteira so com a pistola inicial.
+	var armas: Array[DadosSala] = []
+	for dados in catalogo:
+		if dados.id == DadosSala.ID_ARMA:
+			armas.append(dados)
+	igual(armas.size(), 1, "existe exatamente um tipo de sala de arma")
+	if armas.size() == 1:
+		ok(not armas[0].opcional, "a sala de arma e garantida no andar")
+		igual(armas[0].celulas_reservadas(), 1, "a sala de arma aparece uma vez por andar")
 
 	# Quem chega primeiro escolhe a melhor ancora. Se um premio for colocado
 	# antes do chefe, ele toma o beco mais distante e o chefe cai no meio do
 	# andar -- sem erro nenhum, so um andar pior.
-	for dados in pendurados:
-		if dados.opcional:
+	if chefes.size() == 1:
+		for dados in pendurados:
+			if dados.id == DadosSala.ID_BOSS:
+				continue
 			ok(
-				obrigatorios.is_empty() or obrigatorios[0].prioridade < dados.prioridade,
+				chefes[0].prioridade < dados.prioridade,
 				"%s e colocada depois do chefe" % String(dados.id)
 			)
 

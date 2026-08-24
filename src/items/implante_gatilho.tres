@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="DadosItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/items/dados_item.gd" id="1_di"]
+
+[resource]
+script = ExtResource("1_di")
+nome = "Gatilho Overclock"
+descricao = "O dedo nao espera. +18% de cadencia."
+alvo = 3
+modo = 0
+valor = 1.18
+maximo_por_run = 3
+cor = Color(1, 0.72, 0.29, 1)
+sigla = "C"

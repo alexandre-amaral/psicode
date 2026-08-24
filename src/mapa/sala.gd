@@ -40,7 +40,11 @@ const FOLGA_CORPO := 24.0
 ## testes na maior sala, uma vez so por sala.
 const PASSO_VARREDURA := 64.0
 
-@export var tipo: String = "combate"
+## StringName e nao String porque este campo virou chave: o gerenciador e o
+## minimapa comparam com os ids de DadosSala, e comparacao de StringName e por
+## ponteiro. Os ids conhecidos moram em DadosSala (ID_BOSS, ID_ARMA...), entao
+## ninguem precisa repetir string magica.
+@export var tipo: StringName = DadosSala.ID_COMBATE
 
 var estado: Estado = Estado.INATIVA
 var coordenadas_grid: Vector2i = Vector2i.ZERO
@@ -54,7 +58,7 @@ var _conexoes_definidas: bool = false
 var _portas_por_direcao: Dictionary = {}
 var _raiz_portas: Node2D = null
 var _ondas: GerenciadorOndas = null
-## Sala de tesouro nasce LIMPA no _ready, antes de o jogador existir por
+## Sala de recompensa nasce LIMPA no _ready, antes de o jogador existir por
 ## perto. Sem esta trava ela nunca anunciaria, e a tela de fim mostrava
 ## "9 / 10" numa run completa; anunciar no _ready contaria as dez salas do
 ## andar de uma vez, inclusive as que ninguem visitou.
@@ -181,7 +185,7 @@ func _selar_portas_sem_vizinho() -> void:
 			porta.selar()
 
 
-## Ondas sao OPCIONAIS: a sala de tesouro nao tem no "Ondas". Sem combate a
+## Ondas sao OPCIONAIS: sala de recompensa nao tem no "Ondas". Sem combate a
 ## sala ja nasce aberta, senao o jogador entra e fica preso.
 func _conectar_ondas() -> void:
 	_ondas = get_node_or_null("Ondas") as GerenciadorOndas
@@ -224,6 +228,20 @@ func _abrir_portas() -> void:
 		var porta := _portas_por_direcao[direcao] as Porta
 		if not porta.esta_selada():
 			porta.abrir()
+
+
+## Contorno da sala em coordenadas LOCAIS, para quem precisa da silhueta e nao
+## so do bounding box -- o minimapa desenha a forma real, entao um Rect2 nao
+## serve: a sala em L viraria um quadrado.
+##
+## O ultimo ponto do Line2D repete o primeiro para fechar o desenho. Aqui ele e
+## removido, porque quem consome poligono (Geometry2D, draw_colored_polygon)
+## trata o fechamento sozinho e engasga com o ponto duplicado.
+func contorno_local() -> PackedVector2Array:
+	var pontos := _pontos_do_contorno()
+	if pontos.size() >= 2 and pontos[0].is_equal_approx(pontos[pontos.size() - 1]):
+		pontos.remove_at(pontos.size() - 1)
+	return pontos
 
 
 ## Pontos do contorno em coordenadas locais da sala. O Line2D pode ter offset

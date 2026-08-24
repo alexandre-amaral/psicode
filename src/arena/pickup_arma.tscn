@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://src/arena/pickup_arma.gd" id="1_pick"]
-[ext_resource type="Resource" path="res://src/weapons/shotgun.tres" id="2_shot"]
+[ext_resource type="Resource" path="res://src/items/pool_padrao.tres" id="2_pool"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_pick"]
 radius = 22.0
@@ -10,7 +10,7 @@ radius = 22.0
 collision_layer = 32
 collision_mask = 1
 script = ExtResource("1_pick")
-dados = ExtResource("2_shot")
+pool = ExtResource("2_pool")
 
 [node name="Forma" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_pick")

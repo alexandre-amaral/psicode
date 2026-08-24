@@ -1,9 +1,10 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://src/ui/hud.gd" id="1_hud"]
 [ext_resource type="Shader" path="res://assets/shaders/glitch.gdshader" id="2_glitch"]
 [ext_resource type="Script" path="res://src/ui/barra_vida.gd" id="3_vida"]
 [ext_resource type="Script" path="res://src/ui/barra_deterioracao.gd" id="4_det"]
+[ext_resource type="Script" path="res://src/ui/minimapa.gd" id="5_minimapa"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_glitch"]
 shader = ExtResource("2_glitch")
@@ -104,6 +105,12 @@ theme_override_constants/separation = 4
 [node name="Onda" type="Label" parent="Topo/Direita"]
 theme_override_font_sizes/font_size = 18
 text = "ONDA 1 / 5"
+horizontal_alignment = 2
+
+[node name="Salas" type="Label" parent="Topo/Direita"]
+modulate = Color(0.55, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 13
+text = "SALAS 0 / 0"
 horizontal_alignment = 2
 
 [node name="Inimigos" type="Label" parent="Topo/Direita"]
@@ -214,3 +221,17 @@ theme_override_styles/fill = SubResource("StyleBoxFlat_bossfill")
 max_value = 300.0
 value = 300.0
 show_percentage = false
+
+[node name="Minimapa" type="Control" parent="."]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -286.0
+offset_top = -216.0
+offset_right = -26.0
+offset_bottom = -26.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("5_minimapa")

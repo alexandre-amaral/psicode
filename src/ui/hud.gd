@@ -7,6 +7,7 @@ extends CanvasLayer
 @onready var _rotulo_arma: Label = $Rodape/Arma
 @onready var _rotulo_municao: Label = $Rodape/Municao
 @onready var _rotulo_onda: Label = $Topo/Direita/Onda
+@onready var _rotulo_salas: Label = $Topo/Direita/Salas
 @onready var _rotulo_inimigos: Label = $Topo/Direita/Inimigos
 @onready var _rotulo_tempo: Label = $Topo/Direita/Tempo
 @onready var _aviso: Label = $Aviso
@@ -32,6 +33,8 @@ func _ready() -> void:
 	EventBus.arma_equipada.connect(_ao_equipar_arma)
 	EventBus.municao_mudou.connect(_ao_municao)
 	EventBus.onda_iniciada.connect(_ao_onda_iniciada)
+	EventBus.sala_limpa.connect(func(_s: Node2D) -> void: _atualizar_progresso())
+	EventBus.transicao_concluida.connect(func(_s: Node2D) -> void: _atualizar_progresso())
 	EventBus.onda_anunciada.connect(_mostrar_aviso)
 	EventBus.contagem_inimigos_mudou.connect(_ao_contagem)
 	EventBus.boss_revelado.connect(_ao_boss_revelado)
@@ -83,7 +86,18 @@ func _ao_municao(atual: int, maximo: int) -> void:
 
 
 func _ao_onda_iniciada(indice: int, total: int) -> void:
+	# Onda e uma informacao LOCAL: cada sala tem a propria contagem, e sozinha
+	# ela nao diz onde o jogador esta no andar. Por isso vem acompanhada do
+	# progresso de salas, que e o numero global.
 	_rotulo_onda.text = "ONDA %d / %d" % [indice + 1, total]
+	_atualizar_progresso()
+
+
+func _atualizar_progresso() -> void:
+	if GameState.total_salas <= 0:
+		_rotulo_salas.text = ""
+		return
+	_rotulo_salas.text = "SALAS %d / %d" % [GameState.salas_limpas, GameState.total_salas]
 
 
 func _ao_contagem(vivos: int) -> void:

@@ -1,7 +1,12 @@
 extends Area2D
-## Loot no chao. Encoste para pegar. Se ja tiver a mesma arma, recarrega.
+## Loot no chao. Encoste para pegar: a arma vai para o slot 1 do Player e
+## substitui o que estivesse la.
 
+## Preenchido = esta arma. Vazio = sorteia do pool ao nascer. Ficava fixo em
+## shotgun.tres dentro do .tscn, e por isso TODA arma dropada no jogo era a
+## mesma shotgun -- inclusive a da sala de recompensa.
 @export var dados: DadosArma
+@export var pool: PoolLoot
 @export var gira: bool = true
 
 var _t: float = 0.0
@@ -12,6 +17,11 @@ var _rotulo: Label
 func _ready() -> void:
 	_visual = $Visual
 	_rotulo = $Rotulo
+
+	# Antes de pintar: o visual e o rotulo leem `dados`.
+	if dados == null and pool != null:
+		dados = pool.sortear_arma()
+
 	if dados != null:
 		$Visual/Corpo.color = dados.cor_projetil
 		_rotulo.text = dados.nome

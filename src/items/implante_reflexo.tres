@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="DadosItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/items/dados_item.gd" id="1_di"]
+
+[resource]
+script = ExtResource("1_di")
+nome = "Reflexo Sintetico"
+descricao = "O rolamento volta antes. -15% de recarga da esquiva."
+alvo = 2
+modo = 0
+valor = 0.85
+maximo_por_run = 3
+cor = Color(0.45, 0.85, 1, 1)
+sigla = "R"

@@ -1,0 +1,46 @@
+[gd_scene load_steps=4 format=3 uid="uid://q1w2e3r4t5y6u"]
+
+[ext_resource type="Script" path="res://src/items/pickup_item.gd" id="1_pick"]
+[ext_resource type="Resource" path="res://src/items/pool_padrao.tres" id="2_pool"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_item"]
+radius = 22.0
+
+[node name="PickupItem" type="Area2D"]
+collision_layer = 32
+collision_mask = 1
+script = ExtResource("1_pick")
+pool = ExtResource("2_pool")
+
+[node name="Forma" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_item")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Halo" type="Polygon2D" parent="Visual"]
+z_index = -1
+color = Color(0.49, 0.97, 0.77, 0.15)
+polygon = PackedVector2Array(26, 0, 18.38, 18.38, 0, 26, -18.38, 18.38, -26, 0, -18.38, -18.38, 0, -26, 18.38, -18.38)
+
+[node name="Corpo" type="Polygon2D" parent="Visual"]
+color = Color(0.49, 0.97, 0.77, 1)
+polygon = PackedVector2Array(0, -15, 13, -7.5, 13, 7.5, 0, 15, -13, 7.5, -13, -7.5)
+
+[node name="Sigla" type="Label" parent="."]
+offset_left = -20.0
+offset_top = -11.0
+offset_right = 20.0
+offset_bottom = 11.0
+theme_override_font_sizes/font_size = 15
+text = "+"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Rotulo" type="Label" parent="."]
+offset_left = -100.0
+offset_top = 26.0
+offset_right = 100.0
+offset_bottom = 48.0
+theme_override_font_sizes/font_size = 13
+text = "IMPLANTE"
+horizontal_alignment = 1

@@ -30,6 +30,7 @@ func executar() -> void:
 	_contrato(catalogo)
 	_regras_do_andar(catalogo)
 	_salas_de_recompensa()
+	_arma_so_na_sala_de_arma(catalogo)
 	_contornos_desenhaveis(catalogo)
 
 
@@ -117,6 +118,45 @@ func _salas_de_recompensa() -> void:
 			if estado.get_node_name(i) == &"Ondas":
 				tem_ondas = true
 		ok(not tem_ondas, "%s nao tem no 'Ondas' (senao trava a run)" % caminho.get_file())
+
+
+## Arma so existe na sala de arma.
+##
+## Isto passou a ser verificavel agora: antes o drop vinha por CODIGO (o campo
+## `solta_arma` do DadosOnda, removido), entao uma sala de combate podia soltar
+## arma sem ter pickup nenhum na cena. Sem esse caminho, a unica fonte de arma
+## e o pickup instanciado no .tscn -- e e exatamente ai que uma regressao
+## entraria, arrastando um PickupArma para dentro de uma sala de combate sem
+## nada acusar.
+func _arma_so_na_sala_de_arma(catalogo: Array[DadosSala]) -> void:
+	var com_pickup := 0
+	for dados in catalogo:
+		for cena in dados.cenas_validas():
+			var tem := _tem_pickup_de_arma(cena)
+			var etiqueta := cena.resource_path.get_file()
+			if dados.id == DadosSala.ID_ARMA:
+				ok(tem, "%s (tipo arma) tem o pickup de arma" % etiqueta)
+				if tem:
+					com_pickup += 1
+			else:
+				ok(
+					not tem,
+					"%s (tipo %s) NAO tem pickup de arma" % [etiqueta, String(dados.id)]
+				)
+
+	# Guarda contra a assercao virar decoracao: se nenhuma sala tiver pickup, o
+	# laco acima passa inteiro sem ter olhado o caso que importa.
+	ok(com_pickup >= 1, "existe ao menos uma sala que de fato entrega arma")
+
+
+## Procura pelo NOME do no, e nao pela cena instanciada: instanciar so para
+## contar filhos custa caro numa suite que roda em menos de um segundo.
+func _tem_pickup_de_arma(cena: PackedScene) -> bool:
+	var estado := cena.get_state()
+	for i in range(estado.get_node_count()):
+		if estado.get_node_name(i) == &"PickupArma":
+			return true
+	return false
 
 
 ## O contorno que o minimapa desenha tem de ser triangulavel, senao a sala sai

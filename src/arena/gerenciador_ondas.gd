@@ -18,16 +18,11 @@ const CENA_MARCADOR := preload("res://src/arena/marcador_spawn.tscn")
 const CENA_RASTEJANTE := preload("res://src/enemies/rastejante.tscn")
 const CENA_VIGIA := preload("res://src/enemies/vigia.tscn")
 const CENA_DIRETORA := preload("res://src/enemies/diretora.tscn")
-const CENA_PICKUP := preload("res://src/arena/pickup_arma.tscn")
-const POOL_PADRAO := preload("res://src/items/pool_padrao.tres")
 
 @export var ondas: Array[DadosOnda] = []
-## De onde sai a arma solta ao limpar uma onda com `solta_arma`.
-@export var pool_loot: PoolLoot
 ## Caminhos em vez de referencias diretas: NodePath e resolvido na hora certa
 ## e sobrevive a quem mover o no no editor sem reconectar nada.
 @export var caminho_container_inimigos: NodePath = ^"../ContainerInimigos"
-@export var caminho_container_pickups: NodePath = ^"../ContainerPickups"
 ## Retangulo util onde inimigos podem nascer, em coordenadas LOCAIS da sala.
 ## Quem consome converte para global via _para_global(); nunca use este valor
 ## direto como posicao de mundo.
@@ -43,7 +38,6 @@ var _pendentes: int = 0
 var _chefe: Node = null
 
 var container_inimigos: Node2D
-var container_pickups: Node2D
 
 ## Trava de reentrancia. _proxima_onda espera um timer antes de avancar o
 ## indice; sem essa trava, duas chamadas sobrepostas pulariam uma onda inteira
@@ -64,11 +58,8 @@ const ONDAS_PADRAO := [
 
 func _ready() -> void:
 	container_inimigos = get_node_or_null(caminho_container_inimigos) as Node2D
-	container_pickups = get_node_or_null(caminho_container_pickups) as Node2D
 	if container_inimigos == null:
 		push_error("GerenciadorOndas: container de inimigos nao encontrado em '%s'." % caminho_container_inimigos)
-	if container_pickups == null:
-		container_pickups = container_inimigos
 
 
 func iniciar() -> void:
@@ -227,28 +218,7 @@ func _limpar_onda() -> void:
 	if dados.deterioracao_ao_limpar > 0.0:
 		Deterioracao.adicionar(dados.deterioracao_ao_limpar)
 
-	if dados.solta_arma:
-		_soltar_arma()
-
 	_proxima_onda(dados.respiro)
-
-
-## Pool aqui pelo mesmo motivo de ONDAS_PADRAO: se o .tscn perder a referencia
-## num merge, o jogo continua dando arma em vez de parar de dar em silencio.
-func _soltar_arma() -> void:
-	if container_pickups == null:
-		return
-	var pos := _sortear_posicao(112.0)
-	var pickup := CENA_PICKUP.instantiate()
-
-	# ANTES do add_child: o _ready do pickup le `dados`/`pool` para pintar o
-	# visual e escrever o rotulo. Atribuir depois deixa um pickup ja pintado com
-	# a arma errada -- era assim que todo drop do jogo saia shotgun.
-	var pool: PoolLoot = pool_loot if pool_loot != null else POOL_PADRAO
-	pickup.pool = pool
-
-	container_pickups.add_child(pickup)
-	pickup.global_position = pos
 
 
 func _finalizar(venceu: bool) -> void:

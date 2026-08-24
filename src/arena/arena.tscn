@@ -80,6 +80,5 @@ z_index = 5
 script = ExtResource("3_ondas")
 ondas = Array[Resource]([ExtResource("5_onda1"), ExtResource("6_onda2"), ExtResource("7_onda3"), ExtResource("8_onda4"), ExtResource("9_onda5")])
 caminho_container_inimigos = NodePath("../ContainerInimigos")
-caminho_container_pickups = NodePath("../ContainerPickups")
 area_spawn = Rect2(-700, -370, 1400, 740)
 distancia_minima_player = 300.0

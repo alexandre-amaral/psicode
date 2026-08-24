@@ -9,6 +9,5 @@ vigias = 3
 intervalo_spawn = 0.5
 deterioracao_minima_inicial = 20.0
 deterioracao_ao_limpar = 10.0
-solta_arma = true
 eh_chefe = false
 respiro = 2.0

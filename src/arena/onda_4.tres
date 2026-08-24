@@ -13,4 +13,3 @@ intervalo_spawn = 0.32
 respiro = 3.2
 deterioracao_ao_limpar = 16.0
 deterioracao_minima_inicial = -1.0
-solta_arma = false

@@ -79,6 +79,7 @@ src/
   enemies/     inimigo_base, rastejante, vigia, diretora (chefe)
   projectiles/ projetil
   arena/       gerenciador_ondas, dados_onda, onda_*.tres, pickup de arma
+               (o pickup so e instanciado pela sala de arma -- onda nao solta)
   mapa/        gerenciador_mapa, sala, porta, corredor, sala_*.tscn,
                dados_sala.gd + tipo_*.tres (o catalogo de tipos de sala)
   items/       efeito_item.gd + dados_item.gd, implante_*.tres,
@@ -180,6 +181,12 @@ em qualquer erro de script.
 - **`Porta.LARGURA` e `largura_corredor` tem de ser iguais.** A porta e o vao que
   a parede abre; o corredor encaixa nessa boca. Mudar um sem o outro deixa
   parede no meio da passagem.
+- **Arma so nasce na sala de arma.** O `DadosOnda` tinha um campo `solta_arma`
+  que fazia a onda largar uma arma ao ser limpa, e a sala GRANDE usava uma onda
+  com ele ligado -- entao uma sala de combate entregava de graca o que devia
+  custar o desvio ate a sala de recompensa. O mecanismo foi removido inteiro, e
+  nao deve voltar: a fonte de arma e o `PickupArma` na cena da sala de arma.
+  `tools/testes/teste_dados_sala.gd` recusa pickup de arma em sala de outro tipo.
 - **Sala pendurada precisa de porta nos quatro lados.** Boss, arma e item
   nascem numa celula criada so para elas. Com uma porta so, todas disputam a
   mesma posicao relativa e as ultimas quase nunca cabem — a sala de item

@@ -81,7 +81,8 @@ src/
   arena/       gerenciador_ondas, dados_onda, onda_*.tres, pickup de arma
   mapa/        gerenciador_mapa, sala, porta, corredor, sala_*.tscn,
                dados_sala.gd + tipo_*.tres (o catalogo de tipos de sala)
-  items/       dados_item.gd, implante_*.tres, pool_loot.gd, pickup de item
+  items/       efeito_item.gd + dados_item.gd, implante_*.tres,
+               pool_loot.gd, pickup de item
   ui/          hud, barra_vida, barra_deterioracao, minimapa, tela_fim
   fx/          explosao, impacto
   util/        balistica (matematica da mira preditiva)
@@ -106,7 +107,9 @@ docs/
 | Layout e conexao das salas | `src/mapa/gerenciador_mapa.gd`, `src/mapa/sala_*.tscn` |
 | **Tipo de sala novo (loja, desafio...)** | criar `src/mapa/tipo_*.tres` e por na lista `tipos_de_sala` do `GerenciadorMapa` |
 | **Estilo novo de uma sala que ja existe** | arrastar a cena para `cenas` no `tipo_*.tres` correspondente |
-| **Implante novo** | criar `src/items/implante_*.tres` e listar em `src/items/pool_padrao.tres` |
+| **Implante novo (so numeros)** | criar `src/items/implante_*.tres` com a lista de `efeitos` e listar em `pool_padrao.tres` |
+| **Implante com comportamento novo** | enum em `DadosItem.Comportamento` + o codigo que le, em quem sofre o efeito |
+| Pente, tempo de recarga e reserva | `tamanho_pente`, `tempo_recarga`, `municao_maxima` em `src/weapons/*.tres` |
 | **Arma que pode cair de loot** | listar o `.tres` em `src/items/pool_padrao.tres` |
 | Regras de onde cada sala nasce | `@export` do `tipo_*.tres` (beco, distancia da origem, prioridade) |
 | Cor e icone de uma sala no minimapa | `cor_mapa` e `icone` do `tipo_*.tres` |
@@ -178,6 +181,25 @@ em qualquer erro de script.
   separado de `_pontos_do_contorno()` (fechado, para quem monta parede).
 - **`Arma` e o mesmo script no jogador e nos inimigos.** Ler `Modificadores`
   sem conferir `hostil` transforma upgrade do jogador em buff do Vigia.
+- **Dano e `int`.** Percentual em cima de int some no arredondamento: "+10%" num
+  dano 2 volta a ser 2. Por isso `DANO` (soma) e `DANO_PERCENTUAL` (multiplica)
+  sao alvos SEPARADOS, e o calculo soma primeiro, multiplica depois e arredonda
+  uma vez so.
+- **Parede e detectada por LAYER, nao por grupo.** O teste antigo era
+  `is_in_group("parede")`, e as paredes geradas por `sala.gd`/`corredor.gd`
+  nunca entravam em grupo nenhum -- os projeteis atravessavam parede. Hoje quem
+  resolve isso e o raycast de `projetil.gd`, que tambem devolve a normal que o
+  ricochete precisa.
+- **Todo ganho de Deterioracao passa por `adicionar()`.** O multiplicador de
+  implante mora la, e nao no `_process`: antes ele valia so para o ganho passivo
+  e escapava de tudo que sobe a barra por evento.
+- **`Arma.atirar()` num `for` no mesmo frame so dispara UMA vez.** O
+  `_t_cadencia` e setado no primeiro tiro e `pode_atirar()` recusa o resto,
+  porque o `_process` que decrementa nao roda no meio do laco. Salva radial
+  precisa de outro caminho -- e por isso o anel da Diretora esta quebrado hoje.
+- **Conecte o sinal ANTES de `equipar()`.** `equipar()` emite `municao_alterada`
+  na hora; ligar o sinal depois perde esse primeiro aviso e a HUD fica com o
+  texto que estava escrito na cena.
 - **Quem hospeda a run e dono de `GameState.iniciar_run()`/`terminar_run()`.**
   Perder essa chamada desliga a Deterioracao passiva sem erro nenhum no console.
 

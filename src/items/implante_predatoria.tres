@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DadosItem" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/items/dados_item.gd" id="1_di"]
+[ext_resource type="Script" path="res://src/items/efeito_item.gd" id="2_ef"]
+
+[resource]
+script = ExtResource("1_di")
+nome = "IA Predatoria"
+descricao = "Um abate marca o proximo alvo. O tiro seguinte nele causa +75% de dano."
+efeitos = Array[ExtResource("2_ef")]([])
+comportamento = 7
+parametro = 1.75
+maximo_por_run = 2
+cor = Color(1, 0.3, 0.7, 1)
+sigla = "P"

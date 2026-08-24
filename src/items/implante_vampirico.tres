@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DadosItem" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/items/dados_item.gd" id="1_di"]
+[ext_resource type="Script" path="res://src/items/efeito_item.gd" id="2_ef"]
+
+[resource]
+script = ExtResource("1_di")
+nome = "Nucleo Vampirico"
+descricao = "Cada abate devolve um pouco. 5% de chance de recuperar 1 de vida."
+efeitos = Array[ExtResource("2_ef")]([])
+comportamento = 3
+parametro = 0.05
+maximo_por_run = 2
+cor = Color(0.9, 0.2, 0.35, 1)
+sigla = "W"

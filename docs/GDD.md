@@ -91,8 +91,10 @@ forçando adaptação. No vertical slice, a Diretora existe apenas como chefe.
 | Item | Estado |
 |---|---|
 | Movimentação WASD + mira no mouse | ✅ |
-| Pistola infinita (PST-9) | ✅ |
-| Shotgun de loot (BRK-12), munição finita, descarta ao acabar | ✅ |
+| Pistola de reserva infinita (PST-9) — pente de 14, recarrega e nunca fica sem | ✅ |
+| Shotgun de loot (BRK-12), pente de 6 | ✅ |
+| Pente e recarga (`R`, ou automática ao esvaziar) | ✅ |
+| Implantes passivos coletáveis, lidos no frame de uso como a Deterioração | ✅ |
 | Rolamento com i-frames e cooldown | ✅ |
 | Inimigo melee (Rastejante) com investida acima de 50% | ✅ |
 | Inimigo ranged (Vigia) com mira preditiva acima de 50% | ✅ |

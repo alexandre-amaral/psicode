@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="PoolLoot" load_steps=9 format=3]
+[gd_resource type="Resource" script_class="PoolLoot" load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://src/items/pool_loot.gd" id="1_pl"]
 [ext_resource type="Resource" path="res://src/weapons/shotgun.tres" id="2_shotgun"]
@@ -8,8 +8,18 @@
 [ext_resource type="Resource" path="res://src/items/implante_gatilho.tres" id="6_gatilho"]
 [ext_resource type="Resource" path="res://src/items/implante_penetrador.tres" id="7_penetrador"]
 [ext_resource type="Resource" path="res://src/items/implante_dissipador.tres" id="8_dissipador"]
+[ext_resource type="Resource" path="res://src/items/implante_overclock.tres" id="9_overclock"]
+[ext_resource type="Resource" path="res://src/items/implante_municao_inteligente.tres" id="10_municao_inteligente"]
+[ext_resource type="Resource" path="res://src/items/implante_vampirico.tres" id="11_vampirico"]
+[ext_resource type="Resource" path="res://src/items/implante_sobrecarga.tres" id="12_sobrecarga"]
+[ext_resource type="Resource" path="res://src/items/implante_nanobots.tres" id="13_nanobots"]
+[ext_resource type="Resource" path="res://src/items/implante_fragmentador.tres" id="14_fragmentador"]
+[ext_resource type="Resource" path="res://src/items/implante_celula_eco.tres" id="15_celula_eco"]
+[ext_resource type="Resource" path="res://src/items/implante_firewall.tres" id="16_firewall"]
+[ext_resource type="Resource" path="res://src/items/implante_predatoria.tres" id="17_predatoria"]
+[ext_resource type="Resource" path="res://src/items/implante_daemon.tres" id="18_daemon"]
 
 [resource]
 script = ExtResource("1_pl")
 armas = Array[Resource]([ExtResource("2_shotgun")])
-itens = Array[Resource]([ExtResource("3_nucleo"), ExtResource("4_reflexo"), ExtResource("5_servo"), ExtResource("6_gatilho"), ExtResource("7_penetrador"), ExtResource("8_dissipador")])
+itens = Array[Resource]([ExtResource("3_nucleo"), ExtResource("4_reflexo"), ExtResource("5_servo"), ExtResource("6_gatilho"), ExtResource("7_penetrador"), ExtResource("8_dissipador"), ExtResource("9_overclock"), ExtResource("10_municao_inteligente"), ExtResource("11_vampirico"), ExtResource("12_sobrecarga"), ExtResource("13_nanobots"), ExtResource("14_fragmentador"), ExtResource("15_celula_eco"), ExtResource("16_firewall"), ExtResource("17_predatoria"), ExtResource("18_daemon")])

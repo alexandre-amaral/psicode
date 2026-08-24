@@ -3,6 +3,16 @@ extends CanvasLayer
 ## para os inimigos ou para o gerenciador de ondas -- de proposito. Da para
 ## apagar a HUD inteira do projeto e o jogo continua rodando.
 
+## Cor de descanso do rotulo de municao. Guardada como constante porque o
+## aviso de recarga pinta por cima e precisa saber para onde voltar.
+const COR_MUNICAO := Color(0.7, 0.78, 0.9)
+
+## Ultimo estado de municao recebido. Guardado porque o texto e remontado
+## depois da recarga, quando nenhum sinal novo chega.
+var _no_pente: int = 0
+var _reserva: int = -1
+var _recarregando: bool = false
+
 @onready var _rotulo_fase: Label = $Topo/Esquerda/Fase
 @onready var _rotulo_arma: Label = $Rodape/Arma
 @onready var _rotulo_municao: Label = $Rodape/Municao
@@ -32,6 +42,8 @@ func _ready() -> void:
 	EventBus.fase_deterioracao_mudou.connect(_ao_mudar_fase)
 	EventBus.arma_equipada.connect(_ao_equipar_arma)
 	EventBus.municao_mudou.connect(_ao_municao)
+	EventBus.recarga_iniciada.connect(_ao_recarga_iniciada)
+	EventBus.recarga_concluida.connect(_ao_recarga_concluida)
 	EventBus.onda_iniciada.connect(_ao_onda_iniciada)
 	EventBus.sala_limpa.connect(func(_s: Node2D) -> void: _atualizar_progresso())
 	EventBus.transicao_concluida.connect(func(_s: Node2D) -> void: _atualizar_progresso())
@@ -81,8 +93,32 @@ func _ao_equipar_arma(dados: Resource, _slot: int) -> void:
 	_rotulo_arma.modulate = dados.cor_projetil
 
 
-func _ao_municao(atual: int, maximo: int) -> void:
-	_rotulo_municao.text = "INFINITA" if maximo < 0 else "%d / %d" % [atual, maximo]
+func _ao_municao(no_pente: int, reserva: int) -> void:
+	_no_pente = no_pente
+	_reserva = reserva
+	if _recarregando:
+		return
+	_rotulo_municao.text = _texto_municao()
+
+
+func _texto_municao() -> String:
+	# Reserva infinita vira o simbolo, nao a palavra: o numero que importa
+	# durante o tiroteio e o do pente, e "INFINITA" ocupava o lugar dele.
+	var texto_reserva := "∞" if _reserva < 0 else str(_reserva)
+	return "%d / %s" % [_no_pente, texto_reserva]
+
+
+## Sem este aviso o jogador clica, nao sai tiro, e ele acha que travou.
+func _ao_recarga_iniciada(_duracao: float) -> void:
+	_recarregando = true
+	_rotulo_municao.text = "RECARREGANDO..."
+	_rotulo_municao.modulate = Color(1.0, 0.72, 0.29)
+
+
+func _ao_recarga_concluida() -> void:
+	_recarregando = false
+	_rotulo_municao.modulate = COR_MUNICAO
+	_rotulo_municao.text = _texto_municao()
 
 
 func _ao_onda_iniciada(indice: int, total: int) -> void:

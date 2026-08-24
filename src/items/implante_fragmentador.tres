@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DadosItem" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/items/dados_item.gd" id="1_di"]
+[ext_resource type="Script" path="res://src/items/efeito_item.gd" id="2_ef"]
+
+[resource]
+script = ExtResource("1_di")
+nome = "Fragmentador Quantico"
+descricao = "10% dos tiros se partem em dois ao acertar, com metade do dano."
+efeitos = Array[ExtResource("2_ef")]([])
+comportamento = 2
+parametro = 0.1
+maximo_por_run = 2
+cor = Color(0.75, 0.5, 1, 1)
+sigla = "F"

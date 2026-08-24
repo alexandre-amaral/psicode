@@ -5,18 +5,18 @@
 
 [sub_resource type="Resource" id="EfeitoItem_0"]
 script = ExtResource("2_ef")
-alvo = 2
+alvo = 5
 modo = 0
-valor = 0.85
-condicao = 0
+valor = 1.5
+condicao = 3
 
 [resource]
 script = ExtResource("1_di")
-nome = "Reflexo Sintetico"
-descricao = "O rolamento volta antes. -15% de recarga da esquiva."
+nome = "Celula de Eco"
+descricao = "Recarregar carrega o cano. Os 3 tiros seguintes causam +50% de dano."
 efeitos = Array[ExtResource("2_ef")]([SubResource("EfeitoItem_0")])
-comportamento = 0
-parametro = 0.0
-maximo_por_run = 3
-cor = Color(0.45, 0.85, 1, 1)
-sigla = "R"
+comportamento = 6
+parametro = 3.0
+maximo_por_run = 2
+cor = Color(1, 0.9, 0.4, 1)
+sigla = "E"

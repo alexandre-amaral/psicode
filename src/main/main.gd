@@ -9,7 +9,10 @@ func _ready() -> void:
 
 
 func _unhandled_input(evento: InputEvent) -> void:
-	if evento.is_action_pressed("reiniciar"):
+	# R so reinicia com a run JA terminada. Durante o jogo a mesma tecla
+	# recarrega a arma -- e reiniciar por engano no meio de uma run boa e o
+	# tipo de acidente que o jogador nunca perdoa.
+	if evento.is_action_pressed("reiniciar") and _run_terminou():
 		GameState.reiniciar()
 		get_viewport().set_input_as_handled()
 		return
@@ -27,3 +30,8 @@ func _unhandled_input(evento: InputEvent) -> void:
 	if OS.is_debug_build() and evento.is_action_pressed("debug_deterioracao"):
 		Deterioracao.adicionar(25.0)
 		get_viewport().set_input_as_handled()
+
+
+func _run_terminou() -> bool:
+	var e := GameState.estado
+	return e == GameState.Estado.GAME_OVER or e == GameState.Estado.VITORIA

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DadosItem" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/items/dados_item.gd" id="1_di"]
+[ext_resource type="Script" path="res://src/items/efeito_item.gd" id="2_ef"]
+
+[resource]
+script = ExtResource("1_di")
+nome = "Nanobots de Reparacao"
+descricao = "A cada 30 abates, 1 de vida de volta."
+efeitos = Array[ExtResource("2_ef")]([])
+comportamento = 4
+parametro = 30.0
+maximo_por_run = 2
+cor = Color(0.5, 1, 0.85, 1)
+sigla = "N"

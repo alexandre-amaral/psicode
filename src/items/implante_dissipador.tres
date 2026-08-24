@@ -1,14 +1,22 @@
-[gd_resource type="Resource" script_class="DadosItem" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="DadosItem" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://src/items/dados_item.gd" id="1_di"]
+[ext_resource type="Script" path="res://src/items/efeito_item.gd" id="2_ef"]
+
+[sub_resource type="Resource" id="EfeitoItem_0"]
+script = ExtResource("2_ef")
+alvo = 7
+modo = 0
+valor = 0.8
+condicao = 0
 
 [resource]
 script = ExtResource("1_di")
 nome = "Dissipador Termico"
-descricao = "A cabeca esquenta devagar. -20% de Deterioracao passiva."
-alvo = 6
-modo = 0
-valor = 0.8
+descricao = "A cabeca esquenta devagar. -20% de Deterioracao."
+efeitos = Array[ExtResource("2_ef")]([SubResource("EfeitoItem_0")])
+comportamento = 0
+parametro = 0.0
 maximo_por_run = 2
 cor = Color(0.49, 0.97, 0.77, 1)
 sigla = "T"

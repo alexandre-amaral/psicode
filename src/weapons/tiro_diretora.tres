@@ -22,3 +22,5 @@ municao_maxima = -1
 shake_intensidade = 0.0
 shake_duracao = 0.0
 recuo_player = 0.0
+tamanho_pente = 9999
+tempo_recarga = 0.1

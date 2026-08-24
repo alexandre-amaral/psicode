@@ -14,7 +14,10 @@ signal player_rolou()
 
 # --- Armas ---
 signal arma_equipada(dados: Resource, slot: int)
-signal municao_mudou(atual: int, maximo: int)
+## (balas no pente, reserva). Reserva -1 = infinita.
+signal municao_mudou(no_pente: int, reserva: int)
+signal recarga_iniciada(duracao: float)
+signal recarga_concluida()
 
 # --- Inimigos ---
 signal inimigo_morreu(posicao: Vector2, creditos: int)
@@ -66,3 +69,6 @@ signal transicao_concluida(sala_nova: Node2D)
 # --- Game feel (pedidos, nao comandos) ---
 signal pedido_shake(intensidade: float, duracao: float)
 signal pedido_hitstop(duracao: float, escala: float)
+## Implante que cura (Nanobots, Vampirico) pede por aqui em vez de procurar o
+## Player na arvore. Quem tem vida decide o que fazer com o pedido.
+signal pedido_cura(quantidade: int)

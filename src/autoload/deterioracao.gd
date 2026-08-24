@@ -35,12 +35,21 @@ var passiva_ativa: bool = false
 
 func _process(delta: float) -> void:
 	if passiva_ativa and ganho_passivo_por_segundo > 0.0:
-		# Lido no frame, nao no inicio da run: pegar o dissipador no meio da
-		# partida tem de desacelerar a barra na hora.
-		valor += ganho_passivo_por_segundo * Modificadores.multiplicador_ganho_deterioracao() * delta
+		adicionar(ganho_passivo_por_segundo * delta)
 
 
+## Todo ganho de Deterioracao passa por aqui, e e aqui que o implante entra.
+##
+## Antes o multiplicador vivia so no _process, entao ele valia para o ganho
+## passivo e escapava de todo ganho por EVENTO -- limpar onda, matar inimigo,
+## virada de fase do chefe. O Dissipador prometia -20% e entregava bem menos,
+## porque a maior parte da barra sobe por evento, nao por segundo.
+##
+## Lido no frame, nao guardado: pegar o implante no meio da partida tem de
+## desacelerar a barra na hora.
 func adicionar(quantidade: float) -> void:
+	if quantidade > 0.0:
+		quantidade *= Modificadores.multiplicador_ganho_deterioracao()
 	valor += quantidade
 
 

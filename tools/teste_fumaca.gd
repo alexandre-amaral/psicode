@@ -251,12 +251,12 @@ func _achar_mapa() -> bool:
 		return false
 
 	# A run acabou de comecar, entao nenhum implante pode estar ativo. Conferir
-	# aqui, e nao no fim: no fim o proprio teste pode ter encostado num pickup
-	# ao ser reposicionado, e a assercao falharia por um motivo que nao e bug.
+	# aqui, e nao no fim: no fim o proprio teste ja instalou os dele.
 	if not Modificadores.itens_ativos().is_empty():
 		_falhar("a run comecou com %d implante(s) ativos -- iniciar_run parou de resetar Modificadores, e a dificuldade vaza de uma run para a seguinte" % Modificadores.itens_ativos().size())
 
 	_log("mapa pronto: %d celulas, chefe em %s" % [_mapa.celulas().size(), _mapa.celula_do_chefe()])
+	_instalar_todos_os_implantes()
 	_registrar_chegada()
 	return true
 
@@ -303,6 +303,33 @@ func _registrar_chegada() -> void:
 		sala.tipo,
 		"  (voltando)" if revisita else "",
 	])
+
+
+## Instala TODOS os implantes do pool antes da run comecar.
+##
+## Sem isto o teste nunca exercita ricochete, fragmentacao, vampirismo, cargas
+## nem marcador: ele nao anda ate os pickups, entao a run inteira roda com o
+## sistema de implantes zerado e um crash em qualquer um desses caminhos passa
+## despercebido. Ligando todos de uma vez, cada tiro do jogador atravessa o
+## codigo novo -- e um erro vira falha aqui, nao no playtest.
+##
+## O efeito colateral e proposital: a run fica mais facil. Nao importa, porque
+## o que este teste verifica e que ela TERMINA, nao o balanceamento.
+func _instalar_todos_os_implantes() -> void:
+	var pool: PoolLoot = load("res://src/items/pool_padrao.tres")
+	if pool == null:
+		_falhar("pool_padrao.tres nao carregou -- nenhum implante foi exercitado")
+		return
+
+	var instalados := 0
+	for item in pool.itens_validos():
+		if Modificadores.aplicar(item):
+			instalados += 1
+
+	if instalados == 0:
+		_falhar("nenhum implante do pool pode ser instalado -- o codigo de implante nao vai rodar nesta run")
+		return
+	_log("implantes instalados: %d de %d" % [instalados, pool.itens_validos().size()])
 
 
 ## Sala de recompensa entregou mesmo a recompensa?

@@ -76,12 +76,22 @@ func _ready() -> void:
 	EventBus.modificadores_mudaram.connect(_ao_modificadores_mudarem)
 	_slots[0] = arma_inicial
 	_arma.hostil = false
-	if arma_inicial != null:
-		_arma.equipar(arma_inicial)
 
+	# Conectar ANTES de equipar: equipar() emite municao_alterada, e ligar o
+	# sinal depois perdia esse primeiro aviso -- a HUD ficava com o texto que
+	# estava escrito na cena ate o primeiro tiro.
 	_arma.municao_alterada.connect(_ao_mudar_municao)
 	_arma.ficou_sem_municao.connect(_ao_acabar_municao)
 	_arma.disparou.connect(_ao_disparar)
+	_arma.recarga_iniciada.connect(func(d: float) -> void: EventBus.recarga_iniciada.emit(d))
+	_arma.recarga_concluida.connect(func() -> void: EventBus.recarga_concluida.emit())
+
+	# Cura pedida por implante (Nanobots, Vampirico). O pedido nao sabe quem
+	# cura -- mesmo padrao de pedido_shake e pedido_hitstop.
+	EventBus.pedido_cura.connect(curar)
+
+	if arma_inicial != null:
+		_arma.equipar(arma_inicial)
 
 	# A camera agora e gerenciada pelo mapa ou sala. 
 	EventBus.player_pronto.emit(self)
@@ -123,6 +133,9 @@ func _processar_normal(delta: float) -> void:
 
 	if Input.is_action_just_pressed("trocar_arma"):
 		_alternar_slot()
+
+	if Input.is_action_just_pressed("recarregar"):
+		_arma.recarregar()
 
 	_arma.atualizar_gatilho(Input.is_action_pressed("atirar"))
 	if Input.is_action_pressed("atirar"):
@@ -284,8 +297,8 @@ func _ao_acabar_municao() -> void:
 	EventBus.arma_equipada.emit(_slots[0], 0)
 
 
-func _ao_mudar_municao(atual: int, maximo: int) -> void:
-	EventBus.municao_mudou.emit(atual, maximo)
+func _ao_mudar_municao(no_pente: int, reserva: int) -> void:
+	EventBus.municao_mudou.emit(no_pente, reserva)
 
 
 func _ao_disparar(direcao: Vector2, dados: DadosArma) -> void:

@@ -2,42 +2,58 @@ class_name DadosItem
 extends Resource
 ## Um implante: o upgrade passivo que vale ate o fim da run.
 ##
-## A decisao de design daqui: o efeito e DADO, nao codigo. Um item e um par
-## (alvo, valor) mais o modo de combinar, e quem sofre o efeito consulta o
-## autoload Modificadores no frame em que precisa. Por isso criar um implante
-## novo e criar um .tres -- nao existe um `match` de nomes de item em lugar
-## nenhum, e nada no jogo guarda um numero ja multiplicado.
+## A decisao de design daqui: o efeito e DADO, nao codigo. Quem sofre o efeito
+## consulta o autoload Modificadores no frame em que precisa, e nada no jogo
+## guarda um numero ja multiplicado.
+##
+## Um implante tem DUAS partes, e vale entender a diferenca antes de criar um:
+##
+## 1. **efeitos** -- uma lista de EfeitoItem. E aqui que moram os numeros, e e
+##    puramente declarativo. Implante numerico novo (mesmo com varios efeitos,
+##    mesmo condicional) custa so um .tres.
+##
+## 2. **comportamento** -- um enum. Cobre o que numero nenhum expressa:
+##    ricochetear, dividir o projetil, curar por abate. Cada comportamento e
+##    lido por um sistema diferente do jogo (projetil, arma, autoload), entao
+##    um comportamento novo custa codigo. Esse e o limite honesto desta
+##    abordagem, e nao adianta fingir que nao existe.
 ##
 ## Para criar um implante: clique direito em src/items > Novo Recurso >
-## DadosItem, salve como implante_<nome>.tres, e adicione ao pool de loot
-## (src/items/pool_padrao.tres).
+## DadosItem, salve como implante_<nome>.tres, monte a lista de efeitos, e
+## adicione ao pool de loot (src/items/pool_padrao.tres).
 
-## O que o implante mexe. Um alvo novo exige um getter novo em Modificadores --
-## e o unico lugar do sistema que ainda pede codigo, porque cada alvo e lido
-## por um sistema diferente do jogo.
-enum Alvo {
-	VIDA_MAXIMA,
-	VELOCIDADE,
-	COOLDOWN_ROLAMENTO,
-	CADENCIA,
-	DANO,
-	VELOCIDADE_PROJETIL,
-	GANHO_DETERIORACAO,
+## O que o implante faz alem de mexer em numero.
+##
+## O `parametro` significa uma coisa diferente em cada um -- a doc de cada
+## valor diz qual.
+enum Comportamento {
+	## So os efeitos numericos valem.
+	NENHUM,
+	## parametro = chance (0..1) de o projetil quicar na parede.
+	RICOCHETE,
+	## parametro = chance (0..1) de o projetil se dividir ao acertar.
+	FRAGMENTAR,
+	## parametro = chance (0..1) de curar 1 ao matar.
+	VAMPIRISMO,
+	## parametro = quantos abates ate curar 1.
+	NANOBOTS,
+	## parametro = fracao de vida abaixo da qual os efeitos VIDA_BAIXA ligam.
+	SOBRECARGA,
+	## parametro = quantos tiros depois da recarga contam como "de eco".
+	ECO,
+	## parametro = multiplicador de dano no alvo marcado.
+	MARCADOR,
+	## parametro = teto de cargas.
+	CARGAS_SEM_DANO,
 }
-
-## MULTIPLICA acumula por produto (1.1 e 1.1 viram 1.21), SOMA por adicao.
-## Percentual pede MULTIPLICA; contagem inteira, como vida, pede SOMA.
-enum Modo { MULTIPLICA, SOMA }
 
 @export var nome: String = "Implante"
 @export_multiline var descricao: String = ""
 
 @export_group("Efeito")
-@export var alvo: Alvo = Alvo.VELOCIDADE
-@export var modo: Modo = Modo.MULTIPLICA
-## Com MULTIPLICA, 1.0 e neutro e menor que 1.0 reduz -- e assim que um
-## implante de reducao de cooldown se escreve (0.85 = 15% mais rapido).
-@export var valor: float = 1.1
+@export var efeitos: Array[EfeitoItem] = []
+@export var comportamento: Comportamento = Comportamento.NENHUM
+@export var parametro: float = 0.0
 ## Quantas vezes o mesmo implante pode acumular numa run. 0 = sem limite.
 @export var maximo_por_run: int = 0
 
@@ -47,15 +63,22 @@ enum Modo { MULTIPLICA, SOMA }
 @export var sigla: String = "+"
 
 
-## Neutro do modo: o valor que nao muda nada quando acumulado. Existe para o
-## Modificadores poder inicializar um alvo sem saber qual modo ele usa.
-func neutro() -> float:
-	return 1.0 if modo == Modo.MULTIPLICA else 0.0
+## Loop explicito em vez de filter(): Array.filter() devolve Array sem tipo e a
+## atribuicao de volta a um Array tipado estoura em runtime.
+func efeitos_validos() -> Array[EfeitoItem]:
+	var lista: Array[EfeitoItem] = []
+	for efeito in efeitos:
+		if efeito != null:
+			lista.append(efeito)
+	return lista
 
 
-## Texto curto para a HUD, montado do proprio dado. Sem isto cada implante
-## precisaria de uma descricao escrita a mao so para dizer o obvio.
-func resumo() -> String:
-	if modo == Modo.SOMA:
-		return "%s %+.0f" % [nome, valor]
-	return "%s %+.0f%%" % [nome, (valor - 1.0) * 100.0]
+## Implante que nao mexe em numero nenhum nem tem comportamento e um .tres
+## esquecido pela metade -- o defeito mais provavel deste sistema, e invisivel
+## em runtime. A suite de teste usa isto para recusar.
+func faz_alguma_coisa() -> bool:
+	return comportamento != Comportamento.NENHUM or not efeitos_validos().is_empty()
+
+
+func tem_comportamento() -> bool:
+	return comportamento != Comportamento.NENHUM

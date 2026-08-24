@@ -88,7 +88,15 @@ mensagem "ONDA 1". Se viu isso, **seu setup está pronto** — o resto deste
 documento é sobre trabalhar em equipe.
 
 Controles: `WASD` anda, mouse mira, botão esquerdo atira, `Espaço` rola,
-`Q` troca de arma, `R` reinicia, `Esc` sai.
+`Q` troca de arma, **`R` recarrega**, `Esc` sai.
+
+Sobre a recarga: cada arma tem um pente. Quando ele acaba, a arma recarrega
+sozinha — você só perde alguns instantes sem atirar. `R` recarrega antes disso,
+quando você quiser escolher a hora. A munição de reserva é infinita por
+enquanto, então você nunca fica sem balas de verdade.
+
+`R` só reinicia a partida **depois** que ela termina (na tela de fim). Durante o
+jogo ele recarrega — assim ninguém perde uma run boa por engano.
 
 Atalho útil: **`F1` sobe a Deterioração em 25%**. Aperte três vezes para ver o
 jogo no estado crítico sem precisar sobreviver quatro ondas.

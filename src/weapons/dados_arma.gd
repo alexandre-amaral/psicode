@@ -35,7 +35,15 @@ extends Resource
 @export var cor_projetil: Color = Color("6ee7ff")
 
 @export_group("Municao")
-## -1 = infinita. A pistola padrao do GDD nunca acaba.
+## Quantos tiros cabem no pente antes de precisar recarregar. Zero nao existe:
+## uma arma com pente vazio nunca poderia atirar.
+@export var tamanho_pente: int = 12
+## Quanto tempo a recarga leva. Enquanto ela roda, a arma nao dispara -- e essa
+## janela que da ritmo ao combate e que a Celula de Eco recompensa.
+@export var tempo_recarga: float = 1.1
+## RESERVA, nao o pente. -1 = infinita: a pistola do GDD nunca fica sem balas,
+## so pausa para recarregar. Reserva finita e o que faz uma arma de loot ser
+## descartada quando acaba.
 @export var municao_maxima: int = -1
 
 @export_group("Feedback")
@@ -45,8 +53,16 @@ extends Resource
 @export var recuo_player: float = 0.0
 
 
+## Reserva infinita. O nome ficou de quando `municao_maxima` era a municao
+## inteira da arma; hoje ele so fala da reserva.
 func municao_infinita() -> bool:
 	return municao_maxima < 0
+
+
+## Pente utilizavel. Protege de um zero digitado num .tres: pente zero travaria
+## a arma para sempre, sem erro nenhum no console.
+func pente() -> int:
+	return maxi(tamanho_pente, 1)
 
 
 func intervalo() -> float:

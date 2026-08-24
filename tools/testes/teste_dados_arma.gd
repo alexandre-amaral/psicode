@@ -79,6 +79,12 @@ func _armas_do_projeto() -> void:
 		if not arma.municao_infinita():
 			ok(arma.municao_maxima > 0, "%s: municao finita e maior que zero" % etiqueta)
 
+		# Pente zero travaria a arma para sempre: ela nunca poderia atirar e
+		# nada apareceria no console. Mesma classe de erro que cadencia zero.
+		ok(arma.tamanho_pente >= 1, "%s: pente cabe ao menos um tiro" % etiqueta)
+		igual(arma.pente(), maxi(arma.tamanho_pente, 1), "%s: pente() protege do zero" % etiqueta)
+		ok(arma.tempo_recarga > 0.0, "%s: recarga leva tempo positivo" % etiqueta)
+
 
 ## A pistola tem uma promessa explicita no GDD: nunca acaba.
 func _pistola() -> void:
@@ -86,8 +92,11 @@ func _pistola() -> void:
 	if p == null:
 		ok(false, "pistola.tres carrega")
 		return
-	ok(p.municao_infinita(), "a pistola inicial tem municao infinita")
+	# A promessa do GDD virou "RESERVA infinita": a pistola nunca fica sem
+	# balas, mas agora pausa para recarregar como qualquer arma.
+	ok(p.municao_infinita(), "a pistola inicial tem reserva infinita")
 	ok(p.automatica, "a pistola e automatica")
+	ok(p.tamanho_pente >= 10, "o pente da pistola e generoso (ela e a arma de base)")
 
 	var s: DadosArma = load("res://src/weapons/shotgun.tres")
 	if s == null:

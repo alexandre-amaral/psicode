@@ -70,6 +70,9 @@ Só depois que a base for divertida.
   — fecha a dívida declarada acima: agora dá para se orientar no andar
 - [x] Implantes passivos: `src/items/implante_*.tres` somados no autoload `Modificadores`
   — lidos no frame de uso, como a Deterioração; implante novo é um `.tres`
+- [x] 16 implantes, incluindo condicionais (vida baixa, cargas, tiros de eco) e comportamentais (ricochete, fragmentação, vampirismo, marcador)
+  — `DadosItem` virou lista de `EfeitoItem` + um comportamento; item só-numérico não custa GDScript
+- [x] Pente e recarga (`R`, ou automática ao esvaziar), reserva infinita por enquanto
 - [ ] Mais dois tipos de inimigo (algo que force reposicionamento, e algo que force priorizar alvo)
 - [ ] 3–4 armas novas — o sistema já suporta: cada arma é um `.tres`, e o pool de loot é `src/items/pool_padrao.tres`
 - [ ] Créditos e loot dropados

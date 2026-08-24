@@ -14,7 +14,7 @@ extends Node2D
 ##    chegada.
 ##
 ## 2. **Layout em bandas, nao em grade de passo fixo.** As salas tem tamanhos
-##    muito diferentes (1600x900, 2400x1350, 600x1600, 1600x1600). Multiplicar a
+##    muito diferentes (960x544, 1440x800, 768x960, 960x960). Multiplicar a
 ##    celula do grid por uma constante sobrepoe as grandes e deixa buraco entre
 ##    as pequenas. Aqui a largura de uma coluna e a da sala mais larga daquela
 ##    coluna, a altura de uma linha e a da sala mais alta daquela linha, e cada
@@ -56,10 +56,10 @@ const MAX_TENTATIVAS := 24
 ## .tres a mais nesta lista, sem uma linha de GDScript.
 @export var tipos_de_sala: Array[DadosSala] = []
 ## Distancia livre entre duas bandas vizinhas: e o comprimento do corredor.
-@export var vao_corredor: float = 420.0
+@export var vao_corredor: float = 256.0
 ## Quantas salas o andar tenta ter, contando as penduradas.
 @export var total_salas: int = 10
-@export var largura_corredor: float = 120.0
+@export var largura_corredor: float = 80.0
 
 var sala_atual: Sala = null
 

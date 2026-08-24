@@ -44,8 +44,8 @@ const INTERVALO_AVANCO := 0.35
 ## primeira vez. Cobre a espessura da parede e o passo que ele pode ter dado no
 ## frame entre nascer e ser conferido. E pequena de proposito: o defeito que
 ## esta conferencia existe para pegar joga o inimigo salas inteiras de
-## distancia, nao 90 pixels.
-const FOLGA_SPAWN := 96.0
+## distancia, nao 48 pixels.
+const FOLGA_SPAWN := 64.0
 
 ## Um spawn errado costuma errar TODOS os spawns daquela sala. Relatar cada um
 ## enterraria o resto do diagnostico; o que passar do limite vira uma linha de

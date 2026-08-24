@@ -20,7 +20,7 @@ primeiro:
 godot --headless --path . --import                          # gera .godot/ ; rode antes do resto em maquina limpa
 godot --headless --path . tools/testes/runner.tscn          # segundos ; "a conta esta certa?"
 godot --headless --path . tools/teste_fumaca.tscn           # minutos ; "a run inteira funciona?"
-godot --path . tools/capturar.tscn --resolution 1280x720    # screenshots em user://capturas
+godot --path . tools/capturar.tscn --resolution 960x544    # screenshots em user://capturas
 godot --headless --path . --export-release "Windows Desktop"
 godot --headless --path . --export-release "Web"
 ```

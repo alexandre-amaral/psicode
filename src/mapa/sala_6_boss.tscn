@@ -10,21 +10,21 @@ script = ExtResource("1_s")
 tipo = &"boss"
 
 [node name="Chao" type="ColorRect" parent="."]
-offset_left = -800.0
-offset_top = -450.0
-offset_right = 800.0
-offset_bottom = 450.0
+offset_left = -480.0
+offset_top = -272.0
+offset_right = 480.0
+offset_bottom = 272.0
 color = Color(0.1, 0.04, 0.08, 1)
 
 [node name="Parede" type="Line2D" parent="."]
-points = PackedVector2Array(-800, -450, 800, -450, 800, 450, -800, 450, -800, -450)
+points = PackedVector2Array(-480, -272, 480, -272, 480, 272, -480, 272, -480, -272)
 width = 8.0
 default_color = Color(1, 0.2, 0.4, 0.8)
 
 [node name="Portas" type="Node2D" parent="."]
 
 [node name="Porta_Sul" parent="Portas" instance=ExtResource("2_p")]
-position = Vector2(0, 450)
+position = Vector2(0, 272)
 rotation = 3.14159
 direcao = 1
 
@@ -34,4 +34,4 @@ direcao = 1
 script = ExtResource("3_w")
 ondas = Array[Resource]([ExtResource("4_o")])
 caminho_container_inimigos = NodePath("../ContainerInimigos")
-area_spawn = Rect2(-10, -10, 20, 20)
+area_spawn = Rect2(-16, -16, 32, 32)

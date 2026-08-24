@@ -115,6 +115,8 @@ docs/
 | Cor e icone de uma sala no minimapa | `cor_mapa` e `icone` do `tipo_*.tres` |
 | Enquadramento e cores do minimapa | `@export` do no `Minimapa` em `src/ui/hud.tscn` |
 | Quantas salas o andar tem e o vao do corredor | `@export` do no `GerenciadorMapa` em `src/main/main.tscn` |
+| Tamanho de uma sala | os `points` do Line2D `Parede` — multiplos de 16, dimensao multipla de 32 |
+| Resolucao base | `[display]` do `project.godot` — 960x544, camera em zoom 1.0 |
 | Forma e parede de uma sala | Line2D `Parede` em `src/mapa/sala_*.tscn` — a colisao nasce dele |
 | Lockdown e abertura de porta | `src/mapa/sala.gd`, `src/mapa/porta.gd` e a barreira fisica de `src/mapa/porta.tscn` |
 | Glitch de alucinacao | `assets/shaders/glitch.gdshader` |
@@ -126,7 +128,7 @@ for "vou editar um `.gd`", verifique antes se nao deveria ser um `.tres`.
 
 ```bash
 godot --headless --path . tools/teste_fumaca.tscn      # precisa imprimir PASSOU
-godot --path . tools/capturar.tscn --resolution 1280x720   # se mexeu no visual
+godot --path . tools/capturar.tscn --resolution 960x544   # se mexeu no visual
 ```
 
 O teste sobe o jogo inteiro sem janela, avanca as ondas, mata o chefe e falha
@@ -169,6 +171,15 @@ em qualquer erro de script.
   nunca completa, a sala fica `OCUPADA` para sempre e o teste de fumaca so
   descobre depois de queimar os 240s. Sala de recompensa = **sem no `Ondas`**;
   e assim que `Sala._conectar_ondas()` a marca `LIMPA` e abre as portas.
+- **Toda geometria de sala e multipla de 16, e a DIMENSAO e multipla de 32.**
+  A resolucao base e 960x544 (ambos /16). As salas sao centradas na origem,
+  entao o contorno guarda a MEIA dimensao -- e meia dimensao so cai na grade se
+  a dimensao inteira for multipla de 32. Sala nova fora disso nao quebra nada em
+  runtime; so o tileset e que nao encaixa, meses depois. A suite
+  `tools/testes/teste_grade.gd` recusa.
+- **`Porta.LARGURA` e `largura_corredor` tem de ser iguais.** A porta e o vao que
+  a parede abre; o corredor encaixa nessa boca. Mudar um sem o outro deixa
+  parede no meio da passagem.
 - **Sala pendurada precisa de porta nos quatro lados.** Boss, arma e item
   nascem numa celula criada so para elas. Com uma porta so, todas disputam a
   mesma posicao relativa e as ultimas quase nunca cabem — a sala de item
@@ -195,8 +206,16 @@ em qualquer erro de script.
   e escapava de tudo que sobe a barra por evento.
 - **`Arma.atirar()` num `for` no mesmo frame so dispara UMA vez.** O
   `_t_cadencia` e setado no primeiro tiro e `pode_atirar()` recusa o resto,
-  porque o `_process` que decrementa nao roda no meio do laco. Salva radial
-  precisa de outro caminho -- e por isso o anel da Diretora esta quebrado hoje.
+  porque o `_process` que decrementa nao roda no meio do laco. Salva radial usa
+  **`Arma.atirar_varias(direcoes)`**, que gasta um cooldown e uma bala para a
+  salva inteira. Foi assim que o anel da Diretora passou a sair com 20 projeteis
+  em vez de um. `tools/testes/teste_arma.gd` guarda os dois lados: que o laco
+  antigo da 1 e que a salva da N.
+- **O `_ready` do projetil roda ANTES de `configurar()`**, porque a Arma faz
+  `add_child` primeiro. Quem pinta e dimensiona e `_aplicar_aparencia()`,
+  chamado nas DUAS pontas. Mexer nisso sem manter a segunda chamada faz todo
+  projetil do jogo voltar a nascer ciano com raio 4 -- o tiro do inimigo fica
+  igual ao do jogador e a colisao menor do que o `.tres` pede.
 - **Conecte o sinal ANTES de `equipar()`.** `equipar()` emite `municao_alterada`
   na hora; ligar o sinal depois perde esse primeiro aviso e a HUD fica com o
   texto que estava escrito na cena.

@@ -17,7 +17,7 @@ const CENA_VIGIA := preload("res://src/enemies/vigia.tscn")
 
 @export_group("Chefe")
 @export var nome_exibicao: String = "A IA DIRETORA"
-@export var raio_orbita: float = 90.0
+@export var raio_orbita: float = 56.0
 @export var velocidade_orbita: float = 0.35
 @export var max_invocados: int = 8
 
@@ -61,7 +61,7 @@ func _ready() -> void:
 	_t_acao = 1.6
 	EventBus.boss_revelado.emit(nome_exibicao, vida_maxima)
 	EventBus.boss_vida_mudou.emit(vida, vida_maxima)
-	EventBus.pedido_shake.emit(16.0, 1.2)
+	EventBus.pedido_shake.emit(9.6, 1.2)
 
 
 func _comportamento(delta: float) -> void:
@@ -216,9 +216,16 @@ func _manter_ataque(delta: float) -> void:
 		return
 	_giro_espiral += delta * 5.2
 	# Dois bracos opostos: da para ficar entre eles, mas so andando.
-	for i in 2:
-		var dir := Vector2.RIGHT.rotated(_giro_espiral + PI * i)
-		_arma_salva.atirar(dir)
+	#
+	# Numa salva so, e nao num for de atirar(): duas chamadas no mesmo frame
+	# fariam a segunda cair no cooldown de cadencia e o braco oposto nunca
+	# sairia. Com atirar_varias a cadencia passa a limitar SALVAS por segundo,
+	# que e o que ela sempre quis dizer aqui.
+	var bracos: Array[Vector2] = [
+		Vector2.RIGHT.rotated(_giro_espiral),
+		Vector2.RIGHT.rotated(_giro_espiral + PI),
+	]
+	_arma_salva.atirar_varias(bracos)
 
 
 func _terminar_ataque() -> void:
@@ -232,15 +239,18 @@ func _atacar_preditivo() -> void:
 	if direcao == Vector2.ZERO:
 		direcao = direcao_para_alvo()
 	_arma_preditiva.atirar(direcao)
-	EventBus.pedido_shake.emit(4.0, 0.15)
+	EventBus.pedido_shake.emit(2.4, 0.15)
 
 
+## O anel inteiro sai numa salva so. Percorrer as direcoes chamando atirar()
+## nao funciona: o cooldown de cadencia so decrementa entre frames, entao a
+## partir da segunda direcao pode_atirar() recusa e o "anel" de 20 projeteis
+## virava um projetil.
 func _atacar_anel() -> void:
 	var quantidade := 14 + fase_chefe * 6
 	var offset := randf() * TAU
-	for d in Balistica.anel(quantidade, offset):
-		_arma_salva.atirar(d)
-	EventBus.pedido_shake.emit(8.0, 0.3)
+	_arma_salva.atirar_varias(Balistica.anel(quantidade, offset))
+	EventBus.pedido_shake.emit(4.8, 0.3)
 
 
 func _atacar_invocar() -> void:
@@ -258,14 +268,14 @@ func _atacar_invocar() -> void:
 			cena = CENA_VIGIA
 		var inimigo := cena.instantiate()
 		var angulo := randf() * TAU
-		var destino := global_position + Vector2.RIGHT.rotated(angulo) * randf_range(110.0, 190.0)
+		var destino := global_position + Vector2.RIGHT.rotated(angulo) * randf_range(64.0, 112.0)
 		# add_child ANTES de global_position: fora da arvore o setter nao acha o
 		# pai e cai no position local, e o container reaplica a propria transform
 		# por cima -- o invocado nascia no dobro do offset da sala do chefe.
 		container.add_child(inimigo)
 		inimigo.global_position = destino
 		_invocados.append(inimigo)
-	EventBus.pedido_shake.emit(6.0, 0.25)
+	EventBus.pedido_shake.emit(3.6, 0.25)
 
 
 func _limpar_invocados() -> void:
@@ -306,7 +316,7 @@ func _checar_fase() -> void:
 	_fila.clear()
 	fase_mudou.emit(fase_chefe)
 	EventBus.boss_fase_mudou.emit(fase_chefe)
-	EventBus.pedido_shake.emit(14.0, 0.6)
+	EventBus.pedido_shake.emit(8.4, 0.6)
 	Deterioracao.adicionar(5.0)
 	# Pequena janela de alivio na virada de fase, senao a transicao vira
 	# dano gratuito em cima de quem estava no meio de uma esquiva.
@@ -322,5 +332,5 @@ func morrer() -> void:
 	_laser.visible = false
 	_aviso.visible = false
 	EventBus.boss_morreu.emit()
-	EventBus.pedido_shake.emit(26.0, 1.4)
+	EventBus.pedido_shake.emit(15.6, 1.4)
 	super.morrer()

@@ -48,6 +48,24 @@ func _ready() -> void:
 	_forma = $Forma
 	_visual = $Visual
 	_rastro = $Rastro
+	_rastro.top_level = true          # ignora a rotacao do pai
+
+	_aplicar_aparencia()
+
+	body_entered.connect(_ao_encostar)
+
+
+## Cor, tamanho e rastro a partir de `cor` e `raio`.
+##
+## Isto e chamado DUAS vezes de proposito: uma no _ready, com os defaults, e
+## outra no fim de configurar(), com os valores do DadosArma.
+##
+## O motivo e a ordem em que a Arma monta o projetil: `add_child()` vem antes de
+## `configurar()`, entao o _ready sempre roda com os defaults. Sem a segunda
+## chamada, TODO projetil do jogo nascia ciano com raio 4 -- o tiro do Vigia e o
+## da Diretora ficavam visualmente identicos ao do jogador, e a colisao deles
+## menor do que o .tres pedia.
+func _aplicar_aparencia() -> void:
 	# Cada projetil precisa da propria forma: se compartilhassemos o recurso
 	# da cena, mudar o raio de um mudaria o de todos.
 	var forma_circulo := CircleShape2D.new()
@@ -57,14 +75,11 @@ func _ready() -> void:
 	_visual.color = cor
 	_visual.polygon = _montar_polygon(raio)
 
-	_rastro.top_level = true          # ignora a rotacao do pai
 	_rastro.default_color = Color(cor.r, cor.g, cor.b, 0.35)
 	_rastro.width = maxf(raio * 1.5, 4.0)
 	_rastro.clear_points()
 	_rastro.add_point(global_position)
 	_rastro.add_point(global_position)
-
-	body_entered.connect(_ao_encostar)
 
 
 func configurar(
@@ -106,6 +121,10 @@ func configurar(
 	else:
 		collision_layer = LAYER_PROJ_PLAYER
 		collision_mask = LAYER_INIMIGO | LAYER_PAREDE
+
+	# Por ultimo: so agora `cor` e `raio` valem o que o DadosArma manda. O _ready
+	# ja pintou com os defaults, porque a Arma faz add_child antes de configurar.
+	_aplicar_aparencia()
 
 
 func _physics_process(delta: float) -> void:
@@ -174,7 +193,7 @@ func _atualizar_rastro() -> void:
 		return
 	_rastro.set_point_position(0, global_position)
 	# O ponto de tras fica sempre alguns frames atras, na direcao oposta.
-	_rastro.set_point_position(1, global_position - velocidade.normalized() * maxf(raio * 6.0, 22.0))
+	_rastro.set_point_position(1, global_position - velocidade.normalized() * maxf(raio * 6.0, 16.0))
 
 
 ## Identidade visual da Deterioracao alta: os projeteis inimigos passam a

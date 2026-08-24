@@ -27,20 +27,20 @@ color = Color(0.49, 0.97, 0.77, 1)
 polygon = PackedVector2Array(0, -15, 13, -7.5, 13, 7.5, 0, 15, -13, 7.5, -13, -7.5)
 
 [node name="Sigla" type="Label" parent="."]
-offset_left = -20.0
-offset_top = -11.0
-offset_right = 20.0
-offset_bottom = 11.0
-theme_override_font_sizes/font_size = 15
+offset_left = -14.0
+offset_top = -8.0
+offset_right = 14.0
+offset_bottom = 8.0
+theme_override_font_sizes/font_size = 11
 text = "+"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Rotulo" type="Label" parent="."]
-offset_left = -100.0
-offset_top = 26.0
-offset_right = 100.0
-offset_bottom = 48.0
-theme_override_font_sizes/font_size = 13
+offset_left = -60.0
+offset_top = 18.0
+offset_right = 60.0
+offset_bottom = 34.0
+theme_override_font_sizes/font_size = 10
 text = "IMPLANTE"
 horizontal_alignment = 1

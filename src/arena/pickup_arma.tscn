@@ -27,10 +27,10 @@ color = Color(1, 0.72, 0.29, 1)
 polygon = PackedVector2Array(14, 0, 0, 10, -14, 0, 0, -10)
 
 [node name="Rotulo" type="Label" parent="."]
-offset_left = -90.0
-offset_top = 26.0
-offset_right = 90.0
-offset_bottom = 48.0
-theme_override_font_sizes/font_size = 13
+offset_left = -54.0
+offset_top = 18.0
+offset_right = 54.0
+offset_bottom = 34.0
+theme_override_font_sizes/font_size = 10
 text = "ARMA"
 horizontal_alignment = 1

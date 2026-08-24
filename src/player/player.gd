@@ -242,7 +242,7 @@ func receber_dano(quantidade: int, impulso: Vector2 = Vector2.ZERO) -> bool:
 
 	vida_alterada.emit(vida, vida_maxima)
 	EventBus.player_dano_recebido.emit(vida, vida_maxima)
-	EventBus.pedido_shake.emit(11.0, 0.35)
+	EventBus.pedido_shake.emit(6.6, 0.35)
 	EventBus.pedido_hitstop.emit(0.1, 0.04)
 
 	if vida <= 0:
@@ -267,7 +267,7 @@ func _morrer() -> void:
 	fx.modulate = Color(0.4, 0.95, 1.0)
 	get_parent().add_child(fx)
 	_visual.visible = false
-	EventBus.pedido_shake.emit(20.0, 0.7)
+	EventBus.pedido_shake.emit(12.0, 0.7)
 	EventBus.player_morreu.emit()
 	GameState.terminar_run(false)
 

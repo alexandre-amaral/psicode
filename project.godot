@@ -27,8 +27,8 @@ Juice="*res://src/autoload/juice.gd"
 
 [display]
 
-window/size/viewport_width=1280
-window/size/viewport_height=720
+window/size/viewport_width=960
+window/size/viewport_height=544
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
@@ -124,3 +124,5 @@ textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 environment/defaults/default_clear_color=Color(0.043137, 0.047059, 0.078431, 1)
+2d/snap/snap_2d_transforms_to_pixel=true
+2d/snap/snap_2d_vertices_to_pixel=true

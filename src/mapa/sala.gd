@@ -29,7 +29,7 @@ const COMPRIMENTO_MINIMO := 8.0
 const TOLERANCIA_ENCAIXE := 24.0
 ## Quanto o jogador entra na sala alem da boca da porta. Menos que isso e o
 ## lockdown fecha a parede em cima dele no mesmo frame da chegada.
-const RECUO_ENTRADA := 90.0
+const RECUO_ENTRADA := 48.0
 ## Folga exigida entre o corpo do jogador e qualquer parede ou obstaculo. O
 ## CollisionShape2D do player tem raio 11; o resto e margem para ele nao nascer
 ## raspando numa quina e ser empurrado para dentro do solido pela resolucao.
@@ -38,7 +38,7 @@ const FOLGA_CORPO := 24.0
 ## entao o passo so decide o quao estreita pode ser uma passagem para ainda ser
 ## encontrada: 64 acha qualquer vao maior que isso e custa poucas centenas de
 ## testes na maior sala, uma vez so por sala.
-const PASSO_VARREDURA := 64.0
+const PASSO_VARREDURA := 32.0
 
 ## StringName e nao String porque este campo virou chave: o gerenciador e o
 ## minimapa comparam com os ids de DadosSala, e comparacao de StringName e por

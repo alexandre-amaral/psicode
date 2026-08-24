@@ -23,6 +23,8 @@ const SUITES := [
 	"res://tools/testes/teste_dados_sala.gd",
 	"res://tools/testes/teste_modificadores.gd",
 	"res://tools/testes/teste_efeito_item.gd",
+	"res://tools/testes/teste_grade.gd",
+	"res://tools/testes/teste_arma.gd",
 ]
 
 

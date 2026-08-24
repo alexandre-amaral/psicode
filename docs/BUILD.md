@@ -78,7 +78,7 @@ e acesse `http://localhost:8000`.
 3. Zipe o **conteúdo** de `builds/web/` — o `index.html` tem que estar na raiz
    do zip, não dentro de uma pasta
 4. Faça upload e marque **"This file will be played in the browser"**
-5. Viewport: `1280 x 720`, com *fullscreen button* ligado
+5. Viewport: `960 x 544`, com *fullscreen button* ligado
 6. Visibilidade **Restricted** com senha enquanto for teste fechado
 
 O testador clica num link e joga. Sem download, sem aviso do SmartScreen,

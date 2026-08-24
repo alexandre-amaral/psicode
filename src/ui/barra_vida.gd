@@ -1,9 +1,9 @@
 extends Control
 ## Vida em segmentos. Numero exato importa menos que "quantos erros ainda cabem".
 
-const LARGURA_PIP := 22.0
-const ALTURA_PIP := 14.0
-const ESPACO := 5.0
+const LARGURA_PIP := 16.0
+const ALTURA_PIP := 10.0
+const ESPACO := 4.0
 
 var vida: int = 6
 var vida_maxima: int = 6

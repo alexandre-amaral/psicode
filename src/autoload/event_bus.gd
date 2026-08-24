@@ -23,12 +23,11 @@ signal recarga_concluida()
 signal inimigo_morreu(posicao: Vector2, creditos: int)
 signal inimigo_spawnou(inimigo: Node2D)
 
-# --- Ondas ---
-signal onda_iniciada(indice: int, total: int)
-## O texto do anuncio viaja junto do evento: assim a HUD nunca precisa
-## procurar o gerenciador de ondas na arvore para descobrir o titulo.
-signal onda_anunciada(titulo: String, subtitulo: String)
-signal onda_limpa(indice: int)
+# --- Combate na sala ---
+## Quantos inimigos ainda respiram na sala em que o jogador esta. Emitido pela
+## propria Sala, que e quem os colocou. Os tres sinais de onda que viviam aqui
+## sairam junto com o sistema de ondas: a composicao passou a ser escolhida na
+## montagem do andar, e nao existe mais um indice de onda para anunciar.
 signal contagem_inimigos_mudou(vivos: int)
 
 # --- Deterioracao ---

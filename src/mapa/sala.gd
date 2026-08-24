@@ -17,6 +17,14 @@ extends Node2D
 ## da sala) e o centro da sala de pilar e o pilar -- os dois casos ja nasceram o
 ## jogador dentro de geometria solida. ponto_seguro() e posicao_livre() existem
 ## para isso, e olham o contorno real mais os obstaculos.
+##
+## Quarta decisao: **a sala nao escolhe os proprios inimigos, so os coloca.**
+## Quem decide quantos e quais e o GerenciadorMapa, uma vez, na montagem do
+## andar -- e entrega a lista pronta em definir_composicao(). Antes isso morava
+## num no "Ondas" dentro de cada .tscn, o que amarrava a dificuldade a qual cena
+## caiu na celula: a sala inicial podia calhar de ser a arena grande com nove
+## inimigos. Com a composicao vindo de fora, o gerador tem palavra sobre o ritmo
+## do andar, e a sala continua sem saber que existe um andar.
 
 enum Estado { INATIVA, OCUPADA, LIMPA }
 
@@ -34,6 +42,14 @@ const RECUO_ENTRADA := 48.0
 ## CollisionShape2D do player tem raio 11; o resto e margem para ele nao nascer
 ## raspando numa quina e ser empurrado para dentro do solido pela resolucao.
 const FOLGA_CORPO := 24.0
+## Quantas posicoes o spawn testa antes de aceitar a melhor que achou. Vinte e
+## quatro cobre com folga a sala mais recortada, e o custo e uma vez por
+## inimigo, uma vez por sala.
+const TENTATIVAS_DE_SPAWN := 24
+## Folga exigida em volta de um inimigo recem-colocado. Menor que a do jogador
+## porque o corpo deles e menor, e porque exigir a mesma coisa faria o braco
+## estreito da sala em L rejeitar quase todo ponto.
+const FOLGA_SPAWN := 20.0
 ## Passo da varredura que procura ponto livre. Cada candidato e validado exato,
 ## entao o passo so decide o quao estreita pode ser uma passagem para ainda ser
 ## encontrada: 64 acha qualquer vao maior que isso e custa poucas centenas de
@@ -46,6 +62,14 @@ const PASSO_VARREDURA := 32.0
 ## ninguem precisa repetir string magica.
 @export var tipo: StringName = DadosSala.ID_COMBATE
 
+## Retangulo util onde os inimigos podem nascer, em coordenadas LOCAIS da sala.
+## Quem monta uma sala no editor pensa nas coordenadas dela, nao nas do andar --
+## e e isso que permite a mesma cena servir a varias celulas sem saber onde foi
+## parar. O default cobre a sala padrao de 960x544 com margem de parede.
+@export var area_spawn: Rect2 = Rect2(-352, -176, 704, 352)
+## Distancia minima entre um inimigo recem-colocado e o jogador.
+@export var distancia_minima_player: float = 180.0
+
 var estado: Estado = Estado.INATIVA
 var coordenadas_grid: Vector2i = Vector2i.ZERO
 
@@ -57,12 +81,21 @@ var _conexoes_definidas: bool = false
 
 var _portas_por_direcao: Dictionary = {}
 var _raiz_portas: Node2D = null
-var _ondas: GerenciadorOndas = null
+
+## Cenas que esta sala vai colocar quando o jogador entrar. Vazia = sala sem
+## combate, e e so isso que separa a de recompensa da de briga.
+var _composicao: Array[PackedScene] = []
+var _vivos: Array[Node] = []
+var _container: Node2D = null
 ## Sala de recompensa nasce LIMPA no _ready, antes de o jogador existir por
 ## perto. Sem esta trava ela nunca anunciaria, e a tela de fim mostrava
 ## "9 / 10" numa run completa; anunciar no _ready contaria as dez salas do
 ## andar de uma vez, inclusive as que ninguem visitou.
 var _anunciou_limpa: bool = false
+
+## Area do contorno em pixels quadrados. Nao muda em runtime, e quem pergunta e
+## o sorteio de composicao -- vale a pena pagar a conta uma vez so.
+var _area_contorno: float = -1.0
 
 ## A geometria da sala nao muda em runtime, e a varredura e determinista: vale a
 ## pena pagar uma vez e devolver sempre o mesmo ponto. Nascer em lugar diferente
@@ -76,7 +109,6 @@ func _ready() -> void:
 	_mapear_portas()
 	_selar_portas_sem_vizinho()
 	_montar_paredes()
-	_conectar_ondas()
 
 
 ## Le as portas direto dos filhos de $Portas. Vale antes de add_child: o
@@ -99,6 +131,33 @@ func direcoes_disponiveis() -> Array[Vector2]:
 func configurar_conexoes(direcoes: Array[Vector2]) -> void:
 	_conexoes = direcoes.duplicate()
 	_conexoes_definidas = true
+
+
+## O que vai nascer aqui quando o jogador entrar.
+##
+## Chamado pelo GerenciadorMapa depois do add_child e antes de ativar(). Lista
+## vazia deixa a sala sem combate -- e o que a sala inicial, a de arma e a de
+## item recebem.
+func definir_composicao(cenas: Array[PackedScene]) -> void:
+	_composicao = cenas.duplicate()
+
+
+## Area do contorno em pixels quadrados, pela formula do shoelace.
+##
+## E a medida que o gerador usa para dar mais inimigos a uma sala maior. A area
+## do bounding box nao serve: a sala em L teria a do retangulo inteiro e
+## receberia inimigos para um pedaco que nao existe.
+func area_do_contorno() -> float:
+	if _area_contorno >= 0.0:
+		return _area_contorno
+	var pontos := contorno_local()
+	var soma := 0.0
+	for i in pontos.size():
+		var a := pontos[i]
+		var b := pontos[(i + 1) % pontos.size()]
+		soma += a.x * b.y - b.x * a.y
+	_area_contorno = absf(soma) * 0.5
+	return _area_contorno
 
 
 ## Bounding box GLOBAL do contorno. E daqui que a camera tira os limites.
@@ -149,20 +208,28 @@ func posicao_livre(ponto_global: Vector2, folga: float = FOLGA_CORPO) -> bool:
 	return _local_livre(to_local(ponto_global), contorno, folga)
 
 
-## Idempotente de proposito: reentrar numa sala ja limpa nao pode recomecar as
-## ondas dela. Isso ja custou uma sessao inteira de playtest aqui.
+## Idempotente de proposito: reentrar numa sala ja limpa nao pode recomecar o
+## combate dela. Isso ja custou uma sessao inteira de playtest aqui.
+##
+## E aqui, e nao no _ready, que se decide se a sala tem combate: a composicao
+## chega depois do add_child, entao no _ready a sala ainda nao sabe. Composicao
+## vazia vira LIMPA na chegada, que e o mesmo comportamento que a sala de
+## recompensa sempre teve.
 func ativar() -> void:
 	if estado == Estado.LIMPA:
 		EventBus.sala_entrada.emit(self)
 		_anunciar_limpa()
 		return
 
-	estado = Estado.OCUPADA
-	_trancar_portas()
 	EventBus.sala_entrada.emit(self)
 
-	if _ondas != null and not _ondas.rodando:
-		_ondas.iniciar()
+	if _composicao.is_empty():
+		_limpar()
+		return
+
+	estado = Estado.OCUPADA
+	_trancar_portas()
+	_povoar()
 
 
 func _mapear_portas() -> void:
@@ -185,26 +252,134 @@ func _selar_portas_sem_vizinho() -> void:
 			porta.selar()
 
 
-## Ondas sao OPCIONAIS: sala de recompensa nao tem no "Ondas". Sem combate a
-## sala ja nasce aberta, senao o jogador entra e fica preso.
-func _conectar_ondas() -> void:
-	_ondas = get_node_or_null("Ondas") as GerenciadorOndas
-	if _ondas == null:
-		estado = Estado.LIMPA
-		_abrir_portas()
+## Coloca a composicao inteira de uma vez, no frame da entrada.
+##
+## Nao ha sequencia nem marcador de telegrafo. Telegrafo existe para o que
+## aparece com o jogador ja dentro; aqui nada aparece depois -- ele entra e ja
+## ve a sala como ela e.
+##
+## A composicao e consumida ao ser usada: se a sala for reativada por algum
+## caminho, ela nao repovoa.
+func _povoar() -> void:
+	var cenas := _composicao
+	_composicao = []
+
+	var container := _container_de_inimigos()
+	for cena in cenas:
+		if cena == null:
+			continue
+		var inimigo := cena.instantiate() as Node2D
+		if inimigo == null:
+			continue
+		# add_child ANTES de global_position: fora da arvore o setter cai no
+		# position local e o pai reaplica a propria transform por cima, o que
+		# desloca o spawn pelo offset da sala dentro do andar.
+		container.add_child(inimigo)
+		inimigo.global_position = _sortear_posicao()
+		_vivos.append(inimigo)
+		if inimigo.has_signal("morreu"):
+			inimigo.morreu.connect(_ao_morrer_inimigo)
+
+	EventBus.contagem_inimigos_mudou.emit(_contar_vivos())
+
+	# Composicao que nao produziu ninguem (cena quebrada, array de nulos) nao
+	# pode deixar a sala trancada para sempre.
+	if _vivos.is_empty():
+		_limpar()
+
+
+## O container e criado quando a cena nao traz um. Assim uma sala nova serve
+## para combate sem que quem a desenhou precise lembrar de um no de
+## infraestrutura -- e a Diretora continua achando o container por get_parent(),
+## como sempre fez.
+func _container_de_inimigos() -> Node2D:
+	if _container != null and is_instance_valid(_container):
+		return _container
+	_container = get_node_or_null("ContainerInimigos") as Node2D
+	if _container == null:
+		_container = Node2D.new()
+		_container.name = "ContainerInimigos"
+		add_child(_container)
+	return _container
+
+
+func _ao_morrer_inimigo(_posicao: Vector2) -> void:
+	# O no ainda nao saiu da arvore neste frame; espera um quadro para contar.
+	await get_tree().process_frame
+	if not is_inside_tree():
 		return
-	# run_completa, nao onda_completa: a onda do chefe termina pela morte da
-	# Diretora, nunca por contagem de indice. run_completa cobre os dois fins e
-	# e o unico sinal que faz a sala do chefe abrir.
-	_ondas.run_completa.connect(_ao_run_completa)
+	var restantes := _contar_vivos()
+	EventBus.contagem_inimigos_mudou.emit(restantes)
+	if restantes == 0:
+		_limpar()
 
 
-func _ao_run_completa(_venceu: bool) -> void:
+## Poda e conta numa passada so.
+##
+## So conta quem a SALA colocou. Os invocados da Diretora nascem no mesmo
+## container mas nao entram nesta lista, e e isso que preserva o contrato
+## antigo: a sala do chefe fecha pela morte dele e por mais nada. Fosse
+## contagem do container, um invocado sobrevivente seguraria a vitoria.
+##
+## Nota: Array.filter() devolve Array sem tipo, o que quebra a atribuicao de
+## volta num Array[Node] tipado. Loop explicito e o caminho seguro em GDScript.
+func _contar_vivos() -> int:
+	var restantes: Array[Node] = []
+	for n in _vivos:
+		if is_instance_valid(n):
+			restantes.append(n)
+	_vivos = restantes
+	return _vivos.size()
+
+
+func _limpar() -> void:
 	if estado == Estado.LIMPA:
 		return
 	estado = Estado.LIMPA
 	_abrir_portas()
 	_anunciar_limpa()
+
+
+## Sorteia um ponto util longe do jogador e livre de parede e obstaculo, ja em
+## coordenadas GLOBAIS.
+##
+## Duas armadilhas moram aqui, e as duas ja custaram tempo:
+##
+## 1. A conversao para global vem ANTES de medir a distancia. Comparar um ponto
+##    local com a global_position do jogador mede espacos diferentes, e a
+##    garantia de "nao nasce na cara dele" so valia por acidente na sala que
+##    estivesse na origem do mundo.
+## 2. Distancia do jogador nao basta. O sorteio antigo nao olhava geometria, e
+##    nada impedia um inimigo de nascer dentro do pilar da sala 5 ou fora do
+##    braco do L. posicao_livre() ja existia aqui e nao era usado.
+##
+## Nunca trava num loop: tenta um numero fixo de vezes e, se nada perfeito
+## aparecer, aceita o melhor candidato livre; em ultimo caso, o ponto seguro da
+## propria sala, que e o mesmo lugar onde o jogador nasceria.
+func _sortear_posicao() -> Vector2:
+	var player := get_tree().get_first_node_in_group("player") as Node2D
+	var melhor := Vector2.ZERO
+	var melhor_dist := -1.0
+
+	for _tentativa in TENTATIVAS_DE_SPAWN:
+		var ponto := to_global(Vector2(
+			randf_range(area_spawn.position.x, area_spawn.end.x),
+			randf_range(area_spawn.position.y, area_spawn.end.y)
+		))
+		if not posicao_livre(ponto, FOLGA_SPAWN):
+			continue
+		if player == null or not is_instance_valid(player):
+			return ponto
+		var d := ponto.distance_to(player.global_position)
+		if d >= distancia_minima_player:
+			return ponto
+		if d > melhor_dist:
+			melhor_dist = d
+			melhor = ponto
+
+	if melhor_dist >= 0.0:
+		return melhor
+	return ponto_seguro()
 
 
 ## Uma sala so conta como limpa uma vez. Quem escuta sala_limpa incrementa

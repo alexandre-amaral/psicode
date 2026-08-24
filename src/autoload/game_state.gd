@@ -4,10 +4,9 @@ extends Node
 enum Estado { MENU, JOGANDO, PAUSADO, GAME_OVER, VITORIA }
 
 var estado: int = Estado.MENU
-var onda_atual: int = 0
-var total_ondas: int = 0
-## A run passou a ser medida em salas. onda_atual/total_ondas continuam
-## valendo, mas so dentro da sala em que o jogador esta agora.
+## A run e medida em SALAS. Havia aqui um par onda_atual/total_ondas, de quando
+## cada sala rodava uma sequencia de ondas; com a composicao decidida na
+## montagem do andar nao existe mais indice de onda para contar.
 var salas_limpas: int = 0
 var total_salas: int = 0
 var creditos: int = 0
@@ -24,7 +23,6 @@ func _process(delta: float) -> void:
 
 func iniciar_run() -> void:
 	estado = Estado.JOGANDO
-	onda_atual = 0
 	salas_limpas = 0
 	total_salas = 0
 	creditos = 0
@@ -48,8 +46,6 @@ func terminar_run(venceu: bool) -> void:
 
 func estatisticas() -> Dictionary:
 	return {
-		"ondas": onda_atual,
-		"total_ondas": total_ondas,
 		"salas_limpas": salas_limpas,
 		"total_salas": total_salas,
 		"inimigos_mortos": inimigos_mortos,

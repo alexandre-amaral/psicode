@@ -16,7 +16,6 @@ var _recarregando: bool = false
 @onready var _rotulo_fase: Label = $Topo/Esquerda/Fase
 @onready var _rotulo_arma: Label = $Rodape/Arma
 @onready var _rotulo_municao: Label = $Rodape/Municao
-@onready var _rotulo_onda: Label = $Topo/Direita/Onda
 @onready var _rotulo_salas: Label = $Topo/Direita/Salas
 @onready var _rotulo_inimigos: Label = $Topo/Direita/Inimigos
 @onready var _rotulo_tempo: Label = $Topo/Direita/Tempo
@@ -49,10 +48,12 @@ func _ready() -> void:
 	EventBus.municao_mudou.connect(_ao_municao)
 	EventBus.recarga_iniciada.connect(_ao_recarga_iniciada)
 	EventBus.recarga_concluida.connect(_ao_recarga_concluida)
-	EventBus.onda_iniciada.connect(_ao_onda_iniciada)
+	# andar_gerado tambem, e nao so as transicoes: o total de salas so existe
+	# depois que o andar e montado, e sem este a HUD abriria com o campo vazio
+	# ate o jogador limpar a primeira sala.
+	EventBus.andar_gerado.connect(_atualizar_progresso)
 	EventBus.sala_limpa.connect(func(_s: Node2D) -> void: _atualizar_progresso())
 	EventBus.transicao_concluida.connect(func(_s: Node2D) -> void: _atualizar_progresso())
-	EventBus.onda_anunciada.connect(_mostrar_aviso)
 	EventBus.contagem_inimigos_mudou.connect(_ao_contagem)
 	EventBus.boss_revelado.connect(_ao_boss_revelado)
 	EventBus.boss_vida_mudou.connect(_ao_boss_vida)
@@ -129,14 +130,6 @@ func _ao_recarga_concluida() -> void:
 	_recarregando = false
 	_rotulo_municao.modulate = COR_MUNICAO
 	_rotulo_municao.text = _texto_municao()
-
-
-func _ao_onda_iniciada(indice: int, total: int) -> void:
-	# Onda e uma informacao LOCAL: cada sala tem a propria contagem, e sozinha
-	# ela nao diz onde o jogador esta no andar. Por isso vem acompanhada do
-	# progresso de salas, que e o numero global.
-	_rotulo_onda.text = "ONDA %d / %d" % [indice + 1, total]
-	_atualizar_progresso()
 
 
 func _atualizar_progresso() -> void:

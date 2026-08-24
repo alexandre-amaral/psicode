@@ -1,13 +1,12 @@
-[gd_scene load_steps=5 format=3 uid="uid://u6i7o8p9q0a1b"]
+[gd_scene load_steps=3 format=3 uid="uid://u6i7o8p9q0a1b"]
 
 [ext_resource type="Script" path="res://src/mapa/sala.gd" id="1_s"]
 [ext_resource type="PackedScene" uid="uid://d1p2q3r4s5t6u" path="res://src/mapa/porta.tscn" id="2_p"]
-[ext_resource type="Script" path="res://src/arena/gerenciador_ondas.gd" id="3_w"]
-[ext_resource type="Resource" path="res://src/arena/onda_sala_boss.tres" id="4_o"]
 
 [node name="Sala_6_Boss" type="Node2D"]
 script = ExtResource("1_s")
 tipo = &"boss"
+area_spawn = Rect2(-16, -16, 32, 32)
 
 [node name="Chao" type="ColorRect" parent="."]
 offset_left = -480.0
@@ -30,8 +29,3 @@ direcao = 1
 
 [node name="ContainerInimigos" type="Node2D" parent="."]
 
-[node name="Ondas" type="Node" parent="."]
-script = ExtResource("3_w")
-ondas = Array[Resource]([ExtResource("4_o")])
-caminho_container_inimigos = NodePath("../ContainerInimigos")
-area_spawn = Rect2(-16, -16, 32, 32)

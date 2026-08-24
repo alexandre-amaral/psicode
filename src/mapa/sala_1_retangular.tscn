@@ -1,13 +1,11 @@
-[gd_scene format=3 uid="uid://b1c2d3e4f5g6h"]
+[gd_scene load_steps=3 format=3 uid="uid://b1c2d3e4f5g6h"]
 
 [ext_resource type="Script" uid="uid://bhv612a7jhlai" path="res://src/mapa/sala.gd" id="1_s"]
 [ext_resource type="PackedScene" uid="uid://d1p2q3r4s5t6u" path="res://src/mapa/porta.tscn" id="2_p"]
-[ext_resource type="Script" uid="uid://hb8ls1tdfkfd" path="res://src/arena/gerenciador_ondas.gd" id="3_w"]
-[ext_resource type="Resource" path="res://src/arena/onda_sala_padrao.tres" id="4_o"]
-[ext_resource type="Script" uid="uid://cf1gxlww83puw" path="res://src/arena/dados_onda.gd" id="4_ohc8v"]
 
 [node name="Sala_1_Retangular" type="Node2D" unique_id=806821674]
 script = ExtResource("1_s")
+area_spawn = Rect2(-352, -176, 704, 352)
 
 [node name="Chao" type="ColorRect" parent="." unique_id=1186276224]
 offset_left = -480.0
@@ -43,7 +41,3 @@ direcao = 3
 
 [node name="ContainerInimigos" type="Node2D" parent="." unique_id=846726411]
 
-[node name="Ondas" type="Node" parent="." unique_id=84891834]
-script = ExtResource("3_w")
-ondas = Array[ExtResource("4_ohc8v")]([ExtResource("4_o")])
-area_spawn = Rect2(-352, -176, 704, 352)

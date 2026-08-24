@@ -26,8 +26,13 @@ func _ready() -> void:
 	btn_opcoes.pressed.connect(func(): print("Opções não implementado"))
 	
 	for btn in _botoes:
-		btn.focus_entered.connect(_on_btn_focus.bind(btn, true))
-		btn.focus_exited.connect(_on_btn_focus.bind(btn, false))
+		# A ORDEM do bind importa: focus_entered/focus_exited nao passam
+		# argumento nenhum, entao o que o bind anexa e tudo que chega -- e chega
+		# na ordem em que foi ligado. Com .bind(btn, true) a chamada virava
+		# _on_btn_focus(btn, true), um Button no parametro `focado: bool`, e cada
+		# foco de botao cuspia um erro de conversao no console.
+		btn.focus_entered.connect(_on_btn_focus.bind(true, btn))
+		btn.focus_exited.connect(_on_btn_focus.bind(false, btn))
 		btn.mouse_entered.connect(btn.grab_focus)
 		_on_btn_focus(false, btn)
 

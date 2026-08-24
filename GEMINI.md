@@ -310,18 +310,26 @@ vez** — cena e onde o merge doi.
 
 ## Disciplina de escopo
 
-A **Fase 1 do roadmap (tuning + primeiro playtest) esta aberta e nao foi
-feita**: falta a sessao de tuning a tres, o ajuste da onda 4, o rebalance do
-chefe, o export e o link de playtest para 5–8 amigos.
+A **Fase 1 (game feel e primeiro playtest) esta CONCLUIDA**. A build
+`v0.2.0-alpha` saiu, foi para o itch.io e para os testadores, e o retorno voltou
+positivo e sem problemas acionaveis. Ficaram adiados dois itens, registrados no
+`ROADMAP.md`: a sessao de tuning a tres e o rebalance da vida do chefe.
 
-A **Fase 3 (salas) saiu do rascunho e funciona**: o `GerenciadorMapa` sorteia
-um andar de 8–12 salas com ramos a partir das oito cenas de `src/mapa/`, liga
-as vizinhas por corredor atravessado a pe e faz lockdown por sala. Isso e
-conteudo novo entregue com a Fase 1 ainda em aberto.
+**Nao volte a tratar todo pedido como divida contra o playtest** -- ele
+aconteceu. O que sobrou dele e uma ressalva, nao um bloqueio: cinco a oito
+pessoas sem nenhuma reclamacao e sinal fraco, entao a base foi validada de forma
+rasa. Se alguem apostar alto em cima disso -- reescrever o core loop, por
+exemplo -- vale lembrar uma vez que a validacao e magra. Fora isso, siga.
 
-Ao receber pedido de conteudo novo antes do playtest, **aponte o custo**: cada
-sala nova encarece a descoberta de que a base precisa mudar. Nao recuse — e o
-jogo deles — mas diga o preco.
+A **Fase 3 (salas, itens e inimigos) esta bem adiantada**: o `GerenciadorMapa`
+sorteia um andar de 8–12 salas com ramos, liga as vizinhas por corredor
+atravessado a pe, faz lockdown por sala, e o andar tem sete tipos de inimigo,
+16 implantes e composicao decidida no layout. A ordem do roadmap manda a
+**Fase 2 (arte e som)** vir agora.
+
+A regra de escopo que continua valendo: **numero de balanceamento novo tem de
+nascer medivel**. As reguas de `tools/` existem para isso, e um botao que
+ninguem consegue medir e um botao que a sessao de tuning nao consegue girar.
 
 ## O que evitar
 

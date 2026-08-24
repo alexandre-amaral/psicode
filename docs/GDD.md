@@ -135,11 +135,11 @@ cima de quem estava no meio de uma esquiva.
 ## 5. Fora do escopo desta build
 
 Meta-progressão e loja clandestina, implantes que substituem a esquiva, IA
-Diretora heurística de verdade, arte, som e música, mais de duas armas, tipos
-adicionais de inimigo.
+Diretora heurística de verdade, arte, som e música, mais de duas armas.
 
-> A geração de salas saiu desta lista: ela foi entregue antes da hora, com a
-> Fase 1 ainda aberta. Está no `ROADMAP.md`, Fase 3.
+> Duas coisas saíram desta lista porque foram entregues: a **geração de salas**
+> e os **tipos adicionais de inimigo** — o andar tem sete, cada um com padrão de
+> ataque próprio. As duas estão no `ROADMAP.md`, Fase 3.
 
 Estão no [ROADMAP](ROADMAP.md).
 
@@ -149,6 +149,11 @@ Estão no [ROADMAP](ROADMAP.md).
 
 Se for, o resto é acabamento. Se não for, nenhuma quantidade de arte salva —
 e é melhor descobrir isso agora.
+
+**A resposta que voltou:** sim, mas de forma rasa. O playtest da `v0.2.0-alpha`
+não trouxe nenhum problema acionável — e um retorno sem nenhuma reclamação, de
+cinco a oito pessoas, diz menos do que parece. O registro completo está no
+`ROADMAP.md`, Fase 1.
 
 As perguntas para os testadores, e o porquê de cada uma, estão em
 [PLAYTEST.md](PLAYTEST.md).

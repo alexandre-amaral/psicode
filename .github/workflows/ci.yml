@@ -18,7 +18,11 @@ on:
 
 env:
   # Tem de casar com o config/features do project.godot e com o release.yml.
-  GODOT_VERSAO: 4.6-stable
+  # Fixada na versao EXATA do editor instalado na maquina do time. Enquanto o
+  # CI rodou 4.6 e o editor 4.7, um recurso de 4.7 passava local e quebrava no
+  # PR -- e, pior, a build que ia para o testador saia de um Godot que nao era
+  # o que abriu o projeto.
+  GODOT_VERSAO: 4.7.2-stable
 
 jobs:
   testes-unitarios:

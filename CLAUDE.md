@@ -40,24 +40,25 @@ O mesmo teste roda em todo push e PR pelo `.github/workflows/ci.yml`.
 
 ## Versao do Godot — conferir antes de confiar
 
-Os arquivos discordam entre si. Se algo quebrar por versao, e aqui:
+As quatro fontes **concordam** desde a entrega da Fase 1, e concordam de
+proposito: a build que vai para o testador sai do CI, entao ele tem de rodar o
+mesmo engine que abriu o projeto.
 
 | Onde | Diz |
 |---|---|
-| `GEMINI.md` | 4.7-stable |
 | `project.godot` (`config/features`) | 4.7 |
-| `README.md` | 4.6 |
-| `.github/workflows/ci.yml` (`GODOT_VERSAO`) | 4.6-stable |
+| `GEMINI.md` e `README.md` | 4.7.2-stable |
+| `.github/workflows/ci.yml` e `release.yml` (`GODOT_VERSAO`) | 4.7.2-stable |
 
-O editor instalado nesta maquina e **4.7.2-stable**, e nao esta no PATH:
+Se for mudar de versao, mude nos quatro. O editor instalado nesta maquina e
+**4.7.2-stable**, e nao esta no PATH:
 
 ```bash
 GODOT="/c/Users/alcyn/Downloads/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe"
 ```
 
 Use a variante `_console.exe` — a outra nao devolve stdout, e o teste de fumaca
-se comunica imprimindo. O risco real: **local roda 4.7.2 e o CI roda 4.6**, entao
-um recurso de 4.7 passa aqui e quebra no PR.
+se comunica imprimindo.
 
 ## Arquitetura que so aparece lendo varios arquivos
 
@@ -71,13 +72,25 @@ Ao mexer em quem hospeda a run, **verifique que essas duas chamadas
 sobreviveram** — ja se perderam uma vez ao trocar a arena pelo sistema de salas,
 e o sintoma foi silencioso: a Deterioracao passiva simplesmente parou de subir.
 
-**`GerenciadorOndas` e um componente, nao um singleton.** Ele so spawna e conta
-(`src/arena/gerenciador_ondas.gd`). Cada arena ou sala instancia o seu, entao
-pode haver varios na arvore ao mesmo tempo — cuidado com o grupo
-`gerenciador_ondas` e com os campos globais `GameState.onda_atual` /
-`total_ondas`, que sao unicos e o ultimo a escrever vence. Quem termina a
-sequencia e `run_completa(venceu)`, emitido tanto quando as ondas acabam quanto
-quando o chefe morre; `onda_completa(indice)` **nao** dispara na onda do chefe.
+**Os inimigos sao escolhidos na montagem do andar, nao quando o jogador entra.**
+Nao existe mais sistema de ondas — `GerenciadorOndas`, `DadosOnda`, os
+`onda_*.tres` e o marcador de spawn foram removidos. O `GerenciadorMapa` sorteia
+a composicao de cada celula em `_sortear_composicoes()`, ao fim de
+`_montar_andar()`, e entrega a lista pronta a cada `Sala` por
+`definir_composicao()`. A sala coloca tudo de uma vez em `ativar()` e vira
+`LIMPA` quando o ultimo dos SEUS inimigos morre.
+
+Tres consequencias que nao aparecem lendo um arquivo so:
+
+- **Composicao vazia = sala sem combate**, decidido em `ativar()` e nao no
+  `_ready` — no `_ready` a sala ainda nao recebeu a lista.
+- **Os invocados da Diretora nao entram na contagem.** `Sala._vivos` guarda so
+  quem a sala colocou, e e isso que faz a sala do chefe fechar pela morte dele e
+  por mais nada.
+- **A quantidade sai da AREA do contorno** vezes `DadosSala.densidade`, limitada
+  por `orcamento_minimo`/`maximo`. Sala maior recebe mais sem tabela por cena; um
+  `GrupoInimigo` de `custo` 2 ocupa o lugar de dois de custo 1, o que da "menos
+  corpos, mais perigo" pelo mesmo botao.
 
 **A camada de mapa e dirigida por dados, nao por codigo.** `src/mapa/` fecha o
 loop: o `GerenciadorMapa` recebe um `Array[DadosSala]` (`tipos_de_sala` no

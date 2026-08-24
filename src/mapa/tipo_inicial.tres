@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="DadosSala" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
+[ext_resource type="PackedScene" path="res://src/mapa/sala_9_inicial.tscn" id="2_inicial"]
+
+[resource]
+script = ExtResource("1_ds")
+id = &"inicial"
+cenas = Array[PackedScene]([ExtResource("2_inicial")])
+colocacao = 2
+quantidade = 1
+prioridade = 100
+exige_beco = false
+distancia_minima_da_origem = 0
+opcional = false
+inimigos = Array[Resource]([])
+densidade = 0.0
+orcamento_minimo = 0
+orcamento_maximo = 0
+deterioracao_ao_limpar = 0.0
+deterioracao_minima_ao_entrar = -1.0
+cor_mapa = Color(0.75, 0.8, 0.9, 1)
+icone = "o"

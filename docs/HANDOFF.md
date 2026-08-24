@@ -83,9 +83,18 @@ Na primeira vez o Godot demora alguns segundos importando tudo. É normal.
 
 Aperte **F5**.
 
-Você deve ver uma arena escura com grade, seu personagem ciano no centro e a
-mensagem "ONDA 1". Se viu isso, **seu setup está pronto** — o resto deste
-documento é sobre trabalhar em equipe.
+Você deve ver o menu. Clique em **INICIAR** e você cai numa sala escura, com
+seu personagem ciano no centro e **nenhum inimigo** — essa é a sala de entrada
+do andar, e ela é vazia de propósito. No canto superior direito aparece
+`SALAS 1 / 10`, e no canto inferior direito um minimapa com um quadradinho só.
+
+Se viu isso, **seu setup está pronto** — o resto deste documento é sobre
+trabalhar em equipe.
+
+Ande até uma porta e atravesse: na sala seguinte as portas se trancam e os
+inimigos já estão lá, espalhados. Mate todos e as portas abrem. O andar tem
+10 salas; uma delas tem uma arma, outra tem um implante, e a última tem a
+Diretora.
 
 Controles: `WASD` anda, mouse mira, botão esquerdo atira, `Espaço` rola,
 `Q` troca de arma, **`R` recarrega**, `Esc` sai.
@@ -99,7 +108,7 @@ enquanto, então você nunca fica sem balas de verdade.
 jogo ele recarrega — assim ninguém perde uma run boa por engano.
 
 Atalho útil: **`F1` sobe a Deterioração em 25%**. Aperte três vezes para ver o
-jogo no estado crítico sem precisar sobreviver quatro ondas.
+jogo no estado crítico sem precisar limpar meio andar antes.
 
 ---
 
@@ -121,7 +130,7 @@ Isso traz o que os outros fizeram. Pular esse passo é o que gera conflito.
 ```
 feat/inimigo-atirador-novo
 fix/rolamento-travando-na-parede
-tune/onda-3-facil-demais
+tune/sala-grande-facil-demais
 ```
 
 **Nunca trabalhe direto no `main`.**
@@ -194,9 +203,12 @@ Antes de sair abrindo arquivo aleatório:
 
 | Quero mexer em | Abra |
 |---|---|
-| Quantos inimigos tem cada onda | `src/arena/onda_1.tres` … `onda_5.tres` |
+| Quantos inimigos cabem numa sala | `src/mapa/tipo_combate.tres` → `densidade`, `orcamento_minimo`, `orcamento_maximo` |
+| Quais inimigos podem nascer, e o peso de cada um | `src/enemies/grupo_rastejante.tres`, `grupo_vigia.tres` |
+| Quanto a barra sobe ao limpar uma sala | `src/mapa/tipo_combate.tres` → `deterioracao_ao_limpar` |
 | Dano/cadência/munição das armas | `src/weapons/pistola.tres`, `shotgun.tres` |
 | Velocidade e vida dos inimigos | `src/enemies/rastejante.tscn`, `vigia.tscn` (painel Inspetor) |
+| Vida do chefe | `src/enemies/diretora.tscn` (painel Inspetor) |
 | Como o jogador anda e rola | `src/player/player.gd` |
 | Comportamento do chefe | `src/enemies/diretora.gd` |
 | Quando a mira preditiva liga | `src/autoload/deterioracao.gd` |
@@ -204,6 +216,9 @@ Antes de sair abrindo arquivo aleatório:
 
 Boa parte do balanceamento não exige escrever código: clique no arquivo
 `.tres`, e os campos aparecem no painel **Inspetor**, à direita.
+
+> Para a sessão de tuning, o `docs/TUNING.md` tem a lista completa com o valor
+> de hoje de cada botão e o que acontece quando você mexe nele.
 
 ---
 

@@ -22,9 +22,89 @@ func executar() -> void:
 	_mira_preditiva()
 	_glitch()
 	_rotulos()
+	_ritmo_da_run()
 
 	Deterioracao.passiva_ativa = passiva_original
 	Deterioracao.valor = valor_original
+
+
+## A curva de dificuldade da run inteira, conferida pelos numeros que a
+## produzem -- e nao pela sensacao de quem jogou.
+##
+## Existe por causa de um defeito real, que a `tools/medir_ritmo.tscn` mediu: a
+## mira preditiva (o diferencial declarado do GDD) ligava no primeiro terco da
+## partida, antes de o jogador ter formado o habito de esquiva que ela existe
+## para trair. Quem dominava a curva nao era o ganho passivo, e sim o ganho por
+## sala limpa.
+##
+## As tres assercoes abaixo sao o cerco em volta desse ajuste. Nenhuma delas
+## checa "o numero e X" -- todas checam a RELACAO entre os numeros, para a
+## sessao de tuning poder mexer nos valores sem o teste virar um muro.
+func _ritmo_da_run() -> void:
+	var combate: DadosSala = load("res://src/mapa/tipo_combate.tres")
+	var chefe: DadosSala = load("res://src/mapa/tipo_boss.tres")
+	if combate == null or chefe == null:
+		ok(false, "os tipos de sala de combate e de chefe carregam")
+		return
+
+	# 1. O andar tem ~6 salas de combate. Se elas sozinhas ja passarem do
+	#    limiar critico, a barra chega no teto antes do chefe e a ultima parte
+	#    da run roda com a dificuldade travada -- escalada nenhuma.
+	var salas_de_combate := 6.0
+	var so_das_salas := combate.deterioracao_ao_limpar * salas_de_combate
+	ok(
+		so_das_salas < Deterioracao.LIMIAR_CRITICO,
+		"limpar as ~%.0f salas de combate nao basta para chegar em CRITICO (%.0f de %.0f)" % [
+			salas_de_combate, so_das_salas, Deterioracao.LIMIAR_CRITICO,
+		]
+	)
+
+	# 2. Somando o ganho passivo, a barra TEM de passar do limiar MEDIO antes da
+	#    sala do chefe. Se nao passar, a mira preditiva so aconteceria por causa
+	#    do piso do chefe, e o jogador nunca a enfrentaria numa sala comum --
+	#    que e onde ela foi desenhada para doer.
+	#
+	#    Os 120 s sao conservadores de proposito: a `tools/medir_ritmo.tscn`
+	#    mediu de 1min38 (jogador rapido) a 3min45 (cauteloso) ate a porta do
+	#    chefe. Usar o piso da faixa faz a assercao valer para todo mundo.
+	var segundos_ate_o_chefe := 120.0
+	var antes_do_chefe := so_das_salas + Deterioracao.ganho_passivo_por_segundo * segundos_ate_o_chefe
+	ok(
+		antes_do_chefe >= Deterioracao.LIMIAR_MEDIO,
+		"ate a porta do chefe a barra passa do limiar MEDIO mesmo na run mais rapida (%.0f de %.0f)" % [
+			antes_do_chefe, Deterioracao.LIMIAR_MEDIO,
+		]
+	)
+	# E nao pode encostar no teto antes de chegar la: a partir do teto a
+	# escalada acabou, e o resto da run roda com a dificuldade travada.
+	ok(
+		antes_do_chefe < Deterioracao.MAXIMO,
+		"a barra nao estoura antes da sala do chefe (%.0f de %.0f)" % [
+			antes_do_chefe, Deterioracao.MAXIMO,
+		]
+	)
+
+	# 3. O piso da sala do chefe tem de ficar ACIMA do que a run alcanca
+	#    sozinha, senao ele nunca faz nada e a luta final acontece no nivel em
+	#    que a partida por acaso chegou. Foi o defeito que este ajuste corrigiu:
+	#    o proximo mexer nos valores nao pode desfaze-lo em silencio.
+	ok(
+		chefe.deterioracao_minima_ao_entrar > so_das_salas,
+		"o piso da sala do chefe (%.0f) ainda vale para uma run que so limpou salas (%.0f)" % [
+			chefe.deterioracao_minima_ao_entrar, so_das_salas,
+		]
+	)
+	ok(
+		chefe.deterioracao_minima_ao_entrar >= Deterioracao.LIMIAR_CRITICO,
+		"a luta do chefe comeca em nivel CRITICO, como o GDD pede (%.0f)" % chefe.deterioracao_minima_ao_entrar
+	)
+
+	# O ganho passivo continua existindo: e a pressao de tempo do GDD, e sem ele
+	# parar de avancar deixa de custar caro.
+	ok(
+		Deterioracao.ganho_passivo_por_segundo > 0.0,
+		"o ganho passivo nao foi zerado (%.2f/s)" % Deterioracao.ganho_passivo_por_segundo
+	)
 
 
 ## O setter faz clamp. Sem isso um adicionar() generoso levaria a barra a 130% e

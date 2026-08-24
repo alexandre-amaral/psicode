@@ -79,6 +79,11 @@ var _contornos: Dictionary = {}
 ## Vector2i -> Array[Vector2]. E o grafo: por celula, as direcoes que ela usa.
 var _arestas: Dictionary = {}
 var _cena_por_celula: Dictionary = {}
+## Vector2i -> Array[PackedScene]. Decidido UMA VEZ, na montagem do andar, e
+## entregue a cada sala antes de o jogador andar um passo. E a diferenca entre
+## "a sala escolhe seus inimigos quando voce entra" e "o andar ja nasce com a
+## dificuldade distribuida".
+var _composicao_por_celula: Dictionary = {}
 var _salas: Dictionary = {}
 var _visitadas: Dictionary = {}
 ## Cada item: { "a": Vector2i, "b": Vector2i, "no": Corredor }
@@ -161,6 +166,13 @@ func primeira_celula_do_tipo(id: StringName) -> Vector2i:
 # ele acha este no por grupo (a excecao legitima ao EventBus) e pergunta.
 
 ## O tipo daquela celula, com cor e icone. null quando a celula nao existe.
+## Quantos inimigos aquela celula recebeu na montagem. Existe para diagnostico
+## e teste: e o unico jeito de medir a curva de dificuldade do andar sem jogar.
+func composicao_da_celula(celula: Vector2i) -> Array[PackedScene]:
+	var vazio: Array[PackedScene] = []
+	return _composicao_por_celula.get(celula, vazio)
+
+
 func dados_da_celula(celula: Vector2i) -> DadosSala:
 	return _dados_por_celula.get(celula)
 
@@ -315,12 +327,24 @@ func _tipos_pendurados() -> Array[DadosSala]:
 	return lista
 
 
+## Tipos que o passeio aleatorio pode usar para preencher o andar. A INICIAL
+## fica de fora: ela tem celula propria e sortea-la no meio do andar poria o
+## jogador diante de uma segunda sala de entrada, vazia e sem proposito.
 func _tipos_de_preenchimento() -> Array[DadosSala]:
 	var lista: Array[DadosSala] = []
 	for dados in _tipos_validos():
-		if not dados.eh_pendurada():
+		if not dados.eh_pendurada() and not dados.eh_inicial():
 			lista.append(dados)
 	return lista
+
+
+## O tipo da celula de origem. Sem ele o andar ainda gera -- a origem so vira
+## uma sala de combate como antes -- entao vale um aviso, nao um erro.
+func _tipo_inicial() -> DadosSala:
+	for dados in _tipos_validos():
+		if dados.eh_inicial():
+			return dados
+	return null
 
 
 func _direcoes_da_cena(cena: PackedScene) -> Array[Vector2]:
@@ -374,6 +398,7 @@ func _tentar_grafo(alvo: int, minimo: int) -> bool:
 	for dados in _tipos_pendurados():
 		reservadas += dados.celulas_reservadas()
 	_passear(maxi(1, alvo - reservadas))
+	_reservar_inicial()
 
 	if not _pendurar_especiais():
 		return false
@@ -412,6 +437,29 @@ func _passear(alvo: int) -> void:
 
 		if not avancou:
 			cursor = _celula_aleatoria()
+
+
+## Fixa a sala de entrada na origem do andar, que e onde o passeio sempre
+## comeca e onde o Player nasce em main.tscn.
+##
+## Ela entra pelo mesmo caminho de uma PENDURADA -- `_reservadas` -- e nao por
+## um caso especial em _escolher_cenas. Isso reaproveita a conferencia de
+## cobertura de portas que ja existe la e traz de graca a regra de
+## `_celula_aceita`: nada pendurado encosta numa celula reservada, entao nenhum
+## premio nem o chefe nascem colados na entrada.
+##
+## Precisa vir ANTES de _pendurar_especiais pelo mesmo motivo.
+func _reservar_inicial() -> void:
+	var dados := _tipo_inicial()
+	if dados == null:
+		push_warning("GerenciadorMapa: nenhum tipo de sala inicial; a origem vira sala comum.")
+		return
+	var cenas := dados.cenas_validas()
+	if cenas.is_empty():
+		return
+	_reservadas[Vector2i.ZERO] = dados.id
+	_dados_por_celula[Vector2i.ZERO] = dados
+	_cena_por_celula[Vector2i.ZERO] = cenas.pick_random()
 
 
 ## Coloca todas as salas PENDURADA, em ordem de prioridade. Devolve false so
@@ -789,6 +837,83 @@ func _montar_andar() -> void:
 
 	_montar_corredores()
 	_cachear_geometria()
+	_sortear_composicoes()
+
+
+## Decide, de uma vez para o andar inteiro, o que nasce em cada sala.
+##
+## Roda na montagem e nao na chegada -- e literalmente o pedido: quando o
+## jogador entra, os inimigos ja estao distribuidos. Ele tambem e o unico lugar
+## do projeto onde a dificuldade de uma sala e escolhida, o que torna a curva do
+## andar ajustavel por .tres em vez de por seis cenas.
+func _sortear_composicoes() -> void:
+	_composicao_por_celula.clear()
+	for celula in _salas:
+		var sala: Sala = _salas[celula]
+		if not is_instance_valid(sala):
+			continue
+		var composicao := _sortear_composicao(celula, sala)
+		_composicao_por_celula[celula] = composicao
+		sala.definir_composicao(composicao)
+
+
+## Gasta o orcamento da sala comprando inimigos sorteados por peso.
+##
+## O orcamento sai da AREA REAL da sala vezes a densidade do tipo, entao sala
+## maior recebe mais -- sem tabela por cena. E como cada grupo tem um custo, um
+## Vigia de custo 2 ocupa o lugar de dois Rastejantes: a mesma sala pode sair com
+## menos corpos e mais perigo, que e o outro jeito de ficar mais dificil.
+##
+## A Deterioracao NAO entra nesta conta, de proposito. Ela mexe em velocidade,
+## cadencia e mira preditiva pelos multiplicadores que os inimigos leem no frame
+## -- agressividade, nunca quantidade.
+func _sortear_composicao(celula: Vector2i, sala: Sala) -> Array[PackedScene]:
+	var lista: Array[PackedScene] = []
+	var dados: DadosSala = _dados_por_celula.get(celula)
+	if dados == null:
+		return lista
+
+	var grupos := dados.grupos_validos()
+	if grupos.is_empty():
+		return lista
+
+	var restante := dados.orcamento_para(sala.area_do_contorno())
+	# Trava de seguranca: com custo_real() >= 1 o restante sempre cai, mas um
+	# laco que gasta orcamento nao pode depender disso para terminar.
+	var seguranca := restante + 8
+	while restante > 0 and seguranca > 0:
+		seguranca -= 1
+		var escolhido := _sortear_grupo(grupos, restante)
+		if escolhido == null:
+			break
+		lista.append(escolhido.cena)
+		restante -= escolhido.custo_real()
+	return lista
+
+
+## Sorteio por peso entre os grupos que ainda cabem no que sobrou do orcamento.
+## Devolve null quando nenhum cabe -- e o que encerra a compra.
+func _sortear_grupo(grupos: Array[GrupoInimigo], restante: int) -> GrupoInimigo:
+	var soma := 0.0
+	for grupo in grupos:
+		if grupo.custo_real() <= restante:
+			soma += grupo.peso
+	if soma <= 0.0:
+		return null
+
+	var sorteio := randf() * soma
+	for grupo in grupos:
+		if grupo.custo_real() > restante:
+			continue
+		sorteio -= grupo.peso
+		if sorteio <= 0.0:
+			return grupo
+
+	# Só chega aqui por erro de arredondamento no ultimo item.
+	for i in range(grupos.size() - 1, -1, -1):
+		if grupos[i].custo_real() <= restante:
+			return grupos[i]
+	return null
 
 
 ## Contorno de cada sala em coordenadas de mundo, calculado uma vez.
@@ -979,7 +1104,8 @@ func _chegar(celula: Vector2i, direcao: Vector2) -> void:
 	_direcao_travessia = Vector2.ZERO
 
 	_clampar(destino.obter_limites())
-	# ativar() e idempotente: reentrar numa sala ja limpa nao recomeca as ondas.
+	_forcar_deterioracao_de(celula)
+	# ativar() e idempotente: reentrar numa sala ja limpa nao recomeca o combate.
 	destino.ativar()
 	EventBus.transicao_concluida.emit(destino)
 	_ocupado = false
@@ -1078,6 +1204,21 @@ func _ajustar_zoom(camera: Camera2D, area: Vector2) -> void:
 
 # ----------------------------------------------------------- ciclo da run ---
 
+## Piso de Deterioracao ao ENTRAR, quando o tipo da sala pede um.
+##
+## Existe por causa do chefe: o GDD quer a luta final em nivel critico, e sem
+## isto ela aconteceria no nivel em que a run por acaso chegou. Herda o papel do
+## `deterioracao_minima_inicial` que morava no DadosOnda.
+##
+## Nunca abaixa a barra -- so empurra para cima.
+func _forcar_deterioracao_de(celula: Vector2i) -> void:
+	var dados: DadosSala = _dados_por_celula.get(celula)
+	if dados == null or dados.deterioracao_minima_ao_entrar < 0.0:
+		return
+	if Deterioracao.valor < dados.deterioracao_minima_ao_entrar:
+		Deterioracao.valor = dados.deterioracao_minima_ao_entrar
+
+
 func _ao_sala_limpa(sala: Node2D) -> void:
 	GameState.salas_limpas += 1
 	var limpa := sala as Sala
@@ -1087,5 +1228,11 @@ func _ao_sala_limpa(sala: Node2D) -> void:
 	# por dois tipos nao encerra a run no tipo errado.
 	var dados: DadosSala = _dados_por_celula.get(limpa.coordenadas_grid)
 	var id: StringName = dados.id if dados != null else limpa.tipo
+
+	# A escalada da run mora aqui desde que as ondas sairam. So sobe quem tinha
+	# combate: limpar a sala de item nao e conquista nenhuma.
+	if dados != null and dados.deterioracao_ao_limpar > 0.0:
+		Deterioracao.adicionar(dados.deterioracao_ao_limpar)
+
 	if id == DadosSala.ID_BOSS:
 		GameState.terminar_run(true)

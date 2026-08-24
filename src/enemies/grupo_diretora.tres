@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="GrupoInimigo" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/enemies/grupo_inimigo.gd" id="1_gi"]
+[ext_resource type="PackedScene" path="res://src/enemies/diretora.tscn" id="2_cena"]
+
+[resource]
+script = ExtResource("1_gi")
+cena = ExtResource("2_cena")
+peso = 1.0
+custo = 1

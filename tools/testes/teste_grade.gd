@@ -24,6 +24,7 @@ const SALAS := [
 	"res://src/mapa/sala_6_boss.tscn",
 	"res://src/mapa/sala_7_arma.tscn",
 	"res://src/mapa/sala_8_item.tscn",
+	"res://src/mapa/sala_9_inicial.tscn",
 ]
 
 
@@ -123,12 +124,14 @@ func _conferir_portas(sala: Sala, etiqueta: String) -> void:
 	igual(fora, 0, "%s: toda porta esta na grade" % etiqueta)
 
 
+## TODA sala e conferida, inclusive as que hoje nao recebem inimigo nenhum.
+##
+## Antes a area vinha do no "Ondas" e a sala de recompensa era pulada por nao
+## ter esse no. Agora `area_spawn` e um @export da propria Sala, entao ela
+## sempre existe -- e conferir todas e o certo: o dia em que alguem der combate
+## a uma sala de recompensa, a caixa dela ja tera sido validada.
 func _conferir_spawn(sala: Sala, etiqueta: String) -> void:
-	var ondas := sala.get_node_or_null("Ondas") as GerenciadorOndas
-	if ondas == null:
-		# Sala de recompensa nao tem ondas -- nada a conferir, e isso e correto.
-		return
-	var area := ondas.area_spawn
+	var area := sala.area_spawn
 	var na_grade := _na_grade(area.position.x) and _na_grade(area.position.y) \
 		and _na_grade(area.size.x) and _na_grade(area.size.y)
 	ok(na_grade, "%s: a area de spawn esta na grade (%s)" % [etiqueta, area])

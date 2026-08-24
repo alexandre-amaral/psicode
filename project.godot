@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="psicode"
-config/description="Vertical slice de um twin-stick shooter roguelike cyberpunk. Sobreviva as ondas enquanto a Deterioracao corrompe sua percepcao."
+config/description="Vertical slice de um twin-stick shooter roguelike cyberpunk. Atravesse o andar enquanto a Deterioracao corrompe sua percepcao."
 config/version="0.1.1-alpha"
 run/main_scene="res://src/ui/intro.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")

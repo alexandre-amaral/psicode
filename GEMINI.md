@@ -1,6 +1,6 @@
 # psicode — contexto para agente de IA
 
-Twin-stick shooter / bullet hell / roguelike cyberpunk em **Godot 4.7-stable**
+Twin-stick shooter / bullet hell / roguelike cyberpunk em **Godot 4.7.2-stable**
 (versao standard, nao .NET) com **GDScript**. Renderer **Compatibility (GL)**,
 obrigatorio para o export web.
 
@@ -21,6 +21,8 @@ documentos abaixo — leia antes de propor mecanica nova:
 | `docs/CONVENCOES.md` | Git, divisao de arquivos, estilo de codigo |
 | `docs/HANDOFF.md` | Passo a passo para quem nao conhece Godot nem Git |
 | `docs/BUILD.md` | Export Windows e web |
+| `docs/TUNING.md` | Todos os botoes de balanceamento e o que a medicao ja disse |
+| `docs/PLAYTEST.md` | As perguntas do playtest e a mensagem pronta |
 | `docs/MCP.md` | Servidor MCP que liga assistente de IA ao editor aberto |
 
 Quando o codigo e o texto discordarem, **o codigo ganha e o texto se
@@ -77,10 +79,10 @@ src/
                game_state, juice
   player/      player, eco de rolamento
   weapons/     arma.gd, dados_arma.gd, *.tres (pistola, shotgun, armas do chefe)
-  enemies/     inimigo_base, rastejante, vigia, diretora (chefe)
+  enemies/     inimigo_base, rastejante, vigia, diretora (chefe),
+               grupo_inimigo.gd + grupo_*.tres (quem pode nascer, e a que custo)
   projectiles/ projetil
-  arena/       gerenciador_ondas, dados_onda, onda_*.tres, pickup de arma
-               (o pickup so e instanciado pela sala de arma -- onda nao solta)
+  arena/       pickup de arma (instanciado so pela cena da sala de arma)
   mapa/        gerenciador_mapa, sala, porta, corredor, sala_*.tscn,
                dados_sala.gd + tipo_*.tres (o catalogo de tipos de sala)
   items/       efeito_item.gd + dados_item.gd, implante_*.tres,
@@ -101,7 +103,9 @@ docs/
 
 | Ajuste | Arquivo |
 |---|---|
-| Composicao e escalada das ondas | `src/arena/onda_*.tres` |
+| Quantos inimigos cabem numa sala | `densidade` e `orcamento_*` em `src/mapa/tipo_*.tres` |
+| Quem pode nascer, e com que peso | `src/enemies/grupo_*.tres` |
+| Quanto a barra sobe ao limpar uma sala | `deterioracao_ao_limpar` em `src/mapa/tipo_*.tres` |
 | Dano, cadencia, municao, spread | `src/weapons/*.tres` |
 | Vida e velocidade dos inimigos | `@export` em `src/enemies/*.tscn` |
 | Limiares de 50% e 85% | `src/autoload/deterioracao.gd` |
@@ -140,6 +144,8 @@ em qualquer erro de script.
 
 ## Armadilhas que ja custaram tempo aqui
 
+- **`custo` zero num `GrupoInimigo` giraria o sorteio para sempre.** Por isso o
+  sorteio consome `custo_real()`, que tem piso 1, e nunca o campo cru.
 - **`Array[Node].filter()` devolve `Array` sem tipo.** Atribuir de volta a uma
   variavel tipada explode em runtime. Use loop explicito.
 - **Referencia de no exportada nao resolve.** Use `NodePath` explicito e
@@ -165,16 +171,18 @@ em qualquer erro de script.
 - **Layer de fisica e nomeada em `project.godot`.** Parede na layer 1
   ("player") em vez da 3 ("parede") faz alguem remendar o mask do Player e
   quebra o resto.
-- **A sala do chefe so fecha por `run_completa`** — `onda_completa` nao dispara
-  na onda dele.
+- **A sala do chefe fecha pela morte dele, nunca por contagem do container.**
+  `Sala._vivos` guarda so quem a SALA colocou; os invocados da Diretora nascem no
+  mesmo `ContainerInimigos` e ficam de fora de proposito. Contar o container
+  faria um invocado sobrevivente segurar a vitoria.
 - **`ativar()` de sala tem de ser idempotente**, senao voltar para uma sala
-  limpa recomeca o combate.
-- **Existe um `GerenciadorOndas` por sala.** Quem entra no grupo
-  `gerenciador_ondas` sem sair engana quem busca pelo grupo.
-- **Sala sem combate nao pode ter um no `Ondas` vazio.** Sem inimigo a onda
-  nunca completa, a sala fica `OCUPADA` para sempre e o teste de fumaca so
-  descobre depois de queimar os 240s. Sala de recompensa = **sem no `Ondas`**;
-  e assim que `Sala._conectar_ondas()` a marca `LIMPA` e abre as portas.
+  limpa recomeca o combate. E e nele, e nao no `_ready`, que se decide se a sala
+  tem combate: a composicao chega depois do `add_child`.
+- **A composicao e consumida ao ser usada.** `Sala._povoar()` zera `_composicao`
+  antes de instanciar, para uma reativacao nao repovoar a sala.
+- **Sala inicial, de arma e de item nunca tem inimigos.** A garantia esta em
+  duas pontas: `teste_composicao.gd` recusa lista de inimigos nesses tipos, e o
+  teste de fumaca falha se achar alguem dentro delas na chegada.
 - **Toda geometria de sala e multipla de 16, e a DIMENSAO e multipla de 32.**
   A resolucao base e 960x544 (ambos /16). As salas sao centradas na origem,
   entao o contorno guarda a MEIA dimensao -- e meia dimensao so cai na grade se
@@ -184,11 +192,17 @@ em qualquer erro de script.
 - **`Porta.LARGURA` e `largura_corredor` tem de ser iguais.** A porta e o vao que
   a parede abre; o corredor encaixa nessa boca. Mudar um sem o outro deixa
   parede no meio da passagem.
-- **A sala de arma e obrigatoria** (`opcional = false` em `tipo_arma.tres`),
-  como o chefe: se ela nao couber no grafo sorteado, o andar inteiro e sorteado
-  de novo. Sem isso a run podia acontecer inteira so com a pistola inicial, ja
-  que a sala e a unica fonte de arma. Medido em 120 andares: 100% de presenca,
-  media de 10 salas, zero andares curtos.
+- **A sala de arma e a de item sao obrigatorias** (`opcional = false` nos
+  `.tres`), como o chefe: se uma delas nao couber no grafo sorteado, o andar
+  inteiro e sorteado de novo. Sem isso a run podia acontecer inteira so com a
+  pistola inicial, ja que a sala de arma e a unica fonte de arma. Medido em 120
+  andares: 100% de presenca dos cinco tipos, media de 10 salas, zero andares
+  curtos.
+- **A celula (0,0) e reservada para o tipo `inicial`.** Ela entra em
+  `_reservadas` pelo mesmo caminho de uma pendurada, o que traz de graca a regra
+  de `_celula_aceita`: nenhum premio nem o chefe nascem colados na entrada.
+  `Colocacao.INICIAL` fica fora do sorteio de preenchimento — sem isso uma
+  segunda sala de entrada, vazia e sem proposito, apareceria no meio do andar.
 - **Arma so nasce na sala de arma.** O `DadosOnda` tinha um campo `solta_arma`
   que fazia a onda largar uma arma ao ser limpa, e a sala GRANDE usava uma onda
   com ele ligado -- entao uma sala de combate entregava de graca o que devia

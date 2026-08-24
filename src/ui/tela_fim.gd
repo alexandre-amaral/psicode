@@ -32,13 +32,19 @@ func _ao_terminar(venceu: bool, dados: Dictionary) -> void:
 		_titulo.modulate = Color(1.0, 0.3, 0.45)
 		_sub.text = "Restaurando do ultimo backup..."
 
-	_stats.text = "\n".join([
+	var linhas := [
 		"SALAS LIMPAS            %d / %d" % [dados.get("salas_limpas", 0), dados.get("total_salas", 0)],
 		"HOSTIS NEUTRALIZADOS    %d" % dados.get("inimigos_mortos", 0),
 		"CREDITOS                %d" % dados.get("creditos", 0),
 		"TEMPO                   %s" % GameState.formatar_tempo(dados.get("tempo", 0.0)),
-		"DETERIORACAO FINAL      %d%%" % int(dados.get("deterioracao_final", 0.0)),
-	])
+	]
+	# So aparece quando houve luta. Numa run que acabou na terceira sala a linha
+	# marcaria 00:00, e um zero na tela le como bug, nao como "nao aconteceu".
+	var tempo_chefe: float = dados.get("tempo_chefe", 0.0)
+	if tempo_chefe > 0.0:
+		linhas.append("LUTA DO CHEFE           %s" % GameState.formatar_tempo(tempo_chefe))
+	linhas.append("DETERIORACAO FINAL      %d%%" % int(dados.get("deterioracao_final", 0.0)))
+	_stats.text = "\n".join(linhas)
 	_dica.text = "R  reiniciar          ESC  sair"
 
 	var t := create_tween()

@@ -1,0 +1,41 @@
+[gd_scene load_steps=3 format=3 uid="uid://dq2n8vk1e5wxr"]
+
+[ext_resource type="Script" path="res://src/mapa/sala.gd" id="1_s"]
+[ext_resource type="PackedScene" uid="uid://d1p2q3r4s5t6u" path="res://src/mapa/porta.tscn" id="2_p"]
+
+[node name="Sala_9_Inicial" type="Node2D"]
+script = ExtResource("1_s")
+tipo = &"inicial"
+area_spawn = Rect2(-352, -176, 704, 352)
+
+[node name="Chao" type="ColorRect" parent="."]
+offset_left = -480.0
+offset_top = -272.0
+offset_right = 480.0
+offset_bottom = 272.0
+color = Color(0.0431373, 0.0509804, 0.0862745, 1)
+
+[node name="Parede" type="Line2D" parent="."]
+points = PackedVector2Array(-480, -272, 480, -272, 480, 272, -480, 272, -480, -272)
+width = 8.0
+default_color = Color(0.3, 0.9, 1, 0.55)
+
+[node name="Portas" type="Node2D" parent="."]
+
+[node name="Porta_Norte" parent="Portas" instance=ExtResource("2_p")]
+position = Vector2(0, -272)
+
+[node name="Porta_Sul" parent="Portas" instance=ExtResource("2_p")]
+position = Vector2(0, 272)
+rotation = 3.14159
+direcao = 1
+
+[node name="Porta_Leste" parent="Portas" instance=ExtResource("2_p")]
+position = Vector2(480, 0)
+rotation = 1.5708
+direcao = 2
+
+[node name="Porta_Oeste" parent="Portas" instance=ExtResource("2_p")]
+position = Vector2(-480, 0)
+rotation = -1.5708
+direcao = 3

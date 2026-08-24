@@ -5,6 +5,11 @@ extends Node
 ##
 ## Uso: godot --path . tools/capturar.tscn --resolution 960x544
 ## As imagens saem em user://capturas.
+##
+## Ele ANDA pelo andar, como o teste de fumaca faz: pede sala por sala ao
+## GerenciadorMapa pela API publica (`celulas`, `celula_do_chefe`,
+## `ir_para_sala`). Sem isso ele ficava parado na primeira sala, e desde que o
+## jogo virou um andar de salas as capturas 04..06 -- o chefe -- nunca saiam.
 
 const SAIDA := "user://capturas"
 
@@ -13,25 +18,42 @@ var _feitas: Array[String] = []
 var _t_chefe: float = -1.0
 var _capturando := false
 
+var _mapa: GerenciadorMapa = null
+var _visitadas: Dictionary = {}
+## Respiro entre uma sala e a seguinte, para a chegada assentar e a captura nao
+## pegar a camera no meio do deslize.
+var _t_avanco: float = 0.0
+## Quantas salas de combate ja foram vistas. Depois de algumas, a foto de
+## combate sai em qualquer uma, mesmo mal enquadrada -- melhor uma imagem torta
+## que imagem nenhuma.
+var _combates_vistos: int = 0
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	DirAccess.make_dir_recursive_absolute(SAIDA)
+	# A sala inicial nasce LIMPA, entao o percurso sairia dela no primeiro
+	# frame. Este respiro e o que da tempo de fotografa-la.
+	_t_avanco = 1.2
 	EventBus.boss_revelado.connect(func(_n: String, _v: int) -> void: _t_chefe = _t)
 	add_child(preload("res://src/main/main.tscn").instantiate())
 
 
 func _process(delta: float) -> void:
 	_t += delta
+	_t_avanco -= delta
 
 	var player := get_tree().get_first_node_in_group("player")
 	if player != null and is_instance_valid(player) and "vida" in player:
 		player.vida = player.vida_maxima
 
+	# A sala de combate e fotografada ANTES de o acelerador limpar a sala: a
+	# captura que importa aqui e "o jogador entrou e os inimigos ja estao
+	# distribuidos", e ela dura o intervalo de um frame.
+	_capturar_sala_atual()
 	_acelerar()
+	_avancar_se_der()
 
-	if _t > 1.6:
-		_capturar("01_onda1_estavel")
 	if _t > 4.2:
 		if not "02_deterioracao_media" in _feitas:
 			Deterioracao.valor = maxf(Deterioracao.valor, 58.0)
@@ -54,9 +76,87 @@ func _process(delta: float) -> void:
 		get_tree().quit(1)
 
 
-## Limpa a arena depressa para as ondas passarem, mas so arranha o chefe --
+## Nome fixo por TIPO de sala, e nao por ordem de visita: assim rodar de novo
+## produz o mesmo conjunto de arquivos mesmo com outro andar sorteado.
+func _capturar_sala_atual() -> void:
+	if not _achar_mapa():
+		return
+	var sala := _mapa.sala_atual
+	if sala == null or sala.tipo == DadosSala.ID_BOSS:
+		return
+	match String(sala.tipo):
+		"inicial":
+			_capturar("01_sala_inicial")
+		"combate":
+			_capturar_combate(sala)
+		"arma":
+			_capturar("08_sala_de_arma")
+		"item":
+			_capturar("09_sala_de_item")
+
+
+## A foto de combate so vale se der para VER os inimigos, e a camera nunca
+## afasta: numa sala maior que a tela ela segue o jogador e mostra um pedaco.
+## Entao a primeira escolha e uma sala que caiba no viewport -- a retangular de
+## 960x544 e a mais comum do andar. Depois de algumas tentativas, qualquer uma
+## serve.
+func _capturar_combate(sala: Sala) -> void:
+	if "07_sala_de_combate" in _feitas:
+		return
+	_combates_vistos += 1
+	var tela := Vector2(get_viewport().get_visible_rect().size)
+	var cabe := sala.obter_limites().size.x <= tela.x and sala.obter_limites().size.y <= tela.y
+	if cabe or _combates_vistos >= 4:
+		_capturar("07_sala_de_combate")
+
+
+func _achar_mapa() -> bool:
+	if _mapa != null and is_instance_valid(_mapa):
+		return true
+	_mapa = get_tree().get_first_node_in_group("gerenciador_mapa") as GerenciadorMapa
+	return _mapa != null
+
+
+## Sala limpa, segue em frente. A do chefe fica por ultimo: entrar nela termina
+## a run, e as capturas 04..06 sao dela.
+func _avancar_se_der() -> void:
+	if _t_avanco > 0.0 or not _achar_mapa():
+		return
+	var sala := _mapa.sala_atual
+	if sala == null or sala.estado != Sala.Estado.LIMPA:
+		return
+	_visitadas[sala.coordenadas_grid] = true
+
+	var alvo := _proxima_celula()
+	if alvo == sala.coordenadas_grid:
+		return
+	_t_avanco = 0.5
+	_mapa.ir_para_sala(alvo)
+
+
+## Qualquer celula ainda nao visitada; a do chefe so quando nao sobrar outra.
+## Nao precisa de caminho minimo como o teste de fumaca: `ir_para_sala` salta, e
+## aqui o que se quer sao as fotos, nao a travessia.
+func _proxima_celula() -> Vector2i:
+	var atual := _mapa.sala_atual.coordenadas_grid
+	var chefe := _mapa.celula_do_chefe()
+	for celula in _mapa.celulas():
+		if celula != chefe and not _visitadas.has(celula):
+			return celula
+	if not _visitadas.has(chefe):
+		return chefe
+	return atual
+
+
+## Limpa a sala depressa para o percurso andar, mas so arranha o chefe --
 ## queremos ve-lo atacando, nao morrendo.
 func _acelerar() -> void:
+	# Nao mata nada enquanto ha foto pendente. `_capturar` e assincrono: ele
+	# reserva o nome de imediato mas so grava depois do frame_post_draw, e sem
+	# esta guarda o acelerador limpava a sala nesse intervalo -- a foto da sala
+	# de combate saia com "HOSTIS 0" e nenhum inimigo em tela.
+	if _capturando:
+		return
 	for n in get_tree().get_nodes_in_group("inimigo"):
 		if not is_instance_valid(n) or not n.has_method("receber_dano"):
 			continue

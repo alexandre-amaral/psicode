@@ -1,6 +1,6 @@
 extends Node
 ## Teste de fumaca automatizado. Roda o jogo inteiro sem janela e sem humano:
-## mata os inimigos por script para avancar as ondas, arranha o chefe aos poucos
+## mata os inimigos por script para limpar as salas, arranha o chefe aos poucos
 ## para que as tres fases dele realmente executem, ANDA pelo andar de sala em
 ## sala ate o chefe, e falha se aparecer qualquer erro de script ou se a run nao
 ## terminar em vitoria dentro do tempo.
@@ -65,6 +65,8 @@ var _visitadas: Dictionary = {}
 var _salas_percorridas: int = 0
 ## Tipo de sala de recompensa -> se um pickup foi visto dentro dela.
 var _recompensas_conferidas: Dictionary = {}
+## Tipo de sala sem combate -> se ja foi visitada e vista vazia.
+var _salas_sem_combate_conferidas: Dictionary = {}
 
 ## id de instancia -> true. Cada inimigo e conferido uma vez so, no primeiro
 ## frame em que aparece no grupo.
@@ -79,8 +81,6 @@ func _ready() -> void:
 
 	_testar_balistica()
 
-	EventBus.onda_iniciada.connect(func(i: int, t: int) -> void: _log("onda_iniciada %d/%d" % [i + 1, t]))
-	EventBus.onda_limpa.connect(func(i: int) -> void: _log("onda_limpa %d (deterioracao %.0f%%)" % [i + 1, Deterioracao.valor]))
 	EventBus.fase_deterioracao_mudou.connect(func(n: int, _a: int) -> void: _log("fase_deterioracao -> %s" % Deterioracao.nome_fase()))
 	EventBus.boss_revelado.connect(func(nome: String, hp: int) -> void: _log("boss_revelado %s (%d hp)" % [nome, hp]))
 	EventBus.boss_fase_mudou.connect(func(f: int) -> void: _log("boss_fase -> %d" % f))
@@ -296,6 +296,7 @@ func _registrar_chegada() -> void:
 	if not revisita:
 		_salas_percorridas += 1
 	_conferir_recompensa(sala)
+	_conferir_sala_sem_combate(sala)
 	_log("sala %d/%d %s tipo=%s%s" % [
 		_salas_percorridas,
 		_mapa.celulas().size(),
@@ -370,6 +371,39 @@ func _conferir_recompensa(sala: Sala) -> void:
 		_log("recompensa conferida em %s tipo=%s (%d pickup)" % [
 			sala.coordenadas_grid, sala.tipo, achados,
 		])
+
+
+## Sala inicial, de arma e de item tem de estar VAZIAS na chegada.
+##
+## E a verificacao em runtime do que os .tres prometem. teste_composicao.gd ja
+## confere que esses tipos tem lista de inimigos vazia; esta aqui confere o
+## outro lado -- que ninguem MAIS pos inimigo la dentro. Um chefe invocando por
+## cima do limite, um pickup que spawna guarda, um tipo novo herdando a lista
+## errada: nada disso aparece no .tres, e todos poriam o jogador diante de um
+## combate onde ele deveria estar em paz.
+##
+## Conferida na chegada, que e quando `ativar()` acabou de rodar e a composicao
+## ja foi colocada. Antes disso a sala esta vazia por nao ter comecado.
+func _conferir_sala_sem_combate(sala: Sala) -> void:
+	if sala.tipo != DadosSala.ID_INICIAL and sala.tipo != DadosSala.ID_ARMA \
+			and sala.tipo != DadosSala.ID_ITEM:
+		return
+
+	var dentro: Array[String] = []
+	for no in get_tree().get_nodes_in_group("inimigo"):
+		var inimigo := no as Node2D
+		if inimigo == null or not is_instance_valid(inimigo):
+			continue
+		if _sala_hospedeira(inimigo) == sala:
+			dentro.append(inimigo.name)
+
+	if dentro.is_empty():
+		_salas_sem_combate_conferidas[sala.tipo] = true
+		return
+
+	_falhar("a sala %s tipo=%s tem %d inimigo(s) dentro (%s) -- este tipo de sala nunca pode ter combate" % [
+		sala.coordenadas_grid, sala.tipo, dentro.size(), ", ".join(dentro),
+	])
 
 
 ## Primeiro passo do caminho mais curto ate a celula nao visitada mais proxima.
@@ -489,6 +523,12 @@ func _ao_terminar(venceu: bool, dados: Dictionary) -> void:
 	# -- e a conferencia acima nunca rodou.
 	if venceu and _recompensas_conferidas.is_empty():
 		_falhar("o andar inteiro saiu sem sala de arma nem de item -- a colocacao das recompensas nao rodou")
+
+	# A sala inicial existe em toda run, entao esta e a unica das guardas que
+	# pode ser exigida por tipo: se ela nao foi conferida vazia, a conferencia
+	# de sala sem combate nao rodou nenhuma vez.
+	if not _salas_sem_combate_conferidas.get(DadosSala.ID_INICIAL, false):
+		_falhar("a sala inicial nunca foi conferida vazia -- ou ela nao existe no andar, ou a guarda de sala sem combate nao rodou")
 
 	_encerrar()
 

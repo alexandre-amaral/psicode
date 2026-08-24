@@ -20,7 +20,14 @@ enum Fase { BAIXA, MEDIA, CRITICA }
 
 ## Quanto a barra sobe sozinha por segundo enquanto ha combate.
 ## A pressao de tempo do GDD: parar de avancar tambem custa caro.
-@export var ganho_passivo_por_segundo: float = 0.35
+##
+## Era 0.35, calibrado quando a run eram cinco ondas numa arena. Com o andar de
+## dez salas a partida ficou mais longa e ninguem voltou neste numero: a
+## `tools/medir_ritmo.tscn` mediu a mira preditiva ligando no primeiro terco da
+## run, antes de o jogador ter formado o habito de esquiva que ela existe para
+## trair. 0.25 -- junto com o ganho por sala em 6 -- poe o limiar entre 38% e
+## 50% da run em toda a faixa de habilidade medida.
+@export var ganho_passivo_por_segundo: float = 0.25
 
 var valor: float = 0.0:
 	set(v):

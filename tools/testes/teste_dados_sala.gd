@@ -3,21 +3,23 @@ extends TesteBase
 ##
 ## Por que isto existe: o catalogo virou o painel onde se adiciona conteudo sem
 ## programar, e e exatamente por isso que ele quebra em silencio. Um id
-## digitado errado, um tipo obrigatorio a mais ou uma sala de recompensa com no
-## "Ondas" nao produzem erro nenhum no console -- produzem uma run travada ou
-## uma vitoria impossivel, minutos depois, no teste de fumaca.
+## digitado errado, um tipo obrigatorio a mais ou uma sala de recompensa com
+## inimigos na lista nao produzem erro nenhum no console -- produzem uma run
+## travada ou uma vitoria impossivel, minutos depois, no teste de fumaca.
 
 const TIPOS := [
 	"res://src/mapa/tipo_combate.tres",
 	"res://src/mapa/tipo_boss.tres",
 	"res://src/mapa/tipo_arma.tres",
 	"res://src/mapa/tipo_item.tres",
+	"res://src/mapa/tipo_inicial.tres",
 ]
 
-## Salas sem combate: quem NAO pode ter um no "Ondas".
+## Os tipos que o pedido diz que NUNCA tem inimigos.
 const SEM_COMBATE := [
-	"res://src/mapa/sala_7_arma.tscn",
-	"res://src/mapa/sala_8_item.tscn",
+	DadosSala.ID_INICIAL,
+	DadosSala.ID_ARMA,
+	DadosSala.ID_ITEM,
 ]
 
 
@@ -29,7 +31,7 @@ func executar() -> void:
 	var catalogo := _carregar()
 	_contrato(catalogo)
 	_regras_do_andar(catalogo)
-	_salas_de_recompensa()
+	_salas_sem_combate(catalogo)
 	_arma_so_na_sala_de_arma(catalogo)
 	_contornos_desenhaveis(catalogo)
 
@@ -69,7 +71,7 @@ func _regras_do_andar(catalogo: Array[DadosSala]) -> void:
 		if dados.eh_pendurada():
 			pendurados.append(dados)
 			reservadas += dados.celulas_reservadas()
-		else:
+		elif not dados.eh_inicial():
 			comuns.append(dados)
 
 	ok(not comuns.is_empty(), "existe ao menos um tipo de preenchimento")
@@ -90,16 +92,32 @@ func _regras_do_andar(catalogo: Array[DadosSala]) -> void:
 	if chefes.size() == 1:
 		ok(not chefes[0].opcional, "o chefe e obrigatorio: sem ele nao ha vitoria")
 
-	# A sala de arma e a UNICA fonte de arma do jogo desde que o drop por onda
-	# saiu. Opcional aqui significa run inteira so com a pistola inicial.
-	var armas: Array[DadosSala] = []
+	# As duas recompensas sao garantidas e aparecem uma vez cada. A de arma e a
+	# UNICA fonte de arma do jogo desde que o drop por onda saiu; opcional aqui
+	# significaria uma run inteira so com a pistola inicial.
+	for id: StringName in [DadosSala.ID_ARMA, DadosSala.ID_ITEM]:
+		var recompensas: Array[DadosSala] = []
+		for dados in catalogo:
+			if dados.id == id:
+				recompensas.append(dados)
+		var etiqueta := String(id)
+		igual(recompensas.size(), 1, "existe exatamente um tipo de sala de %s" % etiqueta)
+		if recompensas.size() == 1:
+			ok(not recompensas[0].opcional, "a sala de %s e garantida no andar" % etiqueta)
+			igual(recompensas[0].celulas_reservadas(), 1, "a sala de %s aparece uma vez por andar" % etiqueta)
+
+	# A sala de entrada tem de ser exatamente uma, e tem de ser INICIAL e nao
+	# PENDURADA: pendurada ganha uma celula em qualquer beco, e a entrada tem de
+	# ficar na origem, que e onde o Player nasce em main.tscn.
+	var iniciais: Array[DadosSala] = []
 	for dados in catalogo:
-		if dados.id == DadosSala.ID_ARMA:
-			armas.append(dados)
-	igual(armas.size(), 1, "existe exatamente um tipo de sala de arma")
-	if armas.size() == 1:
-		ok(not armas[0].opcional, "a sala de arma e garantida no andar")
-		igual(armas[0].celulas_reservadas(), 1, "a sala de arma aparece uma vez por andar")
+		if dados.eh_inicial():
+			iniciais.append(dados)
+	igual(iniciais.size(), 1, "existe exatamente um tipo de sala inicial")
+	if iniciais.size() == 1:
+		igual(String(iniciais[0].id), String(DadosSala.ID_INICIAL), "o tipo inicial usa o id 'inicial'")
+		ok(not iniciais[0].opcional, "a sala inicial e obrigatoria")
+		igual(iniciais[0].celulas_reservadas(), 0, "a sala inicial nao reserva celula (ela usa a origem)")
 
 	# Quem chega primeiro escolhe a melhor ancora. Se um premio for colocado
 	# antes do chefe, ele toma o beco mais distante e o chefe cai no meio do
@@ -125,22 +143,29 @@ func _regras_do_andar(catalogo: Array[DadosSala]) -> void:
 	)
 
 
-## A armadilha mais cara deste sistema: sala de recompensa com um no "Ondas" de
-## composicao vazia nunca completa a onda, fica OCUPADA para sempre e o teste
-## de fumaca queima os 240s de CI. Sem no "Ondas" ela nasce LIMPA e abre as
-## portas, que e o contrato de Sala._conectar_ondas().
-func _salas_de_recompensa() -> void:
-	for caminho: String in SEM_COMBATE:
-		var cena: PackedScene = load(caminho)
-		ok(cena != null, "%s carrega" % caminho.get_file())
-		if cena == null:
+## Sala inicial, de arma e de item nunca tem inimigos.
+##
+## E a garantia literal do pedido, e ela precisa de teste porque a lista de
+## inimigos e um array no Inspetor: arrastar um grupo para o .tres errado nao
+## produz erro nenhum -- produz um jogador nascendo dentro de um combate, ou uma
+## sala de recompensa trancada ate ele limpar o que nao esperava encontrar.
+##
+## Confere tambem o orcamento, e nao so a lista: com a lista vazia o orcamento
+## nao e usado, mas deixa-lo em pe seria uma armadilha para quem no futuro
+## adicionar um inimigo ao tipo e receber uma quantidade que ninguem escolheu.
+func _salas_sem_combate(catalogo: Array[DadosSala]) -> void:
+	var conferidos := 0
+	for dados in catalogo:
+		if not SEM_COMBATE.has(dados.id):
 			continue
-		var estado := cena.get_state()
-		var tem_ondas := false
-		for i in range(estado.get_node_count()):
-			if estado.get_node_name(i) == &"Ondas":
-				tem_ondas = true
-		ok(not tem_ondas, "%s nao tem no 'Ondas' (senao trava a run)" % caminho.get_file())
+		conferidos += 1
+		var etiqueta := String(dados.id)
+		ok(not dados.tem_combate(), "a sala de %s nunca tem inimigos" % etiqueta)
+		igual(dados.orcamento_para(1000000.0), 0, "a sala de %s tem orcamento zero" % etiqueta)
+
+	# Guarda contra a assercao virar decoracao: se um id for renomeado, o laco
+	# acima passa inteiro sem ter olhado nada.
+	igual(conferidos, SEM_COMBATE.size(), "os tres tipos sem combate estao no catalogo")
 
 
 ## Arma so existe na sala de arma.

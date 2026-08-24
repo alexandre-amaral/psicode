@@ -20,9 +20,9 @@ permissions:
   contents: write
 
 env:
-  # Mesma versao do ci.yml. Se mudar aqui, mude la tambem -- e mude o
-  # config/features do project.godot junto.
-  GODOT_VERSAO: 4.6-stable
+  # Mesma versao do ci.yml, e a mesma do editor instalado. Se mudar aqui, mude
+  # la tambem -- e mude o config/features do project.godot junto.
+  GODOT_VERSAO: 4.7.2-stable
 
 jobs:
   build:

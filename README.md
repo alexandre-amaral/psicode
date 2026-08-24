@@ -5,10 +5,10 @@ ciborgue mercenário lutando contra a própria degradação: quanto mais a run
 avança, mais a barra de **Deterioração** sobe — e a partir de 50% os inimigos
 param de mirar em você e passam a mirar **onde você vai estar**.
 
-Cinco ondas numa arena fechada, terminando na **IA Diretora**. Começo, meio e
-fim em ~5 minutos.
+Um andar de 10 salas sorteadas, terminando na **IA Diretora**. Começo, meio e
+fim em ~4 minutos.
 
-![Onda 1](docs/capturas/01_onda1_estavel.png)
+![Sala de combate](docs/capturas/07_sala_de_combate.png)
 
 | Deterioração média | Chefe final |
 |---|---|
@@ -18,7 +18,7 @@ fim em ~5 minutos.
 
 ## Rodar em 3 passos
 
-1. Instale o **Godot 4.6** (versão *standard*, não a .NET) — https://godotengine.org/download
+1. Instale o **Godot 4.7** (versão *standard*, não a .NET) — https://godotengine.org/download
 2. Abra o Godot Hub → **Importar** → escolha o `project.godot` desta pasta
 3. **F5**
 
@@ -45,13 +45,13 @@ tremor de câmera e a distorção visual.
 `R` só reinicia depois que a partida termina; durante o jogo ele recarrega.
 
 `F1` é o atalho mais útil do projeto: com ele você testa as fases da
-Deterioração sem precisar limpar quatro ondas antes.
+Deterioração sem precisar limpar meio andar antes.
 
 ## Stack
 
 | | |
 |---|---|
-| Engine | Godot **4.6-stable** (standard) |
+| Engine | Godot **4.7.2-stable** (standard) — a mesma versão do CI |
 | Linguagem | GDScript |
 | Renderer | Compatibility (GL) — garante export para web |
 | Versionamento | Git + GitHub, LFS já configurado para arte futura |
@@ -72,20 +72,24 @@ src/
   weapons/     componente de arma + as armas como .tres
   projectiles/ projétil genérico (player e inimigo)
   enemies/     base + Rastejante (melee) + Vigia (ranged) + Diretora (chefe)
-  arena/       arena, ondas (.tres), spawn, pickups
-  ui/          HUD, barras, tela de fim
+               + grupo_*.tres: quem pode nascer numa sala, e a que custo
+  mapa/        gerador do andar, sala, porta, corredor, as cenas de sala
+               + tipo_*.tres: o catálogo de tipos de sala
+  items/       implantes (.tres), pool de loot, pickup
+  arena/       pickup de arma
+  ui/          HUD, minimapa, barras, menus, tela de fim
   fx/          partículas
   util/        Balistica (matemática de mira preditiva)
 assets/shaders/ glitch de alucinação
-tools/       teste de fumaça e ferramenta de captura de tela
-docs/        HANDOFF, GDD, ROADMAP, CONVENCOES
+tools/       testes, réguas de tuning e captura de tela
+docs/        HANDOFF, GDD, ROADMAP, CONVENCOES, TUNING, PLAYTEST
 ```
 
 Duas regras de arquitetura sustentam tudo isso:
 
 **1. Ninguém procura ninguém pela árvore de nós.** Quem faz algo emite no
 `EventBus`; quem se importa escuta. A HUD não conhece o Player, o Player não
-conhece o gerenciador de ondas. Dá para apagar a HUD inteira e o jogo continua
+conhece o gerador do andar. Dá para apagar a HUD inteira e o jogo continua
 rodando.
 
 **2. Todo número de dificuldade vem de `Deterioracao`.** Nenhum inimigo guarda
@@ -100,15 +104,27 @@ O tuning mora em arquivos `.tres`, editáveis pelo Inspetor do Godot:
 | O que ajustar | Onde |
 |---|---|
 | Dano, cadência, munição, spread das armas | `src/weapons/*.tres` |
-| Quantos inimigos por onda, quanto a barra sobe | `src/arena/onda_*.tres` |
+| Quantos inimigos cabem numa sala, quanto a barra sobe | `src/mapa/tipo_*.tres` |
+| Quem pode nascer numa sala, e com que peso | `src/enemies/grupo_*.tres` |
 | Vida e velocidade dos inimigos | campos exportados em `src/enemies/*.tscn` |
+| Um implante novo (só números) | `src/items/implante_*.tres` |
 | Limiares de 50% e 85% | `src/autoload/deterioracao.gd` |
+
+A lista completa, com o valor de hoje de cada botão e o que a medição já disse
+sobre ele, está em **[docs/TUNING.md](docs/TUNING.md)**.
 
 ## Testes
 
 ```bash
-# roda o jogo inteiro sem janela: 5 ondas, chefe, vitória
+# lógica pura, em segundos: "a conta está certa?"
+godot --headless --path . tools/testes/runner.tscn
+
+# o jogo inteiro sem janela: percorre o andar, mata o chefe, vence
 godot --headless --path . tools/teste_fumaca.tscn
+
+# réguas de tuning (não são testes: não passam nem falham, medem)
+godot --headless --path . tools/medir_ritmo.tscn
+godot --headless --path . tools/medir_composicao.tscn
 
 # gera screenshots em user://capturas
 godot --path . tools/capturar.tscn --resolution 960x544

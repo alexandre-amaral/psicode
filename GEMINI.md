@@ -73,17 +73,20 @@ func velocidade_atual() -> float:
 
 ```
 src/
-  autoload/    event_bus, deterioracao, modificadores, game_state, juice
+  autoload/    event_bus, configuracao, deterioracao, modificadores,
+               game_state, juice
   player/      player, eco de rolamento
   weapons/     arma.gd, dados_arma.gd, *.tres (pistola, shotgun, armas do chefe)
   enemies/     inimigo_base, rastejante, vigia, diretora (chefe)
   projectiles/ projetil
   arena/       gerenciador_ondas, dados_onda, onda_*.tres, pickup de arma
+               (o pickup so e instanciado pela sala de arma -- onda nao solta)
   mapa/        gerenciador_mapa, sala, porta, corredor, sala_*.tscn,
                dados_sala.gd + tipo_*.tres (o catalogo de tipos de sala)
   items/       efeito_item.gd + dados_item.gd, implante_*.tres,
                pool_loot.gd, pickup de item
-  ui/          hud, barra_vida, barra_deterioracao, minimapa, tela_fim
+  ui/          hud, barra_vida, barra_deterioracao, minimapa, tela_fim,
+               menu_inicial, menu_pausa, menu_opcoes
   fx/          explosao, impacto
   util/        balistica (matematica da mira preditiva)
   main/        main.tscn — cena inicial
@@ -114,6 +117,7 @@ docs/
 | Regras de onde cada sala nasce | `@export` do `tipo_*.tres` (beco, distancia da origem, prioridade) |
 | Cor e icone de uma sala no minimapa | `cor_mapa` e `icone` do `tipo_*.tres` |
 | Enquadramento e cores do minimapa | `@export` do no `Minimapa` em `src/ui/hud.tscn` |
+| Preferencias do jogador (tela cheia, acessibilidade) | `src/autoload/configuracao.gd` — grava em `user://config.cfg` |
 | Quantas salas o andar tem e o vao do corredor | `@export` do no `GerenciadorMapa` em `src/main/main.tscn` |
 | Tamanho de uma sala | os `points` do Line2D `Parede` — multiplos de 16, dimensao multipla de 32 |
 | Resolucao base | `[display]` do `project.godot` — 960x544, camera em zoom 1.0 |
@@ -180,6 +184,17 @@ em qualquer erro de script.
 - **`Porta.LARGURA` e `largura_corredor` tem de ser iguais.** A porta e o vao que
   a parede abre; o corredor encaixa nessa boca. Mudar um sem o outro deixa
   parede no meio da passagem.
+- **A sala de arma e obrigatoria** (`opcional = false` em `tipo_arma.tres`),
+  como o chefe: se ela nao couber no grafo sorteado, o andar inteiro e sorteado
+  de novo. Sem isso a run podia acontecer inteira so com a pistola inicial, ja
+  que a sala e a unica fonte de arma. Medido em 120 andares: 100% de presenca,
+  media de 10 salas, zero andares curtos.
+- **Arma so nasce na sala de arma.** O `DadosOnda` tinha um campo `solta_arma`
+  que fazia a onda largar uma arma ao ser limpa, e a sala GRANDE usava uma onda
+  com ele ligado -- entao uma sala de combate entregava de graca o que devia
+  custar o desvio ate a sala de recompensa. O mecanismo foi removido inteiro, e
+  nao deve voltar: a fonte de arma e o `PickupArma` na cena da sala de arma.
+  `tools/testes/teste_dados_sala.gd` recusa pickup de arma em sala de outro tipo.
 - **Sala pendurada precisa de porta nos quatro lados.** Boss, arma e item
   nascem numa celula criada so para elas. Com uma porta so, todas disputam a
   mesma posicao relativa e as ultimas quase nunca cabem — a sala de item
@@ -216,6 +231,20 @@ em qualquer erro de script.
   chamado nas DUAS pontas. Mexer nisso sem manter a segunda chamada faz todo
   projetil do jogo voltar a nascer ciano com raio 4 -- o tiro do inimigo fica
   igual ao do jogador e a colisao menor do que o `.tres` pede.
+- **`Juice` tem DUAS chaves, nao uma.** `shake_habilitado` move a camera e e o
+  que a tela de opcoes desliga; `hitstop_habilitado` congela o tempo e da peso ao
+  tiro. Eram um booleano so, e desligar o tremor levava junto o impacto do
+  combate -- coisas diferentes, para publicos diferentes.
+- **`Configuracao` e o primeiro `user://` do projeto.** Ele guarda PREFERENCIA,
+  nao progresso: save de run e meta-progressao sao outro assunto e nao devem
+  entrar ali, senao apagar a config passa a custar caro.
+- **Autoload nao enxerga quem vem depois dele.** `Configuracao` e registrado
+  antes de `Juice`, entao no `_ready` dela o `Juice` ainda nao existe. Quem vem
+  depois PUXA a preferencia no proprio `_ready`; o sinal
+  `EventBus.configuracao_mudou` cobre as mudancas em runtime.
+- **No navegador, tela cheia so vale a partir de um clique.** A Fullscreen API
+  exige gesto do usuario, entao reaplicar a preferencia salva no boot e recusado
+  em silencio. Por isso `_aplicar_tela_cheia` recebe `por_gesto`.
 - **Conecte o sinal ANTES de `equipar()`.** `equipar()` emite `municao_alterada`
   na hora; ligar o sinal depois perde esse primeiro aviso e a HUD fica com o
   texto que estava escrito na cena.

@@ -20,6 +20,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 EventBus="*res://src/autoload/event_bus.gd"
+Configuracao="*res://src/autoload/configuracao.gd"
 Deterioracao="*res://src/autoload/deterioracao.gd"
 Modificadores="*res://src/autoload/modificadores.gd"
 GameState="*res://src/autoload/game_state.gd"

@@ -26,7 +26,3 @@ extends Resource
 ## Valor minimo forcado ao INICIAR a onda. Use -1 para nao forcar.
 ## Serve para garantir que a onda do chefe comece em nivel critico.
 @export var deterioracao_minima_inicial: float = -1.0
-
-@export_group("Recompensa")
-## Solta a arma de loot ao limpar esta onda.
-@export var solta_arma: bool = false

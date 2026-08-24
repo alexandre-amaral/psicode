@@ -30,6 +30,7 @@ func executar() -> void:
 	_contrato(catalogo)
 	_regras_do_andar(catalogo)
 	_salas_de_recompensa()
+	_arma_so_na_sala_de_arma(catalogo)
 	_contornos_desenhaveis(catalogo)
 
 
@@ -73,19 +74,42 @@ func _regras_do_andar(catalogo: Array[DadosSala]) -> void:
 
 	ok(not comuns.is_empty(), "existe ao menos um tipo de preenchimento")
 
-	# Sem chefe a run nao tem como terminar em vitoria, e com dois o primeiro a
-	# ser limpo encerraria tudo.
-	igual(obrigatorios.size(), 1, "existe exatamente um tipo obrigatorio")
-	if obrigatorios.size() == 1:
-		igual(obrigatorios[0].id, DadosSala.ID_BOSS, "o tipo obrigatorio e o chefe")
+	# Duas propriedades DIFERENTES, que e facil confundir:
+	#
+	#   encerra a run (id == boss) -- tem de ser exatamente um. Com dois, a
+	#     primeira sala limpa terminaria a partida.
+	#   obrigatorio (opcional == false) -- pode ser quantos forem. So quer dizer
+	#     "re-sorteia o andar se este tipo nao couber".
+	#
+	# O chefe e as duas coisas; a sala de arma e so a segunda.
+	var chefes: Array[DadosSala] = []
+	for dados in catalogo:
+		if dados.id == DadosSala.ID_BOSS:
+			chefes.append(dados)
+	igual(chefes.size(), 1, "existe exatamente um tipo que encerra a run")
+	if chefes.size() == 1:
+		ok(not chefes[0].opcional, "o chefe e obrigatorio: sem ele nao ha vitoria")
+
+	# A sala de arma e a UNICA fonte de arma do jogo desde que o drop por onda
+	# saiu. Opcional aqui significa run inteira so com a pistola inicial.
+	var armas: Array[DadosSala] = []
+	for dados in catalogo:
+		if dados.id == DadosSala.ID_ARMA:
+			armas.append(dados)
+	igual(armas.size(), 1, "existe exatamente um tipo de sala de arma")
+	if armas.size() == 1:
+		ok(not armas[0].opcional, "a sala de arma e garantida no andar")
+		igual(armas[0].celulas_reservadas(), 1, "a sala de arma aparece uma vez por andar")
 
 	# Quem chega primeiro escolhe a melhor ancora. Se um premio for colocado
 	# antes do chefe, ele toma o beco mais distante e o chefe cai no meio do
 	# andar -- sem erro nenhum, so um andar pior.
-	for dados in pendurados:
-		if dados.opcional:
+	if chefes.size() == 1:
+		for dados in pendurados:
+			if dados.id == DadosSala.ID_BOSS:
+				continue
 			ok(
-				obrigatorios.is_empty() or obrigatorios[0].prioridade < dados.prioridade,
+				chefes[0].prioridade < dados.prioridade,
 				"%s e colocada depois do chefe" % String(dados.id)
 			)
 
@@ -117,6 +141,45 @@ func _salas_de_recompensa() -> void:
 			if estado.get_node_name(i) == &"Ondas":
 				tem_ondas = true
 		ok(not tem_ondas, "%s nao tem no 'Ondas' (senao trava a run)" % caminho.get_file())
+
+
+## Arma so existe na sala de arma.
+##
+## Isto passou a ser verificavel agora: antes o drop vinha por CODIGO (o campo
+## `solta_arma` do DadosOnda, removido), entao uma sala de combate podia soltar
+## arma sem ter pickup nenhum na cena. Sem esse caminho, a unica fonte de arma
+## e o pickup instanciado no .tscn -- e e exatamente ai que uma regressao
+## entraria, arrastando um PickupArma para dentro de uma sala de combate sem
+## nada acusar.
+func _arma_so_na_sala_de_arma(catalogo: Array[DadosSala]) -> void:
+	var com_pickup := 0
+	for dados in catalogo:
+		for cena in dados.cenas_validas():
+			var tem := _tem_pickup_de_arma(cena)
+			var etiqueta := cena.resource_path.get_file()
+			if dados.id == DadosSala.ID_ARMA:
+				ok(tem, "%s (tipo arma) tem o pickup de arma" % etiqueta)
+				if tem:
+					com_pickup += 1
+			else:
+				ok(
+					not tem,
+					"%s (tipo %s) NAO tem pickup de arma" % [etiqueta, String(dados.id)]
+				)
+
+	# Guarda contra a assercao virar decoracao: se nenhuma sala tiver pickup, o
+	# laco acima passa inteiro sem ter olhado o caso que importa.
+	ok(com_pickup >= 1, "existe ao menos uma sala que de fato entrega arma")
+
+
+## Procura pelo NOME do no, e nao pela cena instanciada: instanciar so para
+## contar filhos custa caro numa suite que roda em menos de um segundo.
+func _tem_pickup_de_arma(cena: PackedScene) -> bool:
+	var estado := cena.get_state()
+	for i in range(estado.get_node_count()):
+		if estado.get_node_name(i) == &"PickupArma":
+			return true
+	return false
 
 
 ## O contorno que o minimapa desenha tem de ser triangulavel, senao a sala sai

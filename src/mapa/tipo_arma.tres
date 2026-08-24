@@ -12,6 +12,6 @@ quantidade = 1
 prioridade = 10
 exige_beco = true
 distancia_minima_da_origem = 2
-opcional = true
+opcional = false
 cor_mapa = Color(1, 0.72, 0.29, 1)
 icone = "A"

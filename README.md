@@ -34,9 +34,15 @@ Nunca usou Godot nem Git? Vá direto para **[docs/HANDOFF.md](docs/HANDOFF.md)**
 | Atirar | botão esquerdo |
 | Rolar (invulnerável) | `Espaço` ou botão direito |
 | Trocar de arma | `Q` |
-| Reiniciar | `R` |
+| Recarregar | `R` |
 | Pausar / sair | `Esc` |
 | +25% Deterioração (só em debug) | `F1` |
+
+Tela cheia fica em **Opções**, no menu inicial ou no menu de pausa — a escolha
+é lembrada na próxima vez que você abrir o jogo. Lá também dá para desligar o
+tremor de câmera e a distorção visual.
+
+`R` só reinicia depois que a partida termina; durante o jogo ele recarrega.
 
 `F1` é o atalho mais útil do projeto: com ele você testa as fases da
 Deterioração sem precisar limpar quatro ondas antes.

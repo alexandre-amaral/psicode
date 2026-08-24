@@ -1,0 +1,105 @@
+[gd_scene format=3 uid="uid://c8n2p4q6r8s0t"]
+
+[ext_resource type="Script" path="res://src/ui/menu_opcoes.gd" id="1_opc"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_Opcoes"]
+bg_color = Color(0.05, 0.05, 0.08, 0.85)
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_Btn"]
+
+[node name="MenuOpcoes" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_opc")
+
+[node name="Escurecer" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.05, 0.05, 0.75)
+
+[node name="Painel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -176.0
+offset_top = -112.0
+offset_right = 176.0
+offset_bottom = 112.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_Opcoes")
+
+[node name="Conteudo" type="VBoxContainer" parent="Painel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 16.0
+offset_right = -20.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="Titulo" type="Label" parent="Painel/Conteudo"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.2, 1)
+theme_override_font_sizes/font_size = 18
+text = "OPCOES"
+horizontal_alignment = 1
+
+[node name="TelaCheia" type="CheckButton" parent="Painel/Conteudo"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 0.9, 1)
+theme_override_colors/font_focus_color = Color(1, 0.8, 0.4, 1)
+theme_override_colors/font_hover_color = Color(1, 0.8, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+text = "Tela cheia"
+
+[node name="Shake" type="CheckButton" parent="Painel/Conteudo"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 0.9, 1)
+theme_override_colors/font_focus_color = Color(1, 0.8, 0.4, 1)
+theme_override_colors/font_hover_color = Color(1, 0.8, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+text = "Tremor de camera"
+
+[node name="Glitch" type="CheckButton" parent="Painel/Conteudo"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 0.9, 1)
+theme_override_colors/font_focus_color = Color(1, 0.8, 0.4, 1)
+theme_override_colors/font_hover_color = Color(1, 0.8, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+text = "Distorcao visual"
+
+[node name="Espaco" type="Control" parent="Painel/Conteudo"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+
+[node name="BtnVoltar" type="Button" parent="Painel/Conteudo"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.2, 1)
+theme_override_colors/font_focus_color = Color(1, 0.8, 0.4, 1)
+theme_override_colors/font_hover_color = Color(1, 0.8, 0.4, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_Btn")
+text = "VOLTAR"

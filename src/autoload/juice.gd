@@ -9,15 +9,24 @@ var _shake_intensidade: float = 0.0
 var _shake_decaimento: float = 0.0
 var _hitstop_ativo: bool = false
 
-## Chave global para desligar tudo (util em testes automatizados e para
-## quem tiver sensibilidade a movimento).
-@export var habilitado: bool = true
+## Duas chaves, e nao uma, de proposito: sao efeitos diferentes.
+##
+## O shake move a CAMERA -- e o que incomoda quem tem sensibilidade a movimento,
+## e e o que a tela de opcoes desliga. O hitstop congela o tempo por alguns
+## milissegundos e e o que da peso ao tiro; matar os dois juntos tiraria o
+## impacto do combate de quem so queria parar de enjoar.
+var shake_habilitado: bool = true
+var hitstop_habilitado: bool = true
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	EventBus.pedido_shake.connect(shake)
 	EventBus.pedido_hitstop.connect(hitstop)
+	# Puxa a preferencia em vez de esperar ser empurrado: `Configuracao` e
+	# registrado ANTES deste autoload, entao no _ready dela este aqui ainda nao
+	# existia.
+	shake_habilitado = Configuracao.shake
 
 
 func registrar_camera(cam: Camera2D) -> void:
@@ -39,7 +48,7 @@ func _process(delta: float) -> void:
 
 ## intensidade em pixels de deslocamento, duracao em segundos.
 func shake(intensidade: float, duracao: float = 0.25) -> void:
-	if not habilitado:
+	if not shake_habilitado:
 		return
 	# Um tremor forte nunca e substituido por um fraco em andamento.
 	_shake_intensidade = maxf(_shake_intensidade, intensidade)
@@ -48,7 +57,7 @@ func shake(intensidade: float, duracao: float = 0.25) -> void:
 
 ## Congela quase tudo por alguns milissegundos. E o que faz um tiro "pesar".
 func hitstop(duracao: float = 0.06, escala: float = 0.05) -> void:
-	if not habilitado or _hitstop_ativo:
+	if not hitstop_habilitado or _hitstop_ativo:
 		return
 	_hitstop_ativo = true
 	Engine.time_scale = escala

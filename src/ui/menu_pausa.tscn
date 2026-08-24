@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/ui/menu_pausa.gd" id="1_pausa"]
+[ext_resource type="PackedScene" uid="uid://c8n2p4q6r8s0t" path="res://src/ui/menu_opcoes.tscn" id="2_opc"]
 
 [node name="MenuPausa" type="CanvasLayer"]
 layer = 10
@@ -52,6 +53,13 @@ theme_override_constants/separation = 11
 layout_mode = 2
 text = "CONTINUAR"
 
+[node name="BtnOpcoes" type="Button" parent="Painel/VBoxContainer"]
+layout_mode = 2
+text = "OPCOES"
+
 [node name="BtnMenu" type="Button" parent="Painel/VBoxContainer"]
 layout_mode = 2
 text = "VOLTAR PARA O MENU"
+
+[node name="MenuOpcoes" parent="." instance=ExtResource("2_opc")]
+visible = false

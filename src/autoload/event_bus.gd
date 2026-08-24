@@ -66,6 +66,11 @@ signal sala_limpa(sala: Node2D)
 signal transicao_iniciada(direcao: Vector2, sala_nova: Node2D)
 signal transicao_concluida(sala_nova: Node2D)
 
+# --- Configuracao ---
+## O jogador mudou uma preferencia. Quem executa a preferencia le do autoload
+## Configuracao -- este sinal so avisa que e hora de reler.
+signal configuracao_mudou()
+
 # --- Game feel (pedidos, nao comandos) ---
 signal pedido_shake(intensidade: float, duracao: float)
 signal pedido_hitstop(duracao: float, escala: float)

@@ -12,6 +12,8 @@ extends Control
 @onready var btn_opcoes: Button = $MenuPanel/VBoxContainer/BtnOpcoes
 @onready var btn_sair: Button = $MenuPanel/VBoxContainer/BtnSair
 @onready var _rotulo_versao: Label = $RodapeEsq
+@onready var _opcoes: Control = $MenuOpcoes
+@onready var _painel: Panel = $MenuPanel
 
 var _botoes: Array[Button] = []
 
@@ -23,7 +25,8 @@ func _ready() -> void:
 	btn_jogar.pressed.connect(_on_btn_jogar_pressed)
 	btn_sair.pressed.connect(_on_btn_sair_pressed)
 	btn_carregar.pressed.connect(func(): print("Carregar não implementado"))
-	btn_opcoes.pressed.connect(func(): print("Opções não implementado"))
+	btn_opcoes.pressed.connect(_abrir_opcoes)
+	_opcoes.fechado.connect(_ao_fechar_opcoes)
 	
 	for btn in _botoes:
 		# A ORDEM do bind importa: focus_entered/focus_exited nao passam
@@ -58,3 +61,17 @@ func _on_btn_jogar_pressed() -> void:
 
 func _on_btn_sair_pressed() -> void:
 	get_tree().quit()
+
+
+func _abrir_opcoes() -> void:
+	# Esconde o menu de tras: dois paineis empilhados confundem, e o
+	# escurecimento sozinho nao segura o laranja dos botoes.
+	_painel.visible = false
+	_opcoes.abrir()
+
+
+## Devolve o foco ao botao que abriu o painel. Sem isto a navegacao por teclado
+## fica sem ancora depois de fechar, e o marcador ">" some da tela.
+func _ao_fechar_opcoes() -> void:
+	_painel.visible = true
+	btn_opcoes.grab_focus()

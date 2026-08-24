@@ -73,7 +73,8 @@ func velocidade_atual() -> float:
 
 ```
 src/
-  autoload/    event_bus, deterioracao, modificadores, game_state, juice
+  autoload/    event_bus, configuracao, deterioracao, modificadores,
+               game_state, juice
   player/      player, eco de rolamento
   weapons/     arma.gd, dados_arma.gd, *.tres (pistola, shotgun, armas do chefe)
   enemies/     inimigo_base, rastejante, vigia, diretora (chefe)
@@ -84,7 +85,8 @@ src/
                dados_sala.gd + tipo_*.tres (o catalogo de tipos de sala)
   items/       efeito_item.gd + dados_item.gd, implante_*.tres,
                pool_loot.gd, pickup de item
-  ui/          hud, barra_vida, barra_deterioracao, minimapa, tela_fim
+  ui/          hud, barra_vida, barra_deterioracao, minimapa, tela_fim,
+               menu_inicial, menu_pausa, menu_opcoes
   fx/          explosao, impacto
   util/        balistica (matematica da mira preditiva)
   main/        main.tscn — cena inicial
@@ -115,6 +117,7 @@ docs/
 | Regras de onde cada sala nasce | `@export` do `tipo_*.tres` (beco, distancia da origem, prioridade) |
 | Cor e icone de uma sala no minimapa | `cor_mapa` e `icone` do `tipo_*.tres` |
 | Enquadramento e cores do minimapa | `@export` do no `Minimapa` em `src/ui/hud.tscn` |
+| Preferencias do jogador (tela cheia, acessibilidade) | `src/autoload/configuracao.gd` — grava em `user://config.cfg` |
 | Quantas salas o andar tem e o vao do corredor | `@export` do no `GerenciadorMapa` em `src/main/main.tscn` |
 | Tamanho de uma sala | os `points` do Line2D `Parede` — multiplos de 16, dimensao multipla de 32 |
 | Resolucao base | `[display]` do `project.godot` — 960x544, camera em zoom 1.0 |
@@ -228,6 +231,20 @@ em qualquer erro de script.
   chamado nas DUAS pontas. Mexer nisso sem manter a segunda chamada faz todo
   projetil do jogo voltar a nascer ciano com raio 4 -- o tiro do inimigo fica
   igual ao do jogador e a colisao menor do que o `.tres` pede.
+- **`Juice` tem DUAS chaves, nao uma.** `shake_habilitado` move a camera e e o
+  que a tela de opcoes desliga; `hitstop_habilitado` congela o tempo e da peso ao
+  tiro. Eram um booleano so, e desligar o tremor levava junto o impacto do
+  combate -- coisas diferentes, para publicos diferentes.
+- **`Configuracao` e o primeiro `user://` do projeto.** Ele guarda PREFERENCIA,
+  nao progresso: save de run e meta-progressao sao outro assunto e nao devem
+  entrar ali, senao apagar a config passa a custar caro.
+- **Autoload nao enxerga quem vem depois dele.** `Configuracao` e registrado
+  antes de `Juice`, entao no `_ready` dela o `Juice` ainda nao existe. Quem vem
+  depois PUXA a preferencia no proprio `_ready`; o sinal
+  `EventBus.configuracao_mudou` cobre as mudancas em runtime.
+- **No navegador, tela cheia so vale a partir de um clique.** A Fullscreen API
+  exige gesto do usuario, entao reaplicar a preferencia salva no boot e recusado
+  em silencio. Por isso `_aplicar_tela_cheia` recebe `por_gesto`.
 - **Conecte o sinal ANTES de `equipar()`.** `equipar()` emite `municao_alterada`
   na hora; ligar o sinal depois perde esse primeiro aviso e a HUD fica com o
   texto que estava escrito na cena.

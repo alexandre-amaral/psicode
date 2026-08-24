@@ -39,6 +39,11 @@ func _ready() -> void:
 	_dica_preditiva.modulate.a = 0.0
 
 	EventBus.deterioracao_mudou.connect(_ao_deterioracao)
+	# Sem isto, desligar o glitch no meio da run so faria efeito no proximo
+	# tique da Deterioracao.
+	EventBus.configuracao_mudou.connect(
+		func() -> void: _ao_deterioracao(Deterioracao.valor, Deterioracao.fase)
+	)
 	EventBus.fase_deterioracao_mudou.connect(_ao_mudar_fase)
 	EventBus.arma_equipada.connect(_ao_equipar_arma)
 	EventBus.municao_mudou.connect(_ao_municao)
@@ -64,7 +69,12 @@ func _ao_deterioracao(valor: float, _fase: int) -> void:
 	_rotulo_fase.text = "%s  %d%%" % [Deterioracao.nome_fase(), int(valor)]
 	_rotulo_fase.modulate = Deterioracao.cor_fase()
 	if _mat != null:
-		_mat.set_shader_parameter("intensidade", Deterioracao.intensidade_glitch())
+		# O fator vem da tela de opcoes: quem tem sensibilidade visual desliga o
+		# glitch sem perder a informacao da barra de Deterioracao.
+		_mat.set_shader_parameter(
+			"intensidade",
+			Deterioracao.intensidade_glitch() * Configuracao.fator_glitch()
+		)
 
 
 func _ao_mudar_fase(fase_nova: int, fase_antiga: int) -> void:

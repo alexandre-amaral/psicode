@@ -104,10 +104,13 @@ O sistema que dá nome ao jogo e que ainda não existe.
 
 ## Fase 5 — Fechamento
 
-- [ ] Menu principal, opções, remapeamento de controles
+- [x] Menu principal e tela de opções (tela cheia, com a escolha salva em `user://config.cfg`)
+  — falta o remapeamento de controles
+- [ ] Remapeamento de controles
 - [ ] Suporte a gamepad
 - [ ] Salvamento
-- [ ] Acessibilidade: chave para desligar screen shake e reduzir o glitch (a hook `Juice.habilitado` e o `alpha_maximo` do shader já existem)
+- [x] Acessibilidade: chaves para desligar o tremor de câmera e a distorção visual, nas Opções
+  — `Juice.habilitado` virou `shake_habilitado` + `hitstop_habilitado`, porque desligar o tremor não deve levar junto o peso do tiro
 - [ ] Página no itch.io e/ou Steam
 - [ ] Trailer
 
@@ -123,4 +126,4 @@ Coisas que sabemos que estão simplificadas. Nenhuma bloqueia a Fase 1.
 | Inimigos usam distância para dano de contato, não Area2D | `src/enemies/inimigo_base.gd` | Menos nós e mais fácil de ler; trocar quando houver hitbox por parte do corpo |
 | Sem pathfinding — o melee anda em linha reta | `src/enemies/rastejante.gd` | A arena é vazia. Vira problema na Fase 3, com salas e obstáculos |
 | Sem pooling de partículas | `src/fx/` | Idem |
-| Sem menu principal — o jogo começa direto na arena | `src/main/main.tscn` | Proposital no vertical slice: menos cliques até o teste |
+| ~~Sem menu principal~~ — resolvido: `src/ui/intro.tscn` leva ao menu | `src/ui/menu_inicial.tscn` | — |

@@ -206,8 +206,16 @@ em qualquer erro de script.
   e escapava de tudo que sobe a barra por evento.
 - **`Arma.atirar()` num `for` no mesmo frame so dispara UMA vez.** O
   `_t_cadencia` e setado no primeiro tiro e `pode_atirar()` recusa o resto,
-  porque o `_process` que decrementa nao roda no meio do laco. Salva radial
-  precisa de outro caminho -- e por isso o anel da Diretora esta quebrado hoje.
+  porque o `_process` que decrementa nao roda no meio do laco. Salva radial usa
+  **`Arma.atirar_varias(direcoes)`**, que gasta um cooldown e uma bala para a
+  salva inteira. Foi assim que o anel da Diretora passou a sair com 20 projeteis
+  em vez de um. `tools/testes/teste_arma.gd` guarda os dois lados: que o laco
+  antigo da 1 e que a salva da N.
+- **O `_ready` do projetil roda ANTES de `configurar()`**, porque a Arma faz
+  `add_child` primeiro. Quem pinta e dimensiona e `_aplicar_aparencia()`,
+  chamado nas DUAS pontas. Mexer nisso sem manter a segunda chamada faz todo
+  projetil do jogo voltar a nascer ciano com raio 4 -- o tiro do inimigo fica
+  igual ao do jogador e a colisao menor do que o `.tres` pede.
 - **Conecte o sinal ANTES de `equipar()`.** `equipar()` emite `municao_alterada`
   na hora; ligar o sinal depois perde esse primeiro aviso e a HUD fica com o
   texto que estava escrito na cena.

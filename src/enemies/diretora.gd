@@ -216,9 +216,16 @@ func _manter_ataque(delta: float) -> void:
 		return
 	_giro_espiral += delta * 5.2
 	# Dois bracos opostos: da para ficar entre eles, mas so andando.
-	for i in 2:
-		var dir := Vector2.RIGHT.rotated(_giro_espiral + PI * i)
-		_arma_salva.atirar(dir)
+	#
+	# Numa salva so, e nao num for de atirar(): duas chamadas no mesmo frame
+	# fariam a segunda cair no cooldown de cadencia e o braco oposto nunca
+	# sairia. Com atirar_varias a cadencia passa a limitar SALVAS por segundo,
+	# que e o que ela sempre quis dizer aqui.
+	var bracos: Array[Vector2] = [
+		Vector2.RIGHT.rotated(_giro_espiral),
+		Vector2.RIGHT.rotated(_giro_espiral + PI),
+	]
+	_arma_salva.atirar_varias(bracos)
 
 
 func _terminar_ataque() -> void:
@@ -235,11 +242,14 @@ func _atacar_preditivo() -> void:
 	EventBus.pedido_shake.emit(2.4, 0.15)
 
 
+## O anel inteiro sai numa salva so. Percorrer as direcoes chamando atirar()
+## nao funciona: o cooldown de cadencia so decrementa entre frames, entao a
+## partir da segunda direcao pode_atirar() recusa e o "anel" de 20 projeteis
+## virava um projetil.
 func _atacar_anel() -> void:
 	var quantidade := 14 + fase_chefe * 6
 	var offset := randf() * TAU
-	for d in Balistica.anel(quantidade, offset):
-		_arma_salva.atirar(d)
+	_arma_salva.atirar_varias(Balistica.anel(quantidade, offset))
 	EventBus.pedido_shake.emit(4.8, 0.3)
 
 

@@ -134,17 +134,53 @@ func atirar(direcao: Vector2) -> bool:
 		return false
 
 	_gatilho_solto = false
+	_consumir_tiro()
+	_emitir(Balistica.leque(direcao, dados.projeteis_por_tiro, dados.abertura_graus))
+	_apos_tiro(direcao)
+	return true
+
+
+## Dispara UMA vez em varias direcoes ao mesmo tempo.
+##
+## Existe porque chamar atirar() num laco NAO funciona: atirar() arma o cooldown
+## de cadencia e pode_atirar() recusa todas as chamadas seguintes do mesmo frame
+## -- o _process que decrementa esse cooldown so roda ENTRE frames, nunca no meio
+## de um for. O anel da Diretora fazia exatamente isso com 20 direcoes e saia um
+## projetil so, sem erro nenhum no console.
+##
+## Uma salva conta como UM tiro: gasta uma bala do pente e um cooldown, do mesmo
+## jeito que a shotgun gasta uma bala para oito bagos.
+##
+## Cada direcao recebida vira um projetil. `projeteis_por_tiro` e
+## `abertura_graus` NAO se aplicam aqui -- quem chama ja decidiu a forma da
+## salva, e aplicar o leque por cima multiplicaria a quantidade sem ninguem
+## pedir.
+func atirar_varias(direcoes: Array[Vector2]) -> bool:
+	if direcoes.is_empty() or not pode_atirar():
+		return false
+
+	_gatilho_solto = false
+	_consumir_tiro()
+	_emitir(direcoes)
+	# O sinal pede uma direcao e uma salva radial nao tem "a" direcao; a
+	# primeira serve de referencia para quem so quer saber que houve disparo.
+	_apos_tiro(direcoes[0])
+	return true
+
+
+## Cadencia e bala. Um tiro = um cooldown = uma bala, independente de quantos
+## projeteis ele coloca na tela.
+func _consumir_tiro() -> void:
 	# Dividir, nao multiplicar: intervalo e o inverso da cadencia, entao
 	# cadencia maior tem de encurtar a espera.
 	_t_cadencia = dados.intervalo() / maxf(_multiplicador_cadencia(), 0.01)
-
 	municao_pente -= 1
 	_avisar_municao()
 
-	var origem := global_position
-	var direcoes := Balistica.leque(direcao, dados.projeteis_por_tiro, dados.abertura_graus)
-	var container := _container()
 
+func _emitir(direcoes: Array[Vector2]) -> void:
+	var origem := global_position
+	var container := _container()
 	for d in direcoes:
 		var desvio := deg_to_rad(randf_range(-dados.impressao_graus, dados.impressao_graus))
 		var p := CENA_PROJETIL.instantiate()
@@ -159,6 +195,8 @@ func atirar(direcao: Vector2) -> bool:
 			_multiplicador_dano()
 		)
 
+
+func _apos_tiro(direcao: Vector2) -> void:
 	disparou.emit(direcao, dados)
 
 	# O bonus da Celula de Eco vale por TIRO, nao por projetil: uma shotgun de
@@ -169,8 +207,6 @@ func atirar(direcao: Vector2) -> bool:
 	# Pente vazio recarrega sozinho, sem esperar o proximo clique.
 	if municao_pente <= 0:
 		recarregar()
-
-	return true
 
 
 ## Projeteis nunca ficam pendurados no atirador -- se ficassem, herdariam a

@@ -40,7 +40,8 @@ get_node("/root/Main/HUD").atualizar_vida(vida)
 EventBus.player_dano_recebido.emit(vida, vida_maxima)
 ```
 
-**2. Toda dificuldade le o autoload `Deterioracao` no frame em que precisa.**
+**2. Toda dificuldade le o autoload `Deterioracao` no frame em que precisa** —
+e todo upgrade do jogador le `Modificadores` do mesmo jeito.
 Nada guarda um numero ja multiplicado — e isso que faz a barra subindo afetar
 inclusive os inimigos que ja estao em tela.
 
@@ -72,19 +73,21 @@ func velocidade_atual() -> float:
 
 ```
 src/
-  autoload/    event_bus, deterioracao, game_state, juice
+  autoload/    event_bus, deterioracao, modificadores, game_state, juice
   player/      player, eco de rolamento
   weapons/     arma.gd, dados_arma.gd, *.tres (pistola, shotgun, armas do chefe)
   enemies/     inimigo_base, rastejante, vigia, diretora (chefe)
   projectiles/ projetil
   arena/       gerenciador_ondas, dados_onda, onda_*.tres, pickup de arma
-  mapa/        gerenciador_mapa, sala, porta, corredor, sala_*.tscn
-  ui/          hud, barra_vida, barra_deterioracao, tela_fim
+  mapa/        gerenciador_mapa, sala, porta, corredor, sala_*.tscn,
+               dados_sala.gd + tipo_*.tres (o catalogo de tipos de sala)
+  items/       dados_item.gd, implante_*.tres, pool_loot.gd, pickup de item
+  ui/          hud, barra_vida, barra_deterioracao, minimapa, tela_fim
   fx/          explosao, impacto
   util/        balistica (matematica da mira preditiva)
   main/        main.tscn — cena inicial
 assets/shaders/  glitch.gdshader
-tools/           teste_fumaca, capturar
+tools/           teste_fumaca, capturar, testes/ (suites unitarias)
 docs/
 ```
 
@@ -101,6 +104,13 @@ docs/
 | Matematica de mira preditiva | `src/util/balistica.gd` |
 | Chefe | `src/enemies/diretora.gd` |
 | Layout e conexao das salas | `src/mapa/gerenciador_mapa.gd`, `src/mapa/sala_*.tscn` |
+| **Tipo de sala novo (loja, desafio...)** | criar `src/mapa/tipo_*.tres` e por na lista `tipos_de_sala` do `GerenciadorMapa` |
+| **Estilo novo de uma sala que ja existe** | arrastar a cena para `cenas` no `tipo_*.tres` correspondente |
+| **Implante novo** | criar `src/items/implante_*.tres` e listar em `src/items/pool_padrao.tres` |
+| **Arma que pode cair de loot** | listar o `.tres` em `src/items/pool_padrao.tres` |
+| Regras de onde cada sala nasce | `@export` do `tipo_*.tres` (beco, distancia da origem, prioridade) |
+| Cor e icone de uma sala no minimapa | `cor_mapa` e `icone` do `tipo_*.tres` |
+| Enquadramento e cores do minimapa | `@export` do no `Minimapa` em `src/ui/hud.tscn` |
 | Quantas salas o andar tem e o vao do corredor | `@export` do no `GerenciadorMapa` em `src/main/main.tscn` |
 | Forma e parede de uma sala | Line2D `Parede` em `src/mapa/sala_*.tscn` — a colisao nasce dele |
 | Lockdown e abertura de porta | `src/mapa/sala.gd`, `src/mapa/porta.gd` e a barreira fisica de `src/mapa/porta.tscn` |
@@ -152,6 +162,22 @@ em qualquer erro de script.
   limpa recomeca o combate.
 - **Existe um `GerenciadorOndas` por sala.** Quem entra no grupo
   `gerenciador_ondas` sem sair engana quem busca pelo grupo.
+- **Sala sem combate nao pode ter um no `Ondas` vazio.** Sem inimigo a onda
+  nunca completa, a sala fica `OCUPADA` para sempre e o teste de fumaca so
+  descobre depois de queimar os 240s. Sala de recompensa = **sem no `Ondas`**;
+  e assim que `Sala._conectar_ondas()` a marca `LIMPA` e abre as portas.
+- **Sala pendurada precisa de porta nos quatro lados.** Boss, arma e item
+  nascem numa celula criada so para elas. Com uma porta so, todas disputam a
+  mesma posicao relativa e as ultimas quase nunca cabem — a sala de item
+  aparecia em 28% dos andares por isso. As portas sem vizinho sao seladas
+  sozinhas por `_selar_portas_sem_vizinho()`, entao dar as quatro nao custa
+  nada.
+- **`Geometry2D.triangulate_polygon` devolve vazio se o poligono repetir o
+  primeiro ponto no fim** — e todo `Line2D` `Parede` repete, para fechar o
+  desenho. Por isso existe `Sala.contorno_local()` (aberto, para quem desenha)
+  separado de `_pontos_do_contorno()` (fechado, para quem monta parede).
+- **`Arma` e o mesmo script no jogador e nos inimigos.** Ler `Modificadores`
+  sem conferir `hostil` transforma upgrade do jogador em buff do Vigia.
 - **Quem hospeda a run e dono de `GameState.iniciar_run()`/`terminar_run()`.**
   Perder essa chamada desliga a Deterioracao passiva sem erro nenhum no console.
 
@@ -185,7 +211,7 @@ feita**: falta a sessao de tuning a tres, o ajuste da onda 4, o rebalance do
 chefe, o export e o link de playtest para 5–8 amigos.
 
 A **Fase 3 (salas) saiu do rascunho e funciona**: o `GerenciadorMapa` sorteia
-um andar de 8–12 salas com ramos a partir das sete cenas de `src/mapa/`, liga
+um andar de 8–12 salas com ramos a partir das oito cenas de `src/mapa/`, liga
 as vizinhas por corredor atravessado a pe e faz lockdown por sala. Isso e
 conteudo novo entregue com a Fase 1 ainda em aberto.
 

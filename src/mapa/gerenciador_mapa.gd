@@ -28,11 +28,13 @@ extends Node2D
 ##    direcoes_disponiveis() e obter_limites(), e e liberada em seguida. Quem
 ##    move uma porta no editor nao precisa vir atualizar nada aqui.
 ##
-## 4. **Sala com uma porta so nao "cabe" numa celula: e a celula que nasce
-##    colada nela.** O chefe so tem porta Sul. Em vez de torcer para o passeio
-##    aleatorio produzir uma celula que use exatamente essa direcao, o chefe e
-##    pendurado numa celula nova, vizinha da celula mais distante da origem.
-##    Mesma coisa para o tesouro, num beco sem saida que nao seja o do chefe.
+## 4. **Sala especial nao "cabe" numa celula: e a celula que nasce colada
+##    nela.** O chefe so tem porta Sul, e torcer para o passeio aleatorio
+##    produzir uma celula que use exatamente essa direcao nao funciona. Entao
+##    toda sala marcada como PENDURADA em `DadosSala` ganha uma celula nova,
+##    encostada numa ancora escolhida pela regra do proprio tipo (mais distante
+##    da origem, beco sem saida, distancia minima). Quem chega primeiro escolhe
+##    melhor, e por isso existe `prioridade`: o chefe vem antes dos premios.
 
 ## As quatro direcoes do grid. Vector2, nao Vector2i, porque e assim que Porta,
 ## Sala e EventBus falam de direcao.
@@ -48,12 +50,14 @@ const CHANCE_BIFURCACAO := 0.35
 
 const MAX_TENTATIVAS := 24
 
-@export var cenas_salas: Array[PackedScene] = []
-@export var cena_boss: PackedScene
-@export var cena_tesouro: PackedScene
+## Todos os tipos de sala do andar, cada um com a propria regra de colocacao.
+## Substituiu os tres exports separados (cenas_salas/cena_boss/cena_tesouro) e
+## as duas funcoes `_pendurar_X` copiadas uma da outra: tipo novo agora e um
+## .tres a mais nesta lista, sem uma linha de GDScript.
+@export var tipos_de_sala: Array[DadosSala] = []
 ## Distancia livre entre duas bandas vizinhas: e o comprimento do corredor.
 @export var vao_corredor: float = 420.0
-## Quantas salas o andar tenta ter, contando chefe e tesouro.
+## Quantas salas o andar tenta ter, contando as penduradas.
 @export var total_salas: int = 10
 @export var largura_corredor: float = 120.0
 
@@ -61,6 +65,17 @@ var sala_atual: Sala = null
 
 ## PackedScene -> { "direcoes": Array[Vector2], "caixa": Rect2 }
 var _catalogo: Dictionary = {}
+## Vector2i -> DadosSala. Guarda o TIPO de cada celula, nao so a cena: e daqui
+## que saem cor e icone do minimapa e a regra de fim de run.
+var _dados_por_celula: Dictionary = {}
+## Vector2i -> StringName. So as celulas reservadas para tipo pendurado.
+var _reservadas: Dictionary = {}
+## Ligacoes ja resolvidas para quem desenha. Mesmo motivo do cache de contorno.
+var _ligacoes_cache: Array[Dictionary] = []
+## Vector2i -> PackedVector2Array. Contorno ja em coordenadas de mundo.
+## Geometria de sala nao muda em runtime, entao vale cachear uma vez e poupar
+## o minimapa de refazer to_global por sala a cada redesenho.
+var _contornos: Dictionary = {}
 ## Vector2i -> Array[Vector2]. E o grafo: por celula, as direcoes que ela usa.
 var _arestas: Dictionary = {}
 var _cena_por_celula: Dictionary = {}
@@ -69,10 +84,6 @@ var _visitadas: Dictionary = {}
 ## Cada item: { "a": Vector2i, "b": Vector2i, "no": Corredor }
 var _corredores: Array[Dictionary] = []
 
-var _celula_chefe: Vector2i = Vector2i.ZERO
-var _celula_tesouro: Vector2i = Vector2i.ZERO
-var _tem_chefe: bool = false
-var _tem_tesouro: bool = false
 
 var _em_travessia: bool = false
 var _sala_destino: Sala = null
@@ -101,6 +112,12 @@ func _ready() -> void:
 	GameState.iniciar_run()
 	GameState.total_salas = _salas.size()
 
+	# ANTES do _chegar: a HUD e o primeiro filho de main.tscn, entao o _ready
+	# dela roda antes deste e o minimapa nasce sem gerenciador. Este sinal e o
+	# aviso de que o andar existe -- se ele fosse emitido depois do _chegar, a
+	# primeira transicao_concluida chegaria num minimapa ainda sem layout.
+	EventBus.andar_gerado.emit()
+
 	_chegar(Vector2i.ZERO, Vector2.ZERO)
 
 
@@ -124,8 +141,106 @@ func vizinhos_de(pos_grid: Vector2i) -> Array[Vector2]:
 	return lista
 
 
+## Onde esta a sala que encerra a run. O teste de fumaca depende disto para
+## deixar o chefe por ultimo no percurso.
 func celula_do_chefe() -> Vector2i:
-	return _celula_chefe
+	return primeira_celula_do_tipo(DadosSala.ID_BOSS)
+
+
+## Vector2i.ZERO quando o tipo nao entrou no andar -- e o mesmo valor que
+## `celula_do_chefe` devolvia antes quando nao havia chefe.
+func primeira_celula_do_tipo(id: StringName) -> Vector2i:
+	for celula in _reservadas:
+		if _reservadas[celula] == id:
+			return celula
+	return Vector2i.ZERO
+
+
+# ------------------------------------------------- api para quem desenha ----
+# O minimapa consome SO daqui. Nada de _visitadas, _salas ou _contornos vazando:
+# ele acha este no por grupo (a excecao legitima ao EventBus) e pergunta.
+
+## O tipo daquela celula, com cor e icone. null quando a celula nao existe.
+func dados_da_celula(celula: Vector2i) -> DadosSala:
+	return _dados_por_celula.get(celula)
+
+
+func celula_atual() -> Vector2i:
+	if sala_atual == null:
+		return Vector2i.ZERO
+	return sala_atual.coordenadas_grid
+
+
+## Fica true em `_sair()`, ou seja, quando o jogador entra no corredor -- o
+## mesmo instante em que a sala acende no mundo. E de proposito: o minimapa
+## acompanha o que a tela mostra, nao a chegada.
+func foi_visitada(celula: Vector2i) -> bool:
+	return _visitadas.has(celula)
+
+
+func esta_limpa(celula: Vector2i) -> bool:
+	var sala: Sala = _salas.get(celula)
+	if sala == null:
+		return false
+	return sala.estado == Sala.Estado.LIMPA
+
+
+## Visitada, ou vizinha de alguma visitada. E a regra de nevoa do minimapa, e
+## espelha o que o mundo ja faz: `_revelar` so acende o corredor cujas duas
+## pontas sao conhecidas, para nao existir caminho iluminado terminando no
+## escuro.
+func e_conhecida(celula: Vector2i) -> bool:
+	if _visitadas.has(celula):
+		return true
+	for direcao in vizinhos_de(celula):
+		if _visitadas.has(celula + _para_grid(direcao)):
+			return true
+	return false
+
+
+## Contorno real da sala em coordenadas de mundo, sem o ponto repetido de
+## fechamento. Vazio quando a celula nao existe.
+func contorno_global_de(celula: Vector2i) -> PackedVector2Array:
+	return _contornos.get(celula, PackedVector2Array())
+
+
+## Bounding box de todas as salas e corredores. E a base da escala unica do
+## minimapa: como o layout e em bandas, normalizar por celula distorceria as
+## distancias.
+func limites_do_andar() -> Rect2:
+	var limites := Rect2()
+	var primeiro := true
+	for celula in _salas:
+		var sala: Sala = _salas[celula]
+		if not is_instance_valid(sala):
+			continue
+		var caixa := sala.obter_limites()
+		if primeiro:
+			limites = caixa
+			primeiro = false
+		else:
+			limites = limites.merge(caixa)
+	for ligacao in _corredores:
+		var no: Corredor = ligacao["no"]
+		if not is_instance_valid(no):
+			continue
+		var caixa := no.obter_limites()
+		if primeiro:
+			limites = caixa
+			primeiro = false
+		else:
+			limites = limites.merge(caixa)
+	return limites
+
+
+## Cada item: { "a": Vector2i, "b": Vector2i, "caixa": Rect2 }. Retangulo real
+## do corredor, nao uma linha entre centros -- o minimapa desenha forma, entao
+## a ligacao tambem e forma.
+## Devolve a lista cacheada, sem copiar: o minimapa redesenha a cada frame por
+## causa do pulso da sala atual, e remontar isto 60 vezes por segundo seria
+## desperdicio puro. Quem consome trata como somente-leitura.
+func ligacoes() -> Array[Dictionary]:
+	return _ligacoes_cache
 
 
 ## API de teste: o teste de fumaca nao tem como andar pelo corredor, entao ele
@@ -171,13 +286,40 @@ func _montar_catalogo() -> void:
 
 func _todas_as_cenas() -> Array[PackedScene]:
 	var lista: Array[PackedScene] = []
-	for cena in cenas_salas:
-		if cena != null:
-			lista.append(cena)
-	if cena_boss != null:
-		lista.append(cena_boss)
-	if cena_tesouro != null:
-		lista.append(cena_tesouro)
+	for dados in _tipos_validos():
+		for cena in dados.cenas_validas():
+			if not lista.has(cena):
+				lista.append(cena)
+	return lista
+
+
+## Tipos utilizaveis: com cena e sem buraco deixado pelo Inspetor. Loop
+## explicito porque filter() devolve Array sem tipo.
+func _tipos_validos() -> Array[DadosSala]:
+	var lista: Array[DadosSala] = []
+	for dados in tipos_de_sala:
+		if dados != null and not dados.cenas_validas().is_empty():
+			lista.append(dados)
+	return lista
+
+
+## Penduradas em ordem de prioridade. A ordem e o que faz `evita_vizinhanca_de`
+## funcionar: so da para fugir de quem ja foi colocado, entao o chefe precisa
+## vir antes de quem foge dele.
+func _tipos_pendurados() -> Array[DadosSala]:
+	var lista: Array[DadosSala] = []
+	for dados in _tipos_validos():
+		if dados.eh_pendurada():
+			lista.append(dados)
+	lista.sort_custom(func(a: DadosSala, b: DadosSala) -> bool: return a.prioridade < b.prioridade)
+	return lista
+
+
+func _tipos_de_preenchimento() -> Array[DadosSala]:
+	var lista: Array[DadosSala] = []
+	for dados in _tipos_validos():
+		if not dados.eh_pendurada():
+			lista.append(dados)
 	return lista
 
 
@@ -199,8 +341,8 @@ func _caixa_da_cena(cena: PackedScene) -> Rect2:
 # --------------------------------------------------------------- grafo ------
 
 func _gerar_andar() -> bool:
-	if cenas_salas.is_empty():
-		push_error("GerenciadorMapa sem cenas_salas: nao ha andar para gerar.")
+	if _tipos_de_preenchimento().is_empty():
+		push_error("GerenciadorMapa sem tipo de sala de preenchimento: nao ha andar para gerar.")
 		return false
 
 	var alvo := maxi(3, total_salas)
@@ -224,19 +366,17 @@ func _gerar_andar() -> bool:
 func _tentar_grafo(alvo: int, minimo: int) -> bool:
 	_arestas.clear()
 	_cena_por_celula.clear()
-	_tem_chefe = false
-	_tem_tesouro = false
+	_dados_por_celula.clear()
+	_reservadas.clear()
 
-	var base := alvo
-	if cena_boss != null:
-		base -= 1
-	if cena_tesouro != null:
-		base -= 1
-	_passear(maxi(1, base))
+	# O passeio so produz as celulas COMUM: cada pendurada traz a propria.
+	var reservadas := 0
+	for dados in _tipos_pendurados():
+		reservadas += dados.celulas_reservadas()
+	_passear(maxi(1, alvo - reservadas))
 
-	if not _pendurar_chefe():
+	if not _pendurar_especiais():
 		return false
-	_pendurar_tesouro()
 	if not _escolher_cenas():
 		return false
 	return _arestas.size() >= minimo
@@ -274,81 +414,126 @@ func _passear(alvo: int) -> void:
 			cursor = _celula_aleatoria()
 
 
-## Pendura a sala do chefe na celula mais distante da origem que aceite ela.
-func _pendurar_chefe() -> bool:
-	if cena_boss == null:
-		return true
-	var distancias := _distancias()
-	var candidatos := celulas()
-	candidatos.sort_custom(_mais_longe_primeiro(distancias))
-
-	var criada := _pendurar(cena_boss, candidatos)
-	if criada.is_empty():
-		return false
-	_celula_chefe = criada[0]
-	_tem_chefe = true
+## Coloca todas as salas PENDURADA, em ordem de prioridade. Devolve false so
+## quando um tipo obrigatorio nao coube -- ai o grafo inteiro e sorteado de
+## novo, que e exatamente o que `_pendurar_chefe` fazia antes.
+##
+## Tipo opcional que nao cabe simplesmente nao aparece no andar: derrubar 24
+## tentativas de grafo por causa de um premio sai caro, e o andar sem ele
+## continua jogavel.
+func _pendurar_especiais() -> bool:
+	for dados in _tipos_pendurados():
+		for _n in range(dados.celulas_reservadas()):
+			var criada := _pendurar(dados)
+			if not criada.is_empty():
+				continue
+			if not dados.opcional:
+				return false
+			break
 	return true
-
-
-## Tesouro em beco sem saida, longe da origem e nunca colado no chefe: premio de
-## desvio so vale se custar um desvio.
-func _pendurar_tesouro() -> void:
-	if cena_tesouro == null:
-		return
-	var distancias := _distancias()
-	var becos: Array[Vector2i] = []
-	var demais: Array[Vector2i] = []
-	for celula in _arestas:
-		if _tem_chefe and (celula == _celula_chefe or _sao_vizinhas(celula, _celula_chefe)):
-			continue
-		if _grau(celula) <= 1:
-			becos.append(celula)
-		else:
-			demais.append(celula)
-
-	var por_distancia := _mais_longe_primeiro(distancias)
-	becos.sort_custom(por_distancia)
-	demais.sort_custom(por_distancia)
-	becos.append_array(demais)
-
-	var criada := _pendurar(cena_tesouro, becos)
-	if criada.is_empty():
-		return
-	_celula_tesouro = criada[0]
-	_tem_tesouro = true
 
 
 ## Cria uma celula nova encostada em alguma das ancoras, usando uma porta que a
 ## cena realmente tem. Devolve lista com a celula criada, ou vazia se nao coube.
-func _pendurar(cena: PackedScene, ancoras: Array[Vector2i]) -> Array[Vector2i]:
-	# _direcoes_da_cena ja devolve uma copia nova, entao embaralhar aqui nao
-	# mexe no catalogo.
-	var direcoes := _direcoes_da_cena(cena)
-	direcoes.shuffle()
-	for ancora in ancoras:
-		for direcao in direcoes:
-			# A celula nova olha para a ancora por `direcao`, logo ela fica do
-			# lado oposto.
-			var celula: Vector2i = ancora - _para_grid(direcao)
-			if _arestas.has(celula):
-				continue
-			_criar_celula(celula)
-			_ligar(celula, ancora, direcao)
-			var resultado: Array[Vector2i] = [celula]
-			return resultado
+func _pendurar(dados: DadosSala) -> Array[Vector2i]:
 	var vazio: Array[Vector2i] = []
+	var cenas := dados.cenas_validas()
+	if cenas.is_empty():
+		return vazio
+	# TODOS os estilos do tipo sao tentados, nao um sorteado. Estilos diferentes
+	# tem portas em lados diferentes, entao um que nao cabe nao diz nada sobre o
+	# proximo -- desistir no primeiro faria o tipo sumir do andar por azar.
+	cenas.shuffle()
+
+	var distancias := _distancias()
+	var ancoras := _ancoras_para(dados, distancias)
+
+	for cena in cenas:
+		# _direcoes_da_cena ja devolve uma copia nova, entao embaralhar aqui nao
+		# mexe no catalogo.
+		var direcoes := _direcoes_da_cena(cena)
+		direcoes.shuffle()
+
+		for ancora in ancoras:
+			for direcao in direcoes:
+				# A celula nova olha para a ancora por `direcao`, logo ela fica
+				# do lado oposto.
+				var celula: Vector2i = ancora - _para_grid(direcao)
+				if _arestas.has(celula):
+					continue
+				if not _celula_aceita(celula, dados, distancias):
+					continue
+				_criar_celula(celula)
+				_ligar(celula, ancora, direcao)
+				_reservadas[celula] = dados.id
+				_dados_por_celula[celula] = dados
+				_cena_por_celula[celula] = cena
+				var resultado: Array[Vector2i] = [celula]
+				return resultado
+
 	return vazio
 
 
+## Ancoras candidatas, na ordem em que devem ser tentadas: mais longe da origem
+## primeiro, e becos antes das demais quando o tipo pede beco.
+##
+## Celula ja reservada nunca e ancora. Toda pendurada pode ter uma porta so, e
+## dar a ela uma segunda aresta quebraria a escolha de cena mais adiante.
+func _ancoras_para(dados: DadosSala, distancias: Dictionary) -> Array[Vector2i]:
+	var por_distancia := _mais_longe_primeiro(distancias)
+
+	var preferidas: Array[Vector2i] = []
+	var demais: Array[Vector2i] = []
+	for celula in _arestas:
+		if _reservadas.has(celula):
+			continue
+		if dados.exige_beco and _grau(celula) > 1:
+			demais.append(celula)
+		else:
+			preferidas.append(celula)
+
+	preferidas.sort_custom(por_distancia)
+	demais.sort_custom(por_distancia)
+	# `demais` e ultimo recurso: um andar sem nenhum beco livre ainda deve
+	# receber o premio, so que num lugar menos escondido.
+	preferidas.append_array(demais)
+	return preferidas
+
+
+## A celula CRIADA respeita as regras de vizinhanca?
+##
+## Repare que quem e testado e a celula nova, nao a ancora. A versao antiga
+## filtrava a ancora, e por isso deixava passar o caso de a celula nova encostar
+## por OUTRO lado numa sala que ela deveria evitar.
+func _celula_aceita(celula: Vector2i, dados: DadosSala, distancias: Dictionary) -> bool:
+	for direcao in DIRECOES:
+		var vizinha: Vector2i = celula + _para_grid(direcao)
+		if _reservadas.has(vizinha):
+			# Regra estrutural, sem opt-out: pendurada nunca encosta em
+			# pendurada. Ambas podem ter porta unica e o par se estrangula.
+			return false
+
+	if dados.distancia_minima_da_origem <= 0:
+		return true
+
+	# A celula nova ainda nao esta no grafo, entao a distancia dela e a da
+	# ancora mais um passo. Basta uma vizinha ja conhecida para saber.
+	var menor := -1
+	for direcao in DIRECOES:
+		var vizinha: Vector2i = celula + _para_grid(direcao)
+		if not distancias.has(vizinha):
+			continue
+		var d := int(distancias[vizinha]) + 1
+		if menor < 0 or d < menor:
+			menor = d
+	return menor < 0 or menor >= dados.distancia_minima_da_origem
 ## Escolhe a cena de cada celula em ordem BFS. A ordem importa: quando nenhuma
 ## cena cobre todas as portas que a celula usa, a aresta aparada e sempre a que
 ## leva a um ramo ainda nao processado -- assim nada fica inalcancavel.
 func _escolher_cenas() -> bool:
-	_cena_por_celula.clear()
-	if _tem_chefe:
-		_cena_por_celula[_celula_chefe] = cena_boss
-	if _tem_tesouro:
-		_cena_por_celula[_celula_tesouro] = cena_tesouro
+	# As reservadas ja entraram em _cena_por_celula quando foram penduradas:
+	# a cena delas foi sorteada antes, e a celula nasceu do tamanho dela.
+	var padrao := _tipo_de_preenchimento_padrao()
 
 	var pais: Dictionary = {}
 	for celula in _ordem_bfs(pais):
@@ -356,35 +541,59 @@ func _escolher_cenas() -> bool:
 			continue
 		var usadas := vizinhos_de(celula)
 
-		if _cena_por_celula.has(celula):
-			# Chefe e tesouro sao fixos: se a celula deles ganhou porta demais,
-			# o grafo inteiro e sorteado de novo.
-			if not _cobre(_direcoes_da_cena(_cena_por_celula[celula]), usadas):
+		if _reservadas.has(celula):
+			var fixa: DadosSala = _dados_por_celula[celula]
+			if _cobre(_direcoes_da_cena(_cena_por_celula[celula]), usadas):
+				continue
+			# Obrigatoria que nao cabe derruba o grafo inteiro, como antes.
+			# Opcional que nao cabe vira sala comum em vez de custar 24
+			# tentativas de sorteio por causa de um premio.
+			if not fixa.opcional:
 				return false
-			continue
+			_reservadas.erase(celula)
+			_dados_por_celula.erase(celula)
+			_cena_por_celula.erase(celula)
 
 		var candidatas := _cenas_que_servem(usadas)
 		if not candidatas.is_empty():
 			_cena_por_celula[celula] = candidatas.pick_random()
+			_dados_por_celula[celula] = padrao
 			continue
 
 		var melhor := _melhor_cobertura(usadas, pais.get(celula, Vector2.ZERO))
 		if melhor == null:
 			return false
 		_cena_por_celula[celula] = melhor
+		_dados_por_celula[celula] = padrao
 		var servidas := _direcoes_da_cena(melhor)
 		for direcao in usadas:
 			if not servidas.has(direcao):
 				_podar(celula, direcao)
 
-	if _tem_chefe and not _arestas.has(_celula_chefe):
-		return false
-	if _tem_tesouro and not _arestas.has(_celula_tesouro):
-		_tem_tesouro = false
+	# Pendurada obrigatoria que sumiu numa poda derruba o grafo; opcional so
+	# deixa de existir.
+	for celula in _reservadas.keys():
+		if _arestas.has(celula):
+			continue
+		var perdida: DadosSala = _dados_por_celula.get(celula)
+		if perdida != null and not perdida.opcional:
+			return false
+		_reservadas.erase(celula)
+		_dados_por_celula.erase(celula)
+
 	for celula in _arestas:
 		if not _cena_por_celula.has(celula):
 			return false
 	return true
+
+
+## O tipo que descreve as celulas comuns. Serve para o minimapa saber a cor de
+## uma sala de combate sem precisar de um caso especial para "nao e pendurada".
+func _tipo_de_preenchimento_padrao() -> DadosSala:
+	var comuns := _tipos_de_preenchimento()
+	if comuns.is_empty():
+		return null
+	return comuns[0]
 
 
 ## Corta a aresta e leva junto o ramo que dependia dela. Como o grafo e arvore,
@@ -418,11 +627,20 @@ func _ramo_a_partir_de(inicio: Vector2i) -> Array[Vector2i]:
 
 func _cenas_que_servem(usadas: Array[Vector2]) -> Array[PackedScene]:
 	var lista: Array[PackedScene] = []
-	for cena in cenas_salas:
-		if cena == null or not _catalogo.has(cena):
-			continue
+	for cena in _cenas_de_preenchimento():
 		if _cobre(_direcoes_da_cena(cena), usadas):
 			lista.append(cena)
+	return lista
+
+
+## As cenas que podem preencher uma celula comum. Sai dos tipos COMUM, entao
+## acrescentar um estilo de sala de combate e arrastar a cena para o .tres.
+func _cenas_de_preenchimento() -> Array[PackedScene]:
+	var lista: Array[PackedScene] = []
+	for dados in _tipos_de_preenchimento():
+		for cena in dados.cenas_validas():
+			if _catalogo.has(cena) and not lista.has(cena):
+				lista.append(cena)
 	return lista
 
 
@@ -431,9 +649,7 @@ func _cenas_que_servem(usadas: Array[Vector2]) -> Array[PackedScene]:
 func _melhor_cobertura(usadas: Array[Vector2], obrigatoria: Vector2) -> PackedScene:
 	var melhor: PackedScene = null
 	var melhor_nota := -1
-	for cena in cenas_salas:
-		if cena == null or not _catalogo.has(cena):
-			continue
+	for cena in _cenas_de_preenchimento():
 		var servidas := _direcoes_da_cena(cena)
 		if obrigatoria != Vector2.ZERO and not servidas.has(obrigatoria):
 			continue
@@ -541,13 +757,6 @@ func _celula_aleatoria() -> Vector2i:
 
 func _grau(celula: Vector2i) -> int:
 	return vizinhos_de(celula).size()
-
-
-func _sao_vizinhas(a: Vector2i, b: Vector2i) -> bool:
-	var delta := a - b
-	return absi(delta.x) + absi(delta.y) == 1
-
-
 func _para_grid(direcao: Vector2) -> Vector2i:
 	return Vector2i(roundi(direcao.x), roundi(direcao.y))
 
@@ -579,6 +788,38 @@ func _montar_andar() -> void:
 		_ocultar(sala)
 
 	_montar_corredores()
+	_cachear_geometria()
+
+
+## Contorno de cada sala em coordenadas de mundo, calculado uma vez.
+##
+## Roda depois de _montar_corredores porque so ali as posicoes finais existem.
+## Todas as salas ja estao na arvore neste ponto (o _ocultar mexe em `visible` e
+## `process_mode`, nao tira da arvore), entao ate as celulas nunca visitadas tem
+## global_position valida -- e por isso o minimapa consegue desenhar o andar
+## inteiro sem instanciar nada.
+func _cachear_geometria() -> void:
+	_contornos.clear()
+	_ligacoes_cache.clear()
+	for celula in _salas:
+		var sala: Sala = _salas[celula]
+		if not is_instance_valid(sala):
+			continue
+		var local := sala.contorno_local()
+		var mundo := PackedVector2Array()
+		for ponto in local:
+			mundo.append(sala.to_global(ponto))
+		_contornos[celula] = mundo
+
+	for ligacao in _corredores:
+		var no: Corredor = ligacao["no"]
+		if not is_instance_valid(no):
+			continue
+		_ligacoes_cache.append({
+			"a": ligacao["a"],
+			"b": ligacao["b"],
+			"caixa": no.obter_limites(),
+		})
 
 
 ## Largura de cada coluna = a da sala mais larga daquela coluna; altura de cada
@@ -840,5 +1081,11 @@ func _ajustar_zoom(camera: Camera2D, area: Vector2) -> void:
 func _ao_sala_limpa(sala: Node2D) -> void:
 	GameState.salas_limpas += 1
 	var limpa := sala as Sala
-	if limpa != null and limpa.tipo == "boss":
+	if limpa == null:
+		return
+	# Le do DADO da celula, nao do @export da cena: assim uma cena reaproveitada
+	# por dois tipos nao encerra a run no tipo errado.
+	var dados: DadosSala = _dados_por_celula.get(limpa.coordenadas_grid)
+	var id: StringName = dados.id if dados != null else limpa.tipo
+	if id == DadosSala.ID_BOSS:
 		GameState.terminar_run(true)

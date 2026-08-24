@@ -38,12 +38,25 @@ signal boss_vida_mudou(atual: int, maximo: int)
 signal boss_fase_mudou(fase: int)
 signal boss_morreu()
 
+# --- Itens ---
+## O implante ja foi aplicado quando isto chega: quem escuta le o efeito ja
+## somado em Modificadores, nao aplica nada por conta propria.
+signal item_coletado(dados: Resource)
+## Qualquer mudanca no conjunto de implantes, coleta ou reset de run. Existe
+## separado de item_coletado porque a HUD precisa redesenhar tambem quando a
+## run recomeca e a lista esvazia.
+signal modificadores_mudaram()
+
 # --- Run ---
 signal run_terminada(venceu: bool, estatisticas: Dictionary)
 
 # --- Mapa e Salas ---
 ## Emitido pela porta atravessada, com a sala de origem e o lado por onde
 ## o jogador saiu. Quem monta o mapa decide para onde isso leva.
+## O andar terminou de ser montado e ja da para consultar o GerenciadorMapa.
+## Existe porque a HUD sobe antes do mapa em main.tscn: sem este aviso, o
+## minimapa faria _ready com o grupo 'gerenciador_mapa' ainda vazio.
+signal andar_gerado()
 signal porta_atravessada(sala: Node2D, direcao: Vector2)
 signal sala_entrada(sala: Node2D)
 signal sala_limpa(sala: Node2D)

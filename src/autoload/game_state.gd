@@ -31,6 +31,8 @@ func iniciar_run() -> void:
 	inimigos_mortos = 0
 	tempo_run = 0.0
 	Deterioracao.resetar()
+	# Implante e progressao de run, nao meta-progressao: run nova comeca limpa.
+	Modificadores.resetar()
 	Deterioracao.passiva_ativa = true
 	get_tree().paused = false
 	Engine.time_scale = 1.0

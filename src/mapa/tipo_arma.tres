@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DadosSala" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
+[ext_resource type="PackedScene" uid="uid://x1y2z3a4b5c6d" path="res://src/mapa/sala_7_arma.tscn" id="2_arma"]
+
+[resource]
+script = ExtResource("1_ds")
+id = &"arma"
+cenas = Array[PackedScene]([ExtResource("2_arma")])
+colocacao = 1
+quantidade = 1
+prioridade = 10
+exige_beco = true
+distancia_minima_da_origem = 2
+opcional = true
+cor_mapa = Color(1, 0.72, 0.29, 1)
+icone = "A"

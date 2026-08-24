@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="DadosItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/items/dados_item.gd" id="1_di"]
+
+[resource]
+script = ExtResource("1_di")
+nome = "Servo-Motor"
+descricao = "Passadas mais longas. +12% de velocidade."
+alvo = 1
+modo = 0
+valor = 1.12
+maximo_por_run = 3
+cor = Color(0.55, 1, 0.7, 1)
+sigla = "S"

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="PoolLoot" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://src/items/pool_loot.gd" id="1_pl"]
+[ext_resource type="Resource" path="res://src/weapons/shotgun.tres" id="2_shotgun"]
+[ext_resource type="Resource" path="res://src/items/implante_nucleo.tres" id="3_nucleo"]
+[ext_resource type="Resource" path="res://src/items/implante_reflexo.tres" id="4_reflexo"]
+[ext_resource type="Resource" path="res://src/items/implante_servo.tres" id="5_servo"]
+[ext_resource type="Resource" path="res://src/items/implante_gatilho.tres" id="6_gatilho"]
+[ext_resource type="Resource" path="res://src/items/implante_penetrador.tres" id="7_penetrador"]
+[ext_resource type="Resource" path="res://src/items/implante_dissipador.tres" id="8_dissipador"]
+
+[resource]
+script = ExtResource("1_pl")
+armas = Array[Resource]([ExtResource("2_shotgun")])
+itens = Array[Resource]([ExtResource("3_nucleo"), ExtResource("4_reflexo"), ExtResource("5_servo"), ExtResource("6_gatilho"), ExtResource("7_penetrador"), ExtResource("8_dissipador")])

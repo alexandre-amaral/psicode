@@ -60,7 +60,9 @@ func atirar(direcao: Vector2) -> bool:
 		return false
 
 	_gatilho_solto = false
-	_tempo_recarga = dados.intervalo()
+	# Dividir, nao multiplicar: intervalo e o inverso da cadencia, entao
+	# cadencia maior tem de encurtar a espera.
+	_tempo_recarga = dados.intervalo() / maxf(_multiplicador_cadencia(), 0.01)
 
 	if not dados.municao_infinita():
 		municao -= 1
@@ -74,7 +76,7 @@ func atirar(direcao: Vector2) -> bool:
 		var desvio := deg_to_rad(randf_range(-dados.impressao_graus, dados.impressao_graus))
 		var p := CENA_PROJETIL.instantiate()
 		container.add_child(p)
-		p.configurar(origem, d.rotated(desvio), dados, hostil, multiplicador_velocidade)
+		p.configurar(origem, d.rotated(desvio), dados, hostil, multiplicador_velocidade, _bonus_dano())
 
 	disparou.emit(direcao, dados)
 
@@ -91,3 +93,19 @@ func _container() -> Node:
 	if c != null:
 		return c
 	return get_tree().current_scene
+
+
+## O PORTAO DOS IMPLANTES. Este mesmo script roda no Vigia e na Diretora
+## (`hostil = true`), entao ler Modificadores sem conferir hostil transformaria
+## um upgrade do jogador em buff dos inimigos -- um bug que nao aparece no
+## console e quase nao aparece num playtest.
+func _multiplicador_cadencia() -> float:
+	if hostil:
+		return 1.0
+	return Modificadores.multiplicador_cadencia()
+
+
+func _bonus_dano() -> int:
+	if hostil:
+		return 0
+	return Modificadores.bonus_dano()

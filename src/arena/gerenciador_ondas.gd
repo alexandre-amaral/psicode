@@ -19,8 +19,11 @@ const CENA_RASTEJANTE := preload("res://src/enemies/rastejante.tscn")
 const CENA_VIGIA := preload("res://src/enemies/vigia.tscn")
 const CENA_DIRETORA := preload("res://src/enemies/diretora.tscn")
 const CENA_PICKUP := preload("res://src/arena/pickup_arma.tscn")
+const POOL_PADRAO := preload("res://src/items/pool_padrao.tres")
 
 @export var ondas: Array[DadosOnda] = []
+## De onde sai a arma solta ao limpar uma onda com `solta_arma`.
+@export var pool_loot: PoolLoot
 ## Caminhos em vez de referencias diretas: NodePath e resolvido na hora certa
 ## e sobrevive a quem mover o no no editor sem reconectar nada.
 @export var caminho_container_inimigos: NodePath = ^"../ContainerInimigos"
@@ -230,11 +233,20 @@ func _limpar_onda() -> void:
 	_proxima_onda(dados.respiro)
 
 
+## Pool aqui pelo mesmo motivo de ONDAS_PADRAO: se o .tscn perder a referencia
+## num merge, o jogo continua dando arma em vez de parar de dar em silencio.
 func _soltar_arma() -> void:
 	if container_pickups == null:
 		return
 	var pos := _sortear_posicao(180.0)
 	var pickup := CENA_PICKUP.instantiate()
+
+	# ANTES do add_child: o _ready do pickup le `dados`/`pool` para pintar o
+	# visual e escrever o rotulo. Atribuir depois deixa um pickup ja pintado com
+	# a arma errada -- era assim que todo drop do jogo saia shotgun.
+	var pool: PoolLoot = pool_loot if pool_loot != null else POOL_PADRAO
+	pickup.pool = pool
+
 	container_pickups.add_child(pickup)
 	pickup.global_position = pos
 

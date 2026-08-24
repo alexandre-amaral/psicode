@@ -36,6 +36,11 @@ enum Estado { NORMAL, ROLANDO, MORTO }
 var vida: int = 6
 var estado: int = Estado.NORMAL
 
+## Vida maxima sem implante. Guardada a parte porque `vida_maxima` passa a ser
+## base + bonus, e recalcular a partir dela mesma acumularia o bonus a cada
+## coleta.
+var _vida_maxima_base: int = 6
+
 var _dir_roll: Vector2 = Vector2.RIGHT
 var _t_roll: float = 0.0
 var _t_roll_cd: float = 0.0
@@ -61,7 +66,14 @@ func _ready() -> void:
 
 	Juice.registrar_camera(_camera)
 
+	_vida_maxima_base = vida_maxima
+	vida_maxima = _vida_maxima_base + Modificadores.bonus_vida_maxima()
 	vida = vida_maxima
+	# Vida maxima e a unica excecao a regra de "ler no frame": ela e um
+	# recipiente, nao um multiplicador -- se fosse recalculada por frame, a vida
+	# atual teria de ser reescalada junto e o dano viraria fracao. Entao ela
+	# reage ao evento, uma vez por implante.
+	EventBus.modificadores_mudaram.connect(_ao_modificadores_mudarem)
 	_slots[0] = arma_inicial
 	_arma.hostil = false
 	if arma_inicial != null:
@@ -101,7 +113,7 @@ func _processar_normal(delta: float) -> void:
 	var entrada := Input.get_vector("mover_esquerda", "mover_direita", "mover_cima", "mover_baixo")
 
 	if entrada != Vector2.ZERO:
-		velocity = velocity.move_toward(entrada * velocidade_max, aceleracao * delta)
+		velocity = velocity.move_toward(entrada * velocidade_atual(), aceleracao * delta)
 	else:
 		velocity = velocity.move_toward(Vector2.ZERO, atrito * delta)
 
@@ -121,7 +133,7 @@ func _processar_rolamento(delta: float) -> void:
 	_t_roll -= delta
 	# Desacelera no fim do rolamento em vez de parar seco: o corpo "assenta".
 	var progresso := clampf(_t_roll / roll_duracao, 0.0, 1.0)
-	var vel := lerpf(velocidade_max * 0.8, roll_velocidade, progresso)
+	var vel := lerpf(velocidade_atual() * 0.8, roll_velocidade, progresso)
 	velocity = _dir_roll * vel
 
 	_t_eco -= delta
@@ -139,7 +151,7 @@ func _iniciar_rolamento(entrada: Vector2) -> void:
 	_dir_roll = entrada.normalized() if entrada != Vector2.ZERO else _direcao_mira()
 	estado = Estado.ROLANDO
 	_t_roll = roll_duracao
-	_t_roll_cd = roll_cooldown
+	_t_roll_cd = cooldown_rolamento_atual()
 	_t_invuln = maxf(_t_invuln, roll_duracao)
 	_t_eco = 0.0
 	EventBus.player_rolou.emit()
@@ -174,6 +186,32 @@ func _soltar_eco() -> void:
 
 
 # ---------------------------------------------------------------- combate ---
+
+## Lidas no frame de uso, como manda a regra 2 do projeto: um implante pego na
+## sala 6 vale para o movimento que ja esta acontecendo.
+func velocidade_atual() -> float:
+	return velocidade_max * Modificadores.multiplicador_velocidade()
+
+
+func cooldown_rolamento_atual() -> float:
+	return roll_cooldown * Modificadores.multiplicador_cooldown_rolamento()
+
+
+## Coracao novo nasce cheio: dar vida maxima sem dar a vida junto faria o
+## implante parecer que nao fez nada ate a proxima cura.
+func _ao_modificadores_mudarem() -> void:
+	var novo := _vida_maxima_base + Modificadores.bonus_vida_maxima()
+	if novo == vida_maxima:
+		return
+	var ganho := novo - vida_maxima
+	vida_maxima = maxi(novo, 1)
+	if ganho > 0:
+		vida = mini(vida + ganho, vida_maxima)
+	else:
+		vida = mini(vida, vida_maxima)
+	vida_alterada.emit(vida, vida_maxima)
+	EventBus.player_dano_recebido.emit(vida, vida_maxima)
+
 
 func invulneravel() -> bool:
 	return estado == Estado.ROLANDO or _t_invuln > 0.0

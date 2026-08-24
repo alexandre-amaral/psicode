@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="DadosSala" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
+[ext_resource type="PackedScene" uid="uid://b1c2d3e4f5g6h" path="res://src/mapa/sala_1_retangular.tscn" id="2_s1"]
+[ext_resource type="PackedScene" uid="uid://k2l3m4n5o6p7q" path="res://src/mapa/sala_2_l_shape.tscn" id="3_s2"]
+[ext_resource type="PackedScene" uid="uid://j9k8l7m6n5o4p" path="res://src/mapa/sala_3_grande.tscn" id="4_s3"]
+[ext_resource type="PackedScene" uid="uid://c7d6e5f4g3h2i" path="res://src/mapa/sala_4_corredor.tscn" id="5_s4"]
+[ext_resource type="PackedScene" uid="uid://o0p9q8r7s6t5u" path="res://src/mapa/sala_5_pilar.tscn" id="6_s5"]
+
+[resource]
+script = ExtResource("1_ds")
+id = &"combate"
+cenas = Array[PackedScene]([ExtResource("2_s1"), ExtResource("3_s2"), ExtResource("4_s3"), ExtResource("5_s4"), ExtResource("6_s5")])
+colocacao = 0
+quantidade = 1
+prioridade = 100
+exige_beco = false
+distancia_minima_da_origem = 0
+opcional = true
+cor_mapa = Color(0.3, 0.9, 1, 1)
+icone = ""

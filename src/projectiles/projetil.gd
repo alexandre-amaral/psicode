@@ -54,11 +54,15 @@ func configurar(
 	direcao: Vector2,
 	dados: DadosArma,
 	eh_hostil: bool,
-	multiplicador_velocidade: float = 1.0
+	multiplicador_velocidade: float = 1.0,
+	bonus_dano: int = 0
 ) -> void:
 	global_position = posicao
 	hostil = eh_hostil
-	dano = dados.dano
+	# Congelado no disparo de proposito: o projetil que ja esta no ar nao muda
+	# de dano quando o implante e pego. Quem filtra por hostil e a Arma -- aqui
+	# o bonus ja chega zerado para inimigo.
+	dano = maxi(dados.dano + bonus_dano, 1)
 	knockback = dados.knockback
 	perfuracao_restante = dados.perfuracao
 	cor = dados.cor_projetil

@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://b1c2d3e4f5g6h"]
+[gd_scene format=3 uid="uid://b1c2d3e4f5g6h"]
 
 [ext_resource type="Script" uid="uid://bhv612a7jhlai" path="res://src/mapa/sala.gd" id="1_s"]
 [ext_resource type="PackedScene" uid="uid://d1p2q3r4s5t6u" path="res://src/mapa/porta.tscn" id="2_p"]

@@ -35,7 +35,9 @@ var passiva_ativa: bool = false
 
 func _process(delta: float) -> void:
 	if passiva_ativa and ganho_passivo_por_segundo > 0.0:
-		valor += ganho_passivo_por_segundo * delta
+		# Lido no frame, nao no inicio da run: pegar o dissipador no meio da
+		# partida tem de desacelerar a barra na hora.
+		valor += ganho_passivo_por_segundo * Modificadores.multiplicador_ganho_deterioracao() * delta
 
 
 func adicionar(quantidade: float) -> void:

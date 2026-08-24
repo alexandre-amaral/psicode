@@ -63,6 +63,8 @@ var _mapa: GerenciadorMapa = null
 var _celula_atual: Vector2i = Vector2i.ZERO
 var _visitadas: Dictionary = {}
 var _salas_percorridas: int = 0
+## Tipo de sala de recompensa -> se um pickup foi visto dentro dela.
+var _recompensas_conferidas: Dictionary = {}
 
 ## id de instancia -> true. Cada inimigo e conferido uma vez so, no primeiro
 ## frame em que aparece no grupo.
@@ -170,7 +172,7 @@ func _conferir_um_spawn(inimigo: Node2D) -> void:
 	if limites.grow(FOLGA_SPAWN).has_point(pos):
 		# Estar dentro de UMA sala nao basta para o chefe: a Diretora tem de
 		# nascer na sala do chefe.
-		if eh_chefe and dona.tipo != "boss":
+		if eh_chefe and dona.tipo != DadosSala.ID_BOSS:
 			_relatar_spawn_fora("a Diretora nasceu em %s, dentro da sala %s tipo=%s -- deveria nascer na sala do chefe" % [
 				_ponto(pos),
 				dona.coordenadas_grid,
@@ -248,14 +250,24 @@ func _achar_mapa() -> bool:
 		_encerrar()
 		return false
 
+	# A run acabou de comecar, entao nenhum implante pode estar ativo. Conferir
+	# aqui, e nao no fim: no fim o proprio teste pode ter encostado num pickup
+	# ao ser reposicionado, e a assercao falharia por um motivo que nao e bug.
+	if not Modificadores.itens_ativos().is_empty():
+		_falhar("a run comecou com %d implante(s) ativos -- iniciar_run parou de resetar Modificadores, e a dificuldade vaza de uma run para a seguinte" % Modificadores.itens_ativos().size())
+
 	_log("mapa pronto: %d celulas, chefe em %s" % [_mapa.celulas().size(), _mapa.celula_do_chefe()])
 	_registrar_chegada()
 	return true
 
 
-## So sai da sala quando ela esta LIMPA. A sondagem do estado existe porque nem
-## toda sala emite `sala_limpa`: a de tesouro nasce limpa e nunca emite, e sem
-## isto o teste ficaria preso nela ate o tempo limite.
+## So sai da sala quando ela esta LIMPA.
+##
+## Sonda o ESTADO em vez de esperar o sinal `sala_limpa` de proposito. A sala de
+## recompensa nasce limpa no _ready, entao o sinal dela sai por outro caminho e
+## noutro instante (em `ativar()`, na chegada) do que o de uma sala de combate.
+## Depender do sinal amarraria o avanco a essa diferenca; o estado e o mesmo
+## para as duas.
 func _avancar_se_der() -> void:
 	if _t_avanco > 0.0:
 		return
@@ -283,6 +295,7 @@ func _registrar_chegada() -> void:
 	_visitadas[_celula_atual] = true
 	if not revisita:
 		_salas_percorridas += 1
+	_conferir_recompensa(sala)
 	_log("sala %d/%d %s tipo=%s%s" % [
 		_salas_percorridas,
 		_mapa.celulas().size(),
@@ -290,6 +303,46 @@ func _registrar_chegada() -> void:
 		sala.tipo,
 		"  (voltando)" if revisita else "",
 	])
+
+
+## Sala de recompensa entregou mesmo a recompensa?
+##
+## Sem isto o teste passa verde com uma sala de arma vazia: ele visita, marca
+## como limpa (ela nasce limpa) e segue. E o mesmo buraco que a conferencia de
+## spawn existe para tapar -- o pickup esta no .tscn, e .tscn quebra calado.
+##
+## Confere tambem que o pickup nasceu DENTRO da sala, porque um pickup fora da
+## geometria e inalcancavel e equivale a nao existir.
+func _conferir_recompensa(sala: Sala) -> void:
+	if sala.tipo != DadosSala.ID_ARMA and sala.tipo != DadosSala.ID_ITEM:
+		return
+	if _recompensas_conferidas.get(sala.tipo, false):
+		return
+
+	var achados := 0
+	for filho in sala.get_children():
+		var area := filho as Area2D
+		if area == null or not ("dados" in area):
+			continue
+		achados += 1
+		if area.get("dados") == null:
+			_falhar("a sala %s tipo=%s tem um pickup sem dados -- o sorteio do pool falhou" % [
+				sala.coordenadas_grid, sala.tipo,
+			])
+		if not sala.obter_limites().grow(FOLGA_SPAWN).has_point(area.global_position):
+			_falhar("o pickup da sala %s tipo=%s nasceu fora da geometria dela (pos=%s, sala=%s)" % [
+				sala.coordenadas_grid, sala.tipo, area.global_position, sala.obter_limites(),
+			])
+
+	if achados == 0:
+		_falhar("a sala %s tipo=%s nao tem nenhum pickup dentro -- a recompensa nao existe" % [
+			sala.coordenadas_grid, sala.tipo,
+		])
+	else:
+		_recompensas_conferidas[sala.tipo] = true
+		_log("recompensa conferida em %s tipo=%s (%d pickup)" % [
+			sala.coordenadas_grid, sala.tipo, achados,
+		])
 
 
 ## Primeiro passo do caminho mais curto ate a celula nao visitada mais proxima.
@@ -403,6 +456,12 @@ func _ao_terminar(venceu: bool, dados: Dictionary) -> void:
 		_falhar("nenhum inimigo apareceu no grupo 'inimigo' durante a run inteira -- a conferencia de spawn nao chegou a rodar")
 	if venceu and not _diretora_conferida:
 		_falhar("a run venceu sem que o teste visse a Diretora viva -- a posicao de nascimento dela nao foi conferida")
+
+	# Os tipos de recompensa sao opcionais no andar, entao nao da para exigir os
+	# dois. Mas se NENHUM apareceu em nenhuma run, algo esta errado na colocacao
+	# -- e a conferencia acima nunca rodou.
+	if venceu and _recompensas_conferidas.is_empty():
+		_falhar("o andar inteiro saiu sem sala de arma nem de item -- a colocacao das recompensas nao rodou")
 
 	_encerrar()
 

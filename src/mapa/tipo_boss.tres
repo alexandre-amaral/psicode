@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DadosSala" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
+[ext_resource type="PackedScene" uid="uid://u6i7o8p9q0a1b" path="res://src/mapa/sala_6_boss.tscn" id="2_boss"]
+
+[resource]
+script = ExtResource("1_ds")
+id = &"boss"
+cenas = Array[PackedScene]([ExtResource("2_boss")])
+colocacao = 1
+quantidade = 1
+prioridade = 0
+exige_beco = false
+distancia_minima_da_origem = 3
+opcional = false
+cor_mapa = Color(1, 0.2, 0.4, 1)
+icone = "!"

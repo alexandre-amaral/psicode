@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_da"]
+
+[resource]
+script = ExtResource("1_da")
+nome = "Pontuacao Orbital"
+descricao = "Tiro pequeno, constante e de lado. Sozinho nao mata; e a orbita que fecha a saida."
+dano = 1
+knockback = 50.0
+perfuracao = 0
+cadencia = 2.0
+automatica = false
+projeteis_por_tiro = 1
+abertura_graus = 0.0
+impressao_graus = 1.5
+velocidade_projetil = 470.0
+alcance = 620.0
+raio_projetil = 4.0
+cor_projetil = Color(0.6, 0.8, 1, 1)
+municao_maxima = -1
+shake_intensidade = 0.0
+shake_duracao = 0.0
+recuo_player = 0.0
+tamanho_pente = 9999
+tempo_recarga = 0.1

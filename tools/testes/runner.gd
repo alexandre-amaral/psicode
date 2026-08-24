@@ -27,6 +27,8 @@ const SUITES := [
 	"res://tools/testes/teste_arma.gd",
 	"res://tools/testes/teste_configuracao.gd",
 	"res://tools/testes/teste_composicao.gd",
+	"res://tools/testes/teste_maquina_estados.gd",
+	"res://tools/testes/teste_area_de_perigo.gd",
 ]
 
 

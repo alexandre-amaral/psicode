@@ -32,6 +32,12 @@ func _medir() -> void:
 	]:
 		tipos.append(load(caminho))
 
+	# Quantas salas cada TIPO de inimigo ocupou, e em quantos andares ele
+	# apareceu ao menos uma vez. E o que diz se uma porta por Deterioracao ficou
+	# alta demais e transformou o inimigo em conteudo morto.
+	var por_inimigo: Dictionary = {}
+	var andares_com: Dictionary = {}
+
 	# cena -> {"salas": n, "inimigos": n, "min": n, "max": n, "rastejantes": n}
 	var por_cena: Dictionary = {}
 	var por_tipo: Dictionary = {}
@@ -52,6 +58,7 @@ func _medir() -> void:
 				salas[sala.coordenadas_grid] = sala
 
 		var vistos: Dictionary = {}
+		var vistos_inimigo: Dictionary = {}
 		salas_no_andar += mapa.celulas().size()
 		for celula in mapa.celulas():
 			var dados := mapa.dados_da_celula(celula)
@@ -65,8 +72,17 @@ func _medir() -> void:
 			_somar(por_cena, chave, composicao)
 			_somar(por_tipo, String(dados.id), composicao)
 
+			for cena in composicao:
+				if cena == null:
+					continue
+				var apelido := cena.resource_path.get_file().get_basename()
+				por_inimigo[apelido] = int(por_inimigo.get(apelido, 0)) + 1
+				vistos_inimigo[apelido] = true
+
 		for id in vistos:
 			presenca[id] = int(presenca.get(id, 0)) + 1
+		for apelido in vistos_inimigo:
+			andares_com[apelido] = int(andares_com.get(apelido, 0)) + 1
 
 		# free() e nao queue_free(): o laco e sincrono, e 120 andares adiados ate
 		# o fim do frame seriam 1200 salas vivas ao mesmo tempo.
@@ -79,6 +95,25 @@ func _medir() -> void:
 	_imprimir(por_cena)
 	print("\npor TIPO de sala:")
 	_imprimir(por_tipo)
+
+	print("\ninimigos colocados (total em %d andares):" % ANDARES)
+	var total_inimigos := 0
+	for apelido in por_inimigo:
+		total_inimigos += int(por_inimigo[apelido])
+	var apelidos := por_inimigo.keys()
+	apelidos.sort()
+	for apelido: String in apelidos:
+		var n := int(por_inimigo[apelido])
+		var andares := int(andares_com.get(apelido, 0))
+		var marca := ""
+		# Inimigo que nao aparece em pelo menos um quinto dos andares esta, na
+		# pratica, invisivel para quem joga -- porta por Deterioracao alta demais.
+		if andares * 5 < ANDARES:
+			marca = "   <== raro demais"
+		print("  %-22s %5d colocados (%4.1f%%) | em %3d andares (%3.0f%%)%s" % [
+			apelido, n, 100.0 * n / maxf(total_inimigos, 1),
+			andares, 100.0 * andares / ANDARES, marca,
+		])
 
 	print("\npresenca no andar (de %d):" % ANDARES)
 	for id in presenca:

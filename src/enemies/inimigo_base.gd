@@ -77,6 +77,22 @@ func _pos_movimento(_delta: float) -> void:
 	pass
 
 
+## Ponto de extensao do MOVIMENTO: recebe para onde o inimigo QUER ir e devolve
+## para onde ele de fato vai.
+##
+## Hoje devolve a direcao crua, e e de proposito -- o comportamento nao muda em
+## nada. O que ele cria e o lugar: quando entrar pathfinding ou desvio de
+## obstaculo, esta e a unica funcao que muda, em vez de sete arquivos de
+## inimigo. A divida esta declarada no ROADMAP ("sem pathfinding -- o melee anda
+## em linha reta") e as salas com pilar e as em L a tornaram real.
+##
+## Quem escreve inimigo novo passa o movimento por aqui. O Rastejante e o Vigia
+## ainda nao passam: eles sao o que a v0.2.0-alpha esta testando com os amigos, e
+## mexer neles agora invalidaria esse retorno.
+func direcao_de_locomocao(desejada: Vector2) -> Vector2:
+	return desejada
+
+
 func _ao_nascer() -> void:
 	# Pop de entrada -- comunica "algo novo apareceu" sem precisar de animacao.
 	if _visual == null:

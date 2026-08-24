@@ -848,11 +848,14 @@ func _montar_andar() -> void:
 ## andar ajustavel por .tres em vez de por seis cenas.
 func _sortear_composicoes() -> void:
 	_composicao_por_celula.clear()
+	# Uma vez para o andar todo: a distancia de cada celula ate a entrada e o
+	# que estima a Deterioracao que o jogador tera ao chegar la.
+	var distancias := _distancias()
 	for celula in _salas:
 		var sala: Sala = _salas[celula]
 		if not is_instance_valid(sala):
 			continue
-		var composicao := _sortear_composicao(celula, sala)
+		var composicao := _sortear_composicao(celula, sala, distancias)
 		_composicao_por_celula[celula] = composicao
 		sala.definir_composicao(composicao)
 
@@ -867,7 +870,9 @@ func _sortear_composicoes() -> void:
 ## A Deterioracao NAO entra nesta conta, de proposito. Ela mexe em velocidade,
 ## cadencia e mira preditiva pelos multiplicadores que os inimigos leem no frame
 ## -- agressividade, nunca quantidade.
-func _sortear_composicao(celula: Vector2i, sala: Sala) -> Array[PackedScene]:
+func _sortear_composicao(
+	celula: Vector2i, sala: Sala, distancias: Dictionary
+) -> Array[PackedScene]:
 	var lista: Array[PackedScene] = []
 	var dados: DadosSala = _dados_por_celula.get(celula)
 	if dados == null:
@@ -877,13 +882,14 @@ func _sortear_composicao(celula: Vector2i, sala: Sala) -> Array[PackedScene]:
 	if grupos.is_empty():
 		return lista
 
+	var estimada := _deterioracao_estimada(celula, dados, distancias)
 	var restante := dados.orcamento_para(sala.area_do_contorno())
 	# Trava de seguranca: com custo_real() >= 1 o restante sempre cai, mas um
 	# laco que gasta orcamento nao pode depender disso para terminar.
 	var seguranca := restante + 8
 	while restante > 0 and seguranca > 0:
 		seguranca -= 1
-		var escolhido := _sortear_grupo(grupos, restante)
+		var escolhido := _sortear_grupo(grupos, restante, estimada)
 		if escolhido == null:
 			break
 		lista.append(escolhido.cena)
@@ -891,29 +897,42 @@ func _sortear_composicao(celula: Vector2i, sala: Sala) -> Array[PackedScene]:
 	return lista
 
 
-## Sorteio por peso entre os grupos que ainda cabem no que sobrou do orcamento.
-## Devolve null quando nenhum cabe -- e o que encerra a compra.
-func _sortear_grupo(grupos: Array[GrupoInimigo], restante: int) -> GrupoInimigo:
+## Quanto a barra deve marcar quando o jogador chegar nesta celula.
+##
+## Salas limpas ate aqui vezes o ganho por sala. Ignora o ganho passivo, entao
+## subestima -- a porta de um inimigo abre um pouco mais tarde do que na
+## partida real, que e o lado seguro de errar. A explicacao longa esta no
+## `deterioracao_minima` do GrupoInimigo.
+func _deterioracao_estimada(
+	celula: Vector2i, dados: DadosSala, distancias: Dictionary
+) -> float:
+	var passos := float(distancias.get(celula, 0))
+	return passos * dados.deterioracao_ao_limpar
+
+
+## Sorteio por peso entre os grupos que cabem no orcamento restante E que ja
+## foram liberados pela Deterioracao estimada da celula.
+## Devolve null quando nenhum serve -- e o que encerra a compra.
+func _sortear_grupo(
+	grupos: Array[GrupoInimigo], restante: int, estimada: float
+) -> GrupoInimigo:
+	var elegiveis: Array[GrupoInimigo] = []
 	var soma := 0.0
 	for grupo in grupos:
-		if grupo.custo_real() <= restante:
+		if grupo.custo_real() <= restante and grupo.liberado_em(estimada):
+			elegiveis.append(grupo)
 			soma += grupo.peso
-	if soma <= 0.0:
+	if elegiveis.is_empty() or soma <= 0.0:
 		return null
 
 	var sorteio := randf() * soma
-	for grupo in grupos:
-		if grupo.custo_real() > restante:
-			continue
+	for grupo in elegiveis:
 		sorteio -= grupo.peso
 		if sorteio <= 0.0:
 			return grupo
 
 	# Só chega aqui por erro de arredondamento no ultimo item.
-	for i in range(grupos.size() - 1, -1, -1):
-		if grupos[i].custo_real() <= restante:
-			return grupos[i]
-	return null
+	return elegiveis[elegiveis.size() - 1]
 
 
 ## Contorno de cada sala em coordenadas de mundo, calculado uma vez.

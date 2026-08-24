@@ -15,6 +15,11 @@ extends TesteBase
 const GRUPOS := [
 	"res://src/enemies/grupo_rastejante.tres",
 	"res://src/enemies/grupo_vigia.tres",
+	"res://src/enemies/grupo_drone_aranha.tres",
+	"res://src/enemies/grupo_sentinela_orbital.tres",
+	"res://src/enemies/grupo_atirador_neon.tres",
+	"res://src/enemies/grupo_cyber_besta.tres",
+	"res://src/enemies/grupo_hacker_parasita.tres",
 	"res://src/enemies/grupo_diretora.tres",
 ]
 
@@ -45,6 +50,7 @@ func executar() -> void:
 	_grupos()
 	var catalogo := _carregar_tipos()
 	_orcamento_e_funcao_pura()
+	_portas_por_deterioracao(catalogo)
 	_tipo_de_combate(catalogo)
 	_tipo_de_chefe(catalogo)
 	_escala_por_area(catalogo)
@@ -68,6 +74,7 @@ func _grupos() -> void:
 		# zero digitado no Inspetor faria o laco de compra girar para sempre.
 		ok(grupo.custo_real() >= 1, "%s custa ao menos 1 do orcamento" % etiqueta)
 		ok(grupo.valido(), "%s se considera valido" % etiqueta)
+		ok(grupo.deterioracao_minima >= 0.0, "%s nao pede Deterioracao negativa" % etiqueta)
 
 		if grupo.cena != null:
 			var inimigo := grupo.cena.instantiate()
@@ -129,6 +136,59 @@ func _orcamento_e_funcao_pura() -> void:
 
 
 # ------------------------------------------------------------- os tipos -----
+
+## As portas por Deterioracao, que decidem QUANDO cada inimigo entra no andar.
+##
+## Duas formas de errar isto, e as duas sao silenciosas:
+##
+## 1. **Todo mundo com porta acima de zero.** A primeira sala do andar tem
+##    Deterioracao estimada 0, entao nenhum grupo seria elegivel, o sorteio
+##    devolveria null e as salas de combate nasceriam VAZIAS. O andar inteiro
+##    vira uma caminhada, e nao ha erro nenhum no console.
+## 2. **Porta alta demais.** Um andar entrega uns 30 pontos de Deterioracao
+##    estimada na celula mais distante. Uma porta em 90 nunca abriria, e o
+##    inimigo seria conteudo morto -- alguem desenhou, testou, e ninguem
+##    jamais veria em jogo.
+func _portas_por_deterioracao(catalogo: Array[DadosSala]) -> void:
+	var combate := _por_id(catalogo, DadosSala.ID_COMBATE)
+	if combate == null:
+		return
+
+	var grupos := combate.grupos_validos()
+	ok(not grupos.is_empty(), "a sala de combate tem grupos")
+	if grupos.is_empty():
+		return
+
+	var abertos := 0
+	for grupo in grupos:
+		if grupo.liberado_em(0.0):
+			abertos += 1
+	ok(
+		abertos >= 1,
+		"ao menos um inimigo esta liberado com a barra em zero (senao a primeira sala nasce vazia)"
+	)
+
+	# O teto do que um andar de verdade entrega: a celula mais distante fica a
+	# cerca de cinco salas da entrada, e cada uma soma `deterioracao_ao_limpar`.
+	# Uma porta acima disso nunca abre.
+	var alcance_de_um_andar := 5.0 * combate.deterioracao_ao_limpar
+	for grupo in grupos:
+		var etiqueta := grupo.cena.resource_path.get_file() if grupo.cena != null else "?"
+		ok(
+			grupo.deterioracao_minima <= alcance_de_um_andar,
+			"%s abre dentro de um andar (porta %.0f, andar entrega ~%.0f)" % [
+				etiqueta, grupo.deterioracao_minima, alcance_de_um_andar,
+			]
+		)
+
+	# Guarda contra a porta virar decoracao: se TODAS forem zero, o campo existe
+	# mas nao escalona nada, e o andar apresenta os sete tipos na primeira sala.
+	var com_porta := 0
+	for grupo in grupos:
+		if grupo.deterioracao_minima > 0.0:
+			com_porta += 1
+	ok(com_porta >= 1, "ao menos um inimigo entra so mais adiante no andar")
+
 
 func _tipo_de_combate(catalogo: Array[DadosSala]) -> void:
 	var combate := _por_id(catalogo, DadosSala.ID_COMBATE)

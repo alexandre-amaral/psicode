@@ -74,6 +74,14 @@ var _spawns_conferidos: Dictionary = {}
 var _spawns_fora: int = 0
 var _diretora_conferida: bool = false
 
+## id de instancia -> true, por tipo de inimigo visto. Existe para o relatorio
+## dizer QUAIS dos sete tipos a run exercitou -- com porta por Deterioracao,
+## nem todos aparecem em todo andar, e "passou" sem essa linha nao diz se o
+## inimigo novo chegou a rodar uma vez sequer.
+var _tipos_vistos: Dictionary = {}
+## Areas de perigo ja contadas. Mesma ideia: prova que o caminho rodou.
+var _areas_vistas: Dictionary = {}
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -116,6 +124,7 @@ func _process(delta: float) -> void:
 	# no mesmo frame. Conferir depois deixaria de olhar justamente os inimigos
 	# que nasceram e morreram entre dois ticks.
 	_conferir_spawns()
+	_contar_areas()
 
 	_t_tick -= delta
 	if _t_tick > 0.0:
@@ -151,6 +160,7 @@ func _conferir_spawns() -> void:
 		if _spawns_conferidos.has(id):
 			continue
 		_spawns_conferidos[id] = true
+		_tipos_vistos[inimigo.scene_file_path.get_file().get_basename()] = true
 		_conferir_um_spawn(inimigo)
 
 
@@ -195,6 +205,32 @@ func _conferir_um_spawn(inimigo: Node2D) -> void:
 	if pos.length() <= FOLGA_SPAWN:
 		texto += " -- nascer colado no (0,0) e sintoma de posicao local usada como global, ou de Vector2.ZERO literal"
 	_relatar_spawn_fora(texto)
+
+
+## Marca as areas novas do frame. So contar no fim nao serviria: elas se
+## liberam sozinhas depois de explodir, entao no fim da run o certo e nao haver
+## nenhuma -- e a guarda ficaria sem saber se alguma chegou a existir.
+func _contar_areas() -> void:
+	for area in _todas_as_areas():
+		_areas_vistas[area.get_instance_id()] = true
+
+
+## Todas as AreaDePerigo ainda vivas na arvore.
+##
+## Varre a arvore em vez de usar um grupo: a area nao entra em grupo nenhum, e
+## por o teste a depender de um grupo criaria a chance de a guarda passar verde
+## so porque alguem esqueceu o add_to_group.
+func _todas_as_areas() -> Array[Node]:
+	return _varrer_areas(get_tree().root)
+
+
+func _varrer_areas(raiz: Node) -> Array[Node]:
+	var lista: Array[Node] = []
+	for filho in raiz.get_children():
+		if filho is AreaDePerigo:
+			lista.append(filho)
+		lista.append_array(_varrer_areas(filho))
+	return lista
 
 
 ## Sobe pelos pais ate achar a Sala dona. Em ferramenta de teste isto e leitura
@@ -507,6 +543,9 @@ func _ao_terminar(venceu: bool, dados: Dictionary) -> void:
 	if _terminou:
 		return
 	_log("run_terminada venceu=%s %s" % [venceu, dados])
+	var tipos := _tipos_vistos.keys()
+	tipos.sort()
+	_log("tipos de inimigo vistos (%d): %s" % [tipos.size(), ", ".join(tipos)])
 	if not venceu:
 		_falhar("a run terminou em derrota")
 
@@ -521,6 +560,19 @@ func _ao_terminar(venceu: bool, dados: Dictionary) -> void:
 	# Os tipos de recompensa sao opcionais no andar, entao nao da para exigir os
 	# dois. Mas se NENHUM apareceu em nenhuma run, algo esta errado na colocacao
 	# -- e a conferencia acima nunca rodou.
+	# Area de perigo que sobrevive ao dono e dano vindo de um inimigo que nao
+	# existe mais -- o jogador nao consegue atribuir aquilo a nada, e le como
+	# bug. O Hacker Parasita morre em toda run, entao as areas dele tem de ir
+	# junto; e as que ele semeou e explodiram tem de se liberar sozinhas.
+	var orfas := _todas_as_areas().size()
+	if orfas > 0:
+		_falhar("sobraram %d area(s) de perigo vivas no fim da run -- elas nao morreram com quem as semeou" % orfas)
+	# O Hacker Parasita tem porta por Deterioracao, entao ele NAO aparece em
+	# todo andar. Exigir que a guarda tenha visto uma area deixaria este teste
+	# vermelho por sorteio; o que da para afirmar sem ser instavel e quantas
+	# foram vistas, e a linha abaixo poe isso no relatorio.
+	_log("areas de perigo criadas nesta run: %d" % _areas_vistas.size())
+
 	if venceu and _recompensas_conferidas.is_empty():
 		_falhar("o andar inteiro saiu sem sala de arma nem de item -- a colocacao das recompensas nao rodou")
 

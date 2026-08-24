@@ -76,7 +76,10 @@ Só depois que a base for divertida.
 - [x] Pente e recarga (`R`, ou automática ao esvaziar), reserva infinita por enquanto
 - [x] Composição de inimigos decidida na montagem do andar, por orçamento de área × densidade
   — as ondas saíram inteiras; inimigo novo passou a ser um `grupo_*.tres`, sem GDScript
-- [ ] Mais dois tipos de inimigo (algo que force reposicionamento, e algo que force priorizar alvo)
+- [x] Mais tipos de inimigo — entraram **cinco**, e nao os dois pedidos: Drone Aranha (rajada radial), Sentinela Orbital (orbita e nega a esquiva lateral), Atirador Neon (tiro telegrafado de linha travada), Cyber-Besta (investida em direcao travada) e Hacker Parasita (areas de perigo no chao)
+  — os dois que o item pedia estao contemplados: a Sentinela forca reposicionamento, o Parasita forca priorizar alvo
+  — cada um entra no andar por uma porta de Deterioracao (`deterioracao_minima` no `grupo_*.tres`), entao o andar apresenta os tipos aos poucos
+  — a maquina de estados compartilhada (`src/enemies/maquina_estados.gd`) e a costura `InimigoBase.direcao_de_locomocao()` sao o espaco deixado para pathfinding e para uma IA mais robusta
 - [ ] 3–4 armas novas — o sistema já suporta: cada arma é um `.tres`, e o pool de loot é `src/items/pool_padrao.tres`
 - [ ] Créditos e loot dropados
 - [ ] Loja clandestina entre runs

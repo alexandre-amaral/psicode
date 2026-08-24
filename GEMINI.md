@@ -79,8 +79,11 @@ src/
                game_state, juice
   player/      player, eco de rolamento
   weapons/     arma.gd, dados_arma.gd, *.tres (pistola, shotgun, armas do chefe)
-  enemies/     inimigo_base, rastejante, vigia, diretora (chefe),
-               grupo_inimigo.gd + grupo_*.tres (quem pode nascer, e a que custo)
+  enemies/     inimigo_base, maquina_estados, area_de_perigo,
+               rastejante, vigia, drone_aranha, sentinela_orbital,
+               atirador_neon, cyber_besta, hacker_parasita, diretora (chefe),
+               grupo_inimigo.gd + grupo_*.tres (quem nasce, a que custo, e a
+               partir de que Deterioracao)
   projectiles/ projetil
   arena/       pickup de arma (instanciado so pela cena da sala de arma)
   mapa/        gerenciador_mapa, sala, porta, corredor, sala_*.tscn,
@@ -146,6 +149,23 @@ em qualquer erro de script.
 
 - **`custo` zero num `GrupoInimigo` giraria o sorteio para sempre.** Por isso o
   sorteio consome `custo_real()`, que tem piso 1, e nunca o campo cru.
+- **A porta por Deterioracao NAO pode ler `Deterioracao.valor`.** A composicao
+  do andar inteiro e sorteada em `_montar_andar()`, com a barra em zero;
+  comparar com o valor real ali barraria todo grupo com porta acima de zero,
+  para sempre e sem erro nenhum. O gerador compara com a Deterioracao ESTIMADA
+  da celula (`salas ate aqui x deterioracao_ao_limpar`).
+- **Se todo grupo tiver porta acima de zero, as salas de combate nascem
+  vazias.** `_sortear_grupo()` devolve `null` e o andar vira uma caminhada, sem
+  uma linha no console. `teste_composicao.gd` exige ao menos um grupo liberado
+  em zero.
+- **Area de perigo tem de morrer com quem a semeou**, e nascer no container da
+  sala e nao como filha do Parasita. Filha dele ela anda junto, e aviso no chao
+  que se move e aviso que mente.
+- **O teste de fumaca nao alcanca inimigo de ciclo longo.** Ele mata tudo a
+  cada 0,12s, e o Parasita leva ~1s entre nascer e semear -- em tres runs
+  seguidas ele apareceu e ZERO areas foram criadas. Comportamento que demora
+  mais que um tick precisa de suite propria (`teste_area_de_perigo.gd`), senao
+  a guarda passa verde sem nunca ter olhado nada.
 - **`Array[Node].filter()` devolve `Array` sem tipo.** Atribuir de volta a uma
   variavel tipada explode em runtime. Use loop explicito.
 - **Referencia de no exportada nao resolve.** Use `NodePath` explicito e

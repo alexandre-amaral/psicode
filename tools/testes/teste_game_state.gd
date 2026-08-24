@@ -14,6 +14,7 @@ func nome() -> String:
 func executar() -> void:
 	_formatar_tempo()
 	_estatisticas()
+	_cronometro_do_chefe()
 	_versao_do_projeto()
 
 
@@ -34,9 +35,51 @@ func _formatar_tempo() -> void:
 
 func _estatisticas() -> void:
 	var e := GameState.estatisticas()
-	for chave in ["salas_limpas", "total_salas", "inimigos_mortos", "creditos", "tempo", "deterioracao_final"]:
+	for chave in [
+		"salas_limpas", "total_salas", "inimigos_mortos", "creditos", "tempo",
+		"tempo_chefe", "deterioracao_final",
+	]:
 		ok(e.has(chave), "estatisticas tem a chave '%s'" % chave)
 	perto(e["deterioracao_final"], Deterioracao.valor, "deterioracao_final reflete o valor atual")
+
+
+## O cronometro da luta do chefe.
+##
+## Ele existe para uma pergunta do playtest -- "quanto a luta pareceu durar, e
+## quanto durou de verdade?" -- entao o que importa e que o numero seja HONESTO,
+## nao que exista. Duas formas de ele mentir, e as duas estao cercadas aqui:
+## contar tempo sem nunca ter havido chefe, e continuar contando depois que a
+## luta acabou.
+##
+## A ponta viva fica com o teste de fumaca, que derruba a Diretora em toda run.
+func _cronometro_do_chefe() -> void:
+	var tempo_original := GameState.tempo_run
+	var chefe_original := GameState._chefe_comecou
+	var medido_original := GameState.tempo_chefe
+
+	# Sem chefe revelado, nao ha o que cronometrar.
+	GameState.tempo_chefe = 0.0
+	GameState._chefe_comecou = -1.0
+	GameState.tempo_run = 120.0
+	GameState._fechar_cronometro_do_chefe()
+	perto(GameState.tempo_chefe, 0.0, "sem chefe revelado, a luta marca zero")
+
+	# Com chefe: conta do instante da revelacao ate agora.
+	GameState._chefe_comecou = 100.0
+	GameState.tempo_run = 175.0
+	GameState._fechar_cronometro_do_chefe()
+	perto(GameState.tempo_chefe, 75.0, "a luta conta da revelacao ate o fim")
+
+	# Idempotente. A morte da Diretora fecha o cronometro, e `terminar_run`
+	# chama de novo logo em seguida -- sem a trava, o segundo esticaria a luta
+	# ate o instante em que a tela de fim aparece.
+	GameState.tempo_run = 400.0
+	GameState._fechar_cronometro_do_chefe()
+	perto(GameState.tempo_chefe, 75.0, "fechar de novo nao estica a luta")
+
+	GameState.tempo_run = tempo_original
+	GameState._chefe_comecou = chefe_original
+	GameState.tempo_chefe = medido_original
 
 
 ## O menu inicial mostra a versao lendo daqui. Ja aconteceu de a cena trazer

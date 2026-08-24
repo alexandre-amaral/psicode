@@ -49,7 +49,8 @@ Sugestão de divisão para a Fase 1 (ajuste como quiserem):
 |---|---|
 | Jogador e armas | `src/player/`, `src/weapons/` |
 | Inimigos e chefe | `src/enemies/` |
-| Arena, ondas e UI | `src/arena/`, `src/ui/` |
+| Andar, salas e UI | `src/mapa/`, `src/ui/` |
+| Implantes e loot | `src/items/` |
 
 Balanceamento (`.tres`) qualquer um mexe — são arquivos pequenos e o conflito,
 quando acontece, é trivial de resolver.
@@ -69,7 +70,7 @@ como são, óbvio.
 class_name InimigoBase         # PascalCase
 var velocidade_maxima: float   # snake_case
 const LIMIAR_MEDIO := 50.0     # CONSTANTE_MAIUSCULA
-signal onda_limpa(indice: int) # snake_case, no passado (algo aconteceu)
+signal sala_limpa(sala: Node2D) # snake_case, no passado (algo aconteceu)
 func _metodo_privado()         # underscore na frente
 ```
 
@@ -123,7 +124,8 @@ func velocidade_atual() -> float:
 ## Números vão para `.tres`, não para o código
 
 Se é um número que alguém vai querer ajustar sem programar, ele é um campo
-`@export` ou um `Resource`. Armas e ondas já funcionam assim.
+`@export` ou um `Resource`. Armas, tipos de sala, grupos de inimigo e
+implantes já funcionam assim.
 
 Quando adicionar um número novo, pergunte: "alguém vai querer mexer nisso numa
 sessão de tuning?" Se sim, exporte.
@@ -145,12 +147,17 @@ São dois níveis de propósito:
 | | Responde | Quando quebra |
 |---|---|---|
 | `tools/testes/` | "a conta está certa?" | você mexeu em lógica: Deterioração, Balística, um `.tres` |
-| `tools/teste_fumaca.gd` | "a run inteira funciona?" | você mexeu em cena, spawn, fluxo de ondas ou salas |
+| `tools/teste_fumaca.gd` | "a run inteira funciona?" | você mexeu em cena, spawn ou no fluxo de salas |
 
 **Mexeu num número de balanceamento?** Rode o unitário. Boa parte das suites
 existe justamente para pegar erro de tuning: cadência 0 virando divisão por
-zero, onda comum sem nenhum inimigo (a run trava ali), pistola perdendo a
-munição infinita que o GDD promete.
+zero, sala de recompensa com inimigo dentro, custo de inimigo zerado (o sorteio
+de composição nunca terminaria), pistola perdendo a munição infinita que o GDD
+promete.
+
+Existem também duas **réguas** em `tools/` — `medir_ritmo` e
+`medir_composicao`. Elas não passam nem falham: medem, e a saída delas é o que
+sustenta a sessão de tuning. Ver `TUNING.md`.
 
 **Criou lógica pura nova?** Adicione uma suite: crie o arquivo em
 `tools/testes/`, herde de `TesteBase`, implemente `executar()` e liste em

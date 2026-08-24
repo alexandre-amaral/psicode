@@ -34,14 +34,15 @@ menu — é o estado mental do personagem, e ele piora enquanto você joga.
 4. **Limpar a sala** — portas abrem, coletar loot, seguir
 5. **Morrer** — a consciência é restaurada num backup na base; gastar Núcleos de Memória em novos implantes para as próximas runs
 
-No vertical slice, os passos 1 e 4 viram **ondas na mesma arena** e o passo 5
-vira uma tela de fim. A meta-progressão fica para depois.
+No vertical slice o passo 5 vira uma tela de fim, e a meta-progressão fica para
+depois. Os passos 1 a 4 já são literais: o andar tem 10 salas sorteadas, as
+portas trancam ao entrar e abrem quando a última ameaça cai.
 
 ## 3. Mecânicas
 
 ### 3.1 Deterioração (sanidade / percepção)
 
-Um valor de 0 a 100 que sobe passivamente e ao limpar cada onda. **Todo ajuste
+Um valor de 0 a 100 que sobe passivamente e ao limpar cada sala. **Todo ajuste
 de dificuldade do jogo lê daqui** — nenhum inimigo guarda um número já
 multiplicado. Isso concentra o balanceamento num arquivo só e garante que a
 barra subindo se manifeste no comportamento, não só no visual.
@@ -72,9 +73,14 @@ resolve o problema do intercepto — dado onde você está, sua velocidade e a
 velocidade do projétil, ele calcula onde você **vai estar** e atira lá.
 
 Isso ataca especificamente o rolamento, porque o rolamento é o momento em que
-sua velocidade é mais alta e mais previsível. A esquiva que salvava você na
-onda 1 vira a armadilha na onda 4. O jogador precisa aprender a rolar
-*depois* do disparo, não antes.
+sua velocidade é mais alta e mais previsível. A esquiva que salvava você nas
+primeiras salas vira a armadilha na segunda metade do andar. O jogador precisa
+aprender a rolar *depois* do disparo, não antes.
+
+**Onde a virada cai importa tanto quanto o que ela faz.** Se ela chegar antes de
+o jogador ter formado um hábito de esquiva, não há hábito para trair — a
+mecânica vira só "inimigos mais precisos". A `tools/medir_ritmo.tscn` mede em
+que ponto da run o limiar cai; hoje é entre 38% e 50% dela.
 
 Um **laser de telegrafo** aparece durante a mira e ensina a mecânica sem
 tutorial: o jogador vê a linha parar num ponto vazio à frente dele e entende.
@@ -100,7 +106,9 @@ forçando adaptação. No vertical slice, a Diretora existe apenas como chefe.
 | Inimigo ranged (Vigia) com mira preditiva acima de 50% | ✅ |
 | Barra de Deterioração com dois limiares visíveis | ✅ |
 | Arena quadrada fechada com paredes e grade | ✅ |
-| 5 ondas com composição e escalada configuráveis | ✅ |
+| Andar de 8–12 salas com lockdown, tipos e minimapa | ✅ |
+| Composição de inimigos escolhida na montagem do andar, por orçamento de área | ✅ |
+| 16 implantes passivos, incluindo condicionais e comportamentais | ✅ |
 | Chefe: IA Diretora, 3 fases, telegrafo em todo ataque | ✅ |
 | Shader de alucinação, screen shake, hitstop, knockback | ✅ |
 | HUD, tela de vitória e derrota com estatísticas | ✅ |
@@ -126,18 +134,21 @@ cima de quem estava no meio de uma esquiva.
 
 ## 5. Fora do escopo desta build
 
-Geração de salas, meta-progressão e loja clandestina, implantes que substituem
-a esquiva, IA Diretora heurística de verdade, arte, som e música, mais de duas
-armas, tipos adicionais de inimigo.
+Meta-progressão e loja clandestina, implantes que substituem a esquiva, IA
+Diretora heurística de verdade, arte, som e música, mais de duas armas, tipos
+adicionais de inimigo.
+
+> A geração de salas saiu desta lista: ela foi entregue antes da hora, com a
+> Fase 1 ainda aberta. Está no `ROADMAP.md`, Fase 3.
 
 Estão no [ROADMAP](ROADMAP.md).
 
 ## 6. Pergunta que esta build precisa responder
 
-> Sobreviver às cinco ondas e derrubar a Diretora é divertido **sem arte e sem
-> som**?
+> Atravessar o andar e derrubar a Diretora é divertido **sem arte e sem som**?
 
 Se for, o resto é acabamento. Se não for, nenhuma quantidade de arte salva —
 e é melhor descobrir isso agora.
 
-Perguntas específicas para os testadores estão no [ROADMAP](ROADMAP.md#fase-1).
+As perguntas para os testadores, e o porquê de cada uma, estão em
+[PLAYTEST.md](PLAYTEST.md).

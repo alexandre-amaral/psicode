@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://pv7ni2cqhygf"
-path="res://.godot/imported/01_onda1_estavel.png-9370f192601c323b17798ce2e2bc5e87.ctex"
+uid="uid://hclcv4mfaecy"
+path="res://.godot/imported/07_sala_de_combate.png-989365155e126a12340344e89f06b6bb.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/capturas/01_onda1_estavel.png"
-dest_files=["res://.godot/imported/01_onda1_estavel.png-9370f192601c323b17798ce2e2bc5e87.ctex"]
+source_file="res://docs/capturas/07_sala_de_combate.png"
+dest_files=["res://.godot/imported/07_sala_de_combate.png-989365155e126a12340344e89f06b6bb.ctex"]
 
 [params]
 

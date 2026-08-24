@@ -1,6 +1,6 @@
 # psicode — contexto para agente de IA
 
-Twin-stick shooter / bullet hell / roguelike cyberpunk em **Godot 4.7-stable**
+Twin-stick shooter / bullet hell / roguelike cyberpunk em **Godot 4.7.2-stable**
 (versao standard, nao .NET) com **GDScript**. Renderer **Compatibility (GL)**,
 obrigatorio para o export web.
 
@@ -21,6 +21,8 @@ documentos abaixo — leia antes de propor mecanica nova:
 | `docs/CONVENCOES.md` | Git, divisao de arquivos, estilo de codigo |
 | `docs/HANDOFF.md` | Passo a passo para quem nao conhece Godot nem Git |
 | `docs/BUILD.md` | Export Windows e web |
+| `docs/TUNING.md` | Todos os botoes de balanceamento e o que a medicao ja disse |
+| `docs/PLAYTEST.md` | As perguntas do playtest e a mensagem pronta |
 | `docs/MCP.md` | Servidor MCP que liga assistente de IA ao editor aberto |
 
 Quando o codigo e o texto discordarem, **o codigo ganha e o texto se

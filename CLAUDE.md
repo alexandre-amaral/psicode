@@ -40,24 +40,25 @@ O mesmo teste roda em todo push e PR pelo `.github/workflows/ci.yml`.
 
 ## Versao do Godot — conferir antes de confiar
 
-Os arquivos discordam entre si. Se algo quebrar por versao, e aqui:
+As quatro fontes **concordam** desde a entrega da Fase 1, e concordam de
+proposito: a build que vai para o testador sai do CI, entao ele tem de rodar o
+mesmo engine que abriu o projeto.
 
 | Onde | Diz |
 |---|---|
-| `GEMINI.md` | 4.7-stable |
 | `project.godot` (`config/features`) | 4.7 |
-| `README.md` | 4.6 |
-| `.github/workflows/ci.yml` (`GODOT_VERSAO`) | 4.6-stable |
+| `GEMINI.md` e `README.md` | 4.7.2-stable |
+| `.github/workflows/ci.yml` e `release.yml` (`GODOT_VERSAO`) | 4.7.2-stable |
 
-O editor instalado nesta maquina e **4.7.2-stable**, e nao esta no PATH:
+Se for mudar de versao, mude nos quatro. O editor instalado nesta maquina e
+**4.7.2-stable**, e nao esta no PATH:
 
 ```bash
 GODOT="/c/Users/alcyn/Downloads/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe"
 ```
 
 Use a variante `_console.exe` — a outra nao devolve stdout, e o teste de fumaca
-se comunica imprimindo. O risco real: **local roda 4.7.2 e o CI roda 4.6**, entao
-um recurso de 4.7 passa aqui e quebra no PR.
+se comunica imprimindo.
 
 ## Arquitetura que so aparece lendo varios arquivos
 

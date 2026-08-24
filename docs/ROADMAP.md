@@ -9,8 +9,9 @@ com data só cria dívida moral.
 ## Fase 0 — Base técnica ✅ concluída
 
 Stack decidida, repositório com LFS e CI, handoff escrito, e a POC completa
-rodando: 5 ondas, dois limiares de Deterioração, chefe em três fases, vitória
-e derrota.
+rodando: cinco ondas numa arena, dois limiares de Deterioração, chefe em três
+fases, vitória e derrota. (As ondas foram substituídas pelo andar de salas na
+Fase 3.)
 
 **Saída:** o projeto abre e joga na máquina dos três.
 
@@ -21,21 +22,21 @@ e derrota.
 O objetivo aqui **não é adicionar conteúdo**. É descobrir se a base é
 divertida antes de investir em qualquer coisa.
 
-- [ ] Sessão de tuning dos três juntos: velocidade do jogador, cooldown do rolamento, vida dos inimigos, ritmo das ondas
-- [ ] Ajustar dificuldade da onda 4 (é onde a mira preditiva já está ligada e o campo está cheio — provavelmente é o pico real)
-- [ ] Rebalancear vida do chefe pelo tempo de luta observado, não pelo número que está lá hoje
-- [ ] Exportar build de Windows e build web
+- [x] Instrumentos de tuning: `docs/TUNING.md` com todos os botões, e duas réguas headless (`tools/medir_ritmo.tscn`, `tools/medir_composicao.tscn`) que medem a curva da run em vez de opinar sobre ela
+- [x] ~~Ajustar dificuldade da onda 4~~ → **achar e corrigir o pico real**. Não há onda 4; a régua mostrou o problema equivalente: a mira preditiva ligava no primeiro terço da run, antes de o jogador ter formado o hábito de esquiva que ela existe para trair. Ganho passivo `0.35 → 0.25` e ganho por sala `8 → 6` puseram o limiar entre 38% e 50% da run
+- [x] Cronômetro da luta do chefe na tela de fim — é o que torna a pergunta 4 respondível com dado em vez de memória
+- [x] CI e release na mesma versão do Godot que o editor do time (4.7.2-stable). A build do testador sai do CI; ela precisa vir do mesmo engine que abriu o projeto
+- [ ] Sessão de tuning dos três juntos: velocidade do jogador, cooldown do rolamento, vida dos inimigos, densidade das salas
+- [ ] Rebalancear vida do chefe pelo tempo de luta **observado**. A régua diz 59 s (jogador praticado) a 2min10 (cauteloso), e a faixa boa é 60–90 s — o tempo é dominado pelo uptime, não pela vida, então o número só se resolve com gente jogando
+- [ ] Exportar build de Windows e build web (o `release.yml` faz sozinho a partir da tag)
 - [ ] Subir a build web no itch.io como projeto privado, com senha
 - [ ] Mandar o link para 5–8 amigos
 
-**Perguntas para os testadores** — mande estas cinco junto com o link, não
-pergunte "gostou?":
-
-1. Em que momento você entendeu que os inimigos passaram a prever seu rolamento?
-2. Alguma morte pareceu injusta? Qual?
-3. A shotgun valeu a pena pegar, ou você ficou na pistola?
-4. Quanto tempo a luta do chefe pareceu durar? E quanto durou de verdade?
-5. Você jogaria de novo agora mesmo?
+**Perguntas para os testadores:** estão em [PLAYTEST.md](PLAYTEST.md), com a
+mensagem pronta para copiar e o porquê de cada pergunta. As cinco antigas
+falavam de "cinco ondas"; foram revistas para o jogo que existe hoje, e uma
+delas passou a cobrir orientação no andar — o minimapa é conteúdo novo e nunca
+foi visto por ninguém de fora.
 
 **Saída:** um link jogável e uma lista de problemas ordenada pelo que mais
 apareceu.
@@ -73,6 +74,8 @@ Só depois que a base for divertida.
 - [x] 16 implantes, incluindo condicionais (vida baixa, cargas, tiros de eco) e comportamentais (ricochete, fragmentação, vampirismo, marcador)
   — `DadosItem` virou lista de `EfeitoItem` + um comportamento; item só-numérico não custa GDScript
 - [x] Pente e recarga (`R`, ou automática ao esvaziar), reserva infinita por enquanto
+- [x] Composição de inimigos decidida na montagem do andar, por orçamento de área × densidade
+  — as ondas saíram inteiras; inimigo novo passou a ser um `grupo_*.tres`, sem GDScript
 - [ ] Mais dois tipos de inimigo (algo que force reposicionamento, e algo que force priorizar alvo)
 - [ ] 3–4 armas novas — o sistema já suporta: cada arma é um `.tres`, e o pool de loot é `src/items/pool_padrao.tres`
 - [ ] Créditos e loot dropados

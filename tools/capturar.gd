@@ -3,7 +3,7 @@ extends Node
 ## salva screenshots em momentos-chave. Serve para revisar o visual sem abrir
 ## o editor e para gerar as imagens da documentacao.
 ##
-## Uso: godot --path . tools/capturar.tscn --resolution 1280x720
+## Uso: godot --path . tools/capturar.tscn --resolution 960x544
 ## As imagens saem em user://capturas.
 
 const SAIDA := "user://capturas"

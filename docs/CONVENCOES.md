@@ -160,7 +160,7 @@ dão conta, e cada falha já diz o esperado e o obtido.
 Se você mexeu em algo visual:
 
 ```bash
-godot --path . tools/capturar.tscn --resolution 1280x720
+godot --path . tools/capturar.tscn --resolution 960x544
 ```
 
 e olhe as imagens em `user://capturas`. Vários problemas de leitura visual só

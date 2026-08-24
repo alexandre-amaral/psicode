@@ -23,7 +23,7 @@ var _configurado: bool = false
 
 ## "de" e "para" sao pontos GLOBAIS (as bocas das duas portas).
 ## Chamar DEPOIS de add_child: depende de global_position ja valido.
-func configurar(de: Vector2, para: Vector2, largura: float = 120.0) -> void:
+func configurar(de: Vector2, para: Vector2, largura: float = 80.0) -> void:
 	_limpar()
 
 	var delta: Vector2 = para - de

@@ -18,10 +18,10 @@ extends Control
 ## pelo grupo (a excecao legitima do projeto) e redesenha por sinal do EventBus.
 
 @export_group("Enquadramento")
-@export var margem: float = 10.0
-@export var largura_contorno: float = 1.5
+@export var margem: float = 6.0
+@export var largura_contorno: float = 1.0
 ## Espessura da borda da sala em que o jogador esta.
-@export var largura_atual: float = 3.0
+@export var largura_atual: float = 2.0
 
 @export_group("Cores")
 @export var cor_fundo: Color = Color(0.04, 0.05, 0.09, 0.55)
@@ -220,7 +220,7 @@ func _desenhar_icone(pontos: PackedVector2Array, texto: String, cor: Color) -> v
 	if fonte == null:
 		return
 	var centro := _centro_interno(pontos)
-	var tamanho := 11
+	var tamanho := 9
 	var medida := fonte.get_string_size(texto, HORIZONTAL_ALIGNMENT_LEFT, -1.0, tamanho)
 	var cor_forte := cor
 	cor_forte.a = 1.0

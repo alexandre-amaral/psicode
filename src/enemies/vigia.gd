@@ -10,8 +10,8 @@ extends InimigoBase
 ## o jogador ve a linha parar em um ponto vazio a frente dele e entende.
 
 @export_group("Posicionamento")
-@export var distancia_ideal: float = 300.0
-@export var margem: float = 70.0
+@export var distancia_ideal: float = 180.0
+@export var margem: float = 42.0
 ## Velocidade lateral relativa. Andar de lado mantem o Vigia dificil de acertar.
 @export var fator_strafe: float = 0.75
 

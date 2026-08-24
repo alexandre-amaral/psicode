@@ -6,7 +6,7 @@ extends InimigoBase
 
 @export_group("Investida")
 ## So investe a partir da fase MEDIA da Deterioracao.
-@export var investida_alcance: float = 210.0
+@export var investida_alcance: float = 128.0
 @export var investida_preparo: float = 0.32
 @export var investida_velocidade: float = 560.0
 @export var investida_duracao: float = 0.26

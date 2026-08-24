@@ -30,7 +30,7 @@ extends Resource
 ## Espalhamento aleatorio adicional aplicado a cada projetil, em graus.
 @export var impressao_graus: float = 1.5
 @export var velocidade_projetil: float = 900.0
-@export var alcance: float = 900.0
+@export var alcance: float = 544.0
 @export var raio_projetil: float = 4.0
 @export var cor_projetil: Color = Color("6ee7ff")
 

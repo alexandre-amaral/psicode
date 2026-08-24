@@ -174,7 +174,7 @@ func _atualizar_rastro() -> void:
 		return
 	_rastro.set_point_position(0, global_position)
 	# O ponto de tras fica sempre alguns frames atras, na direcao oposta.
-	_rastro.set_point_position(1, global_position - velocidade.normalized() * maxf(raio * 6.0, 22.0))
+	_rastro.set_point_position(1, global_position - velocidade.normalized() * maxf(raio * 6.0, 16.0))
 
 
 ## Identidade visual da Deterioracao alta: os projeteis inimigos passam a

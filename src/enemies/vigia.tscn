@@ -17,7 +17,7 @@ dano_contato = 1
 creditos = 5
 cor_base = Color(0.78, 0.36, 1, 1)
 raio_contato = 30.0
-distancia_ideal = 300.0
+distancia_ideal = 180.0
 intervalo_disparo = 2.1
 tempo_mira = 0.55
 

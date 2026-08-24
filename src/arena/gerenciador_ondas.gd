@@ -31,9 +31,9 @@ const POOL_PADRAO := preload("res://src/items/pool_padrao.tres")
 ## Retangulo util onde inimigos podem nascer, em coordenadas LOCAIS da sala.
 ## Quem consome converte para global via _para_global(); nunca use este valor
 ## direto como posicao de mundo.
-@export var area_spawn: Rect2 = Rect2(-700, -370, 1400, 740)
+@export var area_spawn: Rect2 = Rect2(-352, -176, 704, 352)
 ## Distancia minima entre um spawn e o jogador. Impede spawn na cara.
-@export var distancia_minima_player: float = 300.0
+@export var distancia_minima_player: float = 180.0
 
 var indice: int = -1
 var rodando: bool = false
@@ -238,7 +238,7 @@ func _limpar_onda() -> void:
 func _soltar_arma() -> void:
 	if container_pickups == null:
 		return
-	var pos := _sortear_posicao(180.0)
+	var pos := _sortear_posicao(112.0)
 	var pickup := CENA_PICKUP.instantiate()
 
 	# ANTES do add_child: o _ready do pickup le `dados`/`pool` para pintar o

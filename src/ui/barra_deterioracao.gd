@@ -3,7 +3,7 @@ extends Control
 ## limiares (50% e 85%) -- e la que o comportamento dos inimigos muda, entao
 ## o jogador precisa ver a barra chegando.
 
-@export var altura_barra: float = 18.0
+@export var altura_barra: float = 13.0
 
 var _valor_exibido: float = 0.0
 

@@ -105,7 +105,7 @@ O tuning mora em arquivos `.tres`, editáveis pelo Inspetor do Godot:
 godot --headless --path . tools/teste_fumaca.tscn
 
 # gera screenshots em user://capturas
-godot --path . tools/capturar.tscn --resolution 1280x720
+godot --path . tools/capturar.tscn --resolution 960x544
 ```
 
 O teste de fumaça também valida a matemática da mira preditiva e os limiares

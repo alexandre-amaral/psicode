@@ -15,7 +15,7 @@ enum Direcao { NORTE, SUL, LESTE, OESTE }
 enum Estado { ABERTA, TRANCADA, SELADA }
 
 ## Vao que a parede da sala precisa abrir para caber esta porta.
-const LARGURA := 120.0
+const LARGURA := 80.0
 
 const COR_ABERTA := Color(0.0, 0.8, 1.0, 0.4)
 const COR_TRANCADA := Color(1.0, 0.25, 0.4, 0.75)

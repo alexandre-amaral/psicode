@@ -25,7 +25,42 @@ func nome() -> String:
 	return "DadosArma"
 
 
+## O perfil que a tela de selecao desenha em barras.
+##
+## A PRECISAO e invertida -- espalhamento maior significa barra menor -- e e
+## exatamente o tipo de conta que erra calado: trocado o sinal, a SMG apareceria
+## como a arma mais precisa do jogo e nada no console reclamaria.
+func _perfil_da_arma() -> void:
+	var mantis: DadosArma = load("res://src/weapons/smg_mantis.tres")
+	var cipher: DadosArma = load("res://src/weapons/pistola_cipher.tres")
+	if mantis == null or cipher == null:
+		ok(false, "as armas de personagem carregam")
+		return
+
+	ok(mantis.perfil_cadencia() > cipher.perfil_cadencia(), "a SMG dispara mais rapido que a Cipher")
+	ok(cipher.perfil_dano() > mantis.perfil_dano(), "a Cipher bate mais forte que a SMG")
+	ok(cipher.perfil_precisao() > mantis.perfil_precisao(), "a Cipher e mais precisa que a SMG")
+	ok(cipher.perfil_alcance() > mantis.perfil_alcance(), "a Cipher alcanca mais que a SMG")
+
+	# O bloom conta na precisao: uma SMG que abre 7 graus segurando o gatilho nao
+	# e precisa, ainda que o primeiro tiro seja.
+	var sem_bloom := DadosArma.new()
+	sem_bloom.impressao_graus = mantis.impressao_graus
+	ok(
+		sem_bloom.perfil_precisao() > mantis.perfil_precisao(),
+		"a mesma arma sem bloom aparece mais precisa"
+	)
+
+	# Toda barra e uma fracao: fora de 0..1 o desenho estoura o numero de
+	# segmentos, e uma arma exagerada satura em vez de quebrar o layout.
+	for arma: DadosArma in [mantis, cipher, load("res://src/weapons/shotgun.tres")]:
+		for valor: float in [arma.perfil_dano(), arma.perfil_cadencia(),
+				arma.perfil_precisao(), arma.perfil_alcance()]:
+			entre(valor, 0.0, 1.0, "%s: barra dentro de 0..1" % arma.nome)
+
+
 func executar() -> void:
+	_perfil_da_arma()
 	_contrato()
 	_armas_do_projeto()
 	_pistola()

@@ -1,75 +1,76 @@
 extends Control
-## Tela de escolha de personagem, entre o menu e a run.
+## Tela de escolha de operador. E a PRIMEIRA tela do jogo, nao um painel sobre
+## o menu.
 ##
-## Nao troca de cena, alterna `visible` -- o mesmo padrao de menu_opcoes, e pelo
-## mesmo motivo dito la: trocar de cena obrigaria a recriar o fundo e o logo do
-## menu, e a saber de onde o jogador veio para poder voltar.
+## Ela absorveu o menu inicial. O fluxo era intro -> menu -> NOVO JOGO ->
+## selecao, e "NOVO JOGO" era um clique que so existia para levar a tela onde a
+## escolha de verdade acontece. Hoje escolher o operador E comecar a partida, e
+## OPCOES/SAIR ficam na barra de baixo. "CARREGAR" saiu junto: era um botao que
+## imprimia "nao implementado" no console.
 ##
-## A lista de personagens e @export e nao um preload fixo: personagem novo e um
-## .tres arrastado para esta lista no editor, sem GDScript. Os cards sao
-## construidos em codigo a partir dela, entao a cena nao sabe quantos sao.
+## Toda a moldura e DESENHADA (`MolduraHud`) em vez de vir de textura: o chanfro
+## de canto nao existe em StyleBox, e desenhar deixa a cor do operador tingir o
+## cartao em runtime sem precisar de um arquivo por cor.
+##
+## A lista de personagens e @export: operador novo e um .tres arrastado para ela
+## no editor, sem GDScript.
 
 signal escolhido(dados: DadosPersonagem)
-signal fechado()
+signal pediu_opcoes()
+signal pediu_sair()
 
-## Largura de cada card. Dois cabem lado a lado na tela de 960 com folga.
-const LARGURA_CARD := 280
-const SEPARACAO := 32
-## Lado da miniatura. 128 = 2x exato dos 80 do arquivo? Nao: e o TETO da caixa.
-## O retrato usa KEEP_ASPECT_CENTERED, entao 160 = 2x exato dos 80 e o que
-## mantem a grade de pixel intacta -- escala fracionaria borra pixel art mesmo
-## com filtro Nearest.
-const LADO_MINIATURA := 160
+const LARGURA_CARD := 330
+## Altura da caixa do retrato. O arquivo ja vem em 128 (o recorte de 64 dobrado
+## pelo gerador), entao a caixa em 128 desenha 1:1 -- qualquer outro numero
+## reescalaria e borraria a pixel art.
+const LADO_MINIATURA := 128
+const SEPARACAO := 28
 
+const COR_MOLDURA := Color(0.35, 0.62, 0.95)
 const COR_TITULO := Color(1.0, 0.6, 0.2)
+const COR_TEXTO := Color(0.66, 0.72, 0.84)
 
-## Espessura da borda do cartao.
-const BORDA := 2
-## Fundo do cartao. Um degrau acima do painel (0.05, 0.05, 0.08) para o cartao
-## se separar dele sem precisar de sombra.
-const COR_FUNDO_CARTAO := Color(0.09, 0.10, 0.14, 0.9)
+## Alfa da borda do cartao fora de foco. Esmaecer em vez de trocar por cinza
+## mantem a identidade do operador legivel mesmo no cartao que nao esta ativo.
+const ESMAECIDO := 0.22
 
 @export var personagens: Array[DadosPersonagem] = []
 
-@onready var _linha: HBoxContainer = $Painel/Linha
+@onready var _quadro: MolduraHud = $Quadro
+@onready var _linha: HBoxContainer = $Quadro/Conteudo/Linha
+@onready var _titulo: Label = $Quadro/Conteudo/Titulo
+@onready var _barra: MolduraHud = $BarraInferior
+@onready var _btn_opcoes: Button = $BarraInferior/Botoes/BtnOpcoes
+@onready var _btn_sair: Button = $BarraInferior/Botoes/BtnSair
 
 var _botoes: Array[Button] = []
-## botao -> { "cartao": PanelContainer, "normal": StyleBox, "focada": StyleBox }.
-## Um dicionario em vez de subir pela arvore a partir do botao: caminho de no e
-## o que o GEMINI.md manda evitar, e aqui ele quebraria a cada mexida no layout.
+## botao -> { "cartao": MolduraHud, "cor": Color }. Dicionario em vez de subir
+## pela arvore a partir do botao: caminho de no e o que o GEMINI.md manda
+## evitar, e aqui ele quebraria a cada mexida no layout.
 var _cartoes: Dictionary = {}
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	visible = false
+	_quadro.cor_borda = COR_MOLDURA
+	_barra.cor_borda = Color(COR_MOLDURA, 0.7)
+	_titulo.add_theme_color_override("font_color", COR_TITULO)
+
 	_montar_cards()
+	_btn_opcoes.pressed.connect(func() -> void: pediu_opcoes.emit())
+	_btn_sair.pressed.connect(func() -> void: pediu_sair.emit())
+	focar_primeiro()
 
 
-func abrir() -> void:
-	visible = true
+## Devolve o foco ao primeiro cartao. Quem fecha as opcoes chama isto: sem
+## ancora, a navegacao por teclado fica sem cursor visivel.
+func focar_primeiro() -> void:
 	if not _botoes.is_empty():
 		_botoes[0].grab_focus()
 
 
-func fechar() -> void:
-	if not visible:
-		return
-	visible = false
-	fechado.emit()
-
-
-## ESC fecha. Marcar como tratado e obrigatorio: main.gd escuta `pausar` em
-## _unhandled_input, e sem isto o mesmo ESC fecharia a tela E pediria pausa.
-func _input(evento: InputEvent) -> void:
-	if not visible:
-		return
-	if evento.is_action_pressed("pausar"):
-		fechar()
-		get_viewport().set_input_as_handled()
-
-
 func _montar_cards() -> void:
+	_linha.add_theme_constant_override("separation", SEPARACAO)
 	for dados in personagens:
 		if dados == null:
 			continue
@@ -86,54 +87,55 @@ func _montar_cards() -> void:
 		_ao_focar(false, btn)
 
 
-## Miniatura, nome e arma. So isso, e o cartao INTEIRO clica.
+## Um cartao: moldura chanfrada, nome, retrato, arma, texto e o perfil da arma.
 ##
-## O papel e a lista de comportamentos sairam: o card e para RECONHECER quem se
-## escolhe, nao para ensinar a jogar. Com quatro blocos de texto, a arte -- que
-## e o que de fato distingue as duas -- ficava espremida entre paragrafos.
-##
-## A area de clique e um Button de rect cheio POR CIMA do conteudo, e nao o
-## nome. Antes so o texto do nome respondia: o jogador mirava na arte, clicava,
-## e nao acontecia nada -- num cartao de 280x260, o alvo util era uma linha de
-## texto. Como PanelContainer estica todo filho para o proprio rect, o botao
-## cobre o cartao sozinho; e por ser o ULTIMO filho, ele fica na frente na
-## ordem de desenho, que e a mesma ordem em que o input e oferecido.
+## A area de clique e um Button de rect cheio POR CIMA de tudo, e nao o nome.
+## Antes so o texto do nome respondia: o jogador mirava na arte, clicava, e nada
+## acontecia -- num cartao deste tamanho o alvo util era uma linha de texto.
 func _criar_card(dados: DadosPersonagem) -> Control:
-	var cartao := PanelContainer.new()
+	var cartao := MolduraHud.new()
 	cartao.custom_minimum_size = Vector2(LARGURA_CARD, 0)
+	cartao.cor_borda = Color(dados.cor, ESMAECIDO)
+	cartao.cor_fundo = Color(0.05, 0.06, 0.09, 0.92)
+	cartao.chanfro = 16.0
+	cartao.espessura = 1.0
+	cartao.colchetes = true
+	# Menor que o padrao: no cartao os colchetes moram dentro da margem, e no
+	# tamanho cheio a perna deles alcancava a primeira linha do perfil da arma.
+	cartao.tamanho_colchete = 13.0
 	cartao.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
-	var normal := _borda(dados.cor, 0.35)
-	var focada := _borda(dados.cor, 1.0)
-	cartao.add_theme_stylebox_override("panel", normal)
+	cartao.margem = 14
 
 	var coluna := VBoxContainer.new()
-	coluna.add_theme_constant_override("separation", 10)
-	# So decoracao: quem responde a mouse e o botao de cima.
+	coluna.add_theme_constant_override("separation", 5)
 	coluna.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cartao.add_child(coluna)
+
+	coluna.add_child(_faixa_do_nome(dados))
 
 	if dados.miniatura != null:
 		var retrato := TextureRect.new()
 		retrato.texture = dados.miniatura
-		retrato.custom_minimum_size = Vector2(LADO_MINIATURA, LADO_MINIATURA)
+		retrato.custom_minimum_size = Vector2(0, LADO_MINIATURA)
 		retrato.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		retrato.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		retrato.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		coluna.add_child(retrato)
 
-	var nome := _rotulo(dados.nome, 24, dados.cor, LARGURA_CARD - 32)
-	nome.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	coluna.add_child(nome)
+	coluna.add_child(_faixa_da_arma(dados))
+	coluna.add_child(_rotulo(tr(dados.descricao), 11, COR_TEXTO))
+	coluna.add_child(_separador(dados.cor))
+	for barra in _perfil_da_arma(dados):
+		coluna.add_child(barra)
 
-	var arma := dados.arma_inicial.nome if dados.arma_inicial != null else "-"
-	var rotulo := _rotulo(arma, 12, COR_TITULO, LARGURA_CARD - 32)
-	rotulo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	coluna.add_child(rotulo)
-
+	# MarginContainer estica TODO filho para o proprio retangulo, entao o botao
+	# cobre o cartao sem precisar de ancora.
 	var area := Button.new()
 	area.focus_mode = Control.FOCUS_ALL
-	# Invisivel de proposito: quem desenha o estado e a borda do PanelContainer
-	# e a cor do nome. O botao existe so para receber clique e foco.
+	# Invisivel: quem desenha o estado e a moldura. O botao so recebe clique e
+	# foco -- e por ser o ULTIMO filho fica na frente na ordem de desenho, que e
+	# a mesma ordem em que o input e oferecido.
 	var vazio := StyleBoxEmpty.new()
 	for estado in ["normal", "hover", "pressed", "focus", "disabled"]:
 		area.add_theme_stylebox_override(estado, vazio)
@@ -141,56 +143,139 @@ func _criar_card(dados: DadosPersonagem) -> Control:
 	cartao.add_child(area)
 
 	_botoes.append(area)
-	_cartoes[area] = {
-		"cartao": cartao, "normal": normal, "focada": focada,
-		"nome": nome, "cor": dados.cor,
-	}
+	_cartoes[area] = {"cartao": cartao, "cor": dados.cor}
 	return cartao
 
 
-## A borda do cartao, na cor do personagem. `intensidade` separa o estado de
-## foco do de repouso -- e ela, e nao o marcador ">", que diz onde o cursor
-## esta: com o nome centralizado, prefixar ">" empurraria o texto de lado a
-## cada troca de foco.
-func _borda(cor: Color, intensidade: float) -> StyleBoxFlat:
-	var caixa := StyleBoxFlat.new()
-	caixa.bg_color = COR_FUNDO_CARTAO
-	caixa.border_width_left = BORDA
-	caixa.border_width_top = BORDA
-	caixa.border_width_right = BORDA
-	caixa.border_width_bottom = BORDA
-	caixa.border_color = Color(cor.r, cor.g, cor.b, intensidade)
-	caixa.content_margin_left = 16
-	caixa.content_margin_right = 16
-	caixa.content_margin_top = 16
-	caixa.content_margin_bottom = 16
+## "··· RAVEN ···": o nome ladeado pelas marcas de terminal do mockup.
+func _faixa_do_nome(dados: DadosPersonagem) -> Control:
+	var caixa := HBoxContainer.new()
+	caixa.alignment = BoxContainer.ALIGNMENT_CENTER
+	caixa.add_theme_constant_override("separation", 10)
+	caixa.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	caixa.add_child(_marca(dados.cor))
+	var nome := Label.new()
+	nome.text = dados.nome
+	nome.add_theme_font_size_override("font_size", 24)
+	nome.add_theme_color_override("font_color", dados.cor)
+	nome.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	caixa.add_child(nome)
+	caixa.add_child(_marca(dados.cor))
 	return caixa
 
 
-func _rotulo(texto: String, tamanho: int, cor: Color, largura: int = LARGURA_CARD) -> Label:
+func _marca(cor: Color) -> Label:
+	var l := Label.new()
+	l.text = "···"
+	l.add_theme_font_size_override("font_size", 15)
+	l.add_theme_color_override("font_color", Color(cor, 0.55))
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
+
+## O tipo da arma numa etiqueta com borda e o apelido ao lado: [SMG] "Mantis".
+##
+## O tipo sai do proprio nome do .tres, e nao de um campo novo: 'SMG "Mantis"'
+## ja carrega os dois pedacos, e inventar `categoria` seria pedir que alguem
+## mantivesse em dia um dado que o nome ja tem.
+func _faixa_da_arma(dados: DadosPersonagem) -> Control:
+	var caixa := HBoxContainer.new()
+	caixa.alignment = BoxContainer.ALIGNMENT_CENTER
+	caixa.add_theme_constant_override("separation", 10)
+	caixa.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if dados.arma_inicial == null:
+		return caixa
+
+	var partes := partir_nome_da_arma(dados.arma_inicial.nome)
+
+	var etiqueta := MolduraHud.new()
+	etiqueta.chanfro = 5.0
+	etiqueta.espessura = 1.0
+	etiqueta.linha_interna = false
+	etiqueta.cor_borda = dados.cor
+	etiqueta.cor_fundo = Color(dados.cor, 0.10)
+	etiqueta.margem = 4
+	etiqueta.custom_minimum_size = Vector2(74, 0)
+	etiqueta.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+
+	var tipo := Label.new()
+	tipo.text = String(partes[0]).to_upper()
+	tipo.add_theme_font_size_override("font_size", 11)
+	tipo.add_theme_color_override("font_color", dados.cor)
+	tipo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tipo.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tipo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	etiqueta.add_child(tipo)
+	caixa.add_child(etiqueta)
+
+	var apelido := Label.new()
+	apelido.text = String(partes[1])
+	apelido.add_theme_font_size_override("font_size", 15)
+	apelido.add_theme_color_override("font_color", Color(0.88, 0.92, 1.0))
+	apelido.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	apelido.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	caixa.add_child(apelido)
+	return caixa
+
+
+## 'SMG "Mantis"' -> ["SMG", "\"Mantis\""]. Arma sem aspas devolve o nome
+## inteiro como tipo e apelido vazio, que e o certo para uma arma sem apelido.
+static func partir_nome_da_arma(nome: String) -> Array:
+	var i := nome.find("\"")
+	if i < 0:
+		return [nome.strip_edges(), ""]
+	return [nome.substr(0, i).strip_edges(), nome.substr(i).strip_edges()]
+
+
+func _perfil_da_arma(dados: DadosPersonagem) -> Array[BarraAtributo]:
+	var lista: Array[BarraAtributo] = []
+	var a := dados.arma_inicial
+	if a == null:
+		return lista
+	var linhas := [
+		[BarraAtributo.Icone.DANO, "DANO", a.perfil_dano()],
+		[BarraAtributo.Icone.CADENCIA, "CADÊNCIA", a.perfil_cadencia()],
+		[BarraAtributo.Icone.PRECISAO, "PRECISÃO", a.perfil_precisao()],
+		[BarraAtributo.Icone.ALCANCE, "ALCANCE", a.perfil_alcance()],
+	]
+	for l in linhas:
+		var barra := BarraAtributo.new()
+		barra.configurar(l[0], tr(String(l[1])), float(l[2]), dados.cor)
+		lista.append(barra)
+	return lista
+
+
+func _separador(cor: Color) -> Control:
+	var linha := ColorRect.new()
+	linha.color = Color(cor, 0.22)
+	linha.custom_minimum_size = Vector2(0, 1)
+	linha.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return linha
+
+
+func _rotulo(texto: String, tamanho: int, cor: Color) -> Label:
 	var l := Label.new()
 	l.text = texto
 	l.add_theme_font_size_override("font_size", tamanho)
 	l.add_theme_color_override("font_color", cor)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	# Minimo e nao fixo: dentro do HBox a coluna cresce com o que sobra da
-	# miniatura, e travar a largura do card inteiro empurraria a miniatura para
-	# fora do painel.
-	l.custom_minimum_size = Vector2(largura, 0)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
 
 
+## O foco acende a moldura do cartao. E ela, e nao um marcador ">", que diz onde
+## o cursor esta: com o nome centralizado, prefixar ">" empurraria o texto de
+## lado a cada troca de foco.
 func _ao_focar(focado: bool, btn: Button) -> void:
 	if not _cartoes.has(btn):
 		return
 	var info: Dictionary = _cartoes[btn]
-	var cartao: PanelContainer = info["cartao"]
-	cartao.add_theme_stylebox_override("panel", info["focada"] if focado else info["normal"])
-	# O nome clareia junto da borda, mas continua na cor do personagem: a cor E
-	# a identidade dele, e virar branco apagaria justamente quem esta em foco.
 	var cor: Color = info["cor"]
-	var nome: Label = info["nome"]
-	nome.add_theme_color_override("font_color", cor.lerp(Color.WHITE, 0.45) if focado else cor)
+	var cartao: MolduraHud = info["cartao"]
+	cartao.cor_borda = cor if focado else Color(cor, ESMAECIDO)
+	cartao.espessura = 2.0 if focado else 1.0
 
 
 func _ao_escolher(dados: DadosPersonagem) -> void:

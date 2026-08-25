@@ -51,6 +51,14 @@ LADO = 80
 ## que a personagem pisa um pixel mais baixo seria cortado.
 FOLGA_PE = 4
 
+## Lado da moldura da miniatura ANTES de dobrar. O retrato do cartao de selecao
+## nao pode usar o sprite de 80: a moldura de 80 existe para o quadro mais largo
+## do conjunto e deixa vazio dos dois lados, entao no cartao o personagem sairia
+## pequeno demais para a proporcao que o layout pede. Recortado no alpha e
+## dobrado, ele chega em 128 -- que e o tamanho certo E continua escala inteira,
+## a unica que nao borra pixel art.
+LADO_MINIATURA = 64
+
 ## A ordem canonica das oito direcoes. E a mesma de DadosPersonagem.ORDEM, e as
 ## duas precisam continuar iguais -- teste_personagem.gd confere o mapa de
 ## angulo para quadro, mas nao tem como saber que o ARQUIVO saiu trocado.
@@ -119,6 +127,31 @@ def _gif_da_direcao(pasta, direcao):
     return os.path.join(pasta, achados[0])
 
 
+def gerar_miniatura(pasta_saida):
+    """O retrato do cartao: o `south` recortado no alpha e dobrado."""
+    origem = os.path.join(pasta_saida, "south.png")
+    if not os.path.exists(origem):
+        return False
+    img = Image.open(origem).convert("RGBA")
+    caixa = _bbox(img)
+    if caixa is None:
+        return False
+    recorte = img.crop(caixa)
+
+    # Centralizado na moldura, e nao colado num canto: o cartao centraliza o
+    # TextureRect, e um recorte descentrado faria o personagem pender para um
+    # lado sem que nada no layout explicasse por que.
+    quadro = Image.new("RGBA", (LADO_MINIATURA, LADO_MINIATURA), (0, 0, 0, 0))
+    quadro.paste(
+        recorte,
+        ((LADO_MINIATURA - recorte.width) // 2, (LADO_MINIATURA - recorte.height) // 2),
+        recorte,
+    )
+    dobrado = quadro.resize((LADO_MINIATURA * 2, LADO_MINIATURA * 2), Image.NEAREST)
+    dobrado.save(os.path.join(pasta_saida, "miniatura.png"))
+    return True
+
+
 def processar(personagem):
     pasta_anim = os.path.join(ORIGEM_ANIM, personagem)
     pasta_saida = os.path.join(DESTINO, personagem)
@@ -150,6 +183,12 @@ def processar(personagem):
         fita.save(os.path.join(pasta_saida, "andar_%s.png" % direcao))
         escritos += 1
         print("  andar_%-11s %d quadros -> %dx%d" % (direcao, len(quadros), fita.width, fita.height))
+
+    if gerar_miniatura(pasta_saida):
+        escritos += 1
+        print("  miniatura     %dx%d" % (LADO_MINIATURA * 2, LADO_MINIATURA * 2))
+    else:
+        faltando.append("miniatura")
 
     return escritos, faltando
 

@@ -23,9 +23,8 @@ SAIDA = os.path.join(RAIZ, "locale", "textos.csv")
 
 # Texto de interface. Chave = portugues; unica outra coluna = ingles.
 UI = [
-    # menu inicial
-    ("NOVO JOGO", "NEW GAME"),
-    ("CARREGAR", "LOAD GAME"),
+    # barra da tela de selecao. NOVO JOGO e CARREGAR sairam junto com o menu de
+    # quatro botoes: escolher o operador E comecar a partida.
     ("OPÇÕES", "OPTIONS"),
     ("SAIR", "QUIT"),
     # opcoes
@@ -40,7 +39,15 @@ UI = [
     ("VOLTAR PARA O MENU", "BACK TO MENU"),
     # selecao de personagem
     ("ESCOLHA O OPERADOR", "CHOOSE YOUR OPERATOR"),
-    ("ENTER  CONFIRMAR          ESC  VOLTAR", "ENTER  CONFIRM          ESC  BACK"),
+    # perfil da arma, no cartao
+    ("DANO", "DAMAGE"),
+    ("CADÊNCIA", "FIRE RATE"),
+    ("PRECISÃO", "ACCURACY"),
+    ("ALCANCE", "RANGE"),
+    ("Enche a sala de chumbo. Quanto mais tempo no gatilho, mais o tiro abre.",
+     "Fills the room with lead. The longer on the trigger, the wider the shot."),
+    ("Um tiro, um alvo. Cada disparo pode marcar o inimigo e espalhar o Hack.",
+     "One shot, one target. Every round can mark the enemy and spread the Hack."),
     # HUD
     ("ESTÁVEL", "STABLE"),
     ("DEGRADANDO", "DEGRADING"),

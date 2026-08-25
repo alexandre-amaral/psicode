@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="DadosPersonagem" load_steps=19 format=3]
+[gd_resource type="Resource" script_class="DadosPersonagem" load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://src/player/dados_personagem.gd" id="1_dados"]
 [ext_resource type="Resource" path="res://src/weapons/pistola_cipher.tres" id="2_arma"]
@@ -21,12 +21,14 @@
 [ext_resource type="Texture2D" path="res://assets/personagens/nova/andar_north.png" id="26_a_north"]
 [ext_resource type="Texture2D" path="res://assets/personagens/nova/andar_north-east.png" id="27_a_north_east"]
 
+[ext_resource type="Texture2D" path="res://assets/personagens/nova/miniatura.png" id="30_mini"]
+
 [resource]
 script = ExtResource("1_dados")
 id = &"nova"
 nome = "NOVA"
 papel = "Hacker Experimental"
-descricao = "- Disparo único, dano elevado e projétil muito rápido.\n- Cada tiro tem 10% de chance de aplicar Hack.\n- O alvo hackeado recebe +25% de dano por 4s.\n- Se morrer hackeado, o Hack pula para um inimigo perto."
+descricao = "Um tiro, um alvo. Cada disparo pode marcar o inimigo e espalhar o Hack."
 cor = Color(0.45, 1, 0.3, 1)
 arma_inicial = ExtResource("2_arma")
 hack_chance = 0.1
@@ -34,7 +36,7 @@ hack_duracao = 4.0
 hack_bonus_dano = 1.25
 hack_chance_propagacao = 0.5
 hack_raio_propagacao = 220.0
-miniatura = ExtResource("12_south")
+miniatura = ExtResource("30_mini")
 sprites_direcao = Array[Texture2D]([ExtResource("10_east"), ExtResource("11_south_east"), ExtResource("12_south"), ExtResource("13_south_west"), ExtResource("14_west"), ExtResource("15_north_west"), ExtResource("16_north"), ExtResource("17_north_east")])
 sprites_andando = Array[Texture2D]([ExtResource("20_a_east"), ExtResource("21_a_south_east"), ExtResource("22_a_south"), ExtResource("23_a_south_west"), ExtResource("24_a_west"), ExtResource("25_a_north_west"), ExtResource("26_a_north"), ExtResource("27_a_north_east")])
 quadros_andando = 9

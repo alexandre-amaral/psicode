@@ -46,7 +46,9 @@ const UI_EM_CODIGO := [
 	"SALAS LIMPAS", "HOSTIS NEUTRALIZADOS", "CRÉDITOS", "TEMPO",
 	"LUTA DO CHEFE", "DETERIORAÇÃO FINAL",
 	"R  outra run          ESC  trocar de personagem",
-	"NOVO JOGO", "CARREGAR", "OPÇÕES", "SAIR",
+	"OPÇÕES", "SAIR",
+	"DANO", "CADÊNCIA", "PRECISÃO", "ALCANCE",
+	"ESCOLHA O OPERADOR",
 ]
 
 var _idioma_antes := ""
@@ -116,8 +118,11 @@ func _o_ingles_cobre_os_dados() -> void:
 			var p: DadosPersonagem = load(PASTA_PERSONAGENS + arquivo)
 			if p == null:
 				continue
-			conferidos += 1
+			conferidos += 2
 			ok(tr(p.papel) != p.papel, "%s: o papel tem ingles" % arquivo)
+			# A descricao voltou a aparecer no cartao quando ele ganhou o layout
+			# de HUD, entao voltou a precisar de ingles.
+			ok(tr(p.descricao) != p.descricao, "%s: a descricao tem ingles" % arquivo)
 
 	# Guarda contra a suite virar decoracao, como em teste_efeito_item: se a
 	# varredura nao achar arquivo nenhum, tudo acima passa sem ter olhado nada.

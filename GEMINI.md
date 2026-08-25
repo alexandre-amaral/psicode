@@ -92,7 +92,8 @@ src/
   items/       efeito_item.gd + dados_item.gd, implante_*.tres,
                pool_loot.gd, pickup de item
   ui/          hud, barra_vida, barra_deterioracao, minimapa, tela_fim,
-               menu_inicial, menu_pausa, menu_opcoes
+               menu_inicial, menu_pausa, menu_opcoes, selecao_personagem,
+               moldura_hud (a moldura chanfrada), barra_atributo
   fx/          explosao, impacto
   util/        balistica (matematica da mira preditiva)
   main/        main.tscn — cena inicial
@@ -119,6 +120,8 @@ docs/
 | Dano, cadencia, municao, spread | `src/weapons/*.tres` |
 | **Personagem novo** | criar `src/player/personagem_*.tres` e por na lista `personagens` do no `SelecaoPersonagem` |
 | **Sprite, miniatura, escala e offset de um personagem** | grupo `Sprite` do `src/player/personagem_*.tres`; os PNGs em `assets/personagens/<id>/` |
+| **Moldura chanfrada de qualquer painel** | `@export` do no com `src/ui/moldura_hud.gd` (chanfro, cor, colchetes, margem) |
+| **A regua das barras do cartao de selecao** | as consts `*_CHEIO`/`*_CHEIA` em `src/weapons/dados_arma.gd` |
 | **Velocidade do ciclo de caminhada** | `fps_andando` no `src/player/personagem_*.tres` |
 | **Arte de animacao nova** | por o GIF em `animations/<id>/` e rodar `python tools/sprites/gerar_sprites.py` |
 | **Arma inicial, Hack e texto do card de um personagem** | `src/player/personagem_*.tres` |
@@ -347,6 +350,21 @@ em qualquer erro de script.
 - **Teste que le texto de tela tem de FIXAR o idioma.** `nome_fase()` passa por
   `tr()`: sem fixar, a suite passa na maquina de quem tem o SO em portugues e
   quebra no CI, que roda em ingles.
+- **As barras do cartao de selecao medem a ARMA, nao a personagem.** RAVEN e
+  NOVA tem vida, velocidade e rolamento identicos de proposito; barras de
+  VIDA/DEFESA/AGILIDADE seriam quatro reguas dizendo "empate", ou quatro numeros
+  inventados. `DadosArma.perfil_*()` le o `.tres`, entao a barra nunca descola do
+  que a arma faz de fato.
+- **`MolduraHud` e MarginContainer, nao Control.** Como Control puro ela nao tem
+  altura minima vinda do conteudo: um cartao com `size_flags_vertical =
+  SHRINK_CENTER` nasce com altura ZERO e o conteudo inteiro vaza para fora da
+  borda. Sendo container ela cresce com o que esta dentro, e o `_draw` do pai
+  roda antes dos filhos, entao a borda fica atras do conteudo de graca.
+- **Retrato do cartao usa `miniatura.png`, nao o sprite de 80.** A moldura de 80
+  existe para o quadro mais largo do conjunto de rotacoes e deixa vazio dos dois
+  lados; no cartao o personagem sairia pequeno demais. O gerador recorta no
+  alpha e dobra -- 128 e o tamanho certo E escala inteira, a unica que nao borra
+  pixel art. Qualquer outra caixa que nao 128 reescala e borra.
 - **O sprite do jogador e IRMAO de `Visual`, nunca filho.** O no `Arma` mora em
   `Visual` na posicao (27, 0), e e a rotacao do `Visual` que faz a boca da arma
   orbitar o jogador. Por em `Visual` um sprite direcional o faria girar junto

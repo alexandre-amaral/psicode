@@ -97,6 +97,8 @@ src/
   util/        balistica (matematica da mira preditiva)
   main/        main.tscn — cena inicial
 assets/shaders/  glitch.gdshader
+assets/personagens/ <id>/{8 rotacoes parado, 8 fitas andar_*}.png -- gerados
+tools/sprites/   gerar_sprites.py (GIF -> fita PNG normalizada)
 assets/texturas/ PNGs gerados (chao, parede, filete por tipo; porta; props) — nunca editados a mao
 tools/           teste_fumaca, capturar, testes/ (suites unitarias),
                  texturas/ (paleta.gd + gerar_texturas: a fonte dos PNGs)
@@ -115,6 +117,8 @@ docs/
 | Dano, cadencia, municao, spread | `src/weapons/*.tres` |
 | **Personagem novo** | criar `src/player/personagem_*.tres` e por na lista `personagens` do no `SelecaoPersonagem` |
 | **Sprite, miniatura, escala e offset de um personagem** | grupo `Sprite` do `src/player/personagem_*.tres`; os PNGs em `assets/personagens/<id>/` |
+| **Velocidade do ciclo de caminhada** | `fps_andando` no `src/player/personagem_*.tres` |
+| **Arte de animacao nova** | por o GIF em `animations/<id>/` e rodar `python tools/sprites/gerar_sprites.py` |
 | **Arma inicial, Hack e texto do card de um personagem** | `src/player/personagem_*.tres` |
 | Dispersao que cresce com o gatilho preso | `dispersao_*` em `src/weapons/*.tres` — zero desliga |
 | Vida e velocidade dos inimigos | `@export` em `src/enemies/*.tscn` |
@@ -325,6 +329,21 @@ em qualquer erro de script.
   console. Por isso o `Sprite` fica fora, e por isso os i-frames e a morte
   precisam mexer nos DOIS nos -- fora de `Visual`, o sprite nao herda o
   `modulate`.
+- **O Godot NAO importa GIF.** Nao existe importador; um `.gif` em `res://` e
+  ignorado sem aviso. Por isso `tools/sprites/gerar_sprites.py` e Python e nao
+  GDScript como o gerador de texturas: ele roda FORA do motor, e o que entra no
+  jogo e o PNG que ele escreve.
+- **Todo sprite de personagem vive numa moldura 80x80 ancorada nos PES.** A arte
+  chega com molduras diferentes (64 no parado, 88 ou 92 no andando) mas com o
+  personagem do mesmo tamanho -- so muda o vazio em volta. Usar como chega faz a
+  personagem saltar de lugar toda vez que comeca ou para de andar. A ancora e
+  horizontal pelo CENTRO DA MOLDURA de origem (a arte tem deslocamento lateral
+  intencional, e centralizar pelo desenho o apagaria) e vertical pela BASE do
+  bbox de alpha.
+- **`hframes` anda junto de `texture`, sempre.** Trocar a textura para uma fita
+  de caminhada sem trocar o `hframes` desenha os nove quadros espremidos no
+  lugar da personagem; o inverso mostra um nono dela. Nenhum dos dois gera erro.
+  Vale para o `Sprite` do Player e para o eco de rolamento, que copia os dois.
 - **Escala de pixel art e INTEIRA.** 64 -> 128 (2x) fica nitido; 64 -> 96
   (1,5x) borra mesmo com o filtro Nearest do projeto, porque um pixel da arte
   deixa de cair num numero redondo de pixels de tela.

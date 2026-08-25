@@ -48,6 +48,16 @@ extends Resource
 ## de lugar faz a personagem encarar o lado errado -- muito visivel em tela e
 ## nada diagnosticavel no console, entao `teste_personagem.gd` confere os oito.
 @export var sprites_direcao: Array[Texture2D] = []
+## As mesmas oito direcoes, mas cada entrada e uma FITA horizontal com o ciclo
+## de caminhada inteiro -- lida por `hframes`, nao por textura solta. Vazio
+## desliga a animacao e o personagem anda em pose de parado.
+@export var sprites_andando: Array[Texture2D] = []
+## Quantos quadros cada fita tem. Precisa bater com a largura do arquivo: fita
+## de 9 quadros lida como 8 mostra fatias cortadas, sem erro nenhum no console.
+@export var quadros_andando: int = 9
+## Cadencia do ciclo. NAO e a do arquivo: os GIFs de origem vem a 5 FPS, o que
+## da 1,8 s por ciclo para alguem que anda a 330 px/s -- parece camera lenta.
+@export var fps_andando: float = 12.0
 ## Multiplicador do sprite. INTEIRO, sempre: pixel art em escala fracionaria
 ## borra mesmo com filtro Nearest, porque um pixel da arte deixa de cair num
 ## numero redondo de pixels de tela.
@@ -87,8 +97,15 @@ const DIRECOES := 8
 func textura_para(direcao: Vector2) -> Texture2D:
 	if sprites_direcao.size() < DIRECOES:
 		return null
+	return sprites_direcao[_indice_da_direcao(direcao)]
+
+
+## O indice da rotacao que encara `direcao`. Compartilhado pelas duas fontes de
+## textura para nao existir a chance de uma divergir da outra.
+func _indice_da_direcao(direcao: Vector2) -> int:
+	# Sul: e para onde a personagem olha quando nao ha para onde olhar.
 	if direcao.length_squared() < 0.0001:
-		return sprites_direcao[2]
+		return 2
 	var passo := TAU / float(DIRECOES)
 	var indice := int(roundi(direcao.angle() / passo)) % DIRECOES
 	# GDScript herda o modulo de C: -1 % 8 da -1, nao 7. Angulos negativos sao
@@ -96,7 +113,17 @@ func textura_para(direcao: Vector2) -> Texture2D:
 	# personagem so olharia para baixo.
 	if indice < 0:
 		indice += DIRECOES
-	return sprites_direcao[indice]
+	return indice
+
+
+## A fita de caminhada que encara `direcao`, ou null se este personagem nao tem
+## ciclo. Irma de `textura_para()`, e mapeada pelo mesmo indice de proposito:
+## um conjunto fora de ordem em relacao ao outro faria a personagem trocar de
+## direcao ao comecar a andar.
+func textura_andando_para(direcao: Vector2) -> Texture2D:
+	if sprites_andando.size() < DIRECOES:
+		return null
+	return sprites_andando[_indice_da_direcao(direcao)]
 
 
 ## Se este personagem hackeia. Existe para quem le nao precisar saber que o

@@ -55,6 +55,14 @@ var _t_eco: float = 0.0
 var _arma: Arma
 var _visual: Node2D
 var _sprite: Sprite2D
+## Abaixo disto o jogador esta parando, nao andando. Sem um piso, o atrito
+## deixaria o ciclo tremendo por uma fracao de segundo depois de soltar a tecla.
+const VELOCIDADE_ANDANDO := 12.0
+
+## Posicao no ciclo de caminhada, em quadros. Float porque o avanco e continuo;
+## quem indexa a fita e o int() dele.
+var _t_ciclo: float = 0.0
+
 ## O personagem em vigor. Guardado porque `_mirar()` precisa dele todo frame
 ## para escolher o quadro, e reler GameState a cada frame seria pior.
 var _personagem: DadosPersonagem = null
@@ -89,6 +97,7 @@ func _aplicar_personagem() -> void:
 	# Um quadro ja no _ready: sem isto o Sprite nasce sem textura e a personagem
 	# some ate o primeiro movimento de mouse.
 	_sprite.texture = _personagem.textura_para(Vector2.DOWN)
+	_sprite.hframes = 1
 
 
 func _ready() -> void:
@@ -143,7 +152,7 @@ func _physics_process(delta: float) -> void:
 	_t_roll_cd = maxf(_t_roll_cd - delta, 0.0)
 	_t_invuln = maxf(_t_invuln - delta, 0.0)
 
-	_mirar()
+	_mirar(delta)
 
 	match estado:
 		Estado.NORMAL:
@@ -210,15 +219,53 @@ func _iniciar_rolamento(entrada: Vector2) -> void:
 ## ele NAO pode parar de girar); o `Sprite`, que e irmao e nao filho, so troca de
 ## quadro. Sao duas resolucoes de mira convivendo de proposito: o cano mostra o
 ## angulo exato do tiro, e o corpo mostra a direcao geral em oito passos.
-func _mirar() -> void:
+func _mirar(delta: float) -> void:
 	var direcao := _direcao_mira()
 	_visual.rotation = direcao.angle()
-	if _personagem != null:
-		var quadro := _personagem.textura_para(direcao)
-		# So atribui quando muda: setar a mesma textura todo frame suja o perfil
-		# sem mudar um pixel.
-		if quadro != null and quadro != _sprite.texture:
-			_sprite.texture = quadro
+	if _personagem == null:
+		return
+
+	# Rolando nao troca de animacao: o eco ja comunica o rolamento, e trocar de
+	# fita no meio de 0,22 s so piscaria.
+	var andando := estado == Estado.NORMAL and velocity.length() > VELOCIDADE_ANDANDO
+	var fita: Texture2D = _personagem.textura_andando_para(direcao) if andando else null
+
+	if fita != null:
+		_avancar_ciclo(delta, direcao)
+		_trocar_quadro(fita, _personagem.quadros_andando, int(_t_ciclo) % _personagem.quadros_andando)
+	else:
+		_t_ciclo = 0.0
+		_trocar_quadro(_personagem.textura_para(direcao), 1, 0)
+
+
+## Anda o ciclo, para a frente ou para tras.
+##
+## Andar de re com o ciclo normal e o moonwalk: a personagem continua encarando
+## o alvo (e twin-stick, isso e o certo) enquanto desliza para o outro lado com
+## as pernas indo para frente. Inverter o ciclo quando o movimento contraria a
+## mira resolve sem arte nova, e e o que o corpo de fato faz.
+func _avancar_ciclo(delta: float, direcao: Vector2) -> void:
+	var sentido := -1.0 if velocity.dot(direcao) < 0.0 else 1.0
+	_t_ciclo += delta * _personagem.fps_andando * sentido
+	var total := float(_personagem.quadros_andando)
+	# fposmod e nao fmod: com sentido negativo o fmod devolve negativo, e o
+	# int() disso indexaria fora da fita.
+	_t_ciclo = fposmod(_t_ciclo, total)
+
+
+## Textura, hframes e quadro SEMPRE juntos.
+##
+## Trocar `texture` sem trocar `hframes` desenha a fita de 9 quadros inteira
+## espremida no lugar da personagem -- e o inverso, um idle com hframes 9,
+## mostra um nono dela. Nao ha erro no console em nenhum dos dois casos.
+func _trocar_quadro(textura: Texture2D, colunas: int, quadro: int) -> void:
+	if textura == null:
+		return
+	if _sprite.texture != textura:
+		_sprite.texture = textura
+		_sprite.hframes = colunas
+	if _sprite.frame != quadro:
+		_sprite.frame = quadro
 
 
 func _direcao_mira() -> Vector2:
@@ -248,6 +295,10 @@ func _soltar_eco() -> void:
 	get_parent().add_child(eco)
 	eco.global_position = global_position + _sprite.position
 	eco.scale = _sprite.scale
+	# hframes e frame junto da textura: sem eles o rastro do rolamento vira a
+	# fita de nove quadros esticada atras do jogador.
+	eco.hframes = _sprite.hframes
+	eco.frame = _sprite.frame
 	# Sem rotacao: o quadro ja carrega a direcao, e girar arte 3/4 a deitaria.
 	eco.iniciar(_sprite.texture, Color(0.35, 0.95, 1.0, 0.5))
 

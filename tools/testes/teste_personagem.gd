@@ -16,8 +16,11 @@ const POOL := "res://src/items/pool_padrao.tres"
 ## Mesmo teto das outras descricoes que vao para a tela.
 const MAXIMO_DESCRICAO := 300
 
-## Todo quadro de rotacao tem este tamanho. Pega arquivo trocado por engano.
-const LADO_SPRITE := Vector2(64, 64)
+## Lado da moldura de todo sprite de personagem, parado ou andando. Uma so para
+## os dois conjuntos: e o alinhamento entre eles que impede a personagem de
+## saltar de lugar ao comecar a andar, e duas molduras conviverem seria o convite
+## para esse bug voltar. Quem gera e tools/sprites/gerar_sprites.py.
+const LADO_SPRITE := 80.0
 
 
 func nome() -> String:
@@ -110,7 +113,10 @@ func _o_conjunto_de_sprites(p: DadosPersonagem, arquivo: String) -> void:
 		if t == null:
 			ok(false, "%s: rotacao %d nao e nula" % [arquivo, i])
 			continue
-		igual(t.get_size(), LADO_SPRITE, "%s: rotacao %d e %s" % [arquivo, i, LADO_SPRITE])
+		igual(
+			t.get_size(), Vector2(LADO_SPRITE, LADO_SPRITE),
+			"%s: rotacao %d e %dx%d" % [arquivo, i, LADO_SPRITE, LADO_SPRITE]
+		)
 		# Oito arquivos distintos. Repetir um e o erro de copiar-colar que faz
 		# duas direcoes ficarem identicas, e nada mais no jogo acusa.
 		ok(
@@ -150,3 +156,50 @@ func _o_conjunto_de_sprites(p: DadosPersonagem, arquivo: String) -> void:
 		p.textura_para(Vector2.ZERO) == p.sprites_direcao[2],
 		"%s: direcao nula cai no frontal" % arquivo
 	)
+
+	_o_ciclo_de_caminhada(p, arquivo, esperado)
+
+
+## As oito fitas de caminhada.
+##
+## O que mais importa aqui e a LARGURA. Uma fita e lida por hframes; se a
+## contagem declarada nao bater com o arquivo, o Sprite mostra fatias cortadas
+## de dois quadros ao mesmo tempo -- sem erro no console, sem nada que aponte
+## para o `.tres`. Multiplicar quadros_andando pelo lado e o que amarra os dois.
+func _o_ciclo_de_caminhada(p: DadosPersonagem, arquivo: String, esperado: Array) -> void:
+	igual(
+		p.sprites_andando.size(), DadosPersonagem.DIRECOES,
+		"%s tem as %d fitas de caminhada" % [arquivo, DadosPersonagem.DIRECOES]
+	)
+	if p.sprites_andando.size() < DadosPersonagem.DIRECOES:
+		return
+
+	ok(p.quadros_andando >= 2, "%s: um ciclo precisa de ao menos 2 quadros" % arquivo)
+	ok(p.fps_andando > 0.0, "%s: o ciclo tem cadencia positiva" % arquivo)
+
+	var largura := LADO_SPRITE * float(p.quadros_andando)
+	var vistas: Array[String] = []
+	for i in DadosPersonagem.DIRECOES:
+		var t: Texture2D = p.sprites_andando[i]
+		if t == null:
+			ok(false, "%s: fita %d nao e nula" % [arquivo, i])
+			continue
+		igual(
+			t.get_size(), Vector2(largura, LADO_SPRITE),
+			"%s: fita %d cabe %d quadros" % [arquivo, i, p.quadros_andando]
+		)
+		ok(
+			not vistas.has(t.resource_path),
+			"%s: fita %d nao repete outro arquivo (%s)" % [arquivo, i, t.resource_path.get_file()]
+		)
+		vistas.append(t.resource_path)
+
+	# O MESMO mapa de angulos do parado. Se os dois conjuntos divergirem, a
+	# personagem troca de direcao no instante em que comeca a andar.
+	for caso in esperado:
+		var direcao: Vector2 = caso[0]
+		var indice: int = caso[1]
+		ok(
+			p.textura_andando_para(direcao) == p.sprites_andando[indice],
+			"%s: andando para %s escolhe a fita %d" % [arquivo, caso[2], indice]
+		)

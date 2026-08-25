@@ -113,6 +113,9 @@ docs/
 | Quem pode nascer, e com que peso | `src/enemies/grupo_*.tres` |
 | Quanto a barra sobe ao limpar uma sala | `deterioracao_ao_limpar` em `src/mapa/tipo_*.tres` |
 | Dano, cadencia, municao, spread | `src/weapons/*.tres` |
+| **Personagem novo** | criar `src/player/personagem_*.tres` e por na lista `personagens` do no `SelecaoPersonagem` |
+| **Arma inicial, Hack e texto do card de um personagem** | `src/player/personagem_*.tres` |
+| Dispersao que cresce com o gatilho preso | `dispersao_*` em `src/weapons/*.tres` — zero desliga |
 | Vida e velocidade dos inimigos | `@export` em `src/enemies/*.tscn` |
 | Limiares de 50% e 85% | `src/autoload/deterioracao.gd` |
 | Matematica de mira preditiva | `src/util/balistica.gd` |
@@ -312,6 +315,37 @@ em qualquer erro de script.
 - **`teste_texturas.gd` compara o PNG em disco com o gerador.** Mudou uma cor
   em `paleta.gd` ou um traco em `gerar_texturas.gd`? Rode o gerador e o
   `--import` de novo, senao a suite reprova com "gerou e esqueceu de rodar?".
+
+- **A escolha de personagem NAO pode ser zerada por `iniciar_run()`.** Quem
+  chama `iniciar_run()` e o `_ready` do GerenciadorMapa -- a run comeca DEPOIS
+  de a tela de selecao ja ter escrito em `GameState.personagem`. Se o campo
+  entrasse no bloco de contadores que a funcao limpa, a escolha seria apagada no
+  boot da propria cena que ela pediu. E e o mesmo campo que faz o R da tela de
+  fim funcionar, ja que `reiniciar()` recarrega a cena sem passar pelo menu.
+- **Atributo de personagem se aplica no TOPO do `_ready` do Player.** A linha
+  `_vida_maxima_base = vida_maxima` congela a base; qualquer coisa aplicada
+  depois dela deixa todo o recalculo de implantes de vida somando em cima do
+  numero errado.
+- **A chance do Hack e sorteada por TIRO, em `Arma._consumir_tiro()`.** Sortear
+  dentro do projetil parece mais simples -- e la que existe alvo -- mas uma
+  shotgun rolaria os 10% oito vezes por disparo, ~57%. Por isso existe o par
+  `Modificadores.armar_hack()` / `consumir_hack()`, espelhando o
+  `_marcador_armado` da IA Predatoria, que resolve o mesmo problema.
+- **O bonus de dano do Hack entra em `projetil._dano_no_alvo()`, nunca em
+  `receber_dano`.** A Diretora reimplementa `receber_dano` sem chamar `super`:
+  aplicado la, o chefe seria o unico do jogo imune ao Hack, e em silencio.
+- **O tint de hackeado vai em `_corpo.color`, nunca em `_visual.modulate`.**
+  Aquele e do clarao de dano, que termina sempre em `Color.WHITE` e apagaria o
+  tint no primeiro tiro que acertasse. O modulate do pai multiplica por cima da
+  cor do poligono, entao os dois convivem sem se conhecer.
+- **Os tres campos de dispersao nascem em ZERO e tem de continuar assim.**
+  `Arma._emitir()` e o mesmo caminho do jogador e dos inimigos; um default acima
+  de zero daria bloom para a salva da Diretora sem ninguem pedir.
+- **Suite que cria inimigo tem de afastar o cenario da origem.** A propagacao do
+  Hack busca no grupo `inimigo`, que e global: inimigos de OUTRAS suites que
+  ainda nao foram coletados aparecem na busca, e quase todos ficam perto de
+  (0,0). `teste_hack.gd` monta o cenario em (6000, 6000) por isso -- foi um dia
+  de teste vermelho com o codigo certo.
 
 ## Ambiente
 

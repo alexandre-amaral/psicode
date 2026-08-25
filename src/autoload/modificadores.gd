@@ -46,6 +46,17 @@ var _tiros_eco: int = 0
 var _alvo_marcado: int = 0
 var _marcador_armado: bool = false
 
+## Config de Hack do personagem da run. null = ninguem hackeia.
+var _hack: DadosPersonagem = null
+## Um tiro ja sorteou e ganhou o Hack; o proximo projetil dele que ACERTAR
+## alguem aplica e desarma.
+##
+## Espelha _marcador_armado de proposito, e pelo mesmo motivo: o sorteio tem de
+## valer por TIRO, mas quem conhece o alvo e o projetil. Sem este passo no meio,
+## NOVA com a shotgun rolaria os 10% oito vezes por disparo -- ~57% de chance,
+## quase seis vezes o que o personagem promete.
+var _hack_armado: bool = false
+
 
 func _ready() -> void:
 	# O estado da run e alimentado por evento. Nada aqui procura no ninguem na
@@ -99,7 +110,67 @@ func resetar() -> void:
 	_tiros_eco = 0
 	_alvo_marcado = 0
 	_marcador_armado = false
+	_hack_armado = false
+	_hack = null
 	EventBus.modificadores_mudaram.emit()
+
+
+# ---------------------------------------------------------------- hack ------
+# O Hack acompanha a PESSOA, nao a arma: NOVA continua hackeando depois de
+# trocar a Cipher por um loot. Por isso a config vem do DadosPersonagem e mora
+# aqui, no autoload que ja e dono do resto do estado de run do jogador.
+
+
+## Chamado por GameState.iniciar_run(), sempre depois de resetar().
+func configurar_hack(personagem: DadosPersonagem) -> void:
+	_hack = personagem if personagem != null and personagem.tem_hack() else null
+	_hack_armado = false
+
+
+func tem_hack() -> bool:
+	return _hack != null
+
+
+## Sorteia UMA vez por tiro. Quem chama e Arma._consumir_tiro(), que ja e o
+## lugar canonico de "isto vale por tiro, nao por projetil".
+func armar_hack() -> void:
+	if _hack == null:
+		return
+	if randf() < _hack.hack_chance:
+		_hack_armado = true
+
+
+## Devolve a duracao a aplicar e desarma. Zero = este acerto nao hackeia.
+func consumir_hack() -> float:
+	if not _hack_armado or _hack == null:
+		return 0.0
+	_hack_armado = false
+	return _hack.hack_duracao
+
+
+## Multiplicador de dano em quem esta hackeado. 1.0 sem personagem com Hack.
+func bonus_dano_hack() -> float:
+	if _hack == null:
+		return 1.0
+	return maxf(_hack.hack_bonus_dano, 1.0)
+
+
+func chance_propagacao_hack() -> float:
+	if _hack == null:
+		return 0.0
+	return clampf(_hack.hack_chance_propagacao, 0.0, 1.0)
+
+
+func raio_propagacao_hack() -> float:
+	if _hack == null:
+		return 0.0
+	return maxf(_hack.hack_raio_propagacao, 0.0)
+
+
+func duracao_hack() -> float:
+	if _hack == null:
+		return 0.0
+	return maxf(_hack.hack_duracao, 0.0)
 
 
 func itens_ativos() -> Array[DadosItem]:

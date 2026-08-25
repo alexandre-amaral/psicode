@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+
+[resource]
+script = ExtResource("1_dados")
+nome = "SMG \"Mantis\""
+descricao = "Cadencia alta, dano baixo. Segurar o gatilho abre o tiro; soltar fecha de novo."
+dano = 1
+knockback = 40.0
+perfuracao = 0
+cadencia = 13.0
+automatica = true
+projeteis_por_tiro = 1
+abertura_graus = 0.0
+impressao_graus = 1.0
+dispersao_maxima_graus = 7.0
+dispersao_por_tiro = 1.1
+dispersao_recuperacao = 9.0
+velocidade_projetil = 1050.0
+alcance = 500.0
+raio_projetil = 3.0
+cor_projetil = Color(1, 0.93, 0.25, 1)
+municao_maxima = -1
+shake_intensidade = 0.7
+shake_duracao = 0.05
+recuo_player = 0.0
+tamanho_pente = 32
+tempo_recarga = 1.35

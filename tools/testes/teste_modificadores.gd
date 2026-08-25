@@ -246,6 +246,8 @@ func _pool_do_projeto() -> void:
 		"res://src/weapons/tiro_diretora.tres",
 		"res://src/weapons/salva_diretora.tres",
 		"res://src/weapons/pistola.tres",
+		"res://src/weapons/smg_mantis.tres",
+		"res://src/weapons/pistola_cipher.tres",
 	]
 	for arma in pool.armas_validas():
 		ok(

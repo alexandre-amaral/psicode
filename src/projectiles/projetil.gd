@@ -218,7 +218,7 @@ func _ao_encostar(corpo: Node) -> void:
 
 	var acertou := false
 	if corpo.has_method("receber_dano"):
-		acertou = corpo.receber_dano(_dano_no_alvo(id), velocidade.normalized() * knockback)
+		acertou = corpo.receber_dano(_dano_no_alvo(corpo), velocidade.normalized() * knockback)
 
 	if not acertou:
 		return
@@ -227,6 +227,7 @@ func _ao_encostar(corpo: Node) -> void:
 		# A IA Predatoria precisa saber em quem o tiro pegou: e assim que o
 		# marcador gruda no proximo alvo e depois e consumido.
 		Modificadores.registrar_acerto(id)
+		_tentar_hackear(corpo)
 		_tentar_fragmentar()
 
 	_impacto()
@@ -236,12 +237,30 @@ func _ao_encostar(corpo: Node) -> void:
 		queue_free()
 
 
-## Dano ja com o bonus do alvo marcado. O resto do calculo foi congelado no
-## disparo; so este pedaco depende de QUEM foi atingido.
-func _dano_no_alvo(id: int) -> int:
+## Dano ja com os bonus que dependem de QUEM foi atingido -- o resto do calculo
+## foi congelado no disparo.
+##
+## Recebe o NO e nao so o id porque o Hack e estado do proprio inimigo, nao do
+## autoload. E o bonus entra aqui, e nao em InimigoBase.receber_dano, porque a
+## Diretora reimplementa receber_dano sem chamar super: aplicado la, o chefe
+## seria o unico do jogo imune ao Hack, e em silencio.
+func _dano_no_alvo(corpo: Node) -> int:
 	if hostil:
 		return dano
-	return maxi(roundi(float(dano) * Modificadores.multiplicador_no_alvo(id)), 1)
+	var fator := Modificadores.multiplicador_no_alvo(corpo.get_instance_id())
+	if corpo.has_method("esta_hackeado") and corpo.esta_hackeado():
+		fator *= Modificadores.bonus_dano_hack()
+	return maxi(roundi(float(dano) * fator), 1)
+
+
+## 10% por TIRO, nao por projetil: quem sorteia e Arma._consumir_tiro(), e o que
+## chega aqui e so a pergunta "este tiro ganhou o Hack?".
+func _tentar_hackear(corpo: Node) -> void:
+	if not corpo.has_method("aplicar_hack"):
+		return
+	var duracao := Modificadores.consumir_hack()
+	if duracao > 0.0:
+		corpo.aplicar_hack(duracao)
 
 
 ## Divide o projetil em dois ao acertar. So a geracao 0 divide -- sem isso os

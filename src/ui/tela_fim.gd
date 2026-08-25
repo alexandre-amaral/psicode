@@ -45,7 +45,7 @@ func _ao_terminar(venceu: bool, dados: Dictionary) -> void:
 		linhas.append("LUTA DO CHEFE           %s" % GameState.formatar_tempo(tempo_chefe))
 	linhas.append("DETERIORACAO FINAL      %d%%" % int(dados.get("deterioracao_final", 0.0)))
 	_stats.text = "\n".join(linhas)
-	_dica.text = "R  reiniciar          ESC  sair"
+	_dica.text = "R  outra run          ESC  trocar de personagem"
 
 	var t := create_tween()
 	t.set_parallel(true)
@@ -54,11 +54,18 @@ func _ao_terminar(venceu: bool, dados: Dictionary) -> void:
 
 	get_tree().paused = true
 
+## ESC volta ao menu; R nao passa por aqui.
+##
+## R era tratado nos DOIS lados -- aqui trocando para o menu e em main.gd
+## chamando GameState.reiniciar() -- e como este `_input` nunca marcava o evento
+## como tratado, os dois disparavam no mesmo frame e quem vencia dependia da
+## ordem de deferimento da troca de cena. Hoje main.gd e o dono unico do R: ele
+## recarrega o andar mantendo o personagem, que e o retry rapido que um
+## roguelike quer. Quem quiser TROCAR de personagem sai pelo ESC.
 func _input(event: InputEvent) -> void:
 	if not visible:
 		return
-	if event.is_action_pressed("reiniciar"):
+	if event.is_action_pressed("pausar"):
 		get_tree().paused = false
 		get_tree().change_scene_to_file("res://src/ui/menu_inicial.tscn")
-	elif event.is_action_pressed("pausar"): # Usa pausar(ESC) para sair do jogo a partir da tela de game over
-		get_tree().quit()
+		get_viewport().set_input_as_handled()

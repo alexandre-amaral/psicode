@@ -24,6 +24,18 @@ var _chefe_comecou: float = -1.0
 
 const CENA_MAIN := "res://src/main/main.tscn"
 
+## Quem o jogador escolheu na tela de selecao.
+##
+## Declarada FORA do bloco de contadores acima, e isso nao e arrumacao: quem
+## chama iniciar_run() e o _ready do GerenciadorMapa, ou seja, a run comeca
+## DEPOIS de a tela ja ter escrito aqui. Se este campo fosse zerado junto com os
+## contadores, a escolha seria apagada no boot da propria cena que ela pediu.
+##
+## E tambem o que faz o R da tela de fim funcionar: reiniciar() chama
+## reload_current_scene(), que nao passa pelo menu -- sem a escolha viva num
+## autoload, o jogador voltaria calado para a arma default do player.tscn.
+var personagem: DadosPersonagem = null
+
 
 ## Mede pelo `tempo_run`, e nao por um relogio proprio: assim a pausa e o
 ## hitstop ja saem descontados de graca, sem ninguem lembrar de descontar.
@@ -51,6 +63,9 @@ func iniciar_run() -> void:
 	Deterioracao.resetar()
 	# Implante e progressao de run, nao meta-progressao: run nova comeca limpa.
 	Modificadores.resetar()
+	# Depois do resetar, nunca antes: ele limpa o Hack junto com o resto, entao
+	# configurar primeiro seria configurar para o lixo.
+	Modificadores.configurar_hack(personagem)
 	Deterioracao.passiva_ativa = true
 	get_tree().paused = false
 	Engine.time_scale = 1.0

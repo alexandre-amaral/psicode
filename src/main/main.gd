@@ -19,6 +19,9 @@ func _unhandled_input(evento: InputEvent) -> void:
 
 	if evento.is_action_pressed("pausar"):
 		if GameState.estado == GameState.Estado.GAME_OVER or GameState.estado == GameState.Estado.VITORIA:
+			# Nao chega aqui com a tela de fim aberta: ela trata o ESC no _input,
+			# que roda antes, e marca o evento como tratado para voltar ao menu.
+			# Este ramo cobre o caso de a run ter terminado sem a tela visivel.
 			get_tree().quit()
 		else:
 			GameState.alternar_pausa()

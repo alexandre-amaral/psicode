@@ -100,6 +100,18 @@ a cor de um inimigo, o teste manda atualizar o espelho.
 Regra para uma cor de ator nova: **S > 0,35 e V > 0,55** (HSV). Fora disso ela
 some no cenário.
 
+**As armas de personagem ocupam os dois matizes que sobravam.** Os projéteis
+inimigos já cobrem vermelho, laranja, azul-claro, água, rosa e roxo; o jogador
+tinha ciano (pistola) e âmbar (shotgun). Restavam amarelo e verde:
+
+| | Cor | De quem |
+|---|---|---|
+| `tiro_mantis` | `#FFED40` | SMG da RAVEN — traçante amarelo |
+| `tiro_cipher` | `#73FF4D` | Pistola da NOVA — verde de Hack |
+
+O verde do Cipher é o mesmo `COR_HACK` que tinge o inimigo hackeado, e isso é
+deliberado: quem hackeia tem de ser reconhecível no alvo, não só no cano.
+
 ### SINAL
 
 | | Cor | Forma |

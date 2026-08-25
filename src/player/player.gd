@@ -57,6 +57,23 @@ var _slots: Array[DadosArma] = [null, null]
 var _slot_ativo: int = 0
 
 
+## Sobrescreve os @export da cena com o que o personagem escolhido pede.
+##
+## Chamado ANTES de `_vida_maxima_base = vida_maxima`, e isso nao e estilo: uma
+## vez congelada a base, todo o recalculo de implantes de vida
+## (_ao_modificadores_mudarem) passa a somar em cima do numero errado. Qualquer
+## atributo que um personagem venha a mexer entra aqui, no topo, ou nao entra.
+##
+## Personagem nulo e o caminho normal, nao um erro: main.tscn roda sozinho no
+## editor e no teste de fumaca, e nesses casos valem os @export da cena.
+func _aplicar_personagem() -> void:
+	var p := GameState.personagem
+	if p == null:
+		return
+	if p.arma_inicial != null:
+		arma_inicial = p.arma_inicial
+
+
 func _ready() -> void:
 	add_to_group(GRUPO)
 	_visual = $Visual
@@ -65,6 +82,8 @@ func _ready() -> void:
 	_camera = $Camera
 
 	Juice.registrar_camera(_camera)
+
+	_aplicar_personagem()
 
 	_vida_maxima_base = vida_maxima
 	vida_maxima = _vida_maxima_base + Modificadores.bonus_vida_maxima()

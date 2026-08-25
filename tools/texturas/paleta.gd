@@ -65,6 +65,8 @@ const ATOR: Dictionary = {
 	&"diretora": Color(0.85, 0.25, 0.85),
 	&"tiro_pistola": Color(0.43, 0.9, 1.0),
 	&"tiro_shotgun": Color(1.0, 0.72, 0.29),
+	&"tiro_mantis": Color(1.0, 0.93, 0.25),
+	&"tiro_cipher": Color(0.45, 1.0, 0.3),
 	&"tiro_vigia": Color(1.0, 0.28, 0.42),
 	&"tiro_drone": Color(1.0, 0.55, 0.2),
 	&"tiro_sentinela": Color(0.6, 0.8, 1.0),

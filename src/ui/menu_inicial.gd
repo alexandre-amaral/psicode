@@ -13,6 +13,7 @@ extends Control
 @onready var btn_sair: Button = $MenuPanel/VBoxContainer/BtnSair
 @onready var _rotulo_versao: Label = $RodapeEsq
 @onready var _opcoes: Control = $MenuOpcoes
+@onready var _selecao: Control = $SelecaoPersonagem
 @onready var _painel: Panel = $MenuPanel
 
 var _botoes: Array[Button] = []
@@ -27,6 +28,8 @@ func _ready() -> void:
 	btn_carregar.pressed.connect(func(): print("Carregar não implementado"))
 	btn_opcoes.pressed.connect(_abrir_opcoes)
 	_opcoes.fechado.connect(_ao_fechar_opcoes)
+	_selecao.escolhido.connect(_ao_escolher_personagem)
+	_selecao.fechado.connect(_ao_fechar_selecao)
 	
 	for btn in _botoes:
 		# A ORDEM do bind importa: focus_entered/focus_exited nao passam
@@ -56,8 +59,22 @@ func _on_btn_focus(focado: bool, btn: Button) -> void:
 	else:
 		btn.text = "  " + base_text
 
+## NEW GAME abre a selecao; quem entra no jogo e a confirmacao dela.
 func _on_btn_jogar_pressed() -> void:
+	_painel.visible = false
+	_selecao.abrir()
+
+
+func _ao_escolher_personagem(dados: DadosPersonagem) -> void:
+	# Escrever ANTES da troca de cena: quem le e o Player, no _ready da cena que
+	# esta linha carrega.
+	GameState.personagem = dados
 	get_tree().change_scene_to_file("res://src/main/main.tscn")
+
+
+func _ao_fechar_selecao() -> void:
+	_painel.visible = true
+	btn_jogar.grab_focus()
 
 func _on_btn_sair_pressed() -> void:
 	get_tree().quit()

@@ -10,6 +10,8 @@ extends TesteBase
 const ARMAS := [
 	"res://src/weapons/pistola.tres",
 	"res://src/weapons/shotgun.tres",
+	"res://src/weapons/smg_mantis.tres",
+	"res://src/weapons/pistola_cipher.tres",
 	"res://src/weapons/tiro_vigia.tres",
 	"res://src/weapons/tiro_diretora.tres",
 	"res://src/weapons/salva_diretora.tres",

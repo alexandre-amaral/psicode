@@ -29,6 +29,20 @@ extends Resource
 @export var abertura_graus: float = 0.0
 ## Espalhamento aleatorio adicional aplicado a cada projetil, em graus.
 @export var impressao_graus: float = 1.5
+
+## Dispersao que CRESCE enquanto se segura o gatilho e volta sozinha ao parar.
+##
+## Os tres nascem em zero, e isso importa: `_emitir()` e o mesmo caminho do
+## jogador e dos inimigos, entao um default acima de zero daria bloom para a
+## salva da Diretora sem ninguem ter pedido. Arma sem bloom continua se
+## comportando exatamente como antes destes campos existirem.
+##
+## Teto do que o bloom pode somar a `impressao_graus`. Zero = arma sem bloom.
+@export var dispersao_maxima_graus: float = 0.0
+## Quanto cada TIRO soma. Um tiro soma uma vez, mesmo que solte oito projeteis.
+@export var dispersao_por_tiro: float = 0.0
+## Quantos graus voltam por segundo quando o gatilho descansa.
+@export var dispersao_recuperacao: float = 0.0
 @export var velocidade_projetil: float = 900.0
 @export var alcance: float = 544.0
 @export var raio_projetil: float = 4.0
@@ -67,3 +81,28 @@ func pente() -> int:
 
 func intervalo() -> float:
 	return 1.0 / maxf(cadencia, 0.01)
+
+
+## Se esta arma tem dispersao crescente. Um teto de zero desliga o mecanismo
+## inteiro -- e como as cinco armas antigas continuam intactas.
+func tem_bloom() -> bool:
+	return dispersao_maxima_graus > 0.0
+
+
+## O bloom depois de mais um tiro, saturado no teto.
+##
+## Existe como funcao pura, e nao como duas linhas dentro de Arma, porque o
+## estado do bloom vive num _process que nao roda nos testes sincronos de
+## teste_arma.gd. Aqui a conta e conferivel sem subir cena nenhuma -- e o
+## projeto ja prefere assim (intervalo() e testado do mesmo jeito).
+func dispersao_apos_tiro(atual: float) -> float:
+	if not tem_bloom():
+		return 0.0
+	return minf(atual + dispersao_por_tiro, dispersao_maxima_graus)
+
+
+## O bloom depois de `delta` segundos sem atirar. Nunca desce de zero.
+func dispersao_apos(atual: float, delta: float) -> float:
+	if not tem_bloom():
+		return 0.0
+	return maxf(atual - dispersao_recuperacao * delta, 0.0)

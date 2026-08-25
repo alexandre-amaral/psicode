@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="DadosPersonagem" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/player/dados_personagem.gd" id="1_dados"]
+[ext_resource type="Resource" path="res://src/weapons/pistola_cipher.tres" id="2_arma"]
+
+[resource]
+script = ExtResource("1_dados")
+id = &"nova"
+nome = "NOVA"
+papel = "Hacker Experimental"
+descricao = "- Disparo unico, dano elevado e projetil muito rapido.
+- Cada tiro tem 10% de chance de aplicar Hack.
+- O alvo hackeado recebe +25% de dano por 4s.
+- Se morrer hackeado, o Hack pula para um inimigo perto."
+cor = Color(0.45, 1, 0.3, 1)
+arma_inicial = ExtResource("2_arma")
+hack_chance = 0.1
+hack_duracao = 4.0
+hack_bonus_dano = 1.25
+hack_chance_propagacao = 0.5
+hack_raio_propagacao = 220.0

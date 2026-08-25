@@ -4,8 +4,13 @@ Twin-stick shooter / bullet hell / roguelike cyberpunk em **Godot 4.7.2-stable**
 (versao standard, nao .NET) com **GDScript**. Renderer **Compatibility (GL)**,
 obrigatorio para o export web.
 
-Feito por tres pessoas. Objetivo declarado: **diversao e aprender fazendo** —
-ter algo jogavel rapido vale mais que infraestrutura bonita.
+Feito por tres pessoas. O objetivo era **diversao e aprender fazendo** -- ter
+algo jogavel rapido valia mais que infraestrutura bonita. **Isso mudou: o alvo
+agora e lancamento comercial** (ver `docs/ROADMAP.md`). O principio de trabalho
+continua o mesmo, mas duas coisas passam a pesar mais que antes: acabamento
+(som, gamepad, salvamento) e escopo alem de um andar. Duas das tres pessoas
+continuam sem conhecer Godot nem Git, e isso segue valendo para tudo que elas
+precisem executar.
 
 > O titulo antigo era "Ciberpsicose". O nome fechado e **psicode**.
 
@@ -17,7 +22,7 @@ documentos abaixo — leia antes de propor mecanica nova:
 | Documento | Para que |
 |---|---|
 | `docs/GDD.md` | Design: core loop, Deterioracao, mira preditiva, o chefe, escopo |
-| `docs/ROADMAP.md` | As cinco fases e o que falta em cada uma |
+| `docs/ROADMAP.md` | Onde o jogo esta hoje, em numeros, e os marcos do que falta |
 | `docs/CONVENCOES.md` | Git, divisao de arquivos, estilo de codigo |
 | `docs/HANDOFF.md` | Passo a passo para quem nao conhece Godot nem Git |
 | `docs/BUILD.md` | Export Windows e web |
@@ -467,11 +472,15 @@ pessoas sem nenhuma reclamacao e sinal fraco, entao a base foi validada de forma
 rasa. Se alguem apostar alto em cima disso -- reescrever o core loop, por
 exemplo -- vale lembrar uma vez que a validacao e magra. Fora isso, siga.
 
-A **Fase 3 (salas, itens e inimigos) esta bem adiantada**: o `GerenciadorMapa`
-sorteia um andar de 8–12 salas com ramos, liga as vizinhas por corredor
-atravessado a pe, faz lockdown por sala, e o andar tem sete tipos de inimigo,
-16 implantes e composicao decidida no layout. A ordem do roadmap manda a
-**Fase 2 (arte e som)** vir agora.
+**As fases numeradas nao existem mais.** O `ROADMAP.md` foi reescrito em marcos,
+porque o trabalho nao seguiu a ordem das fases: arte entrou no meio da Fase 3, a
+selecao de personagem entrou fora de qualquer fase, e dois itens da Fase 5 sairam
+sem ninguem abrir aquela secao. Se um pedido citar "Fase 2" ou "Fase 3", traduza
+para o marco do roadmap antes de agir.
+
+O marco atual e o **M1 -- o loop fecha**: creditos com ralo, loot dropado, loja e
+meta-progressao. A semente ja esta no codigo e parada: `GameState.creditos`
+acumula a cada abate e **nada consome**.
 
 A regra de escopo que continua valendo: **numero de balanceamento novo tem de
 nascer medivel**. As reguas de `tools/` existem para isso, e um botao que

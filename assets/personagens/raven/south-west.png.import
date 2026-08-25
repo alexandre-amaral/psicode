@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dbalh1p1i84cd"
-path="res://.godot/imported/interiores.webp-e8753ef9e7b4284e69e6ce29864f6318.ctex"
+uid="uid://wf6xbsqt21cw"
+path="res://.godot/imported/south-west.png-8bc20c11f4202f882a163b38e0f6e38e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://inspiração/interiores.webp"
-dest_files=["res://.godot/imported/interiores.webp-e8753ef9e7b4284e69e6ce29864f6318.ctex"]
+source_file="res://assets/personagens/raven/south-west.png"
+dest_files=["res://.godot/imported/south-west.png-8bc20c11f4202f882a163b38e0f6e38e.ctex"]
 
 [params]
 

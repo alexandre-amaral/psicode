@@ -114,6 +114,7 @@ docs/
 | Quanto a barra sobe ao limpar uma sala | `deterioracao_ao_limpar` em `src/mapa/tipo_*.tres` |
 | Dano, cadencia, municao, spread | `src/weapons/*.tres` |
 | **Personagem novo** | criar `src/player/personagem_*.tres` e por na lista `personagens` do no `SelecaoPersonagem` |
+| **Sprite, miniatura, escala e offset de um personagem** | grupo `Sprite` do `src/player/personagem_*.tres`; os PNGs em `assets/personagens/<id>/` |
 | **Arma inicial, Hack e texto do card de um personagem** | `src/player/personagem_*.tres` |
 | Dispersao que cresce com o gatilho preso | `dispersao_*` em `src/weapons/*.tres` — zero desliga |
 | Vida e velocidade dos inimigos | `@export` em `src/enemies/*.tscn` |
@@ -316,6 +317,21 @@ em qualquer erro de script.
   em `paleta.gd` ou um traco em `gerar_texturas.gd`? Rode o gerador e o
   `--import` de novo, senao a suite reprova com "gerou e esqueceu de rodar?".
 
+- **O sprite do jogador e IRMAO de `Visual`, nunca filho.** O no `Arma` mora em
+  `Visual` na posicao (27, 0), e e a rotacao do `Visual` que faz a boca da arma
+  orbitar o jogador. Por em `Visual` um sprite direcional o faria girar junto
+  (arte 3/4 deitada); parar de girar o `Visual` para acomodar o sprite faria
+  todo projetil nascer 27px a direita do jogador, para sempre e sem erro no
+  console. Por isso o `Sprite` fica fora, e por isso os i-frames e a morte
+  precisam mexer nos DOIS nos -- fora de `Visual`, o sprite nao herda o
+  `modulate`.
+- **Escala de pixel art e INTEIRA.** 64 -> 128 (2x) fica nitido; 64 -> 96
+  (1,5x) borra mesmo com o filtro Nearest do projeto, porque um pixel da arte
+  deixa de cair num numero redondo de pixels de tela.
+- **Suite que precisa fixar o quadro do jogador tem de desligar o
+  `_physics_process` dele.** `_mirar()` roda todo frame e reescreve a textura a
+  partir da posicao real do mouse; num harness o mouse nao se mexe, entao o
+  quadro que voce setou vira sempre o mesmo e o teste "prova" a coisa errada.
 - **A escolha de personagem NAO pode ser zerada por `iniciar_run()`.** Quem
   chama `iniciar_run()` e o `_ready` do GerenciadorMapa -- a run comeca DEPOIS
   de a tela de selecao ja ter escrito em `GameState.personagem`. Se o campo

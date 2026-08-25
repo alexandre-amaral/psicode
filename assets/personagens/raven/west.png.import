@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dbi1cbik8dbjm"
-path="res://.godot/imported/97465249f2b424511ff8dae6877fd2bc.jpg-1a0016eb024553a0fe6cbba6b60c49ab.ctex"
+uid="uid://4sux265x7lrl"
+path="res://.godot/imported/west.png-fd29205596c62323b7d855404e854cdd.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://inspiração/97465249f2b424511ff8dae6877fd2bc.jpg"
-dest_files=["res://.godot/imported/97465249f2b424511ff8dae6877fd2bc.jpg-1a0016eb024553a0fe6cbba6b60c49ab.ctex"]
+source_file="res://assets/personagens/raven/west.png"
+dest_files=["res://.godot/imported/west.png-fd29205596c62323b7d855404e854cdd.ctex"]
 
 [params]
 

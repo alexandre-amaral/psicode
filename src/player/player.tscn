@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://src/player/player.gd" id="1_player"]
 [ext_resource type="Resource" path="res://src/weapons/pistola.tres" id="2_pistola"]
 [ext_resource type="Script" path="res://src/weapons/arma.gd" id="3_arma"]
+[ext_resource type="Resource" path="res://src/player/personagem_raven.tres" id="4_padrao"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_player"]
 radius = 11.0
@@ -12,9 +13,13 @@ collision_layer = 1
 collision_mask = 4
 script = ExtResource("1_player")
 arma_inicial = ExtResource("2_pistola")
+personagem_padrao = ExtResource("4_padrao")
 
 [node name="Forma" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_player")
+
+[node name="Sprite" type="Sprite2D" parent="."]
+position = Vector2(0, -20)
 
 [node name="Visual" type="Node2D" parent="."]
 
@@ -23,17 +28,9 @@ z_index = -1
 color = Color(0.2, 0.85, 1, 0.13)
 polygon = PackedVector2Array(19, 0, 13.44, 13.44, 0, 19, -13.44, 13.44, -19, 0, -13.44, -13.44, 0, -19, 13.44, -13.44)
 
-[node name="Corpo" type="Polygon2D" parent="Visual"]
-color = Color(0.12, 0.65, 0.82, 1)
-polygon = PackedVector2Array(13, 0, 9.19, 9.19, 0, 13, -9.19, 9.19, -13, 0, -9.19, -9.19, 0, -13, 9.19, -9.19)
-
 [node name="Cano" type="Polygon2D" parent="Visual"]
 color = Color(0.55, 0.97, 1, 1)
 polygon = PackedVector2Array(11, -3.5, 27, -2, 27, 2, 11, 3.5)
-
-[node name="Nucleo" type="Polygon2D" parent="Visual"]
-color = Color(0.75, 1, 1, 1)
-polygon = PackedVector2Array(5, 0, 0, 5, -5, 0, 0, -5)
 
 [node name="Arma" type="Node2D" parent="Visual"]
 position = Vector2(27, 0)

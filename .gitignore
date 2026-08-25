@@ -40,3 +40,8 @@ graphify-out/
 
 # Builds geradas pelo CI de release.
 /builds/
+
+# Referencias de arte de terceiros (concept art, mood boards). Ficam na maquina
+# de quem coletou: sao material de consulta, nao do jogo, e nao ha licenca para
+# redistribuir junto de uma build publica.
+inspiração/

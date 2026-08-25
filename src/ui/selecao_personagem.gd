@@ -13,8 +13,12 @@ signal escolhido(dados: DadosPersonagem)
 signal fechado()
 
 ## Largura de cada card. Dois cabem lado a lado na tela de 960 com folga.
-const LARGURA_CARD := 300
+const LARGURA_CARD := 330
 const SEPARACAO := 32
+## Lado da miniatura. 128 = 2x exato dos 64 do arquivo. Escala fracionaria
+## borra pixel art mesmo com filtro Nearest, porque um pixel da arte deixa de
+## cair num numero redondo de pixels de tela.
+const LADO_MINIATURA := 128
 
 const COR_TITULO := Color(1.0, 0.6, 0.2)
 const COR_PAPEL := Color(0.75, 0.82, 0.95)
@@ -78,6 +82,24 @@ func _criar_card(dados: DadosPersonagem) -> Control:
 	caixa.custom_minimum_size = Vector2(LARGURA_CARD, 0)
 	caixa.add_theme_constant_override("separation", 6)
 
+	# Miniatura a esquerda, nome e papel a direita. O resto do card continua
+	# embaixo, em coluna, porque sao linhas longas.
+	var topo := HBoxContainer.new()
+	topo.add_theme_constant_override("separation", 12)
+	if dados.miniatura != null:
+		var retrato := TextureRect.new()
+		retrato.texture = dados.miniatura
+		retrato.custom_minimum_size = Vector2(LADO_MINIATURA, LADO_MINIATURA)
+		retrato.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		retrato.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		topo.add_child(retrato)
+
+	var coluna := VBoxContainer.new()
+	coluna.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	coluna.add_theme_constant_override("separation", 4)
+	topo.add_child(coluna)
+	caixa.add_child(topo)
+
 	var botao := Button.new()
 	botao.text = dados.nome
 	botao.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -93,10 +115,10 @@ func _criar_card(dados: DadosPersonagem) -> Control:
 	for estado in ["normal", "hover", "pressed", "focus"]:
 		botao.add_theme_stylebox_override(estado, vazio)
 	botao.pressed.connect(_ao_escolher.bind(dados))
-	caixa.add_child(botao)
+	coluna.add_child(botao)
 	_botoes.append(botao)
 
-	caixa.add_child(_rotulo(dados.papel, 12, COR_PAPEL))
+	coluna.add_child(_rotulo(dados.papel, 12, COR_PAPEL, LADO_MINIATURA))
 
 	var arma := dados.arma_inicial.nome if dados.arma_inicial != null else "-"
 	caixa.add_child(_rotulo("ARMA  %s" % arma, 11, COR_TITULO))
@@ -105,13 +127,16 @@ func _criar_card(dados: DadosPersonagem) -> Control:
 	return caixa
 
 
-func _rotulo(texto: String, tamanho: int, cor: Color) -> Label:
+func _rotulo(texto: String, tamanho: int, cor: Color, largura: int = LARGURA_CARD) -> Label:
 	var l := Label.new()
 	l.text = texto
 	l.add_theme_font_size_override("font_size", tamanho)
 	l.add_theme_color_override("font_color", cor)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.custom_minimum_size = Vector2(LARGURA_CARD, 0)
+	# Minimo e nao fixo: dentro do HBox a coluna cresce com o que sobra da
+	# miniatura, e travar a largura do card inteiro empurraria a miniatura para
+	# fora do painel.
+	l.custom_minimum_size = Vector2(largura, 0)
 	return l
 
 

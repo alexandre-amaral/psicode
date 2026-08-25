@@ -112,6 +112,13 @@ tinha ciano (pistola) e âmbar (shotgun). Restavam amarelo e verde:
 O verde do Cipher é o mesmo `COR_HACK` que tinge o inimigo hackeado, e isso é
 deliberado: quem hackeia tem de ser reconhecível no alvo, não só no cano.
 
+**O jogador é a exceção à regra, e de propósito.** RAVEN e NOVA são pixel art
+escura e dessaturada — pela regra acima, cenário. O que os mantém achráveis é a
+**aura ciano sob os pés** (`Visual/Aura`, `#33D9FF` a 13% de alpha) e o **cano
+da arma** (`#8CF7FF`), os dois herdados do visual geométrico anterior. Se um dia
+alguém remover a aura para "limpar", a personagem passa a competir em valor com
+o chão texturizado: a aura não é enfeite, é a âncora de leitura.
+
 ### SINAL
 
 | | Cor | Forma |

@@ -53,8 +53,10 @@ const ACENTOS: Dictionary = {
 ## e o espelho que o portao G3 usa para provar que ambiente e ator nao se
 ## cruzam. teste_texturas.gd confere que o espelho esta em dia.
 const ATOR: Dictionary = {
-	&"player_corpo": Color(0.12, 0.65, 0.82),
-	&"player_nucleo": Color(0.55, 0.97, 1.0),
+	# O corpo do jogador virou sprite de pixel art e nao tem mais uma cor unica.
+	# O que sobrou de geometria ciano nele e o cano da arma, que continua sendo
+	# quem mostra o angulo exato do tiro -- e por isso continua no espelho.
+	&"player_cano": Color(0.55, 0.97, 1.0),
 	&"rastejante": Color(1.0, 0.3, 0.42),
 	&"vigia": Color(0.78, 0.36, 1.0),
 	&"drone_aranha": Color(1.0, 0.55, 0.2),

@@ -33,6 +33,11 @@ enum Estado { NORMAL, ROLANDO, MORTO }
 @export_group("Armas")
 @export var arma_inicial: DadosArma
 
+@export_group("Personagem")
+## Usado so quando ninguem escolheu -- main.tscn aberto direto no editor, e o
+## teste de fumaca. Fora esses dois casos quem manda e GameState.personagem.
+@export var personagem_padrao: DadosPersonagem
+
 var vida: int = 6
 var estado: int = Estado.NORMAL
 
@@ -49,7 +54,10 @@ var _t_eco: float = 0.0
 
 var _arma: Arma
 var _visual: Node2D
-var _corpo: Polygon2D
+var _sprite: Sprite2D
+## O personagem em vigor. Guardado porque `_mirar()` precisa dele todo frame
+## para escolher o quadro, e reler GameState a cada frame seria pior.
+var _personagem: DadosPersonagem = null
 var _camera: Camera2D
 
 ## Slot 0 e sempre a pistola infinita; slot 1 e o loot. Q alterna.
@@ -67,17 +75,26 @@ var _slot_ativo: int = 0
 ## Personagem nulo e o caminho normal, nao um erro: main.tscn roda sozinho no
 ## editor e no teste de fumaca, e nesses casos valem os @export da cena.
 func _aplicar_personagem() -> void:
-	var p := GameState.personagem
-	if p == null:
+	# personagem_padrao existe porque main.tscn roda sozinho no editor e no teste
+	# de fumaca, e nenhum dos dois passa pela tela de selecao. Sem ele o jogador
+	# ficaria invisivel exatamente nos dois fluxos em que ninguem escolheu nada.
+	_personagem = GameState.personagem if GameState.personagem != null else personagem_padrao
+	if _personagem == null:
 		return
-	if p.arma_inicial != null:
-		arma_inicial = p.arma_inicial
+	if _personagem.arma_inicial != null:
+		arma_inicial = _personagem.arma_inicial
+
+	_sprite.scale = Vector2.ONE * _personagem.escala_sprite
+	_sprite.position = _personagem.deslocamento_sprite
+	# Um quadro ja no _ready: sem isto o Sprite nasce sem textura e a personagem
+	# some ate o primeiro movimento de mouse.
+	_sprite.texture = _personagem.textura_para(Vector2.DOWN)
 
 
 func _ready() -> void:
 	add_to_group(GRUPO)
 	_visual = $Visual
-	_corpo = $Visual/Corpo
+	_sprite = $Sprite
 	_arma = $Visual/Arma
 	_camera = $Camera
 
@@ -189,8 +206,19 @@ func _iniciar_rolamento(entrada: Vector2) -> void:
 	EventBus.player_rolou.emit()
 
 
+## O `Visual` gira livre (e dele que a boca da arma herda a posicao, e por isso
+## ele NAO pode parar de girar); o `Sprite`, que e irmao e nao filho, so troca de
+## quadro. Sao duas resolucoes de mira convivendo de proposito: o cano mostra o
+## angulo exato do tiro, e o corpo mostra a direcao geral em oito passos.
 func _mirar() -> void:
-	_visual.rotation = _direcao_mira().angle()
+	var direcao := _direcao_mira()
+	_visual.rotation = direcao.angle()
+	if _personagem != null:
+		var quadro := _personagem.textura_para(direcao)
+		# So atribui quando muda: setar a mesma textura todo frame suja o perfil
+		# sem mudar um pixel.
+		if quadro != null and quadro != _sprite.texture:
+			_sprite.texture = quadro
 
 
 func _direcao_mira() -> Vector2:
@@ -203,18 +231,25 @@ func _direcao_mira() -> Vector2:
 func _atualizar_visual() -> void:
 	# Pisca durante a invulnerabilidade pos-dano (mas nao durante o rolamento,
 	# senao o eco ja comunica e vira poluicao visual).
+	#
+	# Os DOIS nos: o Sprite saiu de dentro do Visual para nao girar junto, e com
+	# isso deixou de herdar o modulate. Piscar so a aura e o cano deixaria a
+	# personagem opaca durante os i-frames -- o feedback sumiria justo de quem
+	# precisa dele.
+	var alfa := 1.0
 	if estado != Estado.ROLANDO and _t_invuln > 0.0:
-		_visual.modulate.a = 0.35 + 0.65 * absf(sin(Time.get_ticks_msec() * 0.02))
-	else:
-		_visual.modulate.a = 1.0
+		alfa = 0.35 + 0.65 * absf(sin(Time.get_ticks_msec() * 0.02))
+	_visual.modulate.a = alfa
+	_sprite.modulate.a = alfa
 
 
 func _soltar_eco() -> void:
 	var eco := CENA_ECO.instantiate()
 	get_parent().add_child(eco)
-	eco.global_position = global_position
-	eco.rotation = _visual.rotation
-	eco.iniciar(_corpo.polygon, Color(0.35, 0.95, 1.0, 0.5))
+	eco.global_position = global_position + _sprite.position
+	eco.scale = _sprite.scale
+	# Sem rotacao: o quadro ja carrega a direcao, e girar arte 3/4 a deitaria.
+	eco.iniciar(_sprite.texture, Color(0.35, 0.95, 1.0, 0.5))
 
 
 # ---------------------------------------------------------------- combate ---
@@ -286,6 +321,7 @@ func _morrer() -> void:
 	fx.modulate = Color(0.4, 0.95, 1.0)
 	get_parent().add_child(fx)
 	_visual.visible = false
+	_sprite.visible = false
 	EventBus.pedido_shake.emit(12.0, 0.7)
 	EventBus.player_morreu.emit()
 	GameState.terminar_run(false)

@@ -123,6 +123,8 @@ docs/
 | Quem pode nascer, e com que peso | `src/enemies/grupo_*.tres` |
 | Quanto a barra sobe ao limpar uma sala | `deterioracao_ao_limpar` em `src/mapa/tipo_*.tres` |
 | Dano, cadencia, municao, spread | `src/weapons/*.tres` |
+| **Arma que faz algo alem de tiro reto** | `comportamento` em `src/weapons/*.tres` (enum `DadosArma.Comportamento`) |
+| **Quanto a rajada da escopeta varia** | `projeteis_extra` em `src/weapons/*.tres`; zero = contagem fixa |
 | **Personagem novo** | criar `src/player/personagem_*.tres` e por na lista `personagens` do no `SelecaoPersonagem` |
 | **Sprite, miniatura, escala e offset de um personagem** | grupo `Sprite` do `src/player/personagem_*.tres`; os PNGs em `assets/personagens/<id>/` |
 | **Moldura chanfrada de qualquer painel** | `@export` do no com `src/ui/moldura_hud.gd` (chanfro, cor, colchetes, margem) |
@@ -333,6 +335,17 @@ em qualquer erro de script.
   em `paleta.gd` ou um traco em `gerar_texturas.gd`? Rode o gerador e o
   `--import` de novo, senao a suite reprova com "gerou e esqueceu de rodar?".
 
+- **`DadosArma.Comportamento` e gravado como INT no .tres.** Valor novo entra
+  sempre NO FIM do enum; inserir no meio reescreve em silencio o significado de
+  toda arma ja salva. Mesma armadilha que ja vale para `DadosItem`.
+- **Teste que monta um `container_projeteis` tem de liberar com `free()`.** A
+  suite roda inteira num frame, entao um `queue_free()` deixa o container no
+  grupo e os casos SEGUINTES pedem `get_first_node_in_group` e recebem aquele --
+  contando zero no proprio. Sintoma: testes que passavam comecam a devolver 0
+  projeteis assim que um caso novo entra antes deles.
+- **Arma semiautomatica precisa de `atualizar_gatilho(false)` entre os tiros num
+  harness.** `pode_atirar()` exige `_gatilho_solto`, entao sem soltar so o
+  PRIMEIRO disparo sai -- e a medicao passa achando que mediu 40 amostras.
 - **A CHAVE de traducao e o proprio texto em portugues.** Nao ha codigo tipo
   `ITEM_NUCLEO_NOME`: o `.tres` guarda "Nucleo de Reserva" e a tabela mapeia
   para "Reserve Core". Isso mantem o Inspetor legivel e faz o portugues rodar

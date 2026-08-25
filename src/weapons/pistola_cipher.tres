@@ -5,10 +5,10 @@
 [resource]
 script = ExtResource("1_dados")
 nome = "Pistola \"Cipher\""
-descricao = "Disparo único, eletromagnético. Lenta, precisa, e o projétil chega antes do alvo reagir."
+descricao = "Disparo único, eletromagnético. Atravessa um corpo, então um tiro pode marcar dois."
 dano = 5
 knockback = 240.0
-perfuracao = 0
+perfuracao = 1
 cadencia = 2.4
 automatica = false
 projeteis_por_tiro = 1

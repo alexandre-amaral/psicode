@@ -39,6 +39,10 @@ var _dados: DadosArma = null
 var _vida_total: float = 2.0
 var _vida_restante: float = 2.0
 var _atingidos: Array[int] = []
+## Cache do comportamento, resolvido uma vez em configurar(). Ler o enum do
+## .tres a cada frame de fisica seria uma consulta a Resource por projetil por
+## frame, e o valor nao muda em voo.
+var _atravessa_parede: bool = false
 var _rastro: Line2D
 var _forma: CollisionShape2D
 var _visual: Polygon2D
@@ -115,6 +119,8 @@ func configurar(
 	_vida_total = dados.alcance / maxf(vel, 1.0)
 	_vida_restante = _vida_total
 
+	_atravessa_parede = dados.comportamento == DadosArma.Comportamento.FANTASMA
+
 	if hostil:
 		collision_layer = LAYER_PROJ_INIMIGO
 		collision_mask = LAYER_PLAYER | LAYER_PAREDE
@@ -142,10 +148,14 @@ func _physics_process(delta: float) -> void:
 	#
 	# O segundo: body_entered nao entrega a normal da superficie, e sem normal
 	# nao ha ricochete. O raycast entrega.
-	var batida := _raycast_parede(anterior, global_position)
-	if not batida.is_empty():
-		_ao_bater_na_parede(batida)
-		return
+	# FANTASMA nem consulta a parede: a arma existe para atacar quem esta atras
+	# do obstaculo, e o `alcance` continua sendo o freio -- ele vira TEMPO de voo
+	# logo abaixo, entao o tiro nao cruza o andar inteiro.
+	if not _atravessa_parede:
+		var batida := _raycast_parede(anterior, global_position)
+		if not batida.is_empty():
+			_ao_bater_na_parede(batida)
+			return
 
 	_vida_restante -= delta
 	if _vida_restante <= 0.0:

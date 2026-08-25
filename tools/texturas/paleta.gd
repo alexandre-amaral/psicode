@@ -69,6 +69,13 @@ const ATOR: Dictionary = {
 	&"tiro_shotgun": Color(1.0, 0.72, 0.29),
 	&"tiro_mantis": Color(1.0, 0.93, 0.25),
 	&"tiro_cipher": Color(0.45, 1.0, 0.3),
+	# As armas de loot dividem QUATRO matizes, nao dez. O jogador segura uma
+	# arma por vez, entao a distincao que importa e tiro-do-jogador contra
+	# tiro-de-inimigo -- e os inimigos ja ocupam vermelho, laranja, azul-claro,
+	# agua, magenta e roxo. Medido: sobram faixas livres em 81, 138, 237 e 318
+	# graus. Armas da mesma faixa se separam pela FORMA (raio e rastro).
+	&"tiro_railx": Color(0.28, 0.36, 1.0),
+	&"tiro_phase": Color(1.0, 0.28, 0.8),
 	&"tiro_vigia": Color(1.0, 0.28, 0.42),
 	&"tiro_drone": Color(1.0, 0.55, 0.2),
 	&"tiro_sentinela": Color(0.6, 0.8, 1.0),

@@ -7,8 +7,45 @@ extends Resource
 ## Para criar uma arma: clique direito em src/weapons > Novo Recurso >
 ## DadosArma, salve como .tres, ajuste os campos.
 
+## O que a arma faz ALEM de cuspir um projetil reto.
+##
+## Mesmo molde de DadosItem.Comportamento, e pelo mesmo motivo: os numeros da
+## arma sao declarativos e cabem num .tres, mas ricochetear, explodir ou
+## perseguir e comportamento -- e comportamento custa codigo em quem sofre o
+## efeito. O enum e a costura entre as duas metades.
+##
+## **Valor novo entra sempre NO FIM.** O enum e gravado como INT no .tres
+## (`comportamento = 3`); inserir no meio reescreve em silencio o significado de
+## toda arma ja salva. E a mesma armadilha que o GEMINI.md registra para
+## DadosItem.
+enum Comportamento {
+	## Projetil reto. E o que todas as armas foram ate agora.
+	NENHUM,
+	## Atravessa parede. `alcance` continua limitando, porque ele vira TEMPO de
+	## voo -- entao o projetil nao cruza o andar inteiro.
+	FANTASMA,
+	## Empurra muito e machuca pouco: o dano esta no `knockback`, nao no `dano`.
+	GRAVIDADE,
+	## Para no impacto, espera `fuse` e explode em area.
+	EXPLOSIVO,
+	## Explode ao bater na PAREDE, orientado pela normal da superficie.
+	PLASMA,
+	## Curva atras do inimigo mais proximo, com teto de graus por segundo.
+	TELEGUIADO,
+	## Salta entre inimigos proximos, sem repetir alvo.
+	CORRENTE,
+	## Acumula cargas no alvo; ao encher, consome e detona.
+	NANITE,
+	## Feixe continuo enquanto o gatilho estiver pressionado. Nao instancia
+	## projetil nenhum.
+	FEIXE,
+}
+
 @export var nome: String = "Arma"
 @export_multiline var descricao: String = ""
+
+@export_group("Comportamento")
+@export var comportamento: Comportamento = Comportamento.NENHUM
 
 @export_group("Dano")
 ## Dano por projetil. A shotgun compensa dano baixo com muitos projeteis.
@@ -25,6 +62,13 @@ extends Resource
 
 @export_group("Projetil")
 @export var projeteis_por_tiro: int = 1
+## Quantos projeteis A MAIS o tiro pode soltar, sorteado a cada disparo.
+##
+## Zero deixa a contagem fixa, que e como todas as armas antigas se comportam.
+## A Riot-12 usa 2 para variar entre 8 e 10 por rajada: contagem fixa faz cada
+## disparo de escopeta parecer igual ao anterior, e o que se quer da escopeta e
+## justamente nao saber quanto vai sair.
+@export var projeteis_extra: int = 0
 ## Abertura total do leque, em graus. Zero = tiro reto.
 @export var abertura_graus: float = 0.0
 ## Espalhamento aleatorio adicional aplicado a cada projetil, em graus.
@@ -81,6 +125,21 @@ func pente() -> int:
 
 func intervalo() -> float:
 	return 1.0 / maxf(cadencia, 0.01)
+
+
+## Quantos projeteis ESTE disparo solta. Sorteia dentro da faixa quando a arma
+## declara variacao; do contrario devolve o numero fixo.
+func sortear_projeteis() -> int:
+	var base := maxi(projeteis_por_tiro, 1)
+	if projeteis_extra <= 0:
+		return base
+	return base + randi_range(0, projeteis_extra)
+
+
+## Se a arma dispensa o projetil comum. Hoje so o FEIXE -- e e por isso que ele
+## e o unico que precisa de um caminho proprio em Arma.
+func e_feixe() -> bool:
+	return comportamento == Comportamento.FEIXE
 
 
 # ------------------------------------------------------- perfil da arma ------

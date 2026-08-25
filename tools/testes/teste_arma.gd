@@ -20,7 +20,59 @@ func nome() -> String:
 	return "Arma"
 
 
+## A contagem VARIAVEL da Riot-12.
+##
+## Sortear no lugar errado quebra calado: dentro de `_emitir()` a escopeta
+## somaria projeteis extras por PROJETIL em vez de por tiro. O que se afirma
+## aqui e a contagem no container, como no resto da suite.
+##
+## Note o `atualizar_gatilho(false)` entre os disparos: a Riot-12 e
+## semiautomatica, e sem soltar o gatilho `pode_atirar()` recusa tudo depois do
+## primeiro tiro -- o teste mediria uma amostra so e passaria sem provar nada.
+func _a_contagem_varia() -> void:
+	var ctx := _montar()
+	var arma: Arma = ctx["arma"]
+	var container: Node = ctx["container"]
+	var dados: DadosArma = ctx["dados"]
+	dados.projeteis_por_tiro = 8
+	dados.projeteis_extra = 2
+	dados.abertura_graus = 30.0
+	dados.automatica = false
+	arma.equipar(dados)
+
+	var vistos := {}
+	for i in 40:
+		for filho in container.get_children():
+			container.remove_child(filho)
+			filho.queue_free()
+		arma._t_cadencia = 0.0
+		arma.atualizar_gatilho(false)
+		arma.atirar(Vector2.RIGHT)
+		vistos[container.get_child_count()] = true
+
+	for quantidade: int in vistos.keys():
+		entre(float(quantidade), 8.0, 10.0, "a rajada fica entre 8 e 10 (saiu %d)" % quantidade)
+	ok(vistos.size() >= 2, "a rajada de fato VARIA (%d contagens distintas)" % vistos.size())
+
+	# Sem variacao declarada, a contagem tem de voltar a ser exata.
+	dados.projeteis_extra = 0
+	for filho in container.get_children():
+		container.remove_child(filho)
+		filho.queue_free()
+	arma._t_cadencia = 0.0
+	arma.atualizar_gatilho(false)
+	arma.atirar(Vector2.RIGHT)
+	igual(container.get_child_count(), 8, "sem projeteis_extra a contagem e fixa")
+
+	# free() e nao queue_free(): a suite roda inteira num frame, e um container
+	# que ainda esta na arvore continua no grupo "container_projeteis" -- os
+	# casos seguintes pedem `get_first_node_in_group` e recebem ESTE, contando
+	# zero no proprio. Foi exatamente o que aconteceu.
+	ctx["raiz"].free()
+
+
 func executar() -> void:
+	_a_contagem_varia()
 	_o_laco_antigo_nao_funciona()
 	_salva_dispara_tudo()
 	_salva_respeita_a_cadencia()

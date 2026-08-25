@@ -148,7 +148,10 @@ func atirar(direcao: Vector2) -> bool:
 
 	_gatilho_solto = false
 	_consumir_tiro()
-	_emitir(Balistica.leque(direcao, dados.projeteis_por_tiro, dados.abertura_graus))
+	# sortear_projeteis() e nao projeteis_por_tiro: a Riot-12 varia de 8 a 10 por
+	# rajada, e uma escopeta que solta sempre o mesmo numero perde justamente a
+	# incerteza que faz a arma. Arma sem variacao devolve o numero fixo.
+	_emitir(Balistica.leque(direcao, dados.sortear_projeteis(), dados.abertura_graus))
 	_apos_tiro(direcao)
 	return true
 

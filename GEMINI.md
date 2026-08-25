@@ -350,6 +350,11 @@ em qualquer erro de script.
 - **Teste que le texto de tela tem de FIXAR o idioma.** `nome_fase()` passa por
   `tr()`: sem fixar, a suite passa na maquina de quem tem o SO em portugues e
   quebra no CI, que roda em ingles.
+- **A selecao de operador e um PAINEL do menu, nao uma tela.** Ela alterna
+  `visible` como o menu_opcoes, e por isso precisa de `abrir()`, `fechar()` e do
+  sinal `fechado`. O botao SAIR da barra de baixo existe para quem joga no
+  MOUSE: quem usa teclado sai pelo ESC, e sem o botao o jogador de mouse ficava
+  sem saida a nao ser escolher um operador.
 - **As barras do cartao de selecao medem a ARMA, nao a personagem.** RAVEN e
   NOVA tem vida, velocidade e rolamento identicos de proposito; barras de
   VIDA/DEFESA/AGILIDADE seriam quatro reguas dizendo "empate", ou quatro numeros

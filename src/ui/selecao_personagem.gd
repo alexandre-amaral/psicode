@@ -1,12 +1,13 @@
 extends Control
-## Tela de escolha de operador. E a PRIMEIRA tela do jogo, nao um painel sobre
-## o menu.
+## Tela de escolha de operador, aberta a partir do menu inicial.
 ##
-## Ela absorveu o menu inicial. O fluxo era intro -> menu -> NOVO JOGO ->
-## selecao, e "NOVO JOGO" era um clique que so existia para levar a tela onde a
-## escolha de verdade acontece. Hoje escolher o operador E comecar a partida, e
-## OPCOES/SAIR ficam na barra de baixo. "CARREGAR" saiu junto: era um botao que
-## imprimia "nao implementado" no console.
+## Nao troca de cena, alterna `visible` -- o mesmo padrao de menu_opcoes, e pelo
+## mesmo motivo dito la: trocar de cena obrigaria a recriar o fundo e o logo do
+## menu, e a saber de onde o jogador veio para poder voltar.
+##
+## O botao SAIR da barra de baixo existe para o jogador de MOUSE. Quem usa
+## teclado sai pelo ESC; sem o botao, quem esta so no mouse ficava sem saida a
+## nao ser escolher um operador.
 ##
 ## Toda a moldura e DESENHADA (`MolduraHud`) em vez de vir de textura: o chanfro
 ## de canto nao existe em StyleBox, e desenhar deixa a cor do operador tingir o
@@ -16,8 +17,7 @@ extends Control
 ## no editor, sem GDScript.
 
 signal escolhido(dados: DadosPersonagem)
-signal pediu_opcoes()
-signal pediu_sair()
+signal fechado()
 
 const LARGURA_CARD := 330
 ## Altura da caixa do retrato. O arquivo ja vem em 128 (o recorte de 64 dobrado
@@ -40,7 +40,6 @@ const ESMAECIDO := 0.22
 @onready var _linha: HBoxContainer = $Quadro/Conteudo/Linha
 @onready var _titulo: Label = $Quadro/Conteudo/Titulo
 @onready var _barra: MolduraHud = $BarraInferior
-@onready var _btn_opcoes: Button = $BarraInferior/Botoes/BtnOpcoes
 @onready var _btn_sair: Button = $BarraInferior/Botoes/BtnSair
 
 var _botoes: Array[Button] = []
@@ -56,10 +55,31 @@ func _ready() -> void:
 	_barra.cor_borda = Color(COR_MOLDURA, 0.7)
 	_titulo.add_theme_color_override("font_color", COR_TITULO)
 
+	visible = false
 	_montar_cards()
-	_btn_opcoes.pressed.connect(func() -> void: pediu_opcoes.emit())
-	_btn_sair.pressed.connect(func() -> void: pediu_sair.emit())
+	_btn_sair.pressed.connect(fechar)
+
+
+func abrir() -> void:
+	visible = true
 	focar_primeiro()
+
+
+func fechar() -> void:
+	if not visible:
+		return
+	visible = false
+	fechado.emit()
+
+
+## ESC fecha. Marcar como tratado e obrigatorio: main.gd escuta `pausar` em
+## _unhandled_input, e sem isto o mesmo ESC fecharia a tela E pediria pausa.
+func _input(evento: InputEvent) -> void:
+	if not visible:
+		return
+	if evento.is_action_pressed("pausar"):
+		fechar()
+		get_viewport().set_input_as_handled()
 
 
 ## Devolve o foco ao primeiro cartao. Quem fecha as opcoes chama isto: sem

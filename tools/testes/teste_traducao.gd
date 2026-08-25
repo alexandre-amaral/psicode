@@ -46,7 +46,7 @@ const UI_EM_CODIGO := [
 	"SALAS LIMPAS", "HOSTIS NEUTRALIZADOS", "CRÉDITOS", "TEMPO",
 	"LUTA DO CHEFE", "DETERIORAÇÃO FINAL",
 	"R  outra run          ESC  trocar de personagem",
-	"OPÇÕES", "SAIR",
+	"NOVO JOGO", "CARREGAR", "OPÇÕES", "SAIR",
 	"DANO", "CADÊNCIA", "PRECISÃO", "ALCANCE",
 	"ESCOLHA O OPERADOR",
 ]

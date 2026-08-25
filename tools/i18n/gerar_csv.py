@@ -23,8 +23,9 @@ SAIDA = os.path.join(RAIZ, "locale", "textos.csv")
 
 # Texto de interface. Chave = portugues; unica outra coluna = ingles.
 UI = [
-    # barra da tela de selecao. NOVO JOGO e CARREGAR sairam junto com o menu de
-    # quatro botoes: escolher o operador E comecar a partida.
+    # menu inicial
+    ("NOVO JOGO", "NEW GAME"),
+    ("CARREGAR", "LOAD GAME"),
     ("OPÇÕES", "OPTIONS"),
     ("SAIR", "QUIT"),
     # opcoes

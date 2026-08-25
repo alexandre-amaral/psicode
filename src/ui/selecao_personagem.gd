@@ -86,11 +86,18 @@ func _montar_cards() -> void:
 		_ao_focar(false, btn)
 
 
-## Miniatura, nome e arma. So isso.
+## Miniatura, nome e arma. So isso, e o cartao INTEIRO clica.
 ##
 ## O papel e a lista de comportamentos sairam: o card e para RECONHECER quem se
 ## escolhe, nao para ensinar a jogar. Com quatro blocos de texto, a arte -- que
 ## e o que de fato distingue as duas -- ficava espremida entre paragrafos.
+##
+## A area de clique e um Button de rect cheio POR CIMA do conteudo, e nao o
+## nome. Antes so o texto do nome respondia: o jogador mirava na arte, clicava,
+## e nao acontecia nada -- num cartao de 280x260, o alvo util era uma linha de
+## texto. Como PanelContainer estica todo filho para o proprio rect, o botao
+## cobre o cartao sozinho; e por ser o ULTIMO filho, ele fica na frente na
+## ordem de desenho, que e a mesma ordem em que o input e oferecido.
 func _criar_card(dados: DadosPersonagem) -> Control:
 	var cartao := PanelContainer.new()
 	cartao.custom_minimum_size = Vector2(LARGURA_CARD, 0)
@@ -102,6 +109,8 @@ func _criar_card(dados: DadosPersonagem) -> Control:
 
 	var coluna := VBoxContainer.new()
 	coluna.add_theme_constant_override("separation", 10)
+	# So decoracao: quem responde a mouse e o botao de cima.
+	coluna.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cartao.add_child(coluna)
 
 	if dados.miniatura != null:
@@ -112,28 +121,30 @@ func _criar_card(dados: DadosPersonagem) -> Control:
 		retrato.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		coluna.add_child(retrato)
 
-	var botao := Button.new()
-	botao.text = dados.nome
-	botao.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	botao.add_theme_font_size_override("font_size", 24)
-	# O foco clareia a propria cor em vez de virar branco: a cor E a identidade
-	# do personagem, e trocar por branco apagava justamente quem esta em foco.
-	botao.add_theme_color_override("font_color", dados.cor)
-	var clara := dados.cor.lerp(Color.WHITE, 0.45)
-	botao.add_theme_color_override("font_focus_color", clara)
-	botao.add_theme_color_override("font_hover_color", clara)
-	var vazio := StyleBoxEmpty.new()
-	for estado in ["normal", "hover", "pressed", "focus"]:
-		botao.add_theme_stylebox_override(estado, vazio)
-	botao.pressed.connect(_ao_escolher.bind(dados))
-	coluna.add_child(botao)
-	_botoes.append(botao)
-	_cartoes[botao] = {"cartao": cartao, "normal": normal, "focada": focada}
+	var nome := _rotulo(dados.nome, 24, dados.cor, LARGURA_CARD - 32)
+	nome.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	coluna.add_child(nome)
 
 	var arma := dados.arma_inicial.nome if dados.arma_inicial != null else "-"
 	var rotulo := _rotulo(arma, 12, COR_TITULO, LARGURA_CARD - 32)
 	rotulo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	coluna.add_child(rotulo)
+
+	var area := Button.new()
+	area.focus_mode = Control.FOCUS_ALL
+	# Invisivel de proposito: quem desenha o estado e a borda do PanelContainer
+	# e a cor do nome. O botao existe so para receber clique e foco.
+	var vazio := StyleBoxEmpty.new()
+	for estado in ["normal", "hover", "pressed", "focus", "disabled"]:
+		area.add_theme_stylebox_override(estado, vazio)
+	area.pressed.connect(_ao_escolher.bind(dados))
+	cartao.add_child(area)
+
+	_botoes.append(area)
+	_cartoes[area] = {
+		"cartao": cartao, "normal": normal, "focada": focada,
+		"nome": nome, "cor": dados.cor,
+	}
 	return cartao
 
 
@@ -175,6 +186,11 @@ func _ao_focar(focado: bool, btn: Button) -> void:
 	var info: Dictionary = _cartoes[btn]
 	var cartao: PanelContainer = info["cartao"]
 	cartao.add_theme_stylebox_override("panel", info["focada"] if focado else info["normal"])
+	# O nome clareia junto da borda, mas continua na cor do personagem: a cor E
+	# a identidade dele, e virar branco apagaria justamente quem esta em foco.
+	var cor: Color = info["cor"]
+	var nome: Label = info["nome"]
+	nome.add_theme_color_override("font_color", cor.lerp(Color.WHITE, 0.45) if focado else cor)
 
 
 func _ao_escolher(dados: DadosPersonagem) -> void:

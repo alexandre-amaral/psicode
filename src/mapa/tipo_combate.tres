@@ -1,9 +1,8 @@
-[gd_resource type="Resource" script_class="DadosSala" load_steps=18 format=3]
+[gd_resource type="Resource" script_class="DadosSala" load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
 [ext_resource type="Texture2D" path="res://assets/texturas/chao_combate.png" id="20_chao"]
 [ext_resource type="Texture2D" path="res://assets/texturas/parede_combate.png" id="21_parede"]
-[ext_resource type="Texture2D" path="res://assets/texturas/filete_combate.png" id="22_filete"]
 [ext_resource type="Texture2D" path="res://assets/texturas/props_atlas.png" id="23_atlas"]
 [ext_resource type="PackedScene" uid="uid://b1c2d3e4f5g6h" path="res://src/mapa/sala_1_retangular.tscn" id="2_s1"]
 [ext_resource type="PackedScene" uid="uid://k2l3m4n5o6p7q" path="res://src/mapa/sala_2_l_shape.tscn" id="3_s2"]
@@ -38,7 +37,6 @@ cor_mapa = Color(0.3, 0.9, 1, 1)
 icone = ""
 textura_chao = ExtResource("20_chao")
 textura_parede = ExtResource("21_parede")
-textura_filete = ExtResource("22_filete")
 atlas_props = ExtResource("23_atlas")
 regioes_props = Array[Rect2i]([Rect2i(0, 0, 32, 32), Rect2i(32, 0, 32, 32), Rect2i(64, 0, 32, 32), Rect2i(96, 0, 32, 32), Rect2i(128, 0, 32, 32), Rect2i(160, 0, 32, 32), Rect2i(192, 0, 32, 32), Rect2i(224, 0, 32, 32), Rect2i(0, 32, 32, 32), Rect2i(32, 32, 32, 32), Rect2i(64, 32, 32, 32), Rect2i(96, 32, 32, 32), Rect2i(128, 32, 32, 32), Rect2i(160, 32, 32, 32), Rect2i(192, 32, 32, 32), Rect2i(224, 32, 32, 32), Rect2i(0, 64, 32, 32), Rect2i(0, 96, 32, 32)])
 quantidade_props = 10

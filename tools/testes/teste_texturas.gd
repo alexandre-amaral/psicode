@@ -160,18 +160,13 @@ func _arquivos() -> void:
 			continue
 		conferidos += 1
 
-		# O filete e a excecao da grade: a altura dele E a largura da linha de
-		# parede (8 px), e o que se repete ao longo da parede e so a largura.
-		if nome.begins_with("filete_"):
-			ok(
-				imagem.get_width() % GRADE == 0 and imagem.get_height() == GeradorTexturas.FILETE.y,
-				"%s tem largura na grade e a altura da linha (%dx%d)" % [nome, imagem.get_width(), imagem.get_height()]
-			)
-		else:
-			ok(
-				imagem.get_width() % GRADE == 0 and imagem.get_height() % GRADE == 0,
-				"%s tem dimensao multipla de %d (%dx%d)" % [nome, GRADE, imagem.get_width(), imagem.get_height()]
-			)
+		# Sem excecao: o filete era a unica textura fora da grade (8 px de altura,
+		# a largura da linha de neon) e saiu com o neon. Toda textura que restou
+		# ladrilha nos dois eixos.
+		ok(
+			imagem.get_width() % GRADE == 0 and imagem.get_height() % GRADE == 0,
+			"%s tem dimensao multipla de %d (%dx%d)" % [nome, GRADE, imagem.get_width(), imagem.get_height()]
+		)
 
 		var paleta := ambiente if de_ambiente.has(nome) else sinal
 		var portao := "G1" if de_ambiente.has(nome) else "SINAL"
@@ -231,9 +226,6 @@ func _tipos_apontam_textura() -> void:
 		conferidos += 1
 		ok(dados.textura_chao != null, "%s declara textura de chao que carrega" % etiqueta)
 		ok(dados.textura_parede != null, "%s declara textura de parede que carrega" % etiqueta)
-		ok(dados.textura_filete != null, "%s declara textura de filete que carrega" % etiqueta)
-		if dados.textura_filete != null:
-			igual(int(dados.textura_filete.get_height()), GeradorTexturas.FILETE.y, "%s: o filete tem a altura da linha de parede" % etiqueta)
 		if dados.quantidade_props > 0:
 			ok(dados.atlas_props != null, "%s pede props e tem atlas" % etiqueta)
 			ok(not dados.regioes_props.is_empty(), "%s pede props e lista regioes" % etiqueta)

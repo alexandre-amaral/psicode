@@ -105,11 +105,14 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## os PNGs de assets/texturas/, gerados por tools/texturas/gerar_texturas.tscn
 ## a partir da paleta (docs/IDENTIDADE_VISUAL.md) -- nunca de editor de imagem.
 ## Campo vazio cai na variante `combate`, que e a neutra do andar; o teste de
-## texturas recusa tipo sem as tres declaradas, para o fallback nao virar
+## texturas recusa tipo sem as duas declaradas, para o fallback nao virar
 ## disfarce de esquecimento.
+##
+## Houve uma terceira, `textura_filete`: o neon que corria pelo contorno. Saiu
+## quando a parede ganhou textura propria -- duas bordas desenhadas uma sobre a
+## outra, e era o neon que encostava na beira do quadro.
 @export var textura_chao: Texture2D
 @export var textura_parede: Texture2D
-@export var textura_filete: Texture2D
 ## Atlas de props e QUAIS celulas dele esta sala pode usar. O atlas e um so
 ## para o jogo inteiro; a lista e o que da identidade -- a sala do chefe nao
 ## recebe o painel de acento da sala de arma.

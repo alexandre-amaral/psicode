@@ -388,16 +388,31 @@ em qualquer erro de script.
   cena headless logo apos criar `paleta.gd` da "Identifier 'Paleta' not
   declared" e o processo NAO encerra sozinho (fica ate o timeout). Em maquina
   limpa, `--import` vem antes de tudo -- inclusive antes do gerador de texturas.
-- **O `Line2D "Parede"` fica invisivel em runtime.** Ele continua sendo a fonte
-  da geometria (colisao, camera, minimapa, tudo le `points` dele), mas quem
-  desenha o filete de neon sao trechos gerados em `_montar_filete()`, os mesmos
-  da colisao, para o neon parar no vao da porta. Mexer em `default_color` ou
-  `texture` do Line2D da cena nao muda nada na tela.
-- **O corpo da parede (24 px para fora do contorno) so aparece na travessia.**
-  A camera faz clamp em `obter_limites()`, que e o contorno; numa sala do
-  tamanho da tela a faixa fica sempre fora do quadro. Nao e bug, e uma decisao
-  deixada em aberto: crescer o clamp em 24 px mostraria a parede, mas faria a
-  camera se mexer numa sala que hoje e fixa.
+- **O `Line2D "Parede"` fica invisivel em runtime.** Ele e a fonte da geometria
+  (colisao, camera, minimapa, tudo le `points` dele) e o que o editor mostra
+  para quem desenha a sala, mas nunca aparece em jogo -- desenha-lo atravessaria
+  o vao das portas. Quem esconde e `_montar_visual()`. Mexer em `default_color`
+  ou `texture` do Line2D da cena nao muda nada na tela.
+- **NAO existe mais filete de neon.** O contorno das salas e dos corredores era
+  desenhado por um `_montar_filete()` de trechos coloridos por `filete_*.png`.
+  Saiu quando a parede ganhou textura propria: viravam duas bordas uma sobre a
+  outra, e como a camera parava no contorno era o NEON -- e nao a parede -- que
+  encostava na beira do quadro. Foram junto o `DadosSala.textura_filete`, os
+  cinco PNGs, `GeradorTexturas.gerar_filete()` e a borda do pilar. A cor `A2` da
+  paleta continua viva: o gerador a usa em outros dois lugares.
+- **O clamp da camera cresce `Sala.ESPESSURA_PAREDE` ALEM do contorno**, e e o
+  que faz a faixa de parede aparecer. Ele e aplicado em
+  `GerenciadorMapa._clampar()` e nunca em `Sala.obter_limites()`: aquele
+  retangulo tambem posiciona as celulas em `_montar_andar()`, entao inflar na
+  origem afastaria as salas e desalinharia os corredores.
+- **Numa sala do tamanho exato da tela, a parede so entra no quadro quando o
+  jogador anda ate a borda.** Contorno 960x544 mais 24 px de cada lado da
+  1008x592 contra uma tela de 960x544: sobram 24 px de deslize por eixo, e com o
+  jogador no centro nenhuma parede aparece. Nao ha conserto por zoom -- as
+  proporcoes nao batem (1.70 contra 1.76), entao encolher para caber deixaria
+  faixa de vazio na lateral. O unico conserto completo seria geometrico: parede
+  de 16 px e salas de 928x512 fecham exatamente 960x544, e ambos caem na grade
+  de 32. Isso mexe em todas as cenas de sala e ainda nao foi feito.
 - **`teste_texturas.gd` compara o PNG em disco com o gerador.** Mudou uma cor
   em `paleta.gd` ou um traco em `gerar_texturas.gd`? Rode o gerador e o
   `--import` de novo, senao a suite reprova com "gerou e esqueceu de rodar?".

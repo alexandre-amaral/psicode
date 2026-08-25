@@ -1182,6 +1182,13 @@ func _player() -> Node2D:
 	return get_tree().get_first_node_in_group("player") as Node2D
 
 
+## Encosta a camera nos limites da area, JA folgados para mostrar a parede.
+##
+## A folga e aplicada aqui e nao em `Sala.obter_limites()` de proposito: aquele
+## retangulo tambem posiciona as salas no andar (`_montar_andar` mede as celulas
+## com ele), entao inflar na origem afastaria as salas umas das outras e
+## desalinharia os corredores. O clamp e o unico lugar onde "quanto a camera
+## mostra" e a pergunta.
 func _clampar(limites: Rect2) -> void:
 	if limites.size == Vector2.ZERO:
 		return
@@ -1191,11 +1198,27 @@ func _clampar(limites: Rect2) -> void:
 	var camera := player.get_node_or_null("Camera") as Camera2D
 	if camera == null:
 		return
-	_ajustar_zoom(camera, limites.size)
-	camera.limit_left = roundi(limites.position.x)
-	camera.limit_top = roundi(limites.position.y)
-	camera.limit_right = roundi(limites.end.x)
-	camera.limit_bottom = roundi(limites.end.y)
+	var visivel := limites.grow(margem_da_parede())
+	_ajustar_zoom(camera, visivel.size)
+	camera.limit_left = roundi(visivel.position.x)
+	camera.limit_top = roundi(visivel.position.y)
+	camera.limit_right = roundi(visivel.end.x)
+	camera.limit_bottom = roundi(visivel.end.y)
+
+
+## Quanto a camera enxerga ALEM do contorno.
+##
+## Sai de `Sala.ESPESSURA_PAREDE` em vez de ser um numero proprio: a faixa de
+## parede e desenhada exatamente essa distancia para fora, entao derivar dela
+## garante que a camera mostre a parede INTEIRA e nem um pixel do vazio que vem
+## depois. Um numero solto aqui descolaria no dia em que alguem engrossasse a
+## parede, e o sintoma seria uma tira preta na borda -- ou meia parede cortada.
+##
+## O custo, e ele e real: numa sala do tamanho exato da tela a camera deixa de
+## ser fixa e passa a deslizar ate 24 px. Era a decisao que o GEMINI.md deixava
+## em aberto, e ela foi tomada em favor de ver a parede.
+func margem_da_parede() -> float:
+	return Sala.ESPESSURA_PAREDE
 
 
 ## O clamp sozinho nao basta: Camera2D nao respeita limite menor que o proprio

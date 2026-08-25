@@ -65,7 +65,7 @@ o minimapa. A rampa de acento é essa **mesma cor, rebaixada** em três degraus:
 minimapa e mundo falam da mesma cor em intensidades diferentes, e quem vê a
 sala rosa no mapa acha a sala rosa no mundo.
 
-| Tipo | `cor_mapa` (só minimapa/UI) | A0 fundo | A1 luz apagada | A2 filete |
+| Tipo | `cor_mapa` (só minimapa/UI) | A0 fundo | A1 luz apagada | A2 acento vivo |
 |---|---|---|---|---|
 | combate | `#4CE5FF` ciano | `#0E2B33` | `#1E5A6B` | `#2A7285` |
 | boss | `#FF3366` rosa | `#33101C` | `#6B1F36` | `#8A2A47` |
@@ -77,9 +77,8 @@ sala rosa no mapa acha a sala rosa no mundo.
 
 Por que cada matiz:
 
-- **Combate é ciano** porque é a cor "neutra" do complexo — a mesma família do
-  filete que todas as salas tinham antes da textura. É o padrão; as outras são
-  desvios dele.
+- **Combate é ciano** porque é a cor "neutra" do complexo. É o padrão; as
+  outras são desvios dele.
 - **Boss é rosa** porque o projétil da Diretora é rosa (`tiro_diretora.tres`).
   A sala anuncia o dono antes de ele aparecer — e o rosa rebaixado da parede
   faz o rosa cheio do tiro saltar mais, não menos.
@@ -152,9 +151,8 @@ G2 é em saturação/valor e não em luminância porque o vermelho do inimigo
 (`#FF3366`) tem luminância 0,38 — *abaixo* de `N7`. Uma trava só de brilho
 deixaria o vermelho passar e barraria o cinza.
 
-A mesma suite confere ainda: dimensão múltipla de 16 (exceção: o filete, cuja
-altura *é* a largura da linha de parede, 8 px — só a largura dele está na
-grade), alpha só 0 ou 1 (nada de borda semitransparente), toda textura
+A mesma suite confere ainda: dimensão múltipla de 16, sem exceção — o filete
+era a única textura fora da grade e saiu junto com o neon; alpha só 0 ou 1 (nada de borda semitransparente), toda textura
 declarada nos `tipo_*.tres` carrega, e **determinismo** — o gerador rodando
 duas vezes produz os mesmos bytes, e o PNG em disco é o que o gerador produz
 hoje. Também confere que o espelho `Paleta.ATOR` bate com o `cor_base` de cada
@@ -205,21 +203,33 @@ sala nova recebe textura de graça, como recebe parede.
 z=-2  ParedeCorpo  Polygon2D   contorno inflado 24 px para fora (offset_polygon, MITER)
 z=-1  Chao         Polygon2D   contorno_local(), textura de chão, UV no canto
 z=-1  Decoracao    Node2D      props (Sprite2D do atlas), seed por célula
-z= 0  Parede       Line2D      o que já existia — agora com o filete texturizado
+z= 0  Parede       Line2D      fonte da geometria — invisível em runtime
 ```
 
 O corpo da parede é o contorno inflado, desenhado **atrás** do chão. O chão
 cobre o miolo e sobra uma faixa de 24 px do lado de fora. Isso resolve a sala em
 L e qualquer forma côncava futura sem calcular anel com furo.
 
+**Essa faixa de 24 px é o que a câmera mostra além do contorno.** O clamp de
+`GerenciadorMapa._clampar()` cresce exatamente `Sala.ESPESSURA_PAREDE`, então a
+parede aparece inteira e nem um pixel do vazio que vem depois. Numa sala do
+tamanho da tela sobram 24 px de deslize por eixo: a parede entra no quadro
+quando o jogador anda até a borda, e não com ele no centro.
+
+**Não há mais filete de neon.** Cada contorno era percorrido por uma linha de
+8 px colorida em A2. Ela saiu quando a parede ganhou textura própria: as duas
+juntas eram duas bordas desenhadas uma sobre a outra, e como a câmera parava no
+contorno era o neon — não a parede — que encostava na beira do quadro. O pilar
+e o corredor perderam a mesma borda, pelo mesmo motivo.
+
 **Porta** (`porta.tscn`): dois `Sprite2D`. `Moldura` (96×48) aparece sempre que
-há vão — dois batentes, uma soleira que interrompe o filete, e a passagem para
-fora pintada de `N0` (o corredor ainda não revelado é escuridão, não parede).
+há vão — dois batentes, uma soleira, e a passagem para fora pintada de `N0` (o corredor ainda não revelado é escuridão, não parede).
 `Campo` (80×32) é o campo de força, só quando TRANCADA, em SINAL. Porta SELADA
 esconde os dois: o vão nem é aberto na parede.
 
-**Corredor** (`corredor.gd`): mesmo chão e mesmo filete da variante `combate`,
-que é a neutra do andar.
+**Corredor** (`corredor.gd`): mesmo chão e mesma parede da variante `combate`,
+que é a neutra do andar. As laterais dele são só barreira: quem dá a leitura é
+a faixa de parede, igual à das salas.
 
 **Props** (`Decoracao`): `Sprite2D` sem colisão lendo regiões de
 `assets/texturas/props_atlas.png`. Quais regiões e quantos, o `tipo_*.tres`
@@ -228,8 +238,8 @@ prop no meio do chão, sem colisão, pareceria um obstáculo mentiroso. A seed
 vem de `coordenadas_grid`, então reentrar na sala mostra a mesma sala.
 
 Os `@export` de `DadosSala` no grupo **Visual** são o único lugar onde uma
-textura é apontada: `textura_chao`, `textura_parede`, `textura_filete`,
-`atlas_props`, `regioes_props`, `quantidade_props`.
+textura é apontada: `textura_chao`, `textura_parede`, `atlas_props`,
+`regioes_props`, `quantidade_props`.
 
 ---
 
@@ -239,8 +249,10 @@ textura é apontada: `textura_chao`, `textura_parede`, `textura_filete`,
    `N3`. Nenhum pixel de acento `A1` no chão em densidade maior que 0,5% —
    o chão é onde o projétil voa.
 2. **O acento mora na parede e nos props.** A faixa de 24 px do corpo da parede
-   e o filete de 8 px carregam a identidade da sala. Uma luz apagada `A1` a cada
-   32 px é o máximo.
+   carrega sozinha a identidade da sala, desde que o filete saiu — o que torna
+   a regra mais apertada, não menos: era o neon que dizia de que tipo era a
+   sala, e agora quem diz é a textura. Uma luz apagada `A1` a cada 32 px
+   continua sendo o máximo.
 3. **Nada de ambiente tem forma de projétil.** Ponto isolado de `N7` ou `A2`
    com raio de 3 a 6 px é proibido: é exatamente a silhueta de um tiro. Detalhe
    pequeno é sempre linha, junta ou canto — nunca um disco.

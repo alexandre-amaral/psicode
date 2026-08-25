@@ -337,6 +337,45 @@ em qualquer erro de script.
   corpo recem-adicionado so entra no espaco no passo seguinte. O `runner.gd` faz
   `await suite.executar()` por isso; sem o await ele imprime o relatorio antes
   de a suite terminar e as verificacoes dela somem da conta, sem erro nenhum.
+- **Dano continuo encadeia hitstop e prende o jogo em camera lenta.** O
+  `_hitstop_ativo` do `Juice` impede EMPILHAR, mas nao impede o proximo tique
+  ligar outro no instante em que o anterior acaba -- e `receber_dano()` pede um
+  hitstop a CADA acerto. O feixe do Laser entregava 19 de dano onde o `.tres`
+  pedia 26, porque ele atrasava a si mesmo. Por isso existe
+  `Juice.INTERVALO_HITSTOP`, medido em relogio de PAREDE: um timer da arvore
+  andaria devagar durante o proprio hitstop, que e justo o intervalo em questao.
+- **Arma que le tempo tem de ler o delta da FISICA.** Quem puxa o gatilho e o
+  `_physics_process` do Player, entao `get_process_delta_time()` num efeito
+  continuo faz o dano por segundo depender do framerate. E o raycast do feixe
+  so faz sentido num passo de fisica de qualquer jeito.
+- **`_t_cadencia` ja e decrementado pelo `_process` da `Arma`.** Decrementar de
+  novo dentro de um caminho proprio (o do feixe fazia isso) drena o pente no
+  DOBRO da velocidade que o `.tres` pede, sem erro nenhum no console.
+- **Projetil teleguiado precisa de teto de graus por segundo.** Sem teto ele
+  gruda no alvo e vira um tiro que nao erra -- o oposto do que o GDD pede, que e
+  poder ler a ameaca antes de ela doer. O teto e `curva_graus`, e o
+  `teste_comportamento_arma.gd` exige que ele exista e seja finito.
+- **Projetil hostil NAO procura alvo.** `_procurar_alvo()` devolve `null` quando
+  `hostil` -- um Vigia com arma teleguiada teria mira perfeita atras do jogador.
+  E o mesmo portao que `Arma` ja aplica para os implantes.
+- **Corrente mede distancia a partir do ULTIMO atingido, nao do impacto.** Do
+  ponto de impacto ela vira um circulo de dano centrado no primeiro alvo; do
+  ultimo elo ela serpenteia por uma fila, que e o que a arma promete.
+- **Nanite EMPILHA onde o Hack RENOVA.** Sao efeitos com desenhos opostos, e por
+  isso nao compartilham codigo: o Hack quer marcar um alvo, o nanite quer
+  recompensar insistir nele. O acumulo apodrece INTEIRO ao expirar -- decaimento
+  dose a dose se sustentaria com tiro esporadico e a arma perderia o que pede em
+  troca.
+- **Dois tints brigam pelo mesmo `_corpo.color`.** Hack e nanite escrevem no
+  mesmo canal, entao a cor final dependeria da ordem das chamadas. O nanite so
+  pinta se nao houver Hack ativo, e `_pintar_hack(false)` DEVOLVE o canal ao
+  nanite ao sair -- voltar direto para `cor_base` apagaria o aviso de que o
+  inimigo esta carregado, e a explosao chegaria sem leitura nenhuma.
+- **Arco e feixe nascem na CENA, nunca como filhos de quem os criou.** O
+  projetil morre no mesmo frame do acerto e levaria o arco junto antes de
+  alguem ver. Mesma licao da `AreaDePerigo` do Parasita.
+- **`Arma` nao tem cena.** E `class_name Arma extends Node2D`, script puro
+  pendurado num no dentro de outras cenas -- nao existe `arma.tscn`.
 - **Quem hospeda a run e dono de `GameState.iniciar_run()`/`terminar_run()`.**
   Perder essa chamada desliga a Deterioracao passiva sem erro nenhum no console.
 - **Textura em `Polygon2D` nao repete sozinha.** O projeto nao define

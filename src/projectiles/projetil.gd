@@ -50,6 +50,14 @@ var _explode: bool = false
 var _e_plasma: bool = false
 ## Tempo restante do pavio. Negativo = a granada ainda esta voando.
 var _t_fuse: float = -1.0
+## Comportamentos da Onda 3, todos em cache pelo mesmo motivo dos anteriores:
+## nao consultar o Resource a cada frame de fisica, por projetil em voo.
+var _teleguiado: bool = false
+var _encadeia: bool = false
+var _semeia_nanite: bool = false
+## Alvo travado da Swarm. Guardar o no -- e nao so a posicao -- e o que faz a
+## curva continuar valendo enquanto o inimigo se mexe.
+var _alvo: Node2D = null
 var _rastro: Line2D
 var _forma: CollisionShape2D
 var _visual: Polygon2D
@@ -129,6 +137,9 @@ func configurar(
 	_atravessa_parede = dados.comportamento == DadosArma.Comportamento.FANTASMA
 	_explode = dados.explode()
 	_e_plasma = dados.comportamento == DadosArma.Comportamento.PLASMA
+	_teleguiado = dados.e_teleguiado()
+	_encadeia = dados.encadeia()
+	_semeia_nanite = dados.semeia_nanite()
 
 	if hostil:
 		collision_layer = LAYER_PROJ_INIMIGO
@@ -151,6 +162,9 @@ func _physics_process(delta: float) -> void:
 		if _t_fuse <= 0.0:
 			_detonar()
 		return
+
+	if _teleguiado:
+		_curvar(delta)
 
 	var anterior := global_position
 	global_position += velocidade * delta
@@ -283,6 +297,10 @@ func _ao_encostar(corpo: Node) -> void:
 		Modificadores.registrar_acerto(id)
 		_tentar_hackear(corpo)
 		_tentar_fragmentar()
+		if _semeia_nanite:
+			_tentar_nanite(corpo)
+		if _encadeia:
+			_encadear(corpo)
 
 	_impacto()
 	if perfuracao_restante > 0:
@@ -313,6 +331,121 @@ func _detonar() -> void:
 		pai.add_child(explosao)
 		explosao.configurar(global_position, _dados, cor)
 	queue_free()
+
+
+## Aponta a velocidade um pouco mais para o alvo, com teto de graus por segundo.
+##
+## O teto e a arma inteira. Sem ele o projetil gruda no inimigo e vira um tiro
+## que nao erra -- e o GDD e explicito em que dificuldade se le antes de doer.
+## Com teto, a Swarm perdoa a mira torta mas ainda perde o alvo que se desvia.
+func _curvar(delta: float) -> void:
+	if not is_instance_valid(_alvo):
+		_alvo = _procurar_alvo()
+	if _alvo == null:
+		return
+
+	var desejada := (_alvo.global_position - global_position).normalized()
+	if desejada == Vector2.ZERO:
+		return
+	var teto := deg_to_rad(_dados.curva_graus) * delta
+	# limit_angle_to() nao existe: e angle_to() + clamp + rotated(). Girar o
+	# VETOR e nao a posicao preserva a velocidade escalar, entao curvar nao
+	# acelera nem freia o projetil.
+	var giro := clampf(velocidade.angle_to(desejada), -teto, teto)
+	velocidade = velocidade.rotated(giro)
+
+
+## O inimigo vivo mais proximo dentro do raio de busca.
+##
+## Busca por grupo, a excecao que o GEMINI.md sanciona. Projetil hostil nao
+## procura: um Vigia com arma teleguiada teria mira perfeita atras do jogador,
+## e mira que nao erra e o oposto do telegrafo que o GDD exige.
+func _procurar_alvo() -> Node2D:
+	if hostil or _dados == null:
+		return null
+	var melhor: Node2D = null
+	var menor := _dados.raio_busca
+	for outro in get_tree().get_nodes_in_group("inimigo"):
+		var inimigo := outro as Node2D
+		if inimigo == null or not is_instance_valid(inimigo):
+			continue
+		if inimigo.get("morto") == true:
+			continue
+		var d := global_position.distance_to(inimigo.global_position)
+		if d < menor:
+			menor = d
+			melhor = inimigo
+	return melhor
+
+
+## Deposita uma dose de nanite em quem foi atingido.
+func _tentar_nanite(corpo: Node) -> void:
+	if not corpo.has_method("aplicar_nanite"):
+		return
+	corpo.aplicar_nanite(_dados, cor)
+
+
+## Salta o dano para os vizinhos vivos, um pulo por vez.
+##
+## Refaz a busca a cada salto a partir do ULTIMO atingido, e nao do ponto de
+## impacto: e o que faz a corrente serpentear por uma fila em vez de virar um
+## circulo de dano centrado no primeiro alvo -- que e o que ela seria se todos
+## os pulos medissem distancia da mesma origem.
+func _encadear(primeiro: Node) -> void:
+	var visitados: Array[int] = [primeiro.get_instance_id()]
+	var atual := primeiro as Node2D
+	if atual == null:
+		return
+	var pontos := PackedVector2Array([atual.global_position])
+	var dano_do_salto := float(_dano_no_alvo(primeiro))
+
+	for _i in _dados.saltos_corrente:
+		var proximo := _vizinho_mais_proximo(atual, visitados)
+		if proximo == null:
+			break
+		dano_do_salto *= _dados.decaimento_corrente
+		# Piso 1: salto que chega com dano zero le como corrente quebrada.
+		var final := maxi(roundi(dano_do_salto), 1)
+		var empurrao := (proximo.global_position - atual.global_position).normalized() * knockback
+		proximo.receber_dano(final, empurrao)
+		visitados.append(proximo.get_instance_id())
+		pontos.append(proximo.global_position)
+		atual = proximo
+
+	if pontos.size() > 1:
+		_desenhar_arco(pontos)
+
+
+func _vizinho_mais_proximo(de: Node2D, visitados: Array[int]) -> Node2D:
+	var melhor: Node2D = null
+	var menor := _dados.raio_corrente
+	for outro in get_tree().get_nodes_in_group("inimigo"):
+		var inimigo := outro as Node2D
+		if inimigo == null or not is_instance_valid(inimigo):
+			continue
+		if inimigo.get_instance_id() in visitados or inimigo.get("morto") == true:
+			continue
+		if not inimigo.has_method("receber_dano"):
+			continue
+		var d := de.global_position.distance_to(inimigo.global_position)
+		if d < menor:
+			menor = d
+			melhor = inimigo
+	return melhor
+
+
+## O risco que liga os alvos da corrente.
+##
+## Nasce na CENA e nao como filho do projetil, que morre no mesmo frame: filho
+## dele o arco sumiria antes de ser desenhado. Mesma licao que a AreaDePerigo do
+## Parasita ja registra sobre nascer no lugar certo.
+func _desenhar_arco(pontos: PackedVector2Array) -> void:
+	var arco := preload("res://src/projectiles/arco_eletrico.tscn").instantiate()
+	var pai := get_parent()
+	if pai == null:
+		pai = get_tree().current_scene
+	pai.add_child(arco)
+	arco.configurar(pontos, cor, _dados.largura_feixe)
 
 
 ## Dano ja com os bonus que dependem de QUEM foi atingido -- o resto do calculo

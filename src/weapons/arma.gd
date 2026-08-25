@@ -14,6 +14,18 @@ signal recarga_iniciada(duracao: float)
 signal recarga_concluida()
 
 const CENA_PROJETIL := preload("res://src/projectiles/projetil.tscn")
+const CENA_FEIXE := preload("res://src/weapons/feixe.tscn")
+
+## Layers nomeadas no project.godot: 2 inimigo, 3 parede, 1 player.
+const LAYER_INIMIGO := 2
+const LAYER_PAREDE := 4
+const LAYER_PLAYER := 1
+
+## Feixe continuo. Vive enquanto o gatilho estiver apertado e some ao soltar.
+var _feixe: Feixe = null
+## Dano do feixe e por SEGUNDO e o dano do jogo e int: sem acumulador, arredondar
+## 14/60 a cada frame daria zero para sempre e o laser nao machucaria ninguem.
+var _dano_acumulado: float = 0.0
 
 @export var dados: DadosArma
 ## Projeteis disparados por este componente ferem o jogador?
@@ -136,9 +148,20 @@ func _avisar_municao() -> void:
 func atualizar_gatilho(pressionado: bool) -> void:
 	if not pressionado:
 		_gatilho_solto = true
+		# O feixe e a UNICA arma que precisa saber que o gatilho soltou: as
+		# outras so precisam saber que ele foi solto ALGUMA vez, para o
+		# semi-automatico. Apagar aqui e o que garante que o laser nao fica
+		# ligado quando o jogador para de atirar.
+		_apagar_feixe()
 
 
 func atirar(direcao: Vector2) -> bool:
+	# O feixe desvia ANTES de pode_atirar(): ele nao tem cadencia por tiro nem
+	# gatilho solto -- ele liga e fica ligado. Passar pelo portao normal faria o
+	# laser piscar no ritmo da cadencia, que e o oposto de um feixe continuo.
+	if dados != null and dados.e_feixe():
+		return _manter_feixe(direcao)
+
 	if not pode_atirar():
 		# Gatilho puxado com o pente vazio recarrega sozinho: sem isto o
 		# jogador clica no nada e nao entende por que parou de atirar.
@@ -237,6 +260,103 @@ func _apos_tiro(direcao: Vector2) -> void:
 
 ## Projeteis nunca ficam pendurados no atirador -- se ficassem, herdariam a
 ## rotacao dele e se moveriam junto. Vao para um container neutro da arena.
+# --------------------------------------------------------------- feixe ------
+# O Laser Cutter e a unica arma que NAO instancia projetil. Ele existe como
+# excecao declarada e nao como um segundo sistema de armas: tudo que da para
+# reusar -- municao, pente, recarga, o portao dos implantes -- continua sendo o
+# mesmo codigo. So o que acontece entre o cano e o alvo e diferente.
+
+
+## Liga (ou mantem) o feixe neste frame. Devolve se ele esta ferindo alguem.
+func _manter_feixe(direcao: Vector2) -> bool:
+	if recarregando or municao_pente <= 0:
+		_apagar_feixe()
+		if municao_pente <= 0 and not recarregando:
+			recarregar()
+		return false
+
+	_gatilho_solto = false
+	# Delta da FISICA, nao do render. Quem puxa o gatilho e o `_physics_process`
+	# do Player, e o raycast do feixe so faz sentido num passo de fisica de
+	# qualquer jeito. Com o delta de render o dano por segundo do laser passava
+	# a depender do framerate -- medido: 9 de dano onde o .tres pede 26.
+	var delta := get_physics_process_delta_time()
+
+	var origem := global_position
+	var ponta := origem + direcao.normalized() * dados.alcance
+	var alvo := _primeiro_no_caminho(origem, ponta)
+	if not alvo.is_empty():
+		ponta = alvo["position"]
+
+	if _feixe == null or not is_instance_valid(_feixe):
+		_feixe = CENA_FEIXE.instantiate()
+		_container().add_child(_feixe)
+	_feixe.apontar(origem, ponta, dados.cor_projetil, dados.largura_feixe)
+
+	# Municao escoa por TEMPO, nao por clique: `cadencia` no .tres do laser le
+	# como "balas por segundo enquanto ligado". Assim o mesmo campo continua
+	# significando a mesma coisa para quem for balancear.
+	# NAO se decrementa `_t_cadencia` aqui: o `_process` deste mesmo no ja faz
+	# isso todo frame. Decrementar nos dois lugares drenava o pente no DOBRO da
+	# velocidade que o .tres pede, e sem erro nenhum -- so uma arma que acaba
+	# cedo demais.
+	if _t_cadencia <= 0.0:
+		_t_cadencia = dados.intervalo() / maxf(_multiplicador_cadencia(), 0.01)
+		municao_pente -= 1
+		if not hostil:
+			Modificadores.armar_hack()
+		_avisar_municao()
+		# `disparou` sai no tique da municao e nao todo frame: no frame o shake e
+		# o recuo seriam somados 60 vezes por segundo e a tela viraria papel.
+		disparou.emit(direcao, dados)
+		if municao_pente <= 0:
+			recarregar()
+
+	return _ferir_com_feixe(alvo, direcao, delta)
+
+
+## Aplica o dano por segundo a quem estiver na ponta do feixe.
+func _ferir_com_feixe(alvo: Dictionary, direcao: Vector2, delta: float) -> bool:
+	if alvo.is_empty():
+		return false
+	var corpo = alvo["collider"]
+	if corpo == null or not corpo.has_method("receber_dano"):
+		# Bateu em parede: o acumulador ZERA. Sem isto o jogador carregaria dano
+		# na parede e o soltaria inteiro no primeiro inimigo que cruzasse a mira.
+		_dano_acumulado = 0.0
+		return false
+
+	_dano_acumulado += dados.dano_por_segundo * delta * _multiplicador_dano()
+	if _dano_acumulado < 1.0:
+		return false
+
+	var pedaco := int(_dano_acumulado)
+	_dano_acumulado -= float(pedaco)
+	corpo.receber_dano(pedaco + _bonus_dano(), direcao.normalized() * dados.knockback)
+	if not hostil:
+		Modificadores.registrar_acerto(corpo.get_instance_id())
+	return true
+
+
+## O primeiro corpo -- inimigo OU parede -- na linha do feixe.
+##
+## Uma consulta so com as duas layers, e nao duas consultas: com duas o feixe
+## acertaria o inimigo ATRAS da parede sempre que ele estivesse mais perto em
+## linha reta, porque cada consulta so conhece o proprio alvo.
+func _primeiro_no_caminho(de: Vector2, para: Vector2) -> Dictionary:
+	var consulta := PhysicsRayQueryParameters2D.create(de, para)
+	consulta.collision_mask = LAYER_PAREDE | (LAYER_PLAYER if hostil else LAYER_INIMIGO)
+	consulta.collide_with_areas = false
+	return get_world_2d().direct_space_state.intersect_ray(consulta)
+
+
+func _apagar_feixe() -> void:
+	if _feixe != null and is_instance_valid(_feixe):
+		_feixe.queue_free()
+	_feixe = null
+	_dano_acumulado = 0.0
+
+
 func _container() -> Node:
 	var c := get_tree().get_first_node_in_group("container_projeteis")
 	if c != null:

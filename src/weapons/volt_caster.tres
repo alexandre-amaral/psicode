@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+
+[resource]
+script = ExtResource("1_dados")
+descricao = "O acerto salta para até três vizinhos, doendo menos a cada pulo. Recompensa atirar na aglomeração, não no alvo isolado."
+nome = "Volt Caster"
+comportamento = 6
+dano = 4
+knockback = 30.0
+perfuracao = 0
+cadencia = 2.0
+automatica = true
+projeteis_por_tiro = 1
+projeteis_extra = 0
+abertura_graus = 0.0
+impressao_graus = 1.5
+dispersao_maxima_graus = 0.0
+dispersao_por_tiro = 0.0
+dispersao_recuperacao = 0.0
+velocidade_projetil = 900.0
+alcance = 560.0
+raio_projetil = 5.0
+cor_projetil = Color(0.28, 0.9, 1, 1)
+saltos_corrente = 3
+raio_corrente = 130.0
+decaimento_corrente = 0.6
+largura_feixe = 4.0
+municao_maxima = -1
+shake_intensidade = 1.6
+shake_duracao = 0.06
+recuo_player = 14.0
+tamanho_pente = 16
+tempo_recarga = 1.7

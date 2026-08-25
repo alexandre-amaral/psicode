@@ -104,6 +104,41 @@ enum Comportamento {
 ## que e como o PLASMA se comporta.
 @export var fuse: float = 0.6
 
+@export_group("Teleguiado")
+## Ate onde a Swarm ENXERGA. Fora deste raio ela voa reto, e e o que a impede de
+## virar uma arma que acerta sozinha do outro lado do andar.
+@export var raio_busca: float = 260.0
+## Teto de curva, em graus por segundo. E o unico botao que separa "teleguiado
+## justo" de "teleguiado que nunca erra": com curva infinita o projetil gruda no
+## alvo e o inimigo perde a chance de se desviar. Baixo demais e ele voa reto.
+@export var curva_graus: float = 260.0
+
+@export_group("Corrente")
+## Quantos PULOS depois do alvo original. Zero desliga a corrente.
+@export var saltos_corrente: int = 0
+## Ate onde cada pulo procura o proximo corpo.
+@export var raio_corrente: float = 130.0
+## Quanto do dano sobra a cada pulo. Sem decaimento a corrente vira dano em area
+## disfarcado, e a arma deixaria de recompensar quem atira na aglomeracao certa.
+@export var decaimento_corrente: float = 0.6
+
+@export_group("Nanite")
+## Quantas doses o alvo aguenta antes de estourar. Ao contrario do Hack -- que
+## RENOVA o tempo -- o nanite EMPILHA: e a diferenca entre um efeito que so
+## marca e um efeito que recompensa insistir no mesmo alvo.
+@export var stacks_nanite: int = 0
+## Quanto tempo uma dose dura sem reforco. Passou disso, o acumulo zera inteiro:
+## sem essa janela bastaria acertar o mesmo inimigo uma vez por sala.
+@export var duracao_nanite: float = 4.0
+
+@export_group("Feixe")
+## Dano por SEGUNDO do feixe continuo, e nao por tiro: o Laser nao dispara, ele
+## fica ligado. `dano` continua existindo para os testes e para os implantes,
+## mas quem manda no feixe e este numero.
+@export var dano_por_segundo: float = 14.0
+## Largura do risco na tela. So visual -- o acerto sai de um raycast.
+@export var largura_feixe: float = 5.0
+
 @export_group("Municao")
 ## Quantos tiros cabem no pente antes de precisar recarregar. Zero nao existe:
 ## uma arma com pente vazio nunca poderia atirar.
@@ -156,7 +191,24 @@ func e_feixe() -> bool:
 
 ## Se o projetil desta arma termina em explosao de area.
 func explode() -> bool:
-	return comportamento == Comportamento.EXPLOSIVO 		or comportamento == Comportamento.PLASMA
+	return comportamento == Comportamento.EXPLOSIVO or comportamento == Comportamento.PLASMA
+
+
+## Se o projetil desta arma curva atras do alvo.
+func e_teleguiado() -> bool:
+	return comportamento == Comportamento.TELEGUIADO
+
+
+## Se o acerto salta para os vizinhos. Exige salto configurado: comportamento
+## CORRENTE com `saltos_corrente` zero seria uma arma comum que se anuncia como
+## corrente, e o teste de contrato recusa.
+func encadeia() -> bool:
+	return comportamento == Comportamento.CORRENTE and saltos_corrente > 0
+
+
+## Se o acerto deposita doses que estouram ao acumular.
+func semeia_nanite() -> bool:
+	return comportamento == Comportamento.NANITE and stacks_nanite > 0
 
 
 # ------------------------------------------------------- perfil da arma ------

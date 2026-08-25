@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+
+[resource]
+script = ExtResource("1_dados")
+descricao = "Cada acerto deposita uma dose. Na quinta o alvo estoura em área — se você insistir nele antes que as doses apodreçam."
+nome = "Fuzil Nanite"
+comportamento = 7
+dano = 1
+knockback = 15.0
+perfuracao = 0
+cadencia = 6.0
+automatica = true
+projeteis_por_tiro = 1
+projeteis_extra = 0
+abertura_graus = 0.0
+impressao_graus = 2.4
+dispersao_maxima_graus = 6.0
+dispersao_por_tiro = 0.9
+dispersao_recuperacao = 5.0
+velocidade_projetil = 1000.0
+alcance = 640.0
+raio_projetil = 3.0
+cor_projetil = Color(0.28, 0.33, 1, 1)
+raio_explosao = 84.0
+dano_explosao = 7
+knockback_explosao = 220.0
+stacks_nanite = 5
+duracao_nanite = 4.0
+municao_maxima = -1
+shake_intensidade = 0.8
+shake_duracao = 0.04
+recuo_player = 8.0
+tamanho_pente = 30
+tempo_recarga = 2.0

@@ -1,8 +1,17 @@
-# Primeiro playtest
+# Playtest
 
-O que a Fase 1 existe para descobrir: **a base é divertida sem arte e sem som?**
+O que a Fase 1 existia para descobrir: **a base é divertida sem arte e sem som?**
 Se for, o resto é acabamento. Se não for, nenhuma quantidade de arte salva — e é
 melhor saber agora.
+
+> **A primeira rodada já aconteceu**, na `v0.2.0-alpha`, e voltou positiva e sem
+> problemas acionáveis. O registro está no [ROADMAP](ROADMAP.md), Fase 1 — junto
+> da ressalva de que um retorno sem nenhuma reclamação diz menos do que parece.
+>
+> Este documento continua valendo como **procedimento**: ele serve igual na
+> próxima rodada, depois da arte e do som. Se for repetir, considere trocar a
+> pergunta 1 ou 2 por algo mais específico — pergunta que não morde é a
+> explicação mais provável para uma rodada inteira sem reclamação.
 
 Alvo: **5 a 8 pessoas**. Menos que isso e um gosto pessoal vira "tendência";
 mais que isso e vocês não dão conta de ler as respostas com atenção.
@@ -67,8 +76,11 @@ Junte tudo numa lista **ordenada pelo que mais apareceu**, não pelo que mais
 incomodou vocês. Duas pessoas dizendo a mesma coisa vale mais que uma dizendo
 com veemência.
 
-Essa lista é a saída da Fase 1. Com ela na mão dá para decidir o que a Fase 2
-(arte e som) resolve e o que ela não resolve.
+Essa lista é a saída de uma rodada de playtest. Com ela na mão dá para decidir
+o que a próxima fase resolve e o que ela não resolve.
+
+Se a rodada não produzir lista nenhuma — como aconteceu na primeira —, o
+resultado honesto não é "está pronto": é que as perguntas não morderam.
 
 > Se três ou mais pessoas responderem "não percebi" na pergunta 1, o resultado
 > honesto é que o sistema-assinatura do jogo ainda não está no jogo — e isso

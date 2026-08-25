@@ -93,7 +93,7 @@ push, porque o GitHub precisa ter visto o workflow rodar ao menos uma vez.
 
 ## 6. Conferir que rodou
 
-1. Abra o Godot 4.6 → Importar → `C:\dev\psicode\project.godot`
+1. Abra o Godot 4.7 → Importar → `C:\dev\psicode\project.godot`
 2. `F5`
 3. Aperte `F1` três vezes e veja a barra de Deterioração cruzar 50% — os Vigias
    passam a atirar à sua frente e o laser deles fica vermelho
@@ -107,15 +107,25 @@ eu escrevo direto no projeto e você só dá commit.
 
 ## O que já está pronto
 
-- Projeto Godot 4.6 completo, POC jogável de ponta a ponta
-- 5 ondas → chefe → vitória/derrota, com o sistema de Deterioração inteiro
+- Projeto Godot 4.7 completo, jogável de ponta a ponta
+- Um **andar de 10 salas** sorteadas, com minimapa, lockdown por sala, sala de
+  arma e sala de item → chefe → vitória/derrota, com o sistema de Deterioração
+  inteiro
+- **Sete tipos de inimigo**, cada um com padrão de ataque próprio, e 16
+  implantes coletáveis
 - Mira preditiva com telegrafo, chefe em 3 fases, shader de alucinação
-- Teste automatizado da run inteira, rodando também no CI a cada PR
-- Presets de export para Windows e Web, **testadas** (a build web foi carregada
-  num navegador e rodou sem erro)
-- Handoff, GDD, roadmap e convenções escritos
+- Menu inicial, tela de opções (tela cheia e acessibilidade) e menu de pausa
+- Dois níveis de teste automatizado, rodando no CI a cada PR, e duas réguas de
+  tuning que medem a curva da run
+- Build de Windows e Web publicadas pelo CI a partir de uma tag
+- Handoff, GDD, roadmap, convenções, folha de tuning e roteiro de playtest
 
 ## O que fazer em seguida
 
-Ler o [ROADMAP](docs/ROADMAP.md), Fase 1. O objetivo dela não é adicionar
-conteúdo — é descobrir se a base é divertida antes de investir em arte.
+A **Fase 1 fechou**: a build foi para os testadores e voltou sem problemas
+acionáveis. A próxima na ordem do [ROADMAP](docs/ROADMAP.md) é a **Fase 2 —
+identidade audiovisual**: sprites, som e música, sem tocar na lógica.
+
+Antes disso, se quiserem, ficou adiada a **sessão de tuning dos três**. A
+[folha de tuning](docs/TUNING.md) tem cada botão com o valor de hoje e o que a
+medição já disse sobre ele — dá para sentar e girar números sem programar.

@@ -1,0 +1,45 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/enemies/cyber_besta.gd" id="1_s"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_besta"]
+radius = 18.0
+
+[node name="CyberBesta" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 6
+script = ExtResource("1_s")
+vida_maxima = 8
+velocidade_base = 88.0
+dano_contato = 2
+creditos = 12
+cor_base = Color(1, 0.45, 0.2, 1)
+raio_contato = 34.0
+intervalo_dano_contato = 0.9
+
+[node name="Forma" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_besta")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Corpo" type="Polygon2D" parent="Visual"]
+color = Color(1, 0.45, 0.2, 1)
+polygon = PackedVector2Array(24, 0, 6, 15, -14, 16, -20, 0, -14, -16, 6, -15)
+
+[node name="Chifre1" type="Polygon2D" parent="Visual"]
+color = Color(1, 0.85, 0.6, 1)
+polygon = PackedVector2Array(20, -7, 34, -13, 24, -2)
+
+[node name="Chifre2" type="Polygon2D" parent="Visual"]
+color = Color(1, 0.85, 0.6, 1)
+polygon = PackedVector2Array(20, 7, 34, 13, 24, 2)
+
+[node name="Olho" type="Polygon2D" parent="Visual"]
+color = Color(1, 0.2, 0.15, 1)
+polygon = PackedVector2Array(12, 0, 4, 5, 4, -5)
+
+[node name="Rastro" type="Line2D" parent="."]
+z_index = -2
+points = PackedVector2Array(0, 0, 1, 0)
+width = 4.0
+default_color = Color(1, 0.45, 0.2, 0.35)

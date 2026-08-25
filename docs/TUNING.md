@@ -106,11 +106,36 @@ barato demais e a virada não dói; caro demais e ela vira dano inescapável.
 
 `src/enemies/*.tscn` (Inspetor).
 
-| | Vida | Velocidade | Créditos | Custo no orçamento |
-|---|---|---|---|---|
-| Rastejante | 4 | 118 | 3 | 1 |
-| Vigia | 6 | 96 | 5 | 2 |
-| Diretora | **300** | 60 | 100 | 1 (sozinha na sala) |
+| | Vida | Velocidade | Créditos | Custo | Porta | O que ele cobra do jogador |
+|---|---|---|---|---|---|---|
+| Rastejante | 4 | 118 | 3 | 1 | 0 | espaço — encosta e não larga |
+| Vigia | 6 | 96 | 5 | 2 | 0 | a esquiva — acima de 50% mira onde você vai estar |
+| Drone Aranha | 5 | 78 | 6 | 2 | 0 | o giro — o anel de 8 não tem lado seguro |
+| Sentinela Orbital | 6 | 132 | 7 | 2 | 6 | a saída lateral — ela ocupa a órbita |
+| Atirador Neon | 5 | 104 | 6 | 2 | 12 | ficar parado no aberto — mas a linha é travada, sair funciona |
+| Cyber-Besta | 8 | 88 | 12 | 3 | 18 | a leitura — investida em linha, direção travada |
+| Hacker Parasita | 6 | 110 | 10 | 3 | 24 | a atenção — cobra por ser ignorado |
+| Diretora | **300** | 60 | 100 | 1 | — | (sozinha na sala) |
+
+**A coluna `Porta`** é o campo `deterioracao_minima` do `grupo_*.tres`: a partir
+de que Deterioração **estimada** aquele inimigo entra no sorteio. É o que faz o
+andar apresentar os tipos aos poucos em vez de a primeira sala poder sortear
+quatro Cyber-Bestas.
+
+A estimativa é `salas até aqui × deterioracao_ao_limpar`. Ela é necessária
+porque a composição de todas as salas é sorteada de uma vez, na montagem do
+andar, quando a barra ainda marca zero — comparar com o valor real naquele
+instante barraria todo grupo com porta acima de zero, para sempre e em silêncio.
+Como a conta ignora o ganho passivo, ela subestima: a porta abre um pouco mais
+tarde do que na partida real.
+
+> Com `deterioracao_ao_limpar = 6`, uma porta de 18 quer dizer "a partir da
+> terceira sala". Mexer naquele 6 move todas as portas junto — o que é
+> correto, mas vale lembrar antes de mexer.
+
+Medido em 120 andares: Drone 100% dos andares, Sentinela 98%, Neon 96%,
+Cyber-Besta 73%, Parasita 40%. A régua `medir_composicao` marca com
+`<== raro demais` qualquer inimigo abaixo de 20%.
 
 A velocidade e a cadência que você vê em jogo são **maiores** que estas: todo
 inimigo lê a Deterioração no frame. No topo da barra, velocidade ×1.55,
@@ -126,17 +151,24 @@ cadência ×1.70, velocidade de projétil ×1.25.
 | `orcamento_minimo` | 4 | Piso, para a sala em L não nascer vazia |
 | `orcamento_maximo` | 13 | Teto, para a sala grande não virar parede de corpos |
 
-Medido: sala em L 3,4 inimigos em média; retangular 4,5; corredor 5,9; pilar
-8,1; grande 9,5.
+Medido com os sete tipos: sala em L 2,5 inimigos em média; retangular 3,5;
+corredor 4,7; pilar 6,4; grande 7,5. São menos corpos do que quando só existiam
+dois tipos (era 3,4 / 4,5 / 5,9 / 8,1 / 9,5), porque os inimigos novos custam 2
+ou 3 — **menos corpos, mais perigo por corpo**, que é o que o `custo` existe
+para comprar.
 
 ### Quem aparece
 
 `src/enemies/grupo_rastejante.tres` e `grupo_vigia.tres`:
 
-| Botão | Rastejante | Vigia | O que faz |
-|---|---|---|---|
-| `peso` | 3.0 | 2.0 | Chance relativa no sorteio. Hoje sai ~65% rastejante |
-| `custo` | 1 | 2 | Quanto consome do orçamento |
+| Botão | O que faz |
+|---|---|
+| `peso` | Chance relativa no sorteio, entre os que já passaram da porta |
+| `custo` | Quanto consome do orçamento da sala |
+| `deterioracao_minima` | A porta, explicada acima |
+
+Pesos de hoje: Rastejante 3.0; Vigia, Drone e Sentinela 2.0; Neon e Cyber-Besta
+1.5; Parasita 1.0.
 
 **`custo` é o botão de "mais difícil sem mais corpos".** Subir o custo do Vigia
 faz a mesma sala caber menos inimigos, porém mais perigosos.

@@ -43,7 +43,8 @@ referência de nó. Antes de abrir uma cena que alguém pode estar mexendo,
 avise no grupo. Scripts (`.gd`) são bem mais tolerantes — dois arquivos
 diferentes nunca conflitam.
 
-Sugestão de divisão para a Fase 1 (ajuste como quiserem):
+Sugestão de divisão por área, para duas pessoas não abrirem a mesma cena
+(ajuste como quiserem):
 
 | Área | Arquivos |
 |---|---|

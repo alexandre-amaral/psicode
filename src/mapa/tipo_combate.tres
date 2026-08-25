@@ -12,6 +12,11 @@
 [ext_resource type="PackedScene" uid="uid://o0p9q8r7s6t5u" path="res://src/mapa/sala_5_pilar.tscn" id="6_s5"]
 [ext_resource type="Resource" path="res://src/enemies/grupo_rastejante.tres" id="7_rast"]
 [ext_resource type="Resource" path="res://src/enemies/grupo_vigia.tres" id="8_vigia"]
+[ext_resource type="Resource" path="res://src/enemies/grupo_drone_aranha.tres" id="9_drone"]
+[ext_resource type="Resource" path="res://src/enemies/grupo_sentinela_orbital.tres" id="10_sent"]
+[ext_resource type="Resource" path="res://src/enemies/grupo_atirador_neon.tres" id="11_neon"]
+[ext_resource type="Resource" path="res://src/enemies/grupo_cyber_besta.tres" id="12_besta"]
+[ext_resource type="Resource" path="res://src/enemies/grupo_hacker_parasita.tres" id="13_hacker"]
 
 [resource]
 script = ExtResource("1_ds")
@@ -23,7 +28,7 @@ prioridade = 100
 exige_beco = false
 distancia_minima_da_origem = 0
 opcional = true
-inimigos = Array[Resource]([ExtResource("7_rast"), ExtResource("8_vigia")])
+inimigos = Array[Resource]([ExtResource("7_rast"), ExtResource("8_vigia"), ExtResource("9_drone"), ExtResource("10_sent"), ExtResource("11_neon"), ExtResource("12_besta"), ExtResource("13_hacker")])
 densidade = 1.2
 orcamento_minimo = 4
 orcamento_maximo = 13

@@ -10,11 +10,28 @@ extends Control
 
 signal fechado()
 
+## Cor de repouso do rotulo de uma linha. Vem do Theme do painel, e esta
+## repetida aqui porque o foco precisa saber para onde VOLTAR.
+const COR_ROTULO := Color(0.85, 0.85, 0.9)
+const COR_FOCO := Color(1.0, 0.8, 0.4)
+
 @onready var _tela_cheia: CheckButton = %TelaCheia
 @onready var _shake: CheckButton = %Shake
 @onready var _glitch: CheckButton = %Glitch
 @onready var _idioma: OptionButton = %Idioma
 @onready var _btn_voltar: Button = %BtnVoltar
+
+## controle -> o Label da linha dele.
+##
+## Cada linha e um HBox com o texto num Label e o controle a direita, e nao um
+## CheckButton com texto proprio. Foi o que alinhou a coluna: CheckButton
+## desenha o texto depois do recuo interno do StyleBox dele, e o Label do idioma
+## nao tinha recuo nenhum -- os quatro rotulos comecavam em x diferentes. Com
+## todos sendo Label, o alinhamento e estrutural em vez de calibrado no olho.
+##
+## O preco e que o CheckButton deixou de ter texto para recolorir no foco. Este
+## dicionario devolve isso: quem ganha foco pinta o proprio rotulo.
+var _rotulos: Dictionary = {}
 
 
 func _ready() -> void:
@@ -27,7 +44,29 @@ func _ready() -> void:
 	_shake.toggled.connect(Configuracao.definir_shake)
 	_glitch.toggled.connect(Configuracao.definir_glitch)
 	_montar_idiomas()
+	_ligar_rotulos()
 	_btn_voltar.pressed.connect(fechar)
+
+
+## O foco de cada controle acende o rotulo da linha dele.
+func _ligar_rotulos() -> void:
+	for controle: Control in [_tela_cheia, _shake, _glitch, _idioma]:
+		var rotulo := controle.get_parent().get_node_or_null("Rotulo") as Label
+		if rotulo == null:
+			continue
+		_rotulos[controle] = rotulo
+		# A ORDEM do bind importa: focus_entered nao passa argumento nenhum,
+		# entao o que o bind anexa e tudo que chega. Invertido, o Control cai no
+		# parametro `focado: bool` e cada foco cospe erro de conversao.
+		controle.focus_entered.connect(_ao_focar_linha.bind(true, controle))
+		controle.focus_exited.connect(_ao_focar_linha.bind(false, controle))
+
+
+func _ao_focar_linha(focado: bool, controle: Control) -> void:
+	var rotulo: Label = _rotulos.get(controle)
+	if rotulo == null:
+		return
+	rotulo.add_theme_color_override("font_color", COR_FOCO if focado else COR_ROTULO)
 
 
 func abrir() -> void:

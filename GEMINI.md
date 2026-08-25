@@ -309,6 +309,34 @@ em qualquer erro de script.
 - **Conecte o sinal ANTES de `equipar()`.** `equipar()` emite `municao_alterada`
   na hora; ligar o sinal depois perde esse primeiro aviso e a HUD fica com o
   texto que estava escrito na cena.
+- **Area que estoura NAO pode estourar no `_ready`.** A convencao do projeto e
+  `add_child` ANTES de `configurar` -- entao no `_ready` a `ExplosaoArea` ainda
+  esta em (0,0) com o raio padrao, e varre o lugar errado. A primeira versao
+  disfarcava com uma segunda varredura diferida, e "as vezes acerta" e PIOR que
+  "nunca acerta": passa no teste e falha na sala cheia, que e quando a granada
+  importa. Hoje o estouro sai de `configurar()` e e sincrono.
+- **`get_overlapping_bodies()` nao serve para explosao.** Ele responde com o
+  estado do ultimo passo de fisica, e a area nasceu NESTE frame -- no instante
+  do estouro ela nao existia para o servidor. Pior: quem ja esta dentro do raio
+  nunca *entra* nele, e e onde esta a maioria dos alvos. Use
+  `intersect_shape` no espaco direto. A mesma licao ja estava em
+  `AreaDePerigo._explodir()`.
+- **Granada nao machuca ao encostar.** Dano de contato MAIS explosao cobraria
+  duas vezes do alvo colado e apagaria o falloff, que existe justamente para
+  premiar quem acerta no meio do grupo. `EXPLOSIVO` crava e some; quem fere e a
+  explosao.
+- **Projetil explosivo tem de sair do alcance explodindo, nao sumindo.** O
+  `_vida_restante` chega a zero e faz `queue_free()` -- numa granada isso le
+  como tiro engolido. E o pavio aceso precisa de saida antecipada no
+  `_physics_process`, senao o alcance continua correndo por baixo e a granada
+  morre antes de estourar.
+- **Explosao na parede nasce afastada pela NORMAL.** Sem o `+ normal * raio` a
+  area nasce meio enterrada no solido, e metade do raio nao alcanca ninguem --
+  numa arma que existe para usar o corredor a favor.
+- **Suite de teste que precisa de passo de fisica exige `await` no runner.** Um
+  corpo recem-adicionado so entra no espaco no passo seguinte. O `runner.gd` faz
+  `await suite.executar()` por isso; sem o await ele imprime o relatorio antes
+  de a suite terminar e as verificacoes dela somem da conta, sem erro nenhum.
 - **Quem hospeda a run e dono de `GameState.iniciar_run()`/`terminar_run()`.**
   Perder essa chamada desliga a Deterioracao passiva sem erro nenhum no console.
 - **Textura em `Polygon2D` nao repete sozinha.** O projeto nao define

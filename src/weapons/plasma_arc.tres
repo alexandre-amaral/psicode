@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+
+[resource]
+script = ExtResource("1_dados")
+descricao = "Estoura na parede, não no alvo. Em sala apertada, o ricochete de energia alcança quem a linha reta não alcança."
+nome = "Plasma Arc"
+comportamento = 4
+dano = 1
+knockback = 30.0
+perfuracao = 0
+cadencia = 2.6
+automatica = true
+projeteis_por_tiro = 1
+projeteis_extra = 0
+abertura_graus = 0.0
+impressao_graus = 1.4
+dispersao_maxima_graus = 0.0
+dispersao_por_tiro = 0.0
+dispersao_recuperacao = 0.0
+velocidade_projetil = 880.0
+alcance = 330.0
+raio_projetil = 5.5
+cor_projetil = Color(0.28, 1, 0.47, 1)
+raio_explosao = 76.0
+dano_explosao = 4
+knockback_explosao = 190.0
+fuse = 0.0
+municao_maxima = -1
+shake_intensidade = 1.6
+shake_duracao = 0.09
+recuo_player = 0.0
+tamanho_pente = 10
+tempo_recarga = 1.3

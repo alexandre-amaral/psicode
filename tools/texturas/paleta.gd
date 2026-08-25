@@ -76,6 +76,8 @@ const ATOR: Dictionary = {
 	# graus. Armas da mesma faixa se separam pela FORMA (raio e rastro).
 	&"tiro_railx": Color(0.28, 0.36, 1.0),
 	&"tiro_phase": Color(1.0, 0.28, 0.8),
+	&"tiro_boomer": Color(0.81, 1.0, 0.28),
+	&"tiro_plasma": Color(0.28, 1.0, 0.47),
 	&"tiro_vigia": Color(1.0, 0.28, 0.42),
 	&"tiro_drone": Color(1.0, 0.55, 0.2),
 	&"tiro_sentinela": Color(0.6, 0.8, 1.0),

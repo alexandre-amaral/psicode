@@ -15,6 +15,8 @@ const ARMAS := [
 	"res://src/weapons/rail_x.tres",
 	"res://src/weapons/phase_blaster.tres",
 	"res://src/weapons/gravity_gun.tres",
+	"res://src/weapons/boomer.tres",
+	"res://src/weapons/plasma_arc.tres",
 	"res://src/weapons/tiro_vigia.tres",
 	"res://src/weapons/tiro_diretora.tres",
 	"res://src/weapons/salva_diretora.tres",

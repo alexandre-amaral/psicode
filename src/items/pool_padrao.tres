@@ -1,10 +1,12 @@
-[gd_resource type="Resource" script_class="PoolLoot" load_steps=22 format=3]
+[gd_resource type="Resource" script_class="PoolLoot" load_steps=24 format=3]
 
 [ext_resource type="Script" path="res://src/items/pool_loot.gd" id="1_pl"]
 [ext_resource type="Resource" path="res://src/weapons/shotgun.tres" id="2_shotgun"]
 [ext_resource type="Resource" path="res://src/weapons/rail_x.tres" id="40_rail_x"]
 [ext_resource type="Resource" path="res://src/weapons/phase_blaster.tres" id="41_phase_blaster"]
 [ext_resource type="Resource" path="res://src/weapons/gravity_gun.tres" id="42_gravity_gun"]
+[ext_resource type="Resource" path="res://src/weapons/boomer.tres" id="43_boomer"]
+[ext_resource type="Resource" path="res://src/weapons/plasma_arc.tres" id="44_plasma_arc"]
 [ext_resource type="Resource" path="res://src/items/implante_nucleo.tres" id="3_nucleo"]
 [ext_resource type="Resource" path="res://src/items/implante_reflexo.tres" id="4_reflexo"]
 [ext_resource type="Resource" path="res://src/items/implante_servo.tres" id="5_servo"]
@@ -24,5 +26,5 @@
 
 [resource]
 script = ExtResource("1_pl")
-armas = Array[Resource]([ExtResource("2_shotgun"), ExtResource("40_rail_x"), ExtResource("41_phase_blaster"), ExtResource("42_gravity_gun")])
+armas = Array[Resource]([ExtResource("2_shotgun"), ExtResource("40_rail_x"), ExtResource("41_phase_blaster"), ExtResource("42_gravity_gun"), ExtResource("43_boomer"), ExtResource("44_plasma_arc")])
 itens = Array[Resource]([ExtResource("3_nucleo"), ExtResource("4_reflexo"), ExtResource("5_servo"), ExtResource("6_gatilho"), ExtResource("7_penetrador"), ExtResource("8_dissipador"), ExtResource("9_overclock"), ExtResource("10_municao_inteligente"), ExtResource("11_vampirico"), ExtResource("12_sobrecarga"), ExtResource("13_nanobots"), ExtResource("14_fragmentador"), ExtResource("15_celula_eco"), ExtResource("16_firewall"), ExtResource("17_predatoria"), ExtResource("18_daemon")])

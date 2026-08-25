@@ -92,6 +92,18 @@ enum Comportamento {
 @export var raio_projetil: float = 4.0
 @export var cor_projetil: Color = Color("6ee7ff")
 
+@export_group("Explosao")
+## Valem para EXPLOSIVO (a granada) e PLASMA (o estouro na parede). Sao quatro
+## numeros separados de proposito, e nao um "poder de explosao": assim um item
+## pode mexer no RAIO sem mexer no dano, ou no knockback sem mexer em nenhum dos
+## dois. Foi o pedido explicito de quem desenhou as armas.
+@export var raio_explosao: float = 90.0
+@export var dano_explosao: int = 4
+@export var knockback_explosao: float = 260.0
+## Quanto a granada espera parada antes de estourar. Zero explode no impacto,
+## que e como o PLASMA se comporta.
+@export var fuse: float = 0.6
+
 @export_group("Municao")
 ## Quantos tiros cabem no pente antes de precisar recarregar. Zero nao existe:
 ## uma arma com pente vazio nunca poderia atirar.
@@ -140,6 +152,11 @@ func sortear_projeteis() -> int:
 ## e o unico que precisa de um caminho proprio em Arma.
 func e_feixe() -> bool:
 	return comportamento == Comportamento.FEIXE
+
+
+## Se o projetil desta arma termina em explosao de area.
+func explode() -> bool:
+	return comportamento == Comportamento.EXPLOSIVO 		or comportamento == Comportamento.PLASMA
 
 
 # ------------------------------------------------------- perfil da arma ------

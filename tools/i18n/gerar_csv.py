@@ -84,6 +84,10 @@ UI = [
     # personagens -- o NOME nao entra: RAVEN e NOVA sao marcas, nao frases.
     ("Operadora de Combate", "Combat Operator"),
     ("Hacker Experimental", "Experimental Hacker"),
+    ('A granada crava onde bate e espera. Serve para preparar a esquina antes de o inimigo chegar nela.',
+     'The grenade sticks where it lands and waits. Good for priming a corner before the enemy reaches it.'),
+    ('Estoura na parede, não no alvo. Em sala apertada, o ricochete de energia alcança quem a linha reta não alcança.',
+     'It bursts on the wall, not on the target. In a tight room, the energy splash reaches what a straight line cannot.'),
 ]
 
 # Implantes: nome e descricao de cada um.

@@ -18,6 +18,7 @@ const FOLGA_RICOCHETE := 3.0
 const ABERTURA_FRAGMENTO := 42.0
 
 const CENA_PROJETIL := preload("res://src/projectiles/projetil.tscn")
+const CENA_EXPLOSAO := preload("res://src/projectiles/explosao_area.tscn")
 
 var velocidade: Vector2 = Vector2.ZERO
 var dano: int = 1
@@ -43,6 +44,12 @@ var _atingidos: Array[int] = []
 ## .tres a cada frame de fisica seria uma consulta a Resource por projetil por
 ## frame, e o valor nao muda em voo.
 var _atravessa_parede: bool = false
+## Cache do comportamento explosivo, pela mesma razao: nao consultar o Resource
+## a cada frame de fisica por projetil em voo.
+var _explode: bool = false
+var _e_plasma: bool = false
+## Tempo restante do pavio. Negativo = a granada ainda esta voando.
+var _t_fuse: float = -1.0
 var _rastro: Line2D
 var _forma: CollisionShape2D
 var _visual: Polygon2D
@@ -120,6 +127,8 @@ func configurar(
 	_vida_restante = _vida_total
 
 	_atravessa_parede = dados.comportamento == DadosArma.Comportamento.FANTASMA
+	_explode = dados.explode()
+	_e_plasma = dados.comportamento == DadosArma.Comportamento.PLASMA
 
 	if hostil:
 		collision_layer = LAYER_PROJ_INIMIGO
@@ -134,6 +143,15 @@ func configurar(
 
 
 func _physics_process(delta: float) -> void:
+	# Granada cravada: nao anda, nao consulta parede e NAO gasta alcance. Sem
+	# esta saida antecipada o `_vida_restante` continuaria correndo e a granada
+	# sumiria antes de estourar -- o pavio viraria uma corrida contra o alcance.
+	if _t_fuse >= 0.0:
+		_t_fuse -= delta
+		if _t_fuse <= 0.0:
+			_detonar()
+		return
+
 	var anterior := global_position
 	global_position += velocidade * delta
 
@@ -159,7 +177,12 @@ func _physics_process(delta: float) -> void:
 
 	_vida_restante -= delta
 	if _vida_restante <= 0.0:
-		queue_free()
+		# Granada que nao encostou em nada ainda e uma granada: sumir no ar
+		# faria o tiro parecer engolido. Ela estoura onde o alcance acabou.
+		if _explode:
+			_detonar()
+		else:
+			queue_free()
 		return
 	_atualizar_rastro()
 	_aplicar_glitch()
@@ -177,6 +200,19 @@ func _raycast_parede(de: Vector2, para: Vector2) -> Dictionary:
 
 func _ao_bater_na_parede(batida: Dictionary) -> void:
 	global_position = batida["position"]
+
+	if _explode:
+		# Afasta pela NORMAL antes de estourar. E o que faz a explosao nascer NA
+		# face da parede e nao meio enterrada nela -- metade do raio dentro do
+		# solido nao alcanca ninguem, e a arma existe justamente para usar o
+		# corredor a favor.
+		global_position += batida["normal"] * raio
+		if _e_plasma:
+			_detonar()
+		else:
+			_cravar()
+		return
+
 	_impacto()
 
 	if ricochetes_restantes <= 0:
@@ -226,6 +262,14 @@ func _ao_encostar(corpo: Node) -> void:
 		return
 	_atingidos.append(id)
 
+	# A granada nao machuca ao encostar: ela CRAVA e o dano e a explosao. Dano de
+	# contato mais explosao faria o alvo colado tomar duas vezes pelo mesmo tiro,
+	# e o falloff -- que existe para premiar quem acerta no meio -- perderia o
+	# sentido.
+	if _explode and not _e_plasma:
+		_cravar()
+		return
+
 	var acertou := false
 	if corpo.has_method("receber_dano"):
 		acertou = corpo.receber_dano(_dano_no_alvo(corpo), velocidade.normalized() * knockback)
@@ -245,6 +289,30 @@ func _ao_encostar(corpo: Node) -> void:
 		perfuracao_restante -= 1
 	else:
 		queue_free()
+
+
+## Para no lugar e acende o pavio.
+func _cravar() -> void:
+	velocidade = Vector2.ZERO
+	_t_fuse = _dados.fuse if _dados != null else 0.0
+	# Pavio zero explode no mesmo frame, e e assim que uma arma pode declarar
+	# "estoura no impacto" sem precisar de comportamento proprio.
+	if _t_fuse <= 0.0:
+		_detonar()
+
+
+## Troca o projetil por uma ExplosaoArea e sai de cena.
+func _detonar() -> void:
+	if _dados != null:
+		var explosao := CENA_EXPLOSAO.instantiate()
+		# add_child ANTES de configurar: global_position so tem significado
+		# dentro da arvore. Mesma convencao do projetil.
+		var pai := get_parent()
+		if pai == null:
+			pai = get_tree().current_scene
+		pai.add_child(explosao)
+		explosao.configurar(global_position, _dados, cor)
+	queue_free()
 
 
 ## Dano ja com os bonus que dependem de QUEM foi atingido -- o resto do calculo

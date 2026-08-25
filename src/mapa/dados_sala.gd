@@ -100,6 +100,25 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## Marca curta desenhada no centro da sala no minimapa. Vazio = sem marca.
 @export var icone: String = ""
 
+@export_group("Visual")
+## As texturas que a Sala monta em codigo no _ready, a partir do contorno. Sao
+## os PNGs de assets/texturas/, gerados por tools/texturas/gerar_texturas.tscn
+## a partir da paleta (docs/IDENTIDADE_VISUAL.md) -- nunca de editor de imagem.
+## Campo vazio cai na variante `combate`, que e a neutra do andar; o teste de
+## texturas recusa tipo sem as tres declaradas, para o fallback nao virar
+## disfarce de esquecimento.
+@export var textura_chao: Texture2D
+@export var textura_parede: Texture2D
+@export var textura_filete: Texture2D
+## Atlas de props e QUAIS celulas dele esta sala pode usar. O atlas e um so
+## para o jogo inteiro; a lista e o que da identidade -- a sala do chefe nao
+## recebe o painel de acento da sala de arma.
+@export var atlas_props: Texture2D
+@export var regioes_props: Array[Rect2i] = []
+## Quantos props a sala tenta colocar na margem entre a parede e a area de
+## spawn. Zero desliga a decoracao.
+@export var quantidade_props: int = 0
+
 
 func eh_pendurada() -> bool:
 	return colocacao == Colocacao.PENDURADA

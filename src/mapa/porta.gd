@@ -10,6 +10,14 @@ extends Area2D
 ##
 ## O estado SELADA existe para o lado do grid que nao tem vizinho: ali a parede
 ## e definitiva, entao a porta nunca reabre e nunca aparece.
+##
+## Visual em duas pecas, e nao num retangulo que troca de cor: a "Moldura" e o
+## batente, sempre visivel onde ha vao, com a passagem para fora pintada de
+## escuridao (corredor nao revelado e o desconhecido, nao parede); o "Campo" e o
+## campo de forca, so TRANCADA, na paleta SINAL -- brilhante de proposito, mas
+## com 80x32, um tamanho que nenhum projetil tem. Em coordenadas locais da
+## porta, -y e sempre o lado de FORA da sala: os .tscn rotacionam cada porta
+## para isso, e e o que deixa a mesma textura servir aos quatro lados.
 
 enum Direcao { NORTE, SUL, LESTE, OESTE }
 enum Estado { ABERTA, TRANCADA, SELADA }
@@ -17,11 +25,9 @@ enum Estado { ABERTA, TRANCADA, SELADA }
 ## Vao que a parede da sala precisa abrir para caber esta porta.
 const LARGURA := 80.0
 
-const COR_ABERTA := Color(0.0, 0.8, 1.0, 0.4)
-const COR_TRANCADA := Color(1.0, 0.25, 0.4, 0.75)
-
 const CAMINHO_BARREIRA := ^"Barreira/Colisao"
-const CAMINHO_VISUAL := ^"Visual"
+const CAMINHO_MOLDURA := ^"Moldura"
+const CAMINHO_CAMPO := ^"Campo"
 
 @export var direcao: Direcao = Direcao.NORTE
 
@@ -32,7 +38,8 @@ var estado: Estado = Estado.TRANCADA
 var sala_dona: Sala = null
 
 var _barreira: CollisionShape2D = null
-var _visual: ColorRect = null
+var _moldura: Sprite2D = null
+var _campo: Sprite2D = null
 
 
 func _ready() -> void:
@@ -44,7 +51,8 @@ func _ready() -> void:
 	if _barreira == null:
 		push_error("Porta sem no Barreira/Colisao em %s" % get_path())
 
-	_visual = get_node_or_null(CAMINHO_VISUAL) as ColorRect
+	_moldura = get_node_or_null(CAMINHO_MOLDURA) as Sprite2D
+	_campo = get_node_or_null(CAMINHO_CAMPO) as Sprite2D
 
 	body_entered.connect(_ao_corpo_entrar)
 	_aplicar_estado()
@@ -102,6 +110,9 @@ func _aplicar_estado() -> void:
 		# fisica, e mexer em colisao no meio do passo derruba o servidor.
 		_barreira.set_deferred(&"disabled", not bloqueia)
 
-	if _visual != null:
-		_visual.visible = estado != Estado.SELADA
-		_visual.color = COR_ABERTA if estado == Estado.ABERTA else COR_TRANCADA
+	# SELADA esconde as duas pecas: o vao nem e aberto na parede, entao a
+	# parede e continua ali e qualquer coisa desenhada seria um erro visivel.
+	if _moldura != null:
+		_moldura.visible = estado != Estado.SELADA
+	if _campo != null:
+		_campo.visible = estado == Estado.TRANCADA

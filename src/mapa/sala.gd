@@ -25,6 +25,16 @@ extends Node2D
 ## caiu na celula: a sala inicial podia calhar de ser a arena grande com nove
 ## inimigos. Com a composicao vindo de fora, o gerador tem palavra sobre o ritmo
 ## do andar, e a sala continua sem saber que existe um andar.
+##
+## Quinta decisao: **o visual tambem nasce do contorno, em codigo.** Nenhuma
+## cena de sala carrega textura. No _ready, ao lado da parede fisica, a sala
+## monta o corpo da parede (o contorno inflado 24 px para fora, atras do chao),
+## o chao (o proprio contorno, texturizado com UV ancorada no CANTO), os props
+## e o filete de neon -- este ultimo em trechos que param nos vaos das portas,
+## exatamente os mesmos trechos que viram colisao. O Line2D "Parede" continua
+## sendo a fonte da geometria, mas fica invisivel em runtime: quem desenha sao
+## os trechos. Qual textura e cada uma, o DadosSala do tipo diz em
+## definir_visual(); sem dados (cena aberta sozinha), cai na variante `combate`.
 
 enum Estado { INATIVA, OCUPADA, LIMPA }
 
@@ -55,6 +65,33 @@ const FOLGA_SPAWN := 20.0
 ## encontrada: 64 acha qualquer vao maior que isso e custa poucas centenas de
 ## testes na maior sala, uma vez so por sala.
 const PASSO_VARREDURA := 32.0
+
+## Quanto o corpo da parede avanca para FORA do contorno. Combina com a
+## moldura da porta (96x48 centrada no vao), que cobre exatamente esta faixa.
+const ESPESSURA_PAREDE := 24.0
+## Camadas: o corpo da parede fica atras do chao, e e o chao que recorta a
+## faixa visivel -- sem calcular anel com furo, o que salva a sala em L.
+const Z_PAREDE_CORPO := -2
+const Z_CHAO := -1
+## Onde moram as texturas da variante neutra, usadas quando a sala roda sem
+## GerenciadorMapa (aberta sozinha no editor, instanciada por uma suite).
+const TEXTURA_PADRAO := "res://assets/texturas/%s_combate.png"
+## Cor de emergencia do chao quando a textura nao carrega: o N1 da paleta, que
+## e o chao que o jogo sempre teve. Sala invisivel seria pior que sala lisa.
+const COR_CHAO_EMERGENCIA := Color("0b0d16")
+## Lado de uma celula do atlas de props e passo da grade em que eles assentam.
+const PROP_LADO := 32.0
+const PROP_GRADE := 8.0
+## Faixa, medida da parede para dentro, onde um prop pode ficar. Menos que o
+## minimo e o prop entra na parede; mais que o maximo e ele parece bloquear.
+const PROP_AFASTAMENTO_MINIMO := 24.0
+const PROP_AFASTAMENTO_MAXIMO := 44.0
+## Prop perto de porta parece que tapa a porta.
+const PROP_DISTANCIA_DE_PORTA := 96.0
+## Distancia minima entre dois props, para nao empilharem.
+const PROP_ESPACO := 40.0
+## Tentativas por prop antes de desistir dele. Sala recortada rejeita muito.
+const PROP_TENTATIVAS := 12
 
 ## StringName e nao String porque este campo virou chave: o gerenciador e o
 ## minimapa comparam com os ids de DadosSala, e comparacao de StringName e por
@@ -103,12 +140,17 @@ var _area_contorno: float = -1.0
 var _ponto_seguro_local: Vector2 = Vector2.ZERO
 var _ponto_seguro_pronto: bool = false
 
+## O tipo que veste esta sala. Nulo = variante neutra, sem props.
+var _dados_visual: DadosSala = null
+
 
 func _ready() -> void:
 	add_to_group("salas")
 	_mapear_portas()
 	_selar_portas_sem_vizinho()
 	_montar_paredes()
+	_montar_visual()
+	_montar_decoracao()
 
 
 ## Le as portas direto dos filhos de $Portas. Vale antes de add_child: o
@@ -131,6 +173,14 @@ func direcoes_disponiveis() -> Array[Vector2]:
 func configurar_conexoes(direcoes: Array[Vector2]) -> void:
 	_conexoes = direcoes.duplicate()
 	_conexoes_definidas = true
+
+
+## Chamado ANTES de add_child, como configurar_conexoes: e o _ready que monta
+## as camadas, e ele precisa saber de que tipo a sala e para escolher textura.
+## Aceita nulo de proposito -- a cena aberta sozinha no editor nao tem dados e
+## nao pode explodir.
+func definir_visual(dados: DadosSala) -> void:
+	_dados_visual = dados
 
 
 ## O que vai nascer aqui quando o jogador entrar.
@@ -531,16 +581,19 @@ func _montar_paredes() -> void:
 	add_child(corpo)
 
 	for i in range(pontos.size() - 1):
-		_criar_trecho(corpo, pontos[i], pontos[i + 1])
+		for trecho in _subtrechos(pontos[i], pontos[i + 1]):
+			_adicionar_forma(corpo, trecho[0], trecho[1])
 
 
-## Um lado do contorno vira uma ou mais colisoes, dependendo de quantas portas
-## abrem vao nele. As formas nascem em codigo porque sub-resource declarado no
-## .tscn e compartilhado entre todas as instancias da cena.
-func _criar_trecho(corpo: StaticBody2D, inicio: Vector2, fim: Vector2) -> void:
+## Um lado do contorno vira um ou mais trechos, dependendo de quantas portas
+## abrem vao nele. Cada trecho e um par (inicio, fim). A mesma lista serve a
+## colisao e ao filete de neon: e por isso que o filete para no vao da porta
+## em vez de atravessa-lo -- ele segue a parede fisica, nao o desenho.
+func _subtrechos(inicio: Vector2, fim: Vector2) -> Array[PackedVector2Array]:
+	var trechos: Array[PackedVector2Array] = []
 	var comprimento := inicio.distance_to(fim)
 	if comprimento <= COMPRIMENTO_MINIMO:
-		return
+		return trechos
 	var direcao := (fim - inicio) / comprimento
 
 	var vaos := _vaos_no_trecho(inicio, direcao, comprimento)
@@ -550,11 +603,12 @@ func _criar_trecho(corpo: StaticBody2D, inicio: Vector2, fim: Vector2) -> void:
 	for vao in vaos:
 		var borda := clampf(vao.x, 0.0, comprimento)
 		if borda - cursor > COMPRIMENTO_MINIMO:
-			_adicionar_forma(corpo, inicio + direcao * cursor, inicio + direcao * borda)
+			trechos.append(PackedVector2Array([inicio + direcao * cursor, inicio + direcao * borda]))
 		cursor = maxf(cursor, clampf(vao.y, 0.0, comprimento))
 
 	if comprimento - cursor > COMPRIMENTO_MINIMO:
-		_adicionar_forma(corpo, inicio + direcao * cursor, fim)
+		trechos.append(PackedVector2Array([inicio + direcao * cursor, fim]))
+	return trechos
 
 
 ## Intervalos (inicio, fim) medidos ao longo do trecho onde a parede nao existe.
@@ -584,3 +638,273 @@ func _adicionar_forma(corpo: StaticBody2D, de: Vector2, para: Vector2) -> void:
 	var forma := CollisionShape2D.new()
 	forma.shape = segmento
 	corpo.add_child(forma)
+
+
+# ---------------------------------------------------------------- visual -----
+
+## Monta as camadas visuais a partir do contorno. Ordem na arvore importa
+## tanto quanto z_index: nos com o mesmo z desenham na ordem dos filhos, e a
+## moldura da porta (z -1, dentro de "Portas") precisa ficar POR CIMA do chao
+## (z -1). Por isso as camadas geradas entram no INICIO da lista de filhos.
+func _montar_visual() -> void:
+	var contorno := contorno_local()
+	if contorno.size() < 3:
+		return
+	var ancora := _caixa_de(contorno).position
+	var textura_chao := _textura(&"chao")
+	var textura_parede := _textura(&"parede")
+	var textura_filete := _textura(&"filete")
+
+	var corpo := Polygon2D.new()
+	corpo.name = "ParedeCorpo"
+	corpo.polygon = _inflar(contorno, ESPESSURA_PAREDE)
+	corpo.z_index = Z_PAREDE_CORPO
+	_texturizar(corpo, textura_parede, ancora)
+	add_child(corpo)
+	move_child(corpo, 0)
+
+	var chao := Polygon2D.new()
+	chao.name = "Chao"
+	chao.polygon = contorno
+	chao.z_index = Z_CHAO
+	_texturizar(chao, textura_chao, ancora)
+	add_child(chao)
+	move_child(chao, 1)
+
+	_montar_obstaculos_visuais(textura_parede, textura_filete, ancora)
+	_montar_filete(textura_filete)
+
+
+## O filete de neon em trechos, um por segmento de colisao. O Line2D "Parede"
+## do .tscn fica invisivel: ele e a fonte da geometria (e o que o editor mostra
+## para quem desenha a sala), mas se fosse desenhado atravessaria o vao da
+## porta -- e nao da para mexer nos pontos dele sem mexer na colisao.
+func _montar_filete(textura: Texture2D) -> void:
+	var parede := get_node_or_null("Parede") as Line2D
+	if parede == null:
+		return
+	var pontos := _pontos_do_contorno()
+
+	var raiz := Node2D.new()
+	raiz.name = "Filete"
+	add_child(raiz)
+	move_child(raiz, 2)
+
+	for i in range(pontos.size() - 1):
+		for trecho in _subtrechos(pontos[i], pontos[i + 1]):
+			var linha := Line2D.new()
+			linha.points = trecho
+			linha.width = parede.width
+			# Tampa quadrada: nas quinas os dois trechos se sobrepoem e fecham o
+			# canto sem junta; no vao da porta, avancam meia largura e param.
+			linha.begin_cap_mode = Line2D.LINE_CAP_BOX
+			linha.end_cap_mode = Line2D.LINE_CAP_BOX
+			_texturizar_linha(linha, textura, parede.default_color)
+			raiz.add_child(linha)
+
+	parede.visible = false
+
+
+## Obstaculo solido (o pilar) recebe o mesmo corpo de parede e o mesmo filete,
+## lido da forma de colisao: sem isso ele seria o unico solido sem textura da
+## sala. So retangulo por enquanto -- e o unico que existe.
+func _montar_obstaculos_visuais(textura_parede: Texture2D, textura_filete: Texture2D, ancora: Vector2) -> void:
+	var raiz := get_node_or_null("Obstaculos")
+	if raiz == null:
+		return
+	for forma in _formas_de(raiz):
+		var retangulo := forma.shape as RectangleShape2D
+		if retangulo == null or forma.disabled:
+			continue
+		var tr := _transform_relativa(forma)
+		var meia := retangulo.size * 0.5
+		var pontos := PackedVector2Array([
+			tr * Vector2(-meia.x, -meia.y),
+			tr * Vector2(meia.x, -meia.y),
+			tr * Vector2(meia.x, meia.y),
+			tr * Vector2(-meia.x, meia.y),
+		])
+
+		var bloco := Polygon2D.new()
+		bloco.name = "ObstaculoCorpo"
+		bloco.polygon = pontos
+		bloco.z_index = Z_CHAO
+		_texturizar(bloco, textura_parede, ancora)
+		add_child(bloco)
+
+		var borda := Line2D.new()
+		borda.name = "ObstaculoFilete"
+		borda.points = pontos
+		borda.closed = true
+		borda.width = 8.0
+		_texturizar_linha(borda, textura_filete, COR_CHAO_EMERGENCIA)
+		add_child(borda)
+
+
+## Textura repetida com UV em pixels, ancorada no canto do contorno. As duas
+## armadilhas previstas moram aqui: sem texture_repeat a textura aparece UMA
+## vez esticada no tamanho da sala (o default do projeto e Disabled); ancorada
+## no centro, o tile sai cortado ao meio nas bordas norte e sul, porque a meia
+## altura da sala padrao (272) nao e multipla de 32.
+func _texturizar(poligono: Polygon2D, textura: Texture2D, ancora: Vector2) -> void:
+	if textura == null:
+		poligono.color = COR_CHAO_EMERGENCIA
+		return
+	poligono.texture = textura
+	poligono.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	poligono.color = Color.WHITE
+	var uv := PackedVector2Array()
+	for ponto in poligono.polygon:
+		uv.append(ponto - ancora)
+	poligono.uv = uv
+
+
+func _texturizar_linha(linha: Line2D, textura: Texture2D, cor_sem_textura: Color) -> void:
+	if textura == null:
+		linha.default_color = cor_sem_textura
+		return
+	linha.texture = textura
+	linha.texture_mode = Line2D.LINE_TEXTURE_TILE
+	linha.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	linha.default_color = Color.WHITE
+
+
+## Contorno inflado para fora. offset_polygon com JOIN_MITER e seguro porque
+## todo contorno do projeto e retilineo (so 90 e 270 graus), e o resultado
+## certo e o que ENVOLVE a caixa original -- a checagem existe porque a
+## direcao do offset depende da orientacao do poligono, e o Line2D pode ter
+## sido desenhado em qualquer sentido.
+func _inflar(contorno: PackedVector2Array, quanto: float) -> PackedVector2Array:
+	var caixa := _caixa_de(contorno)
+	for delta: float in [quanto, -quanto]:
+		for candidato in Geometry2D.offset_polygon(contorno, delta, Geometry2D.JOIN_MITER):
+			if candidato.size() >= 3 and _caixa_de(candidato).encloses(caixa.grow(quanto * 0.5)):
+				return candidato
+	push_warning("Sala '%s': nao consegui inflar o contorno; parede sem corpo." % name)
+	return contorno
+
+
+func _caixa_de(pontos: PackedVector2Array) -> Rect2:
+	if pontos.is_empty():
+		return Rect2()
+	var caixa := Rect2(pontos[0], Vector2.ZERO)
+	for i in range(1, pontos.size()):
+		caixa = caixa.expand(pontos[i])
+	return caixa
+
+
+func _textura(familia: StringName) -> Texture2D:
+	var textura: Texture2D = null
+	if _dados_visual != null:
+		match familia:
+			&"chao":
+				textura = _dados_visual.textura_chao
+			&"parede":
+				textura = _dados_visual.textura_parede
+			&"filete":
+				textura = _dados_visual.textura_filete
+	if textura == null:
+		textura = load(TEXTURA_PADRAO % familia) as Texture2D
+	return textura
+
+
+# ------------------------------------------------------------- decoracao -----
+
+## Props sem colisao na margem entre a parede e a area de spawn. A seed vem
+## das coordenadas da celula: reentrar na sala mostra a mesma sala, e um teste
+## consegue reproduzir. Sem dados nao ha props -- e o tipo que diz o que cabe.
+func _montar_decoracao() -> void:
+	var dados := _dados_visual
+	if dados == null or dados.atlas_props == null or dados.regioes_props.is_empty() or dados.quantidade_props <= 0:
+		return
+	var contorno := _pontos_do_contorno()
+	if contorno.size() < 4:
+		return
+	var aberto := contorno_local()
+
+	var raiz := Node2D.new()
+	raiz.name = "Decoracao"
+	raiz.z_index = Z_CHAO
+	add_child(raiz)
+	move_child(raiz, 2)
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(coordenadas_grid)
+	var bocas := _bocas_locais()
+	var colocados: Array[Vector2] = []
+
+	for _i in dados.quantidade_props:
+		for _tentativa in PROP_TENTATIVAS:
+			var ponto := _sortear_ponto_de_prop(rng, contorno, aberto)
+			if ponto == Vector2.INF:
+				continue
+			if not _cabe_prop(ponto, aberto, bocas, colocados):
+				continue
+			var sprite := Sprite2D.new()
+			sprite.texture = dados.atlas_props
+			sprite.region_enabled = true
+			sprite.region_rect = Rect2(dados.regioes_props[rng.randi_range(0, dados.regioes_props.size() - 1)])
+			sprite.flip_h = rng.randf() < 0.5
+			sprite.position = ponto
+			raiz.add_child(sprite)
+			colocados.append(ponto)
+			break
+
+
+## Um ponto encostado num lado do contorno, para DENTRO. O lado e sorteado com
+## peso pelo comprimento, senao o braco curto do L recebe tanto quanto a parede
+## longa. Vector2.INF quando o sorteio nao serviu.
+func _sortear_ponto_de_prop(rng: RandomNumberGenerator, contorno: PackedVector2Array, aberto: PackedVector2Array) -> Vector2:
+	var perimetro := 0.0
+	for i in range(contorno.size() - 1):
+		perimetro += contorno[i].distance_to(contorno[i + 1])
+	var alvo := rng.randf() * perimetro
+	for i in range(contorno.size() - 1):
+		var a := contorno[i]
+		var b := contorno[i + 1]
+		var comprimento := a.distance_to(b)
+		if alvo > comprimento:
+			alvo -= comprimento
+			continue
+		if comprimento < PROP_LADO * 2.0:
+			return Vector2.INF
+		var direcao := (b - a) / comprimento
+		var normal := Vector2(-direcao.y, direcao.x)
+		var ao_longo := clampf(alvo, PROP_LADO, comprimento - PROP_LADO)
+		var afastamento := rng.randf_range(PROP_AFASTAMENTO_MINIMO, PROP_AFASTAMENTO_MAXIMO)
+		var base := a + direcao * ao_longo
+		var ponto := base + normal * afastamento
+		if not Geometry2D.is_point_in_polygon(ponto, aberto):
+			ponto = base - normal * afastamento
+		if not Geometry2D.is_point_in_polygon(ponto, aberto):
+			return Vector2.INF
+		return (ponto / PROP_GRADE).round() * PROP_GRADE
+	return Vector2.INF
+
+
+func _cabe_prop(ponto: Vector2, aberto: PackedVector2Array, bocas: Array[Vector2], colocados: Array[Vector2]) -> bool:
+	# Dentro do contorno com folga de meio prop, e fora de qualquer obstaculo.
+	if not _local_livre(ponto, aberto, PROP_LADO * 0.5 + 8.0):
+		return false
+	# Fora da area util: prop no meio do chao, sem colisao, e obstaculo mentiroso.
+	if area_spawn.intersects(Rect2(ponto - Vector2.ONE * PROP_LADO * 0.5, Vector2.ONE * PROP_LADO)):
+		return false
+	for boca in bocas:
+		if boca.distance_to(ponto) < PROP_DISTANCIA_DE_PORTA:
+			return false
+	for outro in colocados:
+		if outro.distance_to(ponto) < PROP_ESPACO:
+			return false
+	return true
+
+
+## Posicao LOCAL de todas as portas, seladas inclusive: prop encostado numa
+## porta selada tambem parece que tapa alguma coisa.
+func _bocas_locais() -> Array[Vector2]:
+	var lista: Array[Vector2] = []
+	if _raiz_portas == null:
+		return lista
+	for chave in _portas_por_direcao:
+		var porta := _portas_por_direcao[chave] as Porta
+		lista.append(_raiz_portas.transform * porta.position)
+	return lista

@@ -49,7 +49,10 @@ Só depois que a base for divertida.
 
 - [ ] Sprites do jogador e dos dois inimigos (mantendo a silhueta atual, que já lê bem)
 - [ ] Sprite e animação do chefe
-- [ ] Tileset da arena
+- [x] Texturas da arena — primeira leva: chão, parede, filete, porta, corredor
+      e props, gerados por código a partir da paleta (`docs/IDENTIDADE_VISUAL.md`).
+      Não é tileset pintado à mão: a camada visual nasce do mesmo `Line2D`
+      que gera a colisão, então sala nova já vem vestida.
 - [ ] Feedback sonoro: tiro, impacto, dano, morte, telegrafo do chefe
 - [ ] Música: uma faixa que degrada junto com a barra (filtro/distorção crescente)
 - [ ] Substituir os `Polygon2D` por `Sprite2D` sem tocar na lógica

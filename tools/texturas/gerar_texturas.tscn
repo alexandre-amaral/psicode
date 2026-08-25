@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://c3t2x7ur4gerad"]
+
+[ext_resource type="Script" path="res://tools/texturas/gerar_texturas.gd" id="1_gerador"]
+
+[node name="GerarTexturas" type="Node"]
+script = ExtResource("1_gerador")

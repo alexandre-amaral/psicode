@@ -15,6 +15,9 @@ const ARMAS := [
 	"res://src/weapons/salva_diretora.tres",
 ]
 
+## Mesmo teto do implante: os dois textos vao para o mesmo Label da HUD.
+const MAXIMO_DESCRICAO := 140
+
 
 func nome() -> String:
 	return "DadosArma"
@@ -69,6 +72,13 @@ func _armas_do_projeto() -> void:
 		ok(arma.perfuracao >= 0, "%s: perfuracao nao e negativa" % etiqueta)
 		ok(arma.abertura_graus >= 0.0, "%s: abertura nao e negativa" % etiqueta)
 		ok(not arma.nome.is_empty(), "%s: tem nome para a HUD" % etiqueta)
+		# A descricao virou texto de tela quando o aviso de aquisicao passou a
+		# mostra-la: arma sem descricao agora e uma linha em branco na HUD.
+		ok(not arma.descricao.is_empty(), "%s: tem descricao para o aviso" % etiqueta)
+		ok(
+			arma.descricao.length() <= MAXIMO_DESCRICAO,
+			"%s: descricao cabe no aviso (%d de %d)" % [etiqueta, arma.descricao.length(), MAXIMO_DESCRICAO]
+		)
 
 		# Uma arma de tiro unico com abertura configurada nao espalha nada --
 		# o leque precisa de dois ou mais projeteis. Sinal de tuning enganoso.

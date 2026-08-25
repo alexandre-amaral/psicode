@@ -1,8 +1,4 @@
-<<<<<<< Updated upstream
-[gd_resource type="Resource" script_class="DadosSala" load_steps=9 format=3]
-=======
 [gd_resource type="Resource" script_class="DadosSala" load_steps=18 format=3]
->>>>>>> Stashed changes
 
 [ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
 [ext_resource type="Texture2D" path="res://assets/texturas/chao_combate.png" id="20_chao"]

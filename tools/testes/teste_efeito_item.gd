@@ -8,6 +8,11 @@ extends TesteBase
 
 const PASTA := "res://src/items/"
 
+## Teto de caracteres da descricao. O aviso da HUD e um Label de 520 px na fonte
+## 12, com autowrap em duas linhas -- cabem ~170. A maior descricao de hoje tem
+## 95. 140 deixa folga para escrever e ainda pega texto vazando do layout.
+const MAXIMO_DESCRICAO := 140
+
 
 func nome() -> String:
 	return "EfeitoItem"
@@ -75,9 +80,26 @@ func _implantes_do_projeto() -> void:
 		ok(item.faz_alguma_coisa(), "%s tem efeito ou comportamento" % arquivo)
 		ok(not item.nome.is_empty(), "%s tem nome" % arquivo)
 		ok(not item.descricao.is_empty(), "%s tem descricao para o jogador" % arquivo)
+		ok(
+			item.descricao.length() <= MAXIMO_DESCRICAO,
+			"%s: descricao cabe no aviso (%d de %d)" % [arquivo, item.descricao.length(), MAXIMO_DESCRICAO]
+		)
 		ok(not item.sigla.is_empty(), "%s tem sigla para o pickup" % arquivo)
 
 		for efeito in item.efeitos_validos():
+			# O numero prometido ao jogador tem de ser o numero que o efeito faz.
+			# Sem isto, ajustar 1.18 para 1.25 no Inspetor deixa a descricao
+			# prometendo "+18%" para sempre, sem erro nenhum em lugar nenhum.
+			#
+			# Cobre `efeitos`, NAO `parametro`: os implantes so-comportamento
+			# (ricochete, fragmentar, vampirismo, nanobots, marcador) escrevem o
+			# numero em formatos que variam de proposito -- "15% de chance", "a
+			# cada 30 abates", "+75% de dano" -- e uma regra automatica ali seria
+			# fragil demais para valer o que custa.
+			ok(
+				item.descricao.contains(efeito.resumo()),
+				"%s: descricao cita %s do efeito" % [arquivo, efeito.resumo()]
+			)
 			if EfeitoItem.alvo_e_inteiro(efeito.alvo):
 				ok(not efeito.eh_multiplicativo(), "%s: alvo inteiro nao multiplica" % arquivo)
 			# Multiplicador 1.0 e o neutro: um efeito assim nao faz nada e

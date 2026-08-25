@@ -26,29 +26,19 @@ const TIPOS := [
 	"res://src/mapa/tipo_inicial.tres",
 ]
 
-## Quem carrega `cor_base` e precisa estar no espelho Paleta.ATOR.
-const INIMIGOS := [
-	"res://src/enemies/rastejante.tscn",
-	"res://src/enemies/vigia.tscn",
-	"res://src/enemies/drone_aranha.tscn",
-	"res://src/enemies/sentinela_orbital.tscn",
-	"res://src/enemies/atirador_neon.tscn",
-	"res://src/enemies/cyber_besta.tscn",
-	"res://src/enemies/hacker_parasita.tscn",
-	"res://src/enemies/diretora.tscn",
-]
+## Onde moram os atores. A lista de arquivos NAO e fixa de proposito: era, e um
+## branch sem os cinco inimigos novos reprovava cinco vezes por arquivo ausente,
+## sem que ninguem tivesse mudado uma cor. Pior que isso, o inverso tambem valia
+## -- inimigo novo que ninguem lembrasse de listar aqui passava sem cobertura
+## nenhuma. Varrer o disco resolve os dois lados; o piso abaixo impede a
+## varredura vazia virar aprovacao.
+const PASTA_INIMIGOS := "res://src/enemies/"
+const PASTA_ARMAS := "res://src/weapons/"
 
-## Quem carrega `cor_projetil`.
-const ARMAS := [
-	"res://src/weapons/pistola.tres",
-	"res://src/weapons/shotgun.tres",
-	"res://src/weapons/tiro_vigia.tres",
-	"res://src/weapons/tiro_drone.tres",
-	"res://src/weapons/tiro_sentinela.tres",
-	"res://src/weapons/tiro_neon.tres",
-	"res://src/weapons/tiro_diretora.tres",
-	"res://src/weapons/salva_diretora.tres",
-]
+## Piso de atores conferidos. Dois inimigos (Rastejante, Vigia) mais a Diretora
+## e as duas armas do jogador existem desde a v0.1: abaixo disso a varredura
+## achou pouco demais para estar certa.
+const MINIMO_ATORES := 6
 
 
 func nome() -> String:
@@ -95,24 +85,50 @@ func _paleta() -> void:
 func _espelho_do_ator() -> void:
 	var ator := Paleta.ator()
 	var conferidos := 0
-	for caminho: String in INIMIGOS:
+
+	for caminho: String in _caminhos_de(PASTA_INIMIGOS, ".tscn"):
+		# Nem toda cena de src/enemies/ e um ator: area_de_perigo e afins nao
+		# tem cor_base. Ausencia da propriedade e "nao se aplica", nao falha --
+		# quem falha e a cor errada de quem TEM a propriedade.
 		var cor: Variant = _propriedade_da_raiz(caminho, &"cor_base")
-		var etiqueta := caminho.get_file()
 		if cor == null:
-			ok(false, "%s tem cor_base declarada na cena" % etiqueta)
 			continue
 		conferidos += 1
-		ok(Paleta.pertence(cor, ator), "%s: cor_base %s esta no espelho ATOR" % [etiqueta, (cor as Color).to_html(false)])
-	for caminho: String in ARMAS:
+		ok(
+			Paleta.pertence(cor, ator),
+			"%s: cor_base %s esta no espelho ATOR" % [caminho.get_file(), (cor as Color).to_html(false)]
+		)
+
+	for caminho: String in _caminhos_de(PASTA_ARMAS, ".tres"):
 		var dados: Resource = load(caminho)
-		var etiqueta := caminho.get_file()
 		if dados == null or not "cor_projetil" in dados:
-			ok(false, "%s carrega e tem cor_projetil" % etiqueta)
 			continue
 		conferidos += 1
 		var cor: Color = dados.cor_projetil
-		ok(Paleta.pertence(cor, ator), "%s: cor_projetil %s esta no espelho ATOR" % [etiqueta, cor.to_html(false)])
-	igual(conferidos, INIMIGOS.size() + ARMAS.size(), "todos os atores listados foram conferidos")
+		ok(
+			Paleta.pertence(cor, ator),
+			"%s: cor_projetil %s esta no espelho ATOR" % [caminho.get_file(), cor.to_html(false)]
+		)
+
+	ok(
+		conferidos >= MINIMO_ATORES,
+		"a varredura achou os atores (%d encontrados, minimo %d)" % [conferidos, MINIMO_ATORES]
+	)
+
+
+## Caminhos de uma pasta com a extensao pedida, em ordem estavel. Ordenado
+## porque relatorio de teste que muda de ordem entre maquinas e ruido no diff.
+func _caminhos_de(pasta: String, extensao: String) -> Array[String]:
+	var lista: Array[String] = []
+	var dir := DirAccess.open(pasta)
+	if dir == null:
+		ok(false, "%s pode ser aberta" % pasta)
+		return lista
+	for arquivo in dir.get_files():
+		if arquivo.ends_with(extensao):
+			lista.append(pasta + arquivo)
+	lista.sort()
+	return lista
 
 
 ## Le uma propriedade do no raiz direto do PackedScene, sem instanciar: os

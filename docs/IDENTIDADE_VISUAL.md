@@ -19,6 +19,12 @@ limpa). As outras imagens em `inspiração/` (`interiores.webp` e o concept de
 loja da CD Projekt) são **fotorrealistas** e servem só de mood de iluminação —
 que superfície brilha, onde a sombra cai — **não** de estilo.
 
+> **`bg_menu.jpg` foi medida.** A paleta dela, o orçamento de luz, o tamanho do
+> elemento aceso e as três coisas que ela faz e o jogo **não deve copiar** estão
+> em **`docs/TEXTURAS_ANDAR_1.md`**, junto com as receitas de textura do andar 1.
+> Este arquivo aqui continua sendo o vocabulário compartilhado — paleta, portões,
+> grade, camadas; aquele é a bíblia de produção de um andar.
+
 O que tira dessa referência: fundo muito escuro e azulado; o brilho é raro e
 concentrado; o detalhe é geométrico, não orgânico. O que **não** tira: a
 quantidade de neon. Na cidade do menu, neon é decoração; na sala do jogo, neon é

@@ -13,22 +13,31 @@ signal escolhido(dados: DadosPersonagem)
 signal fechado()
 
 ## Largura de cada card. Dois cabem lado a lado na tela de 960 com folga.
-const LARGURA_CARD := 330
+const LARGURA_CARD := 280
 const SEPARACAO := 32
-## Lado da miniatura. 128 = 2x exato dos 64 do arquivo. Escala fracionaria
-## borra pixel art mesmo com filtro Nearest, porque um pixel da arte deixa de
-## cair num numero redondo de pixels de tela.
-const LADO_MINIATURA := 128
+## Lado da miniatura. 128 = 2x exato dos 80 do arquivo? Nao: e o TETO da caixa.
+## O retrato usa KEEP_ASPECT_CENTERED, entao 160 = 2x exato dos 80 e o que
+## mantem a grade de pixel intacta -- escala fracionaria borra pixel art mesmo
+## com filtro Nearest.
+const LADO_MINIATURA := 160
 
 const COR_TITULO := Color(1.0, 0.6, 0.2)
-const COR_PAPEL := Color(0.75, 0.82, 0.95)
-const COR_TEXTO := Color(0.68, 0.74, 0.85)
+
+## Espessura da borda do cartao.
+const BORDA := 2
+## Fundo do cartao. Um degrau acima do painel (0.05, 0.05, 0.08) para o cartao
+## se separar dele sem precisar de sombra.
+const COR_FUNDO_CARTAO := Color(0.09, 0.10, 0.14, 0.9)
 
 @export var personagens: Array[DadosPersonagem] = []
 
 @onready var _linha: HBoxContainer = $Painel/Linha
 
 var _botoes: Array[Button] = []
+## botao -> { "cartao": PanelContainer, "normal": StyleBox, "focada": StyleBox }.
+## Um dicionario em vez de subir pela arvore a partir do botao: caminho de no e
+## o que o GEMINI.md manda evitar, e aqui ele quebraria a cada mexida no layout.
+var _cartoes: Dictionary = {}
 
 
 func _ready() -> void:
@@ -77,53 +86,73 @@ func _montar_cards() -> void:
 		_ao_focar(false, btn)
 
 
+## Miniatura, nome e arma. So isso.
+##
+## O papel e a lista de comportamentos sairam: o card e para RECONHECER quem se
+## escolhe, nao para ensinar a jogar. Com quatro blocos de texto, a arte -- que
+## e o que de fato distingue as duas -- ficava espremida entre paragrafos.
 func _criar_card(dados: DadosPersonagem) -> Control:
-	var caixa := VBoxContainer.new()
-	caixa.custom_minimum_size = Vector2(LARGURA_CARD, 0)
-	caixa.add_theme_constant_override("separation", 6)
+	var cartao := PanelContainer.new()
+	cartao.custom_minimum_size = Vector2(LARGURA_CARD, 0)
+	cartao.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
-	# Miniatura a esquerda, nome e papel a direita. O resto do card continua
-	# embaixo, em coluna, porque sao linhas longas.
-	var topo := HBoxContainer.new()
-	topo.add_theme_constant_override("separation", 12)
+	var normal := _borda(dados.cor, 0.35)
+	var focada := _borda(dados.cor, 1.0)
+	cartao.add_theme_stylebox_override("panel", normal)
+
+	var coluna := VBoxContainer.new()
+	coluna.add_theme_constant_override("separation", 10)
+	cartao.add_child(coluna)
+
 	if dados.miniatura != null:
 		var retrato := TextureRect.new()
 		retrato.texture = dados.miniatura
 		retrato.custom_minimum_size = Vector2(LADO_MINIATURA, LADO_MINIATURA)
 		retrato.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		retrato.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		topo.add_child(retrato)
-
-	var coluna := VBoxContainer.new()
-	coluna.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	coluna.add_theme_constant_override("separation", 4)
-	topo.add_child(coluna)
-	caixa.add_child(topo)
+		coluna.add_child(retrato)
 
 	var botao := Button.new()
 	botao.text = dados.nome
-	botao.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	botao.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	botao.add_theme_font_size_override("font_size", 24)
 	# O foco clareia a propria cor em vez de virar branco: a cor E a identidade
-	# do personagem, e trocar por branco apagava justamente quem esta em foco. O
-	# marcador ">" ja diz onde o cursor esta.
+	# do personagem, e trocar por branco apagava justamente quem esta em foco.
 	botao.add_theme_color_override("font_color", dados.cor)
-	var focada := dados.cor.lerp(Color.WHITE, 0.45)
-	botao.add_theme_color_override("font_focus_color", focada)
-	botao.add_theme_color_override("font_hover_color", focada)
+	var clara := dados.cor.lerp(Color.WHITE, 0.45)
+	botao.add_theme_color_override("font_focus_color", clara)
+	botao.add_theme_color_override("font_hover_color", clara)
 	var vazio := StyleBoxEmpty.new()
 	for estado in ["normal", "hover", "pressed", "focus"]:
 		botao.add_theme_stylebox_override(estado, vazio)
 	botao.pressed.connect(_ao_escolher.bind(dados))
 	coluna.add_child(botao)
 	_botoes.append(botao)
-
-	coluna.add_child(_rotulo(dados.papel, 12, COR_PAPEL, LADO_MINIATURA))
+	_cartoes[botao] = {"cartao": cartao, "normal": normal, "focada": focada}
 
 	var arma := dados.arma_inicial.nome if dados.arma_inicial != null else "-"
-	caixa.add_child(_rotulo("ARMA  %s" % arma, 11, COR_TITULO))
+	var rotulo := _rotulo(arma, 12, COR_TITULO, LARGURA_CARD - 32)
+	rotulo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	coluna.add_child(rotulo)
+	return cartao
 
-	caixa.add_child(_rotulo(dados.descricao, 11, COR_TEXTO))
+
+## A borda do cartao, na cor do personagem. `intensidade` separa o estado de
+## foco do de repouso -- e ela, e nao o marcador ">", que diz onde o cursor
+## esta: com o nome centralizado, prefixar ">" empurraria o texto de lado a
+## cada troca de foco.
+func _borda(cor: Color, intensidade: float) -> StyleBoxFlat:
+	var caixa := StyleBoxFlat.new()
+	caixa.bg_color = COR_FUNDO_CARTAO
+	caixa.border_width_left = BORDA
+	caixa.border_width_top = BORDA
+	caixa.border_width_right = BORDA
+	caixa.border_width_bottom = BORDA
+	caixa.border_color = Color(cor.r, cor.g, cor.b, intensidade)
+	caixa.content_margin_left = 16
+	caixa.content_margin_right = 16
+	caixa.content_margin_top = 16
+	caixa.content_margin_bottom = 16
 	return caixa
 
 
@@ -140,12 +169,12 @@ func _rotulo(texto: String, tamanho: int, cor: Color, largura: int = LARGURA_CAR
 	return l
 
 
-## O mesmo marcador ">" do menu inicial, para a navegacao por teclado ter
-## ancora visivel. Reescreve o texto a partir do nome limpo, senao o ">" se
-## acumula a cada foco.
 func _ao_focar(focado: bool, btn: Button) -> void:
-	var base := btn.text.strip_edges(true, false).trim_prefix(">").strip_edges(true, false)
-	btn.text = "> " + base if focado else "  " + base
+	if not _cartoes.has(btn):
+		return
+	var info: Dictionary = _cartoes[btn]
+	var cartao: PanelContainer = info["cartao"]
+	cartao.add_theme_stylebox_override("panel", info["focada"] if focado else info["normal"])
 
 
 func _ao_escolher(dados: DadosPersonagem) -> void:

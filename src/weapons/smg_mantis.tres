@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_dados")
 nome = "SMG \"Mantis\""
-descricao = "Cadencia alta, dano baixo. Segurar o gatilho abre o tiro; soltar fecha de novo."
+descricao = "Cadência alta, dano baixo. Segurar o gatilho abre o tiro; soltar fecha de novo."
 dano = 1
 knockback = 40.0
 perfuracao = 0

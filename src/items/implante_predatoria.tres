@@ -5,8 +5,8 @@
 
 [resource]
 script = ExtResource("1_di")
-nome = "IA Predatoria"
-descricao = "Um abate marca o proximo alvo. O tiro seguinte nele causa +75% de dano."
+nome = "IA Predatória"
+descricao = "Um abate marca o próximo alvo. O tiro seguinte nele causa +75% de dano."
 efeitos = Array[ExtResource("2_ef")]([])
 comportamento = 7
 parametro = 1.75

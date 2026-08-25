@@ -26,10 +26,7 @@ script = ExtResource("1_dados")
 id = &"nova"
 nome = "NOVA"
 papel = "Hacker Experimental"
-descricao = "- Disparo unico, dano elevado e projetil muito rapido.
-- Cada tiro tem 10% de chance de aplicar Hack.
-- O alvo hackeado recebe +25% de dano por 4s.
-- Se morrer hackeado, o Hack pula para um inimigo perto."
+descricao = "- Disparo único, dano elevado e projétil muito rápido.\n- Cada tiro tem 10% de chance de aplicar Hack.\n- O alvo hackeado recebe +25% de dano por 4s.\n- Se morrer hackeado, o Hack pula para um inimigo perto."
 cor = Color(0.45, 1, 0.3, 1)
 arma_inicial = ExtResource("2_arma")
 hack_chance = 0.1

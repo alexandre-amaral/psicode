@@ -112,9 +112,9 @@ func intensidade_glitch() -> float:
 
 func nome_fase() -> String:
 	match fase:
-		Fase.BAIXA: return "ESTAVEL"
-		Fase.MEDIA: return "DEGRADANDO"
-		Fase.CRITICA: return "CRITICO"
+		Fase.BAIXA: return tr("ESTÁVEL")
+		Fase.MEDIA: return tr("DEGRADANDO")
+		Fase.CRITICA: return tr("CRÍTICO")
 	return "?"
 
 

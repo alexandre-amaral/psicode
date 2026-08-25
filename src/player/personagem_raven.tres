@@ -26,9 +26,7 @@ script = ExtResource("1_dados")
 id = &"raven"
 nome = "RAVEN"
 papel = "Operadora de Combate"
-descricao = "- Dispara rapidamente, com dano baixo por tiro.
-- A dispersao cresce durante o disparo continuo.
-- Parar de atirar devolve a precisao aos poucos."
+descricao = "- Dispara rapidamente, com dano baixo por tiro.\n- A dispersão cresce durante o disparo contínuo.\n- Parar de atirar devolve a precisão aos poucos."
 cor = Color(1, 0.93, 0.25, 1)
 arma_inicial = ExtResource("2_arma")
 hack_chance = 0.0

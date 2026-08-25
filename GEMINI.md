@@ -97,6 +97,8 @@ src/
   util/        balistica (matematica da mira preditiva)
   main/        main.tscn — cena inicial
 assets/shaders/  glitch.gdshader
+locale/          textos.csv (gerado) -- a tabela de traducao
+tools/i18n/      gerar_csv.py (a fonte da tabela)
 assets/personagens/ <id>/{8 rotacoes parado, 8 fitas andar_*}.png -- gerados
 tools/sprites/   gerar_sprites.py (GIF -> fita PNG normalizada)
 assets/texturas/ PNGs gerados (chao, parede, filete por tipo; porta; props) — nunca editados a mao
@@ -137,7 +139,9 @@ docs/
 | **Textura de chao, parede, filete e props de um tipo de sala** | grupo `Visual` do `tipo_*.tres` — os PNGs saem de `tools/texturas/gerar_texturas.tscn`, nunca de editor de imagem |
 | **Uma cor nova no cenario** | `tools/texturas/paleta.gd` + a tabela de `docs/IDENTIDADE_VISUAL.md`; `teste_texturas.gd` recusa cor que compete com projetil |
 | Enquadramento e cores do minimapa | `@export` do no `Minimapa` em `src/ui/hud.tscn` |
-| Preferencias do jogador (tela cheia, acessibilidade) | `src/autoload/configuracao.gd` — grava em `user://config.cfg` |
+| Preferencias do jogador (tela cheia, acessibilidade, idioma) | `src/autoload/configuracao.gd` — grava em `user://config.cfg` |
+| **Texto de tela, em qualquer idioma** | `tools/i18n/gerar_csv.py` e rodar; nunca editar `locale/textos.csv` a mao |
+| **Idioma novo** | acrescentar em `Configuracao.IDIOMAS` + uma coluna no gerador do CSV |
 | Quantas salas o andar tem e o vao do corredor | `@export` do no `GerenciadorMapa` em `src/main/main.tscn` |
 | Tamanho de uma sala | os `points` do Line2D `Parede` — multiplos de 16, dimensao multipla de 32 |
 | Resolucao base | `[display]` do `project.godot` — 960x544, camera em zoom 1.0 |
@@ -321,6 +325,28 @@ em qualquer erro de script.
   em `paleta.gd` ou um traco em `gerar_texturas.gd`? Rode o gerador e o
   `--import` de novo, senao a suite reprova com "gerou e esqueceu de rodar?".
 
+- **A CHAVE de traducao e o proprio texto em portugues.** Nao ha codigo tipo
+  `ITEM_NUCLEO_NOME`: o `.tres` guarda "Nucleo de Reserva" e a tabela mapeia
+  para "Reserve Core". Isso mantem o Inspetor legivel e faz o portugues rodar
+  sem tabela nenhuma (tr() devolve a chave quando nao acha entrada). O preco:
+  **editar o texto em portugues quebra o ingles em silencio**. Por isso existe
+  `tools/testes/teste_traducao.gd`, que exige par na tabela para toda string de
+  dado que chega a tela.
+- **`locale/fallback` tem de ser `pt_BR`, nao o padrao `en`.** So o ingles esta
+  na tabela; em portugues nao ha traducao carregada. Com o fallback em "en",
+  pedir portugues cairia no ingles em vez de devolver a chave.
+- **Chave de traducao nao pode ter quebra de linha.** O importador de CSV do
+  Godot le a quebra como fim de registro e parte a tabela ao meio. Frase de duas
+  linhas vira duas chaves juntadas em codigo -- e o que `hud.gd` faz no aviso de
+  50% de Deterioracao.
+- **Botao com marcador `>` precisa de `auto_translate_mode = DISABLED`.** O
+  marcador e escrito DENTRO de `text`, e "> NOVO JOGO" nao existe na tabela; com
+  a traducao automatica ligada o botao fica em portugues no jogo em ingles, sem
+  erro nenhum. `menu_inicial.gd` guarda a chave num dicionario, traduz na mao e
+  se reescreve em `NOTIFICATION_TRANSLATION_CHANGED`.
+- **Teste que le texto de tela tem de FIXAR o idioma.** `nome_fase()` passa por
+  `tr()`: sem fixar, a suite passa na maquina de quem tem o SO em portugues e
+  quebra no CI, que roda em ingles.
 - **O sprite do jogador e IRMAO de `Visual`, nunca filho.** O no `Arma` mora em
   `Visual` na posicao (27, 0), e e a rotacao do `Visual` que faz a boca da arma
   orbitar o jogador. Por em `Visual` um sprite direcional o faria girar junto

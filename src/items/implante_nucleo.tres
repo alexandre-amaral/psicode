@@ -12,8 +12,8 @@ condicao = 0
 
 [resource]
 script = ExtResource("1_di")
-nome = "Nucleo de Reserva"
-descricao = "Mais um backup de consciencia. +2 de vida maxima."
+nome = "Núcleo de Reserva"
+descricao = "Mais um backup de consciência. +2 de vida máxima."
 efeitos = Array[ExtResource("2_ef")]([SubResource("EfeitoItem_0")])
 comportamento = 0
 parametro = 0.0

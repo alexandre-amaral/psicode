@@ -84,7 +84,7 @@ theme_override_styles/normal = SubResource("StyleBoxEmpty_Btn")
 theme_override_styles/hover = SubResource("StyleBoxEmpty_Btn")
 theme_override_styles/pressed = SubResource("StyleBoxEmpty_Btn")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_Btn")
-text = "  NEW GAME"
+text = "NOVO JOGO"
 alignment = 0
 
 [node name="BtnCarregar" type="Button" parent="MenuPanel/VBoxContainer"]
@@ -97,7 +97,7 @@ theme_override_styles/normal = SubResource("StyleBoxEmpty_Btn")
 theme_override_styles/hover = SubResource("StyleBoxEmpty_Btn")
 theme_override_styles/pressed = SubResource("StyleBoxEmpty_Btn")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_Btn")
-text = "  LOAD GAME"
+text = "CARREGAR"
 alignment = 0
 
 [node name="BtnOpcoes" type="Button" parent="MenuPanel/VBoxContainer"]
@@ -110,7 +110,7 @@ theme_override_styles/normal = SubResource("StyleBoxEmpty_Btn")
 theme_override_styles/hover = SubResource("StyleBoxEmpty_Btn")
 theme_override_styles/pressed = SubResource("StyleBoxEmpty_Btn")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_Btn")
-text = "  OPTIONS"
+text = "OPÇÕES"
 alignment = 0
 
 [node name="BtnSair" type="Button" parent="MenuPanel/VBoxContainer"]
@@ -123,7 +123,7 @@ theme_override_styles/normal = SubResource("StyleBoxEmpty_Btn")
 theme_override_styles/hover = SubResource("StyleBoxEmpty_Btn")
 theme_override_styles/pressed = SubResource("StyleBoxEmpty_Btn")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_Btn")
-text = "  QUIT"
+text = "SAIR"
 alignment = 0
 
 [node name="RodapeEsq" type="Label" parent="."]

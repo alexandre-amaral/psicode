@@ -5,7 +5,7 @@
 
 [resource]
 script = ExtResource("1_di")
-nome = "Nucleo Vampirico"
+nome = "Núcleo Vampírico"
 descricao = "Cada abate devolve um pouco. 5% de chance de recuperar 1 de vida."
 efeitos = Array[ExtResource("2_ef")]([])
 comportamento = 3

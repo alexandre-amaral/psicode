@@ -20,7 +20,7 @@ condicao = 0
 [resource]
 script = ExtResource("1_di")
 nome = "Overclock Neural"
-descricao = "O cerebro acelera junto com o gatilho. +20% de cadencia, +10% de Deterioracao."
+descricao = "O cérebro acelera junto com o gatilho. +20% de cadência, +10% de Deterioração."
 efeitos = Array[ExtResource("2_ef")]([SubResource("EfeitoItem_0"), SubResource("EfeitoItem_1")])
 comportamento = 0
 parametro = 0.0

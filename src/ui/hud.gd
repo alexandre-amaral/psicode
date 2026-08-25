@@ -102,14 +102,22 @@ func _ao_mudar_fase(fase_nova: int, fase_antiga: int) -> void:
 		return
 	match fase_nova:
 		Deterioracao.Fase.MEDIA:
-			_mostrar_aviso("DEGRADACAO EM 50%", "Eles pararam de mirar em voce.\nAgora miram onde voce vai estar.")
+			_mostrar_aviso(
+				tr("DEGRADAÇÃO EM 50%"),
+				# Duas chaves juntadas aqui, e nao uma frase de duas linhas na
+				# tabela: o importador de CSV do Godot le quebra de linha como
+				# fim de registro, e a chave sairia partida ao meio.
+				tr("Eles pararam de mirar em você.")
+					+ "\n"
+					+ tr("Agora miram onde você vai estar.")
+			)
 			_piscar_dica()
 		Deterioracao.Fase.CRITICA:
-			_mostrar_aviso("NIVEL CRITICO", "Nao confie no que voce esta vendo.")
+			_mostrar_aviso(tr("NÍVEL CRÍTICO"), tr("Não confie no que você está vendo."))
 
 
 func _piscar_dica() -> void:
-	_dica_preditiva.text = "MIRA PREDITIVA ATIVA"
+	_dica_preditiva.text = tr("MIRA PREDITIVA ATIVA")
 	var t := create_tween()
 	t.tween_property(_dica_preditiva, "modulate:a", 1.0, 0.25)
 	t.tween_interval(3.5)
@@ -141,7 +149,7 @@ func _texto_municao() -> String:
 ## Sem este aviso o jogador clica, nao sai tiro, e ele acha que travou.
 func _ao_recarga_iniciada(_duracao: float) -> void:
 	_recarregando = true
-	_rotulo_municao.text = "RECARREGANDO..."
+	_rotulo_municao.text = tr("RECARREGANDO...")
 	_rotulo_municao.modulate = Color(1.0, 0.72, 0.29)
 
 
@@ -155,11 +163,11 @@ func _atualizar_progresso() -> void:
 	if GameState.total_salas <= 0:
 		_rotulo_salas.text = ""
 		return
-	_rotulo_salas.text = "SALAS %d / %d" % [GameState.salas_limpas, GameState.total_salas]
+	_rotulo_salas.text = tr("SALAS %d / %d") % [GameState.salas_limpas, GameState.total_salas]
 
 
 func _ao_contagem(vivos: int) -> void:
-	_rotulo_inimigos.text = "HOSTIS %d" % vivos
+	_rotulo_inimigos.text = tr("HOSTIS %d") % vivos
 
 
 func _mostrar_aviso(titulo: String, subtitulo: String) -> void:
@@ -187,7 +195,7 @@ func _mostrar_aviso(titulo: String, subtitulo: String) -> void:
 func _ao_item_coletado(dados: Resource) -> void:
 	if dados == null:
 		return
-	_enfileirar_aviso(dados.nome, dados.descricao, dados.cor)
+	_enfileirar_aviso(tr(dados.nome), tr(dados.descricao), dados.cor)
 
 
 ## O implante bateu o limite por run e continua no chao. Sem isto o jogador
@@ -196,8 +204,8 @@ func _ao_item_recusado(dados: Resource) -> void:
 	if dados == null:
 		return
 	_enfileirar_aviso(
-		dados.nome,
-		"Voce ja instalou o maximo deste implante.",
+		tr(dados.nome),
+		tr("Você já instalou o máximo deste implante."),
 		COR_AVISO_RECUSADO
 	)
 
@@ -205,7 +213,7 @@ func _ao_item_recusado(dados: Resource) -> void:
 func _ao_arma_adquirida(dados: Resource) -> void:
 	if dados == null:
 		return
-	_enfileirar_aviso(dados.nome, dados.descricao, dados.cor_projetil)
+	_enfileirar_aviso(dados.nome, tr(dados.descricao), dados.cor_projetil)
 
 
 func _enfileirar_aviso(titulo: String, texto: String, cor: Color) -> void:

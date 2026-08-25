@@ -5,7 +5,7 @@
 
 [resource]
 script = ExtResource("1_di")
-nome = "Nanobots de Reparacao"
+nome = "Nanobots de Reparação"
 descricao = "A cada 30 abates, 1 de vida de volta."
 efeitos = Array[ExtResource("2_ef")]([])
 comportamento = 4

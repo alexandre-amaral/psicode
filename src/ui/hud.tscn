@@ -88,7 +88,7 @@ script = ExtResource("4_det")
 
 [node name="Fase" type="Label" parent="Topo/Esquerda"]
 theme_override_font_sizes/font_size = 11
-text = "ESTAVEL 0%"
+text = "ESTÁVEL 0%"
 
 [node name="Direita" type="VBoxContainer" parent="Topo"]
 anchor_left = 1.0

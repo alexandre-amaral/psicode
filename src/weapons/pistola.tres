@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_dados")
 nome = "PST-9 \"Teimosa\""
-descricao = "Pistola de servico com celula de energia auto-recarregavel. Nao acaba. Tambem nao impressiona."
+descricao = "Pistola de serviço com célula de energia auto-recarregável. Não acaba. Também não impressiona."
 dano = 2
 knockback = 90.0
 perfuracao = 0

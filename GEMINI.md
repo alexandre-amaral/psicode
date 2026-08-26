@@ -537,6 +537,20 @@ em qualquer erro de script.
   horizontal pelo CENTRO DA MOLDURA de origem (a arte tem deslocamento lateral
   intencional, e centralizar pelo desenho o apagaria) e vertical pela BASE do
   bbox de alpha.
+- **Sprite direcional e rotacao de `Visual` nao convivem.** O `Visual` do
+  inimigo pode estar girando (`lerp_angle` para o alvo) -- seis dos oito fazem
+  isso. Por um sprite de oito rotacoes dentro de um `Visual` que gira DEITA a
+  arte, que e desenhada em vista 3/4. Quando o corpo vira sprite, a rotacao sai
+  e quem passa a carregar a direcao sao os oito quadros. **Mas o motivo pelo
+  qual aquele inimigo girava tem de sobreviver**: na Cyber-Besta a rotacao
+  existia para o corpo apontar para onde ele VAI durante a investida, e nao para
+  onde o jogador esta -- e essa regra continua, so mudou quem a executa.
+- **Agachamento anisotropico depende do `Visual` girado.** `scale(0.7, 1.35)`
+  comprime no x LOCAL: com o `Visual` girado, isso e comprimir na direcao da
+  corrida. Tirada a rotacao, o mesmo vetor comprime sempre na horizontal da
+  TELA, e um bicho carregando para cima aparece achatado de lado -- a
+  anticipacao contada no eixo errado. `CyberBesta._agachar()` escolhe o eixo
+  dominante, a mesma quantizacao de oito passos do sprite.
 - **O mapa de angulo -> quadro mora em `src/util/direcoes.gd`, e so ali.** Ele
   nasceu dentro de `DadosPersonagem` e saiu de la quando o Drone Aranha ganhou
   arte. Duas copias acabariam divergindo, e o sintoma seria o inimigo e a

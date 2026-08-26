@@ -25,12 +25,17 @@ extends InimigoBase
 
 const OBSERVAR := &"OBSERVAR"
 const PREPARAR := &"PREPARAR"
+## Abaixo disto ele esta parando, nao andando. Sem um piso, o `move_toward` da
+## preparacao deixaria o ciclo de patas tremendo enquanto ele ja esta travado.
+const VELOCIDADE_ANDANDO := 12.0
+
 const INVESTIR := &"INVESTIR"
 const RECUPERAR := &"RECUPERAR"
 
 var _maquina: MaquinaEstados
 ## Guardada em `_investir_entrar` e lida sem reescrever ate o fim do ataque.
 var _direcao_travada: Vector2 = Vector2.RIGHT
+var _sprite: SpriteDirecional = null
 var _rastro: Line2D
 
 
@@ -41,6 +46,7 @@ func _ready() -> void:
 	# uma linha girando junto com ele em vez de ficar no chao.
 	_rastro.top_level = true
 	_rastro.visible = false
+	_sprite = $Visual/Corpo
 
 	_maquina = MaquinaEstados.new(name)
 	_maquina.adicionar(OBSERVAR, _observar)
@@ -52,8 +58,19 @@ func _ready() -> void:
 
 func _comportamento(delta: float) -> void:
 	_maquina.processar(delta)
-	_orientar(delta)
 	tentar_dano_contato()
+
+
+## O quadro que o corpo mostra, e o eixo do agachamento.
+##
+## Roda em `_pos_movimento` porque aqui a `velocity` ja passou pelo
+## `move_and_slide()` -- e o que decide se ele esta ANDANDO ou so escorregando
+## contra uma parede no fim da investida.
+func _pos_movimento(delta: float) -> void:
+	if _sprite == null:
+		return
+	var andando := _maquina.estado != OBSERVAR and velocity.length() > VELOCIDADE_ANDANDO
+	_sprite.apontar(_direcao_encarada(), andando, delta, velocity)
 
 
 # ------------------------------------------------------------- estados ------
@@ -73,9 +90,13 @@ func _observar(delta: float) -> void:
 
 func _preparar_entrar() -> void:
 	_rastro.visible = true
+	# Atualiza a direcao ANTES de montar o agachamento. `_preparar` reescreve
+	# isto todo frame, mas no frame da ENTRADA ela ainda guarda a investida
+	# ANTERIOR -- e o agachamento sairia no eixo da corrida passada.
+	_direcao_travada = direcao_para_alvo()
 	if _visual != null:
 		var t := create_tween()
-		t.tween_property(_visual, "scale", Vector2(0.7, 1.35), tempo_preparo * 0.7)
+		t.tween_property(_visual, "scale", _agachar(0.7, 1.35), tempo_preparo * 0.7)
 
 
 func _preparar(delta: float) -> void:
@@ -115,7 +136,7 @@ func _investir(_delta: float) -> void:
 func _recuperar_entrar() -> void:
 	if _visual != null:
 		var t := create_tween()
-		t.tween_property(_visual, "scale", Vector2(1.2, 0.8), 0.1)
+		t.tween_property(_visual, "scale", _agachar(1.2, 0.8), 0.1)
 		t.tween_property(_visual, "scale", Vector2.ONE, tempo_recuperacao * 0.6)
 
 
@@ -125,14 +146,38 @@ func _recuperar(delta: float) -> void:
 		_maquina.trocar(OBSERVAR)
 
 
-## Aponta para onde ele VAI, nao para onde o jogador esta -- durante a investida
-## as duas coisas sao diferentes, e o corpo tem de contar a verdade.
-func _orientar(delta: float) -> void:
-	if _visual == null:
-		return
+## Para onde o corpo aponta: para onde ele VAI, nao para onde o jogador esta.
+##
+## Durante a investida as duas coisas sao diferentes, e o corpo tem de contar a
+## verdade -- e o que faz sair da linha funcionar. A regra nao mudou quando o
+## corpo virou sprite; o que mudou foi quem a executa.
+##
+## Antes isto girava o `_visual` com `lerp_angle`. Agora quem carrega a direcao
+## sao as oito rotacoes do sprite, e girar o `_visual` deitaria a arte: ela e
+## desenhada em vista 3/4 e so faz sentido de pe. A resolucao caiu de continua
+## para oito passos, que e a mesma do jogador -- e ainda assim a leitura MELHOROU,
+## porque um bicho desenhado virado para o nordeste diz mais que um hexagono
+## girado.
+func _direcao_encarada() -> Vector2:
 	var d := _direcao_travada if _maquina.estado == INVESTIR else direcao_para_alvo()
-	if d.length_squared() > 0.01:
-		_visual.rotation = lerp_angle(_visual.rotation, d.angle(), 12.0 * delta)
+	return d if d.length_squared() > 0.01 else _direcao_travada
+
+
+
+## Monta a escala do agachamento no EIXO da investida.
+##
+## Enquanto o `_visual` girava, ele agachava sozinho no eixo certo: comprimir em
+## x local era comprimir na direcao da corrida. Sem a rotacao, um `Vector2(0.7,
+## 1.35)` cru comprimiria sempre na horizontal da TELA -- e um bicho carregando
+## para cima apareceria achatado de lado, contando a anticipacao no eixo errado.
+##
+## Escolhe o eixo dominante, que e a mesma quantizacao de oito passos que o
+## sprite ja usa. Numa diagonal os dois valores servem igual.
+func _agachar(ao_longo: float, atravessado: float) -> Vector2:
+	var d := _direcao_travada
+	if absf(d.x) >= absf(d.y):
+		return Vector2(ao_longo, atravessado)
+	return Vector2(atravessado, ao_longo)
 
 
 func _desenhar_rastro() -> void:

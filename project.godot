@@ -12,7 +12,7 @@ config_version=5
 
 config/name="psicode"
 config/description="Vertical slice de um twin-stick shooter roguelike cyberpunk. Atravesse o andar enquanto a Deterioracao corrompe sua percepcao."
-config/version="0.2.0-alpha"
+config/version="0.3.0-alpha"
 run/main_scene="res://src/ui/intro.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
@@ -25,9 +25,6 @@ Deterioracao="*res://src/autoload/deterioracao.gd"
 Modificadores="*res://src/autoload/modificadores.gd"
 GameState="*res://src/autoload/game_state.gd"
 Juice="*res://src/autoload/juice.gd"
-MCPRuntimeBridge="*res://addons/godot_mcp/services/mcp_runtime_bridge.gd"
-MCPInputBridge="*res://addons/godot_mcp/services/mcp_input_bridge.gd"
-MCPScreenshotBridge="*res://addons/godot_mcp/services/mcp_screenshot_bridge.gd"
 
 [display]
 
@@ -110,11 +107,11 @@ debug_deterioracao={
 
 [internationalization]
 
+locale/translations=PackedStringArray("res://locale/textos.en.translation")
 ; So o ingles esta na tabela. Em portugues nao ha traducao carregada, e tr()
 ; devolve a propria chave -- que JA e o texto em portugues. Por isso o fallback
 ; tem de ser pt_BR: com o padrao "en", pedir portugues cairia no ingles.
 locale/fallback="pt_BR"
-locale/translations=PackedStringArray("res://locale/textos.en.translation")
 
 [layer_names]
 

@@ -125,8 +125,8 @@ func _pos_movimento(_delta: float) -> void:
 ## em linha reta") e as salas com pilar e as em L a tornaram real.
 ##
 ## Quem escreve inimigo novo passa o movimento por aqui. O Rastejante e o Vigia
-## ainda nao passam: eles sao o que a v0.2.0-alpha esta testando com os amigos, e
-## mexer neles agora invalidaria esse retorno.
+## ainda nao passam: eles sao a base que o playtest da v0.2.0-alpha validou, e
+## mexer neles sem uma segunda rodada invalidaria esse retorno.
 func direcao_de_locomocao(desejada: Vector2) -> Vector2:
 	return desejada
 

@@ -16,17 +16,17 @@ Contado do disco, não de memória:
 
 | | |
 |---|---|
-| Tipos de inimigo | **8** + 1 hazard (área de perigo do Parasita) |
+| Tipos de inimigo | **8** + 2 peças da arena do chefe (núcleo e torre) + 1 hazard |
 | Implantes | **16**, todos no pool de loot |
 | Armas | **10** — 4 do jogador, 6 de inimigo |
 | Armas que caem como loot | **1** (a shotgun) |
 | Tipos de sala | **5**, em **9** cenas; andar de 8–12 salas |
 | Personagens jogáveis | **2** (RAVEN, NOVA), com 8 direções e ciclo de caminhada |
 | Idiomas | **2** (pt-BR, en) — 81 strings |
-| Suítes de teste | **17**, 1420 verificações + teste de fumaça da run inteira |
+| Suítes de teste | **21**, 1837 verificações + teste de fumaça da run inteira |
 
 **O que o jogo já faz:** um andar de 8–12 salas sorteadas com lockdown por sala,
-minimapa com a silhueta real, chefe em três fases, Deterioração que escala tudo
+minimapa com a silhueta real, chefe em quatro fases, a última com a arena atacando, Deterioração que escala tudo
 no frame de uso, 16 implantes com efeitos condicionais e comportamentais,
 escolha de operador com armas de identidade própria, e um status effect com
 duração (o Hack da NOVA). Tudo isso texturizado e em dois idiomas.
@@ -221,3 +221,30 @@ faixa boa é 60–90 s, e o tempo é dominado pelo uptime, não pela vida.
 código (`docs/IDENTIDADE_VISUAL.md`), cinco tipos de inimigo novos, seleção de
 personagem com dois operadores, sprites direcionais com ciclo de caminhada, e a
 internacionalização completa.
+
+**`v0.3.0-alpha`.** Três entregas e três defeitos de produção que apareceram no
+caminho delas:
+
+- **Drone Aranha com oito rotações e ciclo de caminhada.** O nó
+  `SpriteDirecional` deixa o próximo inimigo com arte custar um `.tscn` e não
+  código; o mapa de ângulo→quadro saiu para `src/util/direcoes.gd`, uma fonte
+  só para personagem e inimigo.
+- **Piso do andar 1 refeito.** Estava com luminância 8–14 e densidade de detalhe
+  de 0,8% a 4,3% — abaixo da faixa 8–18% que o próprio funil declara. Agora
+  26–29 e 9–11%. A faixa de matiz do andar alargou para 185–320 para caber o
+  acento ciano e magenta da arte; é seguro porque quem separa mapa de ator é o
+  **teto de valor**, e ele não mudou.
+- **A Diretora ganhou repertório que lê o jogador**, quarta fase com a arena
+  atacando, e o corpo passou de 47 px (menor que o jogador, com hitbox de 88 px
+  invisível) para 192 px. E ganhou `teste_diretora.gd`, um portão executável de
+  identidade: dez travas, escritas **antes** da mudança e rodadas verdes contra
+  o código antigo.
+
+> **Os três defeitos, todos vivos desde antes desta versão e nenhum com erro no
+> console:** a varredura da `AreaDePerigo` nunca varreu ninguém (ficar parado no
+> círculo do Parasita era o jeito mais seguro de sobreviver a ele); o telegrafo
+> dela desenhava **embaixo** do chão; e o `project.godot` tinha voltado a
+> carregar os autoloads do `godot_mcp`, que a preparação da v0.1.0 havia
+> removido — uma build publicada assim subiria com autoload apontando para
+> script fora do pacote, e o `mcp_runtime_bridge` lê `user://` todo frame. O
+> `BUILD.md` passou a ter esse passo no pré-voo, que era onde ele faltava.

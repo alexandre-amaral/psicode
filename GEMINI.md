@@ -24,6 +24,7 @@ documentos abaixo — leia antes de propor mecanica nova:
 | `docs/TUNING.md` | Todos os botoes de balanceamento e o que a medicao ja disse |
 | `docs/PLAYTEST.md` | As perguntas do playtest e a mensagem pronta |
 | `docs/MCP.md` | Servidor MCP que liga assistente de IA ao editor aberto |
+| `docs/IDENTIDADE_VISUAL.md` | Identidade visual: as tres paletas, a grade, as regras de leitura de combate e como adicionar textura nova |
 
 Quando o codigo e o texto discordarem, **o codigo ganha e o texto se
 atualiza**. Se um pedido contradiz o GDD — genero, camera, mecanica central —
@@ -96,7 +97,9 @@ src/
   util/        balistica (matematica da mira preditiva)
   main/        main.tscn — cena inicial
 assets/shaders/  glitch.gdshader
-tools/           teste_fumaca, capturar, testes/ (suites unitarias)
+assets/texturas/ PNGs gerados (chao, parede, filete por tipo; porta; props) — nunca editados a mao
+tools/           teste_fumaca, capturar, testes/ (suites unitarias),
+                 texturas/ (paleta.gd + gerar_texturas: a fonte dos PNGs)
 docs/
 ```
 
@@ -123,6 +126,8 @@ docs/
 | **Arma que pode cair de loot** | listar o `.tres` em `src/items/pool_padrao.tres` |
 | Regras de onde cada sala nasce | `@export` do `tipo_*.tres` (beco, distancia da origem, prioridade) |
 | Cor e icone de uma sala no minimapa | `cor_mapa` e `icone` do `tipo_*.tres` |
+| **Textura de chao, parede, filete e props de um tipo de sala** | grupo `Visual` do `tipo_*.tres` — os PNGs saem de `tools/texturas/gerar_texturas.tscn`, nunca de editor de imagem |
+| **Uma cor nova no cenario** | `tools/texturas/paleta.gd` + a tabela de `docs/IDENTIDADE_VISUAL.md`; `teste_texturas.gd` recusa cor que compete com projetil |
 | Enquadramento e cores do minimapa | `@export` do no `Minimapa` em `src/ui/hud.tscn` |
 | Preferencias do jogador (tela cheia, acessibilidade) | `src/autoload/configuracao.gd` — grava em `user://config.cfg` |
 | Quantas salas o andar tem e o vao do corredor | `@export` do no `GerenciadorMapa` em `src/main/main.tscn` |
@@ -284,6 +289,29 @@ em qualquer erro de script.
   texto que estava escrito na cena.
 - **Quem hospeda a run e dono de `GameState.iniciar_run()`/`terminar_run()`.**
   Perder essa chamada desliga a Deterioracao passiva sem erro nenhum no console.
+- **Textura em `Polygon2D` nao repete sozinha.** O projeto nao define
+  `default_texture_repeat`, entao o default e Disabled: sem
+  `texture_repeat = TEXTURE_REPEAT_ENABLED` a textura sai esticada UMA vez no
+  tamanho da sala. E a UV e em pixels, ancorada no CANTO do contorno -- no
+  centro, o tile sai cortado ao meio nas bordas norte e sul (272 nao e
+  multiplo de 32).
+- **`class_name` novo em `tools/` so existe depois de `--import`.** Rodar uma
+  cena headless logo apos criar `paleta.gd` da "Identifier 'Paleta' not
+  declared" e o processo NAO encerra sozinho (fica ate o timeout). Em maquina
+  limpa, `--import` vem antes de tudo -- inclusive antes do gerador de texturas.
+- **O `Line2D "Parede"` fica invisivel em runtime.** Ele continua sendo a fonte
+  da geometria (colisao, camera, minimapa, tudo le `points` dele), mas quem
+  desenha o filete de neon sao trechos gerados em `_montar_filete()`, os mesmos
+  da colisao, para o neon parar no vao da porta. Mexer em `default_color` ou
+  `texture` do Line2D da cena nao muda nada na tela.
+- **O corpo da parede (24 px para fora do contorno) so aparece na travessia.**
+  A camera faz clamp em `obter_limites()`, que e o contorno; numa sala do
+  tamanho da tela a faixa fica sempre fora do quadro. Nao e bug, e uma decisao
+  deixada em aberto: crescer o clamp em 24 px mostraria a parede, mas faria a
+  camera se mexer numa sala que hoje e fixa.
+- **`teste_texturas.gd` compara o PNG em disco com o gerador.** Mudou uma cor
+  em `paleta.gd` ou um traco em `gerar_texturas.gd`? Rode o gerador e o
+  `--import` de novo, senao a suite reprova com "gerou e esqueceu de rodar?".
 
 ## Ambiente
 

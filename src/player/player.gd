@@ -279,6 +279,9 @@ func equipar_arma_loot(dados: DadosArma) -> void:
 	_slot_ativo = 1
 	_arma.equipar(dados)
 	EventBus.arma_equipada.emit(dados, 1)
+	# Depois de equipar, e so aqui: e a unica das quatro emissoes de
+	# arma_equipada em que a arma e NOVA para o jogador.
+	EventBus.arma_adquirida.emit(dados)
 
 
 func _alternar_slot() -> void:

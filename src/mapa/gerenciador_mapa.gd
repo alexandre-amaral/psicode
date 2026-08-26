@@ -828,7 +828,9 @@ func _montar_andar() -> void:
 			continue
 		sala.coordenadas_grid = celula
 		# Antes do add_child de proposito: e o _ready da sala que sela as portas
-		# sem vizinho e monta a parede em cima delas.
+		# sem vizinho, monta a parede em cima delas e veste a sala com as
+		# texturas do tipo.
+		sala.definir_visual(_dados_por_celula.get(celula))
 		sala.configurar_conexoes(vizinhos_de(celula))
 		add_child(sala)
 		sala.position = centros[celula] - _caixa_da_cena(cena).get_center()

@@ -62,6 +62,9 @@ func aplicar(item: DadosItem) -> bool:
 	if item == null:
 		return false
 	if item.maximo_por_run > 0 and _quantas_vezes(item) >= item.maximo_por_run:
+		# Avisa so o limite. O ramo de item == null acima e erro de programacao,
+		# nao uma recusa que o jogador precise entender.
+		EventBus.item_recusado.emit(item)
 		return false
 
 	# So os efeitos SEMPRE entram no acumulo. Os condicionais sao calculados no

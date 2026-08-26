@@ -7,11 +7,23 @@ extends CanvasLayer
 ## aviso de recarga pinta por cima e precisa saber para onde voltar.
 const COR_MUNICAO := Color(0.7, 0.78, 0.9)
 
+## Cor do nome quando o implante foi RECUSADO. Ambar e nao vermelho: nao houve
+## dano nem erro, so um limite -- vermelho aqui competiria com o aviso de perigo.
+const COR_AVISO_RECUSADO := Color(1.0, 0.72, 0.29)
+
 ## Ultimo estado de municao recebido. Guardado porque o texto e remontado
 ## depois da recarga, quando nenhum sinal novo chega.
 var _no_pente: int = 0
 var _reserva: int = -1
 var _recarregando: bool = false
+
+## Avisos de aquisicao esperando a vez. Fila, e nao substituicao: pegar dois
+## implantes em sequencia trocava o primeiro antes de dar tempo de ler, e a
+## descricao existe justamente para ser lida.
+var _fila_avisos: Array[Dictionary] = []
+## O tween do aviso em exibicao. Guardado para saber se ha algo na tela sem
+## precisar de um booleano paralelo que possa dessincronizar.
+var _tween_aviso_item: Tween = null
 
 @onready var _rotulo_fase: Label = $Topo/Esquerda/Fase
 @onready var _rotulo_arma: Label = $Rodape/Arma
@@ -26,6 +38,9 @@ var _recarregando: bool = false
 @onready var _boss_barra: ProgressBar = $Boss/Barra
 @onready var _overlay: ColorRect = $Overlay
 @onready var _dica_preditiva: Label = $DicaPreditiva
+@onready var _aviso_item: VBoxContainer = $AvisoItem
+@onready var _aviso_item_nome: Label = $AvisoItem/Nome
+@onready var _aviso_item_desc: Label = $AvisoItem/Descricao
 
 var _mat: ShaderMaterial
 
@@ -36,6 +51,7 @@ func _ready() -> void:
 	_aviso.modulate.a = 0.0
 	_aviso_sub.modulate.a = 0.0
 	_dica_preditiva.modulate.a = 0.0
+	_aviso_item.modulate.a = 0.0
 
 	EventBus.deterioracao_mudou.connect(_ao_deterioracao)
 	# Sem isto, desligar o glitch no meio da run so faria efeito no proximo
@@ -58,6 +74,9 @@ func _ready() -> void:
 	EventBus.boss_revelado.connect(_ao_boss_revelado)
 	EventBus.boss_vida_mudou.connect(_ao_boss_vida)
 	EventBus.boss_morreu.connect(_ao_boss_morreu)
+	EventBus.item_coletado.connect(_ao_item_coletado)
+	EventBus.item_recusado.connect(_ao_item_recusado)
+	EventBus.arma_adquirida.connect(_ao_arma_adquirida)
 
 	_ao_deterioracao(Deterioracao.valor, Deterioracao.fase)
 
@@ -154,6 +173,79 @@ func _mostrar_aviso(titulo: String, subtitulo: String) -> void:
 	t.chain().set_parallel(true)
 	t.tween_property(_aviso, "modulate:a", 0.0, 0.6)
 	t.tween_property(_aviso_sub, "modulate:a", 0.0, 0.6)
+
+
+# --------------------------------------------- aviso de aquisicao ---
+# Faixa propria, e nao o $Aviso central, por tres motivos: _mostrar_aviso nao e
+# reentrante (dois tweens no mesmo no brigam pelo alpha, e implante durante um
+# aviso de Deterioracao faria os dois piscarem errado); o $Aviso e fonte 32 e
+# existe para assustar, enquanto implante acontece ~16 vezes por run; e ele fica
+# em cima de onde o jogador esta mirando. Aqui o fade roda no modulate do
+# CONTAINER, entao e sempre um no e um tween so.
+
+
+func _ao_item_coletado(dados: Resource) -> void:
+	if dados == null:
+		return
+	_enfileirar_aviso(dados.nome, dados.descricao, dados.cor)
+
+
+## O implante bateu o limite por run e continua no chao. Sem isto o jogador
+## passa por cima e nao acontece nada -- nem o item, nem a explicacao.
+func _ao_item_recusado(dados: Resource) -> void:
+	if dados == null:
+		return
+	_enfileirar_aviso(
+		dados.nome,
+		"Voce ja instalou o maximo deste implante.",
+		COR_AVISO_RECUSADO
+	)
+
+
+func _ao_arma_adquirida(dados: Resource) -> void:
+	if dados == null:
+		return
+	_enfileirar_aviso(dados.nome, dados.descricao, dados.cor_projetil)
+
+
+func _enfileirar_aviso(titulo: String, texto: String, cor: Color) -> void:
+	var aviso := {"titulo": titulo, "texto": texto, "cor": cor}
+	# Repetido nao entra: o pickup recusado fica no chao, e andar por cima dele
+	# de novo redispara body_entered. Sem esta guarda, atravessar a sala duas
+	# vezes enfileirava a mesma frase duas vezes.
+	if _fila_avisos.size() > 0 and _fila_avisos[_fila_avisos.size() - 1] == aviso:
+		return
+	_fila_avisos.append(aviso)
+	if not _exibindo_aviso():
+		_proximo_aviso()
+
+
+## is_valid() e nao "!= null": um tween morto na troca de cena ou no fim da run
+## continua sendo um objeto, e testar so por null deixaria a fila travada para
+## sempre com um tween que nunca vai emitir finished.
+func _exibindo_aviso() -> bool:
+	return _tween_aviso_item != null and _tween_aviso_item.is_valid()
+
+
+func _proximo_aviso() -> void:
+	if _fila_avisos.is_empty():
+		_tween_aviso_item = null
+		return
+
+	var aviso: Dictionary = _fila_avisos.pop_front()
+	_aviso_item_nome.text = aviso["titulo"]
+	_aviso_item_desc.text = aviso["texto"]
+	# So o nome recebe a cor: a descricao em cor de item perderia contraste, e o
+	# que precisa ser reconhecido de relance e o tipo, nao o texto.
+	_aviso_item_nome.modulate = aviso["cor"]
+
+	_tween_aviso_item = create_tween()
+	_tween_aviso_item.tween_property(_aviso_item, "modulate:a", 1.0, 0.25)
+	# Segura mais que o aviso de Deterioracao (2,1s) porque aqui sao duas linhas
+	# para ler, nao um titulo de duas palavras.
+	_tween_aviso_item.tween_interval(2.6)
+	_tween_aviso_item.tween_property(_aviso_item, "modulate:a", 0.0, 0.5)
+	_tween_aviso_item.finished.connect(_proximo_aviso, CONNECT_ONE_SHOT)
 
 
 func _ao_boss_revelado(nome: String, vida_max: int) -> void:

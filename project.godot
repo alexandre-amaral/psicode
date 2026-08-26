@@ -25,6 +25,9 @@ Deterioracao="*res://src/autoload/deterioracao.gd"
 Modificadores="*res://src/autoload/modificadores.gd"
 GameState="*res://src/autoload/game_state.gd"
 Juice="*res://src/autoload/juice.gd"
+MCPRuntimeBridge="*res://addons/godot_mcp/services/mcp_runtime_bridge.gd"
+MCPInputBridge="*res://addons/godot_mcp/services/mcp_input_bridge.gd"
+MCPScreenshotBridge="*res://addons/godot_mcp/services/mcp_screenshot_bridge.gd"
 
 [display]
 
@@ -124,6 +127,6 @@ debug_deterioracao={
 textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-environment/defaults/default_clear_color=Color(0.043137, 0.047059, 0.078431, 1)
+environment/defaults/default_clear_color=Color(0.019608, 0.023529, 0.043137, 1)
 2d/snap/snap_2d_transforms_to_pixel=true
 2d/snap/snap_2d_vertices_to_pixel=true

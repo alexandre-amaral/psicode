@@ -1,10 +1,18 @@
 # Texturas do andar 1
 
-> **Executado na branch `docs/texturas-andar-1`.** O que este documento
-> prescrevia agora existe, com três desvios que a execução obrigou, anotados no
-> ponto onde acontecem: são **quatro** variações de chão e parede e não um par
-> (§4.1), a arte é **autorada** e não gerada (§8), e G1 virou **regra de gamut**
-> em vez de lista de 22 cores (§4.2).
+> **Executado na branch `docs/texturas-andar-1`, em duas ondas.** O que este
+> documento prescrevia agora existe, com desvios que a execução obrigou e que
+> estão anotados no ponto onde acontecem: são **quatro** variações de chão e
+> parede e não um par (§4.1), a arte é **autorada** e não gerada (§8), e G1 virou
+> **regra de gamut** em vez de lista de 22 cores (§4.2).
+>
+> A **onda 2** deu identidade própria a boss, arma e item: mesma linguagem de
+> material, matiz próprio — 330–355° no chefe, 25–50° na arma, 150–180° no item,
+> contra os 200–250° da base. O corredor fica na noite azul de propósito. E o
+> chão do chefe leva teto de valor mais baixo que os outros (0,24 contra 0,30):
+> é a sala mais densa de projétil do jogo e o matiz dela é vizinho do
+> `tiro_diretora`, então a folga de valor vale mais ali do que em qualquer
+> outro lugar.
 
 Este documento existe para que alguém consiga **desenhar textura nova para o mapa
 sem reinventar a direção de arte a cada vez**. Ele parte de `assets/bg_menu.jpg`

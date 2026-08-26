@@ -74,11 +74,56 @@ except ImportError:
 # O alvo do chao e V mediano ~0,12: o chao antigo era 0,09 (seguro e vazio) e a
 # arte crua chega em 0,17 (rica e disputando com o projetil). O ganho poe a
 # textura entre os dois, mais perto do seguro.
+# `alvo_v` e a MEDIANA de valor que a textura deve ter, e nao um multiplicador.
+#
+# Multiplicador fixo so funciona se toda geracao nascer com o mesmo brilho, e nao
+# nasce: a rampa ambar do andar 1 saiu bem mais escura que a azul, e o mesmo
+# ganho de 0,70 derrubou o chao de arma para V 0,05 com 159 cores -- escuro
+# demais para ter textura. Mirando a mediana, o funil compensa sozinho o quao
+# clara a arte chegou.
+#
+# Chao em 0,12 e parede em 0,30: a parede tem de vencer o chao porque e ela que
+# diz onde a sala termina, e desde que o filete saiu ela e a unica coisa que diz.
 FAMILIAS = {
-    "chao":     {"teto_v": 0.30, "ganho_v": 0.70, "teto_s": 0.95, "matiz": (200, 250), "densidade": (0.08, 0.18)},
-    "parede":   {"teto_v": 0.50, "ganho_v": 0.90, "teto_s": 0.95, "matiz": (200, 250), "densidade": (0.18, 0.34)},
-    "decalque": {"teto_v": 0.19, "ganho_v": 0.70, "teto_s": 0.95, "matiz": (190, 260), "densidade": (0.00, 1.00)},
-    "livre":    {"teto_v": 0.55, "ganho_v": 1.00, "teto_s": 0.95, "matiz": None,       "densidade": (0.00, 1.00)},
+    "chao":     {"teto_v": 0.30, "alvo_v": 0.12, "teto_s": 0.95, "densidade": (0.08, 0.18)},
+    "parede":   {"teto_v": 0.50, "alvo_v": 0.30, "teto_s": 0.95, "densidade": (0.18, 0.34)},
+    "decalque": {"teto_v": 0.19, "alvo_v": 0.10, "teto_s": 0.95, "densidade": (0.00, 1.00)},
+    "livre":    {"teto_v": 0.55, "alvo_v": 0.00, "teto_s": 0.95, "densidade": (0.00, 1.00)},
+}
+
+## Quanto a faixa de matiz e apertada NA HORA DE ESCREVER, para sobrar folga
+## contra o arredondamento de 8 bits.
+##
+## O portao confere a faixa cheia. Sem esta margem, uma cor grampeada exatamente
+## em 330 sai do conversor HSV->RGB->uint8 medindo 328, e a textura reprova por
+## dois graus que nao sao dela -- sao do formato. Nesses valores escuros os
+## canais estao na casa de 10 a 40, e um passo de 1/255 gira o matiz varios
+## graus.
+MARGEM_MATIZ = 3.0
+
+# A faixa de matiz e do TIPO DE SALA, nao da familia -- e o que faz a sala do
+# chefe se anunciar de longe sem o andar deixar de ser um lugar so. Sai das
+# rampas ACENTOS de tools/texturas/paleta.gd, rebaixadas: `cor_mapa` puro nunca
+# e pintado no mundo.
+#
+# O corredor NAO entra aqui. Ele fica na noite base de proposito: pintar cada
+# metade com a cor da sala vizinha anunciaria o que ha do outro lado antes de o
+# jogador chegar.
+MATIZ_POR_TIPO = {
+    "andar1": (200, 250),   # a base: combate e inicial
+    "boss":   (330, 355),
+    "arma":   (25, 50),
+    "item":   (150, 180),
+}
+
+# A sala do chefe leva teto mais baixo que as outras, e nao e capricho: e a sala
+# mais densa de projetil do jogo, e o matiz dela e vizinho do `tiro_diretora`
+# (336 graus). Como o andar 1 abriu mao da separacao por matiz, sobrou o valor --
+# e no lugar onde ele mais importa vale compra-lo mais folgado.
+#
+# Arma e item nao precisam: sao salas de recompensa, sem combate.
+TETO_POR_TIPO = {
+    "boss": {"chao": 0.24},
 }
 
 ## Teto da razao de costura, CALIBRADO e nao chutado. Medido em tres regimes:
@@ -235,18 +280,31 @@ def medir_costura(im):
 
 # -------------------------------------------------------------------- gamut --
 
-def forcar_gamut(im, familia):
-    regra = FAMILIAS[familia]
+def regra_de(familia, tipo):
+    """Junta a familia (o que a superficie e) com o tipo (de que sala ela e)."""
+    regra = dict(FAMILIAS[familia])
+    regra["matiz"] = MATIZ_POR_TIPO.get(tipo) if familia != "livre" else None
+    regra["teto_v"] = TETO_POR_TIPO.get(tipo, {}).get(familia, regra["teto_v"])
+    return regra
+
+
+def forcar_gamut(im, familia, tipo="andar1"):
+    regra = regra_de(familia, tipo)
     rgb, alpha = _canais(im)
     h, s, v = _rgb_para_hsv(rgb)
 
-    v = np.minimum(v * regra.get("ganho_v", 1.0), regra["teto_v"])
+    alvo: float = regra.get("alvo_v", 0.0)
+    if alvo > 0.0:
+        atual = float(np.median(v[alpha > 0.5])) if (alpha > 0.5).any() else 0.0
+        if atual > 1e-4:
+            v = v * (alvo / atual)
+    v = np.minimum(v, regra["teto_v"])
     s = np.minimum(s, regra["teto_s"])
     if regra["matiz"] is not None:
         lo, hi = regra["matiz"]
         # Puxa para a faixa em vez de cortar: cor fora dela vira a borda mais
         # proxima, o que preserva a intencao do artista sem sair da familia.
-        h = np.clip(h, lo, hi)
+        h = np.clip(h, lo + MARGEM_MATIZ, hi - MARGEM_MATIZ)
 
     novo = _hsv_para_rgb(h, s, v)
     saida = np.concatenate([novo, alpha[:, :, None]], axis=2)
@@ -300,9 +358,9 @@ def medir_gamut(im):
     }
 
 
-def conferir(caminho, familia):
+def conferir(caminho, familia, tipo="andar1"):
     im = _abrir(caminho)
-    regra = FAMILIAS[familia]
+    regra = regra_de(familia, tipo)
     g = medir_gamut(im)
     dens = medir_densidade(im)
     cx, cy = medir_costura(im)
@@ -330,7 +388,7 @@ def conferir(caminho, familia):
     tudo &= checa(cx <= LIMITE_COSTURA and cy <= LIMITE_COSTURA,
                   "costura x=%.2f y=%.2f (teto %.2f)" % (cx, cy, LIMITE_COSTURA))
 
-    print("%s  [%s]" % (os.path.basename(caminho), familia))
+    print("%s  [%s / %s]" % (os.path.basename(caminho), familia, tipo))
     for l in linhas:
         print(l)
     print("         %d cores, V mediano %.2f, S mediano %.2f" % (g["cores"], g["v_mediano"], g["s_mediano"]))
@@ -347,6 +405,20 @@ def _familia_do_nome(nome):
     return "livre"
 
 
+def _tipo_do_nome(nome):
+    """`chao_boss.png` -> boss; `chao_andar1_c.png` -> andar1; resto -> andar1.
+
+    O nome do arquivo carrega familia E tipo, e nao ha segunda fonte: um flag de
+    linha de comando esquecido produziria uma textura fora da faixa que so
+    apareceria no portao, depois de gerada.
+    """
+    base = os.path.basename(nome)
+    for tipo in MATIZ_POR_TIPO:
+        if ("_%s." % tipo) in base or ("_%s_" % tipo) in base:
+            return tipo
+    return "andar1"
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest="acao", required=True)
@@ -355,6 +427,7 @@ def main():
     pr.add_argument("origem")
     pr.add_argument("destino")
     pr.add_argument("--familia", choices=list(FAMILIAS), default=None)
+    pr.add_argument("--tipo", choices=list(MATIZ_POR_TIPO), default=None)
     pr.add_argument("--lado", type=int, default=256)
     pr.add_argument("--sem-costura", action="store_true",
                     help="pula a costura (para arte que ja nasceu ladrilhavel)")
@@ -362,13 +435,15 @@ def main():
     cf = sub.add_parser("conferir")
     cf.add_argument("alvo")
     cf.add_argument("--familia", choices=list(FAMILIAS), default=None)
+    cf.add_argument("--tipo", choices=list(MATIZ_POR_TIPO), default=None)
 
     a = p.parse_args()
 
     if a.acao == "preparar":
         familia = a.familia or _familia_do_nome(a.destino)
+        tipo = a.tipo or _tipo_do_nome(a.destino)
         im = _abrir(a.origem)
-        print("origem: %dx%d  ->  familia '%s', lado %d" % (im.size[0], im.size[1], familia, a.lado))
+        print("origem: %dx%d  ->  familia '%s', tipo '%s', lado %d" % (im.size[0], im.size[1], familia, tipo, a.lado))
         # Reduz ANTES de costurar, e a ordem importa: costurar em 1024 e reduzir
         # depois nao sobrevive a reamostragem. Medido no piloto -- a junta em y
         # saiu de 0,28 para 1,27 so por causa do BOX. A costura tem de ser feita
@@ -377,12 +452,12 @@ def main():
             im = im.resize((a.lado, a.lado), Image.BOX)
         if not a.sem_costura:
             im = costurar(im)
-        im = forcar_gamut(im, familia)
+        im = forcar_gamut(im, familia, tipo)
         im = cravar_alpha(im)
         os.makedirs(os.path.dirname(os.path.abspath(a.destino)), exist_ok=True)
         im.save(a.destino)
         print("escrito: %s\n" % a.destino)
-        return 0 if conferir(a.destino, familia) else 1
+        return 0 if conferir(a.destino, familia, tipo) else 1
 
     alvos = []
     if os.path.isdir(a.alvo):
@@ -395,7 +470,7 @@ def main():
     tudo = True
     for caminho in alvos:
         familia = a.familia or _familia_do_nome(caminho)
-        tudo &= conferir(caminho, familia)
+        tudo &= conferir(caminho, familia, a.tipo or _tipo_do_nome(caminho))
         print("")
     return 0 if tudo else 1
 

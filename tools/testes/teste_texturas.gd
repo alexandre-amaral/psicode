@@ -152,14 +152,42 @@ func _propriedade_da_raiz(caminho: String, propriedade: StringName) -> Variant:
 ## consequencia de codigo nenhum. O que as tranca sao propriedades medidas sobre
 ## o proprio arquivo: gamut, teto de valor, faixa de matiz e costura.
 const AUTORADAS: Dictionary = {
-	"chao_andar1_a.png": &"chao",
-	"chao_andar1_b.png": &"chao",
-	"chao_andar1_c.png": &"chao",
-	"chao_andar1_d.png": &"chao",
-	"parede_andar1_a.png": &"parede",
-	"parede_andar1_b.png": &"parede",
-	"parede_andar1_c2.png": &"parede",
-	"parede_andar1_d.png": &"parede",
+	"chao_andar1_a.png": {&"familia": &"chao", &"tipo": &"andar1"},
+	"chao_andar1_b.png": {&"familia": &"chao", &"tipo": &"andar1"},
+	"chao_andar1_c.png": {&"familia": &"chao", &"tipo": &"andar1"},
+	"chao_andar1_d.png": {&"familia": &"chao", &"tipo": &"andar1"},
+	"parede_andar1_a.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"parede_andar1_b.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"parede_andar1_c2.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"parede_andar1_d.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"chao_boss.png": {&"familia": &"chao", &"tipo": &"boss"},
+	"parede_boss.png": {&"familia": &"parede", &"tipo": &"boss"},
+	"chao_arma.png": {&"familia": &"chao", &"tipo": &"arma"},
+	"parede_arma.png": {&"familia": &"parede", &"tipo": &"arma"},
+	"chao_item.png": {&"familia": &"chao", &"tipo": &"item"},
+	"parede_item.png": {&"familia": &"parede", &"tipo": &"item"},
+}
+
+## A faixa de matiz e do TIPO DE SALA, e e ela que faz a sala do chefe se
+## anunciar de longe sem o andar deixar de ser um lugar so. Sai das rampas
+## ACENTOS de paleta.gd, rebaixadas.
+##
+## O corredor nao tem faixa propria de proposito: ele fica na noite base, porque
+## pintar cada metade com a cor da sala vizinha anunciaria o que ha do outro lado
+## antes de o jogador chegar.
+const MATIZ_POR_TIPO: Dictionary = {
+	&"andar1": Vector2(200.0, 250.0),
+	&"boss": Vector2(330.0, 355.0),
+	&"arma": Vector2(25.0, 50.0),
+	&"item": Vector2(150.0, 180.0),
+}
+
+## Teto de valor mais baixo no chao do chefe, e nao e capricho: e a sala mais
+## densa de projetil do jogo, e o matiz dela e vizinho do `tiro_diretora` (336
+## graus). Como o andar 1 abriu mao da separacao por matiz, sobrou o valor -- e
+## no lugar onde ele mais importa vale compra-lo mais folgado.
+const TETO_ESPECIAL: Dictionary = {
+	&"boss": {&"chao": 0.24},
 }
 
 ## Teto de valor por familia. O do chao e o mais apertado e e o que sustenta a
@@ -170,10 +198,6 @@ const TETO_VALOR: Dictionary = {
 	&"chao": 0.30,
 	&"parede": 0.50,
 }
-
-## Faixa de matiz da noite do andar 1, em graus.
-const MATIZ_MIN := 200.0
-const MATIZ_MAX := 250.0
 
 ## Abaixo deste valor o matiz de um pixel de 8 bits e ruido de arredondamento --
 ## os canais estao na casa de 0..15 e um passo de 1/255 gira o matiz dezenas de
@@ -218,7 +242,8 @@ func _arquivos() -> void:
 			continue
 		autoradas += 1
 		_grade(imagem, nome)
-		_regra_de_gamut(imagem, nome, AUTORADAS[nome])
+		var d: Dictionary = AUTORADAS[nome]
+		_regra_de_gamut(imagem, nome, d[&"familia"], d[&"tipo"])
 		_costura(imagem, nome)
 
 	igual(autoradas, AUTORADAS.size(), "todas as texturas autoradas foram abertas")
@@ -262,8 +287,9 @@ func _pertence_a_lista(imagem: Image, nome: String, paleta: Array[Color], portao
 ## compete com um ator. Isso e mensuravel direto, e de quebra pega coisa que a
 ## lista deixava passar: um cinza dessaturado em V 0,90 pertencia ao gamut
 ## AMBIENTE e destruia a noite.
-func _regra_de_gamut(imagem: Image, nome: String, familia: StringName) -> void:
-	var teto: float = TETO_VALOR.get(familia, 0.55)
+func _regra_de_gamut(imagem: Image, nome: String, familia: StringName, tipo: StringName) -> void:
+	var teto: float = TETO_ESPECIAL.get(tipo, {}).get(familia, TETO_VALOR.get(familia, 0.55))
+	var faixa: Vector2 = MATIZ_POR_TIPO.get(tipo, Vector2(0.0, 360.0))
 	var compete := 0
 	var acima := 0
 	var alpha_parcial := 0
@@ -296,8 +322,9 @@ func _regra_de_gamut(imagem: Image, nome: String, familia: StringName) -> void:
 	igual(acima, 0, "%s: nenhum pixel acima do teto de valor %.2f (%s)" % [nome, teto, pior])
 	if matiz_max >= 0.0:
 		ok(
-			matiz_min >= MATIZ_MIN - 1.0 and matiz_max <= MATIZ_MAX + 1.0,
-			"%s: matiz na faixa %.0f-%.0f (achado %.0f-%.0f)" % [nome, MATIZ_MIN, MATIZ_MAX, matiz_min, matiz_max]
+			matiz_min >= faixa.x - 1.0 and matiz_max <= faixa.y + 1.0,
+			"%s: matiz na faixa %.0f-%.0f do tipo '%s' (achado %.0f-%.0f)"
+				% [nome, faixa.x, faixa.y, tipo, matiz_min, matiz_max]
 		)
 
 

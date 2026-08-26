@@ -149,6 +149,7 @@ docs/
 | Regras de onde cada sala nasce | `@export` do `tipo_*.tres` (beco, distancia da origem, prioridade) |
 | Cor e icone de uma sala no minimapa | `cor_mapa` e `icone` do `tipo_*.tres` |
 | **Textura de chao, parede e props de um tipo de sala** | grupo `Visual` do `tipo_*.tres`. Chao e parede sao LISTAS: a sala sorteia a variante por `hash(coordenadas_grid)`. Os PNGs sao arte autorada passada por `tools/texturas/preparar_textura.py`; porta e props ainda saem do gerador |
+| **Arte de chao ou parede que nao nasceu na paleta** | o pre-passo de `preparar_textura.py`: `--desvinheta` (chapa a iluminacao), `--tingir GRAUS` + `--limiar-neon` (tinge o metal apagado e deixa o acento aceso intacto), `--grampear-matiz`, `--alvo-v`. Tudo desligado por default |
 | **Uma cor nova no cenario** | `tools/texturas/paleta.gd` + a tabela de `docs/IDENTIDADE_VISUAL.md`; `teste_texturas.gd` recusa cor que compete com projetil |
 | Enquadramento e cores do minimapa | `@export` do no `Minimapa` em `src/ui/hud.tscn` |
 | Preferencias do jogador (tela cheia, acessibilidade, idioma) | `src/autoload/configuracao.gd` — grava em `user://config.cfg` |
@@ -415,6 +416,13 @@ em qualquer erro de script.
   faixa de vazio na lateral. O unico conserto completo seria geometrico: parede
   de 16 px e salas de 928x512 fecham exatamente 960x544, e ambos caem na grade
   de 32. Isso mexe em todas as cenas de sala e ainda nao foi feito.
+- **A faixa de matiz de um tipo de sala mora em DOIS arquivos.**
+  `MATIZ_POR_TIPO` existe igual em `tools/texturas/preparar_textura.py` (quem
+  escreve) e em `tools/testes/teste_texturas.gd` (quem confere). Mudar num so
+  deixa o funil produzindo o que o portao recusa -- e o erro so aparece na
+  suite, depois de a arte ja estar em disco. A do `andar1` e larga de proposito
+  (185-320): ela separa TIPO DE SALA, e quem separa mapa de ATOR e o teto de
+  valor (chao em 0,30 contra o piso de 0,55 do portao G2), que nao muda.
 - **`teste_texturas.gd` compara o PNG em disco com o gerador.** Mudou uma cor
   em `paleta.gd` ou um traco em `gerar_texturas.gd`? Rode o gerador e o
   `--import` de novo, senao a suite reprova com "gerou e esqueceu de rodar?".

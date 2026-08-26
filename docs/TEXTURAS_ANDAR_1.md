@@ -8,7 +8,8 @@
 >
 > A **onda 2** deu identidade própria a boss, arma e item: mesma linguagem de
 > material, matiz próprio — 330–355° no chefe, 25–50° na arma, 150–180° no item,
-> contra os 200–250° da base. O corredor fica na noite azul de propósito. E o
+> contra os **185–320°** da base (ver §13). O corredor fica na noite azul de
+> propósito. E o
 > chão do chefe leva teto de valor mais baixo que os outros (0,24 contra 0,30):
 > é a sala mais densa de projétil do jogo e o matiz dela é vizinho do
 > `tiro_diretora`, então a folga de valor vale mais ali do que em qualquer
@@ -696,3 +697,92 @@ Tudo sai de `assets/bg_menu.jpg` e de `assets/texturas/*.png` com Python e PIL.
 
 Medido em 2026-08-25 contra `bg_menu.jpg` (1376×768) e as 13 texturas de
 `assets/texturas/`. Se alguma for regerada, **remeça** — não confie na tabela.
+
+---
+
+## 13. A onda 3 — o piso deixa de ser quase preto
+
+O §2.4 fechou dizendo *"o chão tile em 12,7% está certo"*. Medido de novo, com o
+funil já no lugar, os quatro chãos do andar 1 estavam em **0,8% a 4,3%** de
+densidade — abaixo até da faixa 8–18% que o próprio `preparar_textura.py`
+declara para a família. E a luminância média era **12,6** (a pior, `_b`, dava
+8,2) contra os **42,8** que a metade de baixo do `bg_menu.jpg` mede.
+
+O piso não estava calibrado; estava apagado. A queixa que abriu esta onda foi
+estética ("não ficou no esperado"), e a régua confirmou.
+
+### 13.1 O que mudou
+
+Três referências autorais de placa metálica entraram no lugar das quatro
+variantes anteriores (`chao_andar1_d` foi apagado). O que as diferencia é a
+**escala do painel**, e não o brilho nem o matiz — é a leitura de "quatro
+variações da mesma noite" do §4.1, mantida:
+
+| arquivo | o que distingue |
+|---|---|
+| `chao_andar1_a` | painel grande, simétrico, dreno de canto |
+| `chao_andar1_b` | retalho de placas pequenas irregulares, mais acento |
+| `chao_andar1_c` | painel largo com calha, poucos elementos |
+
+Exposição em `--alvo-v 0.16` (contra o default 0,12 da família). Resultado
+medido nas três: luminância **26 a 29**, densidade **9,0% a 10,9%** — dentro da
+faixa, e pela primeira vez.
+
+### 13.2 A faixa de matiz do andar 1 alargou: 200–250 → 185–320
+
+As referências trazem acento ciano (~180°) e magenta (~320°). A faixa antiga
+grampeava os dois em azul: o acento sobrevivia como brilho e perdia o
+vocabulário que motivou a escolha da arte.
+
+Alargar é seguro, e a razão está no §2.2 deste mesmo documento: **o andar 1 já
+tinha abandonado a separação por matiz** ao ir para o azul, que é a família de
+seis projéteis do jogo. Quem separa mapa de ator é o **valor** — teto de 0,30 no
+chão contra o piso de 0,55 do portão G2 — e esse teto **não mudou**. Medido nos
+três arquivos: `compete = 0` e nenhum pixel acima do teto.
+
+O que a faixa separa é **tipo de sala**, e isso se preserva: 185 fica 5° acima
+do teto do item (180) e 320 fica 10° abaixo do piso do chefe (330). As quatro
+faixas seguem disjuntas.
+
+Na tela, a separação medida numa sala de combate cheia: o projétil inimigo pica
+em 125 de luminância contra 57 no percentil 99 do piso — **2,2×**. O critério de
+aceite do `IDENTIDADE_VISUAL.md` ("um projétil inimigo continua tão fácil de
+achar quanto antes dela") se sustenta pelo valor, exatamente como previsto.
+
+### 13.3 O preço, e ele é real: a moldura enfraqueceu
+
+A parede do andar 1 não mudou (luminância 37–45). Com o chão saindo de ~12 para
+~28, a razão parede/chão caiu de **~3,5× para ~1,5×** (medido em captura: 1,54×
+na variante `a`, 1,36× na `b`).
+
+A parede continua vencendo, e nas capturas ela ainda lê como moldura — mas essa
+folga era generosa e agora é justa. **Ela é a única coisa que diz onde a sala
+termina** desde que o filete de neon saiu, então é o número a vigiar no próximo
+playtest.
+
+Se precisar recuperar, há dois botões, nesta ordem de preferência:
+
+1. **Subir a parede do andar 1** de V 0,30 para ~0,38. A família permite até
+   0,50, então há folga, e mexe só em `parede_andar1_*` — as salas especiais
+   têm par próprio e a razão interna delas não muda.
+2. Baixar `--alvo-v` do chão para 0,14 (chão ~24, razão ~1,7×). Desfaz parte do
+   que esta onda foi feita para resolver, então é o segundo botão e não o
+   primeiro.
+
+### 13.4 Duas ferramentas novas no funil
+
+`preparar_textura.py` ganhou um **pré-passo**, desligado por default — o funil
+continua sendo rede de segurança, e o pré-passo é o contrário dela: ele
+acrescenta o que a arte não trouxe.
+
+- `--desvinheta` — chapa a iluminação global. Arte gerada vem com centro aceso e
+  cantos apagados, e em ladrilho isso vira uma **cruz escura** repetida pela
+  sala inteira.
+- `--tingir GRAUS` com `--limiar-neon S` e `--saturacao S` — crava o matiz do
+  **metal apagado** na noite azul e deixa o **pixel aceso passar intacto**. O
+  limiar é a peça inteira: levantar saturação em tudo pintaria também o ruído
+  quase-cinza, cujo matiz é só arredondamento, e o piso viraria confete.
+- `--grampear-matiz LO HI` — grampeia na origem, com folga maior que os 3° de
+  `MARGEM_MATIZ`. Com acento muito saturado os 3° não bastam: medido, a
+  referência simétrica saía em 180–322 contra uma faixa de 185–320.
+- `--alvo-v V` — sobrescreve a mediana de valor da família naquela chamada.

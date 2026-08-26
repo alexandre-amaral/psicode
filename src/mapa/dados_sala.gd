@@ -101,18 +101,26 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 @export var icone: String = ""
 
 @export_group("Visual")
-## As texturas que a Sala monta em codigo no _ready, a partir do contorno. Sao
-## os PNGs de assets/texturas/, gerados por tools/texturas/gerar_texturas.tscn
-## a partir da paleta (docs/IDENTIDADE_VISUAL.md) -- nunca de editor de imagem.
-## Campo vazio cai na variante `combate`, que e a neutra do andar; o teste de
-## texturas recusa tipo sem as duas declaradas, para o fallback nao virar
-## disfarce de esquecimento.
+## As texturas que a Sala monta em codigo no _ready, a partir do contorno.
 ##
-## Houve uma terceira, `textura_filete`: o neon que corria pelo contorno. Saiu
+## Sao LISTAS, e nao um campo so, porque um andar inteiro com o mesmo par de
+## texturas le como uma sala repetida sete vezes. A sala escolhe a variante pela
+## propria celula -- `hash(coordenadas_grid)` -- entao a escolha e estavel:
+## reentrar na sala mostra a mesma sala, e um teste consegue reproduzir. E o
+## mesmo mecanismo que `_montar_decoracao()` ja usa para os props.
+##
+## Um tipo com UMA entrada continua valido e e o caso das salas especiais, onde
+## variacao nao faz sentido: existe uma sala de chefe por andar.
+##
+## Os PNGs sao arte autorada, preparada por `tools/texturas/preparar_textura.py`
+## -- que costura, forca o gamut e confere. Ate a v0.2 eles nasciam de codigo em
+## `gerar_texturas.gd`; porta e props ainda nascem.
+##
+## Houve tambem um `textura_filete`: o neon que corria pelo contorno. Saiu
 ## quando a parede ganhou textura propria -- duas bordas desenhadas uma sobre a
 ## outra, e era o neon que encostava na beira do quadro.
-@export var textura_chao: Texture2D
-@export var textura_parede: Texture2D
+@export var texturas_chao: Array[Texture2D] = []
+@export var texturas_parede: Array[Texture2D] = []
 ## Atlas de props e QUAIS celulas dele esta sala pode usar. O atlas e um so
 ## para o jogo inteiro; a lista e o que da identidade -- a sala do chefe nao
 ## recebe o painel de acento da sala de arma.
@@ -145,6 +153,24 @@ func cenas_validas() -> Array[PackedScene]:
 ## Quantas celulas este tipo ocupa de fato. Uma COMUM nao reserva celula: ela
 ## concorre pelo que o passeio produziu. A INICIAL tambem nao entra nesta conta:
 ## a celula dela nasce do proprio passeio, que sempre comeca na origem.
+## A variante de textura desta celula, estavel por `hash`.
+##
+## Recebe o hash pronto em vez da celula para o corredor tambem poder usar: ele
+## nao tem celula nenhuma, so posicao. Lista vazia devolve null, e quem chama
+## cai no fallback.
+func textura_de(lista: Array[Texture2D], semente: int) -> Texture2D:
+	var validas: Array[Texture2D] = []
+	for t in lista:
+		if t != null:
+			validas.append(t)
+	if validas.is_empty():
+		return null
+	# absi() porque hash() devolve negativo, e o modulo de negativo em GDScript
+	# devolve negativo -- indice negativo aqui seria um crash intermitente que so
+	# aparece em algumas celulas do andar.
+	return validas[absi(semente) % validas.size()]
+
+
 func celulas_reservadas() -> int:
 	if not eh_pendurada():
 		return 0

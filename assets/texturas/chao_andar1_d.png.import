@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d1n888pwi8m1r"
-path="res://.godot/imported/parede_combate.png-c7f8f18c34c2447edf14b8c3b1dc9301.ctex"
+uid="uid://6xk45meg88rg"
+path="res://.godot/imported/chao_andar1_d.png-73c775b4997af4715f370860854f9475.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/texturas/parede_combate.png"
-dest_files=["res://.godot/imported/parede_combate.png-c7f8f18c34c2447edf14b8c3b1dc9301.ctex"]
+source_file="res://assets/texturas/chao_andar1_d.png"
+dest_files=["res://.godot/imported/chao_andar1_d.png-73c775b4997af4715f370860854f9475.ctex"]
 
 [params]
 

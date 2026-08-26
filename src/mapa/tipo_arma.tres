@@ -1,8 +1,8 @@
 [gd_resource type="Resource" script_class="DadosSala" load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
-[ext_resource type="Texture2D" path="res://assets/texturas/chao_arma.png" id="20_chao"]
-[ext_resource type="Texture2D" path="res://assets/texturas/parede_arma.png" id="21_parede"]
+[ext_resource type="Texture2D" path="res://assets/texturas/chao_arma.png" id="30_c0"]
+[ext_resource type="Texture2D" path="res://assets/texturas/parede_arma.png" id="31_p0"]
 [ext_resource type="Texture2D" path="res://assets/texturas/props_atlas.png" id="23_atlas"]
 [ext_resource type="PackedScene" path="res://src/mapa/sala_7_arma.tscn" id="2_arma"]
 
@@ -24,8 +24,8 @@ deterioracao_ao_limpar = 0.0
 deterioracao_minima_ao_entrar = -1.0
 cor_mapa = Color(1, 0.72, 0.29, 1)
 icone = "A"
-textura_chao = ExtResource("20_chao")
-textura_parede = ExtResource("21_parede")
+texturas_chao = Array[Texture2D]([ExtResource("30_c0")])
+texturas_parede = Array[Texture2D]([ExtResource("31_p0")])
 atlas_props = ExtResource("23_atlas")
 regioes_props = Array[Rect2i]([Rect2i(0, 0, 32, 32), Rect2i(32, 0, 32, 32), Rect2i(128, 0, 32, 32), Rect2i(224, 0, 32, 32), Rect2i(0, 32, 32, 32), Rect2i(64, 32, 32, 32), Rect2i(96, 32, 32, 32), Rect2i(64, 64, 32, 32), Rect2i(64, 96, 32, 32)])
 quantidade_props = 6

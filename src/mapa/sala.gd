@@ -78,7 +78,15 @@ const Z_PAREDE_CORPO := -2
 const Z_CHAO := -1
 ## Onde moram as texturas da variante neutra, usadas quando a sala roda sem
 ## GerenciadorMapa (aberta sozinha no editor, instanciada por uma suite).
-const TEXTURA_PADRAO := "res://assets/texturas/%s_combate.png"
+## Fallback quando a sala nao recebeu DadosSala -- cena aberta sozinha no editor,
+## ou a amostra que `_montar_catalogo()` instancia para medir portas.
+##
+## Aponta para a primeira variante da noite base. Nao pode apontar para arquivo
+## que nao exista: `_texturizar()` cai em COR_CHAO_EMERGENCIA sem erro nenhum no
+## console, e a sala fica LISA. Nenhuma suite pega isso -- `teste_grade.gd` nunca
+## faz `add_child`, entao o `_ready` nao roda, e o teste de fumaca nao olha
+## textura.
+const TEXTURA_PADRAO := "res://assets/texturas/%s_andar1_a.png"
 ## Cor de emergencia do chao quando a textura nao carrega: o N1 da paleta, que
 ## e o chao que o jogo sempre teve. Sala invisivel seria pior que sala lisa.
 const COR_CHAO_EMERGENCIA := Color("0b0d16")
@@ -759,14 +767,29 @@ func _caixa_de(pontos: PackedVector2Array) -> Rect2:
 	return caixa
 
 
+## A textura desta familia PARA ESTA SALA.
+##
+## A variante sai de `hash(coordenadas_grid)`, e o momento em que isso funciona
+## nao e obvio: `coordenadas_grid` e escrito pelo GerenciadorMapa ANTES do
+## `add_child`, e portanto ja vale quando o `_ready` chama `_montar_visual()`.
+## E o mesmo pre-requisito que `_montar_decoracao()` explora.
+##
+## Sala aberta sozinha no editor, e a amostra que `_montar_catalogo()` instancia
+## para medir portas, chegam aqui com celula (0,0) e sem dados -- as duas caem no
+## fallback, que e o comportamento certo e nao um caso a tratar.
 func _textura(familia: StringName) -> Texture2D:
 	var textura: Texture2D = null
 	if _dados_visual != null:
+		var semente := hash(coordenadas_grid)
 		match familia:
 			&"chao":
-				textura = _dados_visual.textura_chao
+				textura = _dados_visual.textura_de(_dados_visual.texturas_chao, semente)
 			&"parede":
-				textura = _dados_visual.textura_parede
+				# Desloca a semente para chao e parede nao andarem juntos: com a
+				# mesma semente, a sala que pega o chao 2 pegaria sempre a parede
+				# 2, e quatro combinacoes possiveis virariam quatro de fato em vez
+				# das dezesseis que as listas oferecem.
+				textura = _dados_visual.textura_de(_dados_visual.texturas_parede, semente ^ 0x5bf03635)
 	if textura == null:
 		textura = load(TEXTURA_PADRAO % familia) as Texture2D
 	return textura

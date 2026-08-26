@@ -57,12 +57,19 @@ func _ready() -> void:
 
 
 ## Nomes de arquivo (sem pasta) que o gerador sabe produzir. E a lista que o
-## teste de determinismo percorre -- textura fora daqui nao e conferida.
+## teste de determinismo percorre.
+##
+## CHAO E PAREDE SAIRAM DAQUI. Eles viraram arte autorada em
+## `assets/texturas/chao_andar1_*.png` e `parede_andar1_*.png`, preparada por
+## `tools/texturas/preparar_textura.py`. O que sobrou aqui e o que continua
+## nascendo de codigo: as duas metades da porta e o atlas de props.
+##
+## `TIPOS` continua existindo e continua nesta ordem, porque ele ainda alimenta
+## as linhas 2 e 3 do atlas -- o painel de acento e a marcacao de chao, uma
+## coluna por tipo. Encolher `TIPOS` para acompanhar a saida do chao mataria em
+## silencio justamente os props que carregam a identidade de cada sala.
 static func nomes() -> Array[String]:
 	var lista: Array[String] = []
-	for tipo in TIPOS:
-		lista.append("chao_%s.png" % tipo)
-		lista.append("parede_%s.png" % tipo)
 	lista.append("porta_moldura.png")
 	lista.append("porta_campo.png")
 	lista.append("props_atlas.png")
@@ -80,12 +87,6 @@ static func nomes_de_ambiente() -> Array[String]:
 
 
 static func gerar(nome: String) -> Image:
-	for i in TIPOS.size():
-		var tipo := TIPOS[i]
-		if nome == "chao_%s.png" % tipo:
-			return gerar_chao(tipo, SEEDS[&"chao"] + i)
-		if nome == "parede_%s.png" % tipo:
-			return gerar_parede(tipo, SEEDS[&"parede"] + i)
 	match nome:
 		"porta_moldura.png":
 			return gerar_porta_moldura()

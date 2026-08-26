@@ -146,12 +146,79 @@ func _propriedade_da_raiz(caminho: String, propriedade: StringName) -> Variant:
 	return null
 
 
+## Texturas AUTORADAS: arte preparada por tools/texturas/preparar_textura.py.
+##
+## Elas nao tem gerador, entao nao ha determinismo a cobrar -- o PNG nao e
+## consequencia de codigo nenhum. O que as tranca sao propriedades medidas sobre
+## o proprio arquivo: gamut, teto de valor, faixa de matiz e costura.
+const AUTORADAS: Dictionary = {
+	"chao_andar1_a.png": {&"familia": &"chao", &"tipo": &"andar1"},
+	"chao_andar1_b.png": {&"familia": &"chao", &"tipo": &"andar1"},
+	"chao_andar1_c.png": {&"familia": &"chao", &"tipo": &"andar1"},
+	"chao_andar1_d.png": {&"familia": &"chao", &"tipo": &"andar1"},
+	"parede_andar1_a.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"parede_andar1_b.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"parede_andar1_c2.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"parede_andar1_d.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"chao_boss.png": {&"familia": &"chao", &"tipo": &"boss"},
+	"parede_boss.png": {&"familia": &"parede", &"tipo": &"boss"},
+	"chao_arma.png": {&"familia": &"chao", &"tipo": &"arma"},
+	"parede_arma.png": {&"familia": &"parede", &"tipo": &"arma"},
+	"chao_item.png": {&"familia": &"chao", &"tipo": &"item"},
+	"parede_item.png": {&"familia": &"parede", &"tipo": &"item"},
+}
+
+## A faixa de matiz e do TIPO DE SALA, e e ela que faz a sala do chefe se
+## anunciar de longe sem o andar deixar de ser um lugar so. Sai das rampas
+## ACENTOS de paleta.gd, rebaixadas.
+##
+## O corredor nao tem faixa propria de proposito: ele fica na noite base, porque
+## pintar cada metade com a cor da sala vizinha anunciaria o que ha do outro lado
+## antes de o jogador chegar.
+const MATIZ_POR_TIPO: Dictionary = {
+	&"andar1": Vector2(200.0, 250.0),
+	&"boss": Vector2(330.0, 355.0),
+	&"arma": Vector2(25.0, 50.0),
+	&"item": Vector2(150.0, 180.0),
+}
+
+## Teto de valor mais baixo no chao do chefe, e nao e capricho: e a sala mais
+## densa de projetil do jogo, e o matiz dela e vizinho do `tiro_diretora` (336
+## graus). Como o andar 1 abriu mao da separacao por matiz, sobrou o valor -- e
+## no lugar onde ele mais importa vale compra-lo mais folgado.
+const TETO_ESPECIAL: Dictionary = {
+	&"boss": {&"chao": 0.24},
+}
+
+## Teto de valor por familia. O do chao e o mais apertado e e o que sustenta a
+## leitura de combate: como o andar 1 foi para o azul -- a familia de seis
+## projeteis do jogo -- o matiz parou de separar mapa de ator, e sobrou o valor.
+## Ator tem piso de V 0,55 no portao G2; 0,30 no chao garante 0,25 de folga.
+const TETO_VALOR: Dictionary = {
+	&"chao": 0.30,
+	&"parede": 0.50,
+}
+
+## Abaixo deste valor o matiz de um pixel de 8 bits e ruido de arredondamento --
+## os canais estao na casa de 0..15 e um passo de 1/255 gira o matiz dezenas de
+## graus. Medir ali e medir o 8 bits, nao a cor.
+const PISO_MATIZ_LEGIVEL := 0.06
+
+## Teto da razao de costura. Calibrado em tres regimes e validado contra
+## gabarito: textura gerada com `posmod` -- seamless por construcao -- mede
+## 0,14 a 0,42, arte costurada mede ate 0,95, e arte crua que nao ladrilha
+## passa de 1,4.
+const TETO_COSTURA := 1.10
+
+
 func _arquivos() -> void:
 	var ambiente := Paleta.ambiente()
 	var sinal := Paleta.sinal()
 	var de_ambiente := GeradorTexturas.nomes_de_ambiente()
 	var conferidos := 0
 
+	# Regime GERADO: o pixel nasce da paleta porque o gerador so sabe escrever a
+	# paleta, entao a pertinencia continua sendo cobrada como lista.
 	for nome in GeradorTexturas.nomes():
 		var caminho := "%s/%s" % [PASTA, nome]
 		var imagem := _carregar_png(caminho)
@@ -159,39 +226,153 @@ func _arquivos() -> void:
 			ok(false, "%s existe em disco (rode tools/texturas/gerar_texturas.tscn)" % nome)
 			continue
 		conferidos += 1
-
-		# Sem excecao: o filete era a unica textura fora da grade (8 px de altura,
-		# a largura da linha de neon) e saiu com o neon. Toda textura que restou
-		# ladrilha nos dois eixos.
-		ok(
-			imagem.get_width() % GRADE == 0 and imagem.get_height() % GRADE == 0,
-			"%s tem dimensao multipla de %d (%dx%d)" % [nome, GRADE, imagem.get_width(), imagem.get_height()]
-		)
-
+		_grade(imagem, nome)
 		var paleta := ambiente if de_ambiente.has(nome) else sinal
 		var portao := "G1" if de_ambiente.has(nome) else "SINAL"
-		var fora := 0
-		var alpha_parcial := 0
-		var opacos := 0
-		var exemplo := ""
-		for y in imagem.get_height():
-			for x in imagem.get_width():
-				var cor := imagem.get_pixel(x, y)
-				if cor.a > 0.001 and cor.a < 0.999:
-					alpha_parcial += 1
-					continue
-				if cor.a < 0.5:
-					continue
-				opacos += 1
-				if not Paleta.pertence(cor, paleta):
-					fora += 1
-					if exemplo.is_empty():
-						exemplo = "%s em (%d, %d)" % [cor.to_html(false), x, y]
-		igual(alpha_parcial, 0, "%s nao tem alpha parcial" % nome)
-		ok(opacos > 0, "%s tem ao menos um pixel opaco" % nome)
-		igual(fora, 0, "%s: %s -- todo pixel pertence a paleta (primeiro fora: %s)" % [nome, portao, exemplo])
+		_pertence_a_lista(imagem, nome, paleta, portao)
 
-	igual(conferidos, GeradorTexturas.nomes().size(), "todas as texturas do catalogo foram abertas")
+	igual(conferidos, GeradorTexturas.nomes().size(), "todas as texturas geradas foram abertas")
+
+	# Regime AUTORADO: nao ha lista a que pertencer, ha regra a obedecer.
+	var autoradas := 0
+	for nome in AUTORADAS:
+		var imagem := _carregar_png("%s/%s" % [PASTA, nome])
+		if imagem == null:
+			ok(false, "%s existe em disco (rode preparar_textura.py)" % nome)
+			continue
+		autoradas += 1
+		_grade(imagem, nome)
+		var d: Dictionary = AUTORADAS[nome]
+		_regra_de_gamut(imagem, nome, d[&"familia"], d[&"tipo"])
+		_costura(imagem, nome)
+
+	igual(autoradas, AUTORADAS.size(), "todas as texturas autoradas foram abertas")
+
+
+func _grade(imagem: Image, nome: String) -> void:
+	ok(
+		imagem.get_width() % GRADE == 0 and imagem.get_height() % GRADE == 0,
+		"%s tem dimensao multipla de %d (%dx%d)" % [nome, GRADE, imagem.get_width(), imagem.get_height()]
+	)
+
+
+func _pertence_a_lista(imagem: Image, nome: String, paleta: Array[Color], portao: String) -> void:
+	var fora := 0
+	var alpha_parcial := 0
+	var opacos := 0
+	var exemplo := ""
+	for y in imagem.get_height():
+		for x in imagem.get_width():
+			var cor := imagem.get_pixel(x, y)
+			if cor.a > 0.001 and cor.a < 0.999:
+				alpha_parcial += 1
+				continue
+			if cor.a < 0.5:
+				continue
+			opacos += 1
+			if not Paleta.pertence(cor, paleta):
+				fora += 1
+				if exemplo.is_empty():
+					exemplo = "%s em (%d, %d)" % [cor.to_html(false), x, y]
+	igual(alpha_parcial, 0, "%s nao tem alpha parcial" % nome)
+	ok(opacos > 0, "%s tem ao menos um pixel opaco" % nome)
+	igual(fora, 0, "%s: %s -- todo pixel pertence a paleta (primeiro fora: %s)" % [nome, portao, exemplo])
+
+
+## G1 como REGRA, e nao como lista.
+##
+## Com arte autorada a lista de 22 cores deixou de servir: ela proibia gradiente,
+## dithering e sombra, que e exatamente o que tira a textura do chapado. O que
+## importava na lista nunca foi a lista -- era garantir que nada do cenario
+## compete com um ator. Isso e mensuravel direto, e de quebra pega coisa que a
+## lista deixava passar: um cinza dessaturado em V 0,90 pertencia ao gamut
+## AMBIENTE e destruia a noite.
+func _regra_de_gamut(imagem: Image, nome: String, familia: StringName, tipo: StringName) -> void:
+	var teto: float = TETO_ESPECIAL.get(tipo, {}).get(familia, TETO_VALOR.get(familia, 0.55))
+	var faixa: Vector2 = MATIZ_POR_TIPO.get(tipo, Vector2(0.0, 360.0))
+	var compete := 0
+	var acima := 0
+	var alpha_parcial := 0
+	var opacos := 0
+	var matiz_min := 999.0
+	var matiz_max := -1.0
+	var pior := ""
+	for y in imagem.get_height():
+		for x in imagem.get_width():
+			var cor := imagem.get_pixel(x, y)
+			if cor.a > 0.001 and cor.a < 0.999:
+				alpha_parcial += 1
+				continue
+			if cor.a < 0.5:
+				continue
+			opacos += 1
+			if Paleta.compete_com_ator(cor):
+				compete += 1
+			if cor.v > teto + 0.004:
+				acima += 1
+				if pior.is_empty():
+					pior = "%s (V %.3f) em (%d, %d)" % [cor.to_html(false), cor.v, x, y]
+			if cor.s > 0.05 and cor.v > PISO_MATIZ_LEGIVEL:
+				matiz_min = minf(matiz_min, cor.h * 360.0)
+				matiz_max = maxf(matiz_max, cor.h * 360.0)
+
+	igual(alpha_parcial, 0, "%s nao tem alpha parcial" % nome)
+	ok(opacos > 0, "%s tem ao menos um pixel opaco" % nome)
+	igual(compete, 0, "%s: G1 -- nenhum pixel compete com ator" % nome)
+	igual(acima, 0, "%s: nenhum pixel acima do teto de valor %.2f (%s)" % [nome, teto, pior])
+	if matiz_max >= 0.0:
+		ok(
+			matiz_min >= faixa.x - 1.0 and matiz_max <= faixa.y + 1.0,
+			"%s: matiz na faixa %.0f-%.0f do tipo '%s' (achado %.0f-%.0f)"
+				% [nome, faixa.x, faixa.y, tipo, matiz_min, matiz_max]
+		)
+
+
+## A junta do ladrilho nao pode criar uma borda mais forte do que qualquer borda
+## que a textura ja tenha.
+##
+## Substitui, para arte autorada, o que o determinismo provava de graca: o
+## gerador fazia `posmod` em toda escrita, entao ladrilhar era consequencia do
+## codigo. Sem gerador, ladrilhar vira propriedade a medir.
+func _costura(imagem: Image, nome: String) -> void:
+	var w := imagem.get_width()
+	var h := imagem.get_height()
+	if w < 4 or h < 4:
+		return
+
+	var junta_x := _energia_colunas(imagem, w - 1, 0)
+	var junta_y := _energia_linhas(imagem, h - 1, 0)
+	var maior_x := 0.0
+	var maior_y := 0.0
+	for i in w - 1:
+		maior_x = maxf(maior_x, _energia_colunas(imagem, i, i + 1))
+	for i in h - 1:
+		maior_y = maxf(maior_y, _energia_linhas(imagem, i, i + 1))
+
+	var rx := junta_x / maxf(maior_x, 1.0 / 255.0)
+	var ry := junta_y / maxf(maior_y, 1.0 / 255.0)
+	ok(
+		rx <= TETO_COSTURA and ry <= TETO_COSTURA,
+		"%s ladrilha sem costura (x %.2f, y %.2f, teto %.2f)" % [nome, rx, ry, TETO_COSTURA]
+	)
+
+
+func _energia_colunas(imagem: Image, a: int, b: int) -> float:
+	var soma := 0.0
+	for y in imagem.get_height():
+		var u := imagem.get_pixel(a, y)
+		var v := imagem.get_pixel(b, y)
+		soma += absf(u.r - v.r) + absf(u.g - v.g) + absf(u.b - v.b)
+	return soma / float(imagem.get_height())
+
+
+func _energia_linhas(imagem: Image, a: int, b: int) -> float:
+	var soma := 0.0
+	for x in imagem.get_width():
+		var u := imagem.get_pixel(x, a)
+		var v := imagem.get_pixel(x, b)
+		soma += absf(u.r - v.r) + absf(u.g - v.g) + absf(u.b - v.b)
+	return soma / float(imagem.get_width())
 
 
 ## Gerar duas vezes da bytes iguais, e o disco e igual ao gerador de hoje.
@@ -224,8 +405,12 @@ func _tipos_apontam_textura() -> void:
 			ok(false, "%s carrega" % etiqueta)
 			continue
 		conferidos += 1
-		ok(dados.textura_chao != null, "%s declara textura de chao que carrega" % etiqueta)
-		ok(dados.textura_parede != null, "%s declara textura de parede que carrega" % etiqueta)
+		ok(not dados.texturas_chao.is_empty(), "%s declara ao menos uma textura de chao" % etiqueta)
+		ok(not dados.texturas_parede.is_empty(), "%s declara ao menos uma textura de parede" % etiqueta)
+		for t in dados.texturas_chao:
+			ok(t != null, "%s: nenhuma entrada nula na lista de chao" % etiqueta)
+		for t in dados.texturas_parede:
+			ok(t != null, "%s: nenhuma entrada nula na lista de parede" % etiqueta)
 		if dados.quantidade_props > 0:
 			ok(dados.atlas_props != null, "%s pede props e tem atlas" % etiqueta)
 			ok(not dados.regioes_props.is_empty(), "%s pede props e lista regioes" % etiqueta)

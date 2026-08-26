@@ -12,8 +12,8 @@ condicao = 0
 
 [resource]
 script = ExtResource("1_di")
-nome = "Municao Perfurante"
-descricao = "Cada tiro doi mais. +1 de dano."
+nome = "Munição Perfurante"
+descricao = "Cada tiro dói mais. +1 de dano."
 efeitos = Array[ExtResource("2_ef")]([SubResource("EfeitoItem_0")])
 comportamento = 0
 parametro = 0.0

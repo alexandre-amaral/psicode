@@ -108,6 +108,14 @@ debug_deterioracao={
 ]
 }
 
+[internationalization]
+
+; So o ingles esta na tabela. Em portugues nao ha traducao carregada, e tr()
+; devolve a propria chave -- que JA e o texto em portugues. Por isso o fallback
+; tem de ser pt_BR: com o padrao "en", pedir portugues cairia no ingles.
+locale/fallback="pt_BR"
+locale/translations=PackedStringArray("res://locale/textos.en.translation")
+
 [layer_names]
 
 2d_render/layer_1="mundo"

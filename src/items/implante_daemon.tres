@@ -13,7 +13,7 @@ condicao = 2
 [resource]
 script = ExtResource("1_di")
 nome = "Daemon de Combate"
-descricao = "Matar sem apanhar acumula carga: +5% de dano cada, ate 5. Levar dano zera tudo."
+descricao = "Matar sem apanhar acumula carga: +5% de dano cada, até 5. Levar dano zera tudo."
 efeitos = Array[ExtResource("2_ef")]([SubResource("EfeitoItem_0")])
 comportamento = 8
 parametro = 5.0

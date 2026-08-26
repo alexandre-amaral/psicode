@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dbalh1p1i84cd"
-path="res://.godot/imported/interiores.webp-e8753ef9e7b4284e69e6ce29864f6318.ctex"
+uid="uid://mxpx7eqn46sh"
+path="res://.godot/imported/andar_west.png-00b3878a52706d284871fadd4f02163b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://inspiração/interiores.webp"
-dest_files=["res://.godot/imported/interiores.webp-e8753ef9e7b4284e69e6ce29864f6318.ctex"]
+source_file="res://assets/personagens/raven/andar_west.png"
+dest_files=["res://.godot/imported/andar_west.png-00b3878a52706d284871fadd4f02163b.ctex"]
 
 [params]
 

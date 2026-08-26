@@ -20,7 +20,7 @@ condicao = 0
 [resource]
 script = ExtResource("1_di")
 nome = "Firewall Cognitivo"
-descricao = "Filtra o ruido, e junto o impacto. -25% de Deterioracao, -10% de dano."
+descricao = "Filtra o ruído, e junto o impacto. -25% de Deterioração, -10% de dano."
 efeitos = Array[ExtResource("2_ef")]([SubResource("EfeitoItem_0"), SubResource("EfeitoItem_1")])
 comportamento = 0
 parametro = 0.0

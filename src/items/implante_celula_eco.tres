@@ -12,7 +12,7 @@ condicao = 3
 
 [resource]
 script = ExtResource("1_di")
-nome = "Celula de Eco"
+nome = "Célula de Eco"
 descricao = "Recarregar carrega o cano. Os 3 tiros seguintes causam +50% de dano."
 efeitos = Array[ExtResource("2_ef")]([SubResource("EfeitoItem_0")])
 comportamento = 6

@@ -55,7 +55,7 @@ text = "CONTINUAR"
 
 [node name="BtnOpcoes" type="Button" parent="Painel/VBoxContainer"]
 layout_mode = 2
-text = "OPCOES"
+text = "OPÇÕES"
 
 [node name="BtnMenu" type="Button" parent="Painel/VBoxContainer"]
 layout_mode = 2

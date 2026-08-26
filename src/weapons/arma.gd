@@ -32,6 +32,9 @@ var _t_cadencia: float = 0.0
 ## Tempo restante da recarga em andamento.
 var _t_recarga: float = 0.0
 var _gatilho_solto: bool = true
+## Graus de dispersao acumulados por segurar o gatilho. Soma-se a
+## `impressao_graus` no disparo e volta sozinho ao parar.
+var _dispersao_extra: float = 0.0
 
 
 func _ready() -> void:
@@ -42,6 +45,13 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _t_cadencia > 0.0:
 		_t_cadencia -= delta
+
+	# Antes do return de baixo de proposito: a dispersao tem de continuar
+	# baixando DURANTE a recarga. Depois do return, largar o gatilho para
+	# recarregar congelaria o bloom, e a arma voltaria do pente novo tao imprecisa
+	# quanto estava -- o oposto do que qualquer um espera.
+	if dados != null and _dispersao_extra > 0.0:
+		_dispersao_extra = dados.dispersao_apos(_dispersao_extra, delta)
 
 	if not recarregando:
 		return
@@ -57,6 +67,9 @@ func equipar(novos_dados: DadosArma) -> void:
 	_t_cadencia = 0.0
 	recarregando = false
 	_t_recarga = 0.0
+	# Arma nova chega fria: herdar o bloom da anterior puniria a troca de arma
+	# por um gatilho que nem era desta.
+	_dispersao_extra = 0.0
 	_avisar_municao()
 
 
@@ -175,6 +188,15 @@ func _consumir_tiro() -> void:
 	# cadencia maior tem de encurtar a espera.
 	_t_cadencia = dados.intervalo() / maxf(_multiplicador_cadencia(), 0.01)
 	municao_pente -= 1
+	# Aqui, e nao em _emitir(): um tiro soma uma vez, mesmo soltando oito
+	# projeteis. Em _emitir() uma shotgun encheria o bloom oito vezes mais rapido
+	# que uma pistola de mesma cadencia.
+	_dispersao_extra = dados.dispersao_apos_tiro(_dispersao_extra)
+	# O PORTAO DOS IMPLANTES vale aqui como em tudo que le Modificadores: este
+	# mesmo script roda no Vigia e na Diretora, e sem o guard os inimigos
+	# comecariam a hackear o jogador.
+	if not hostil:
+		Modificadores.armar_hack()
 	_avisar_municao()
 
 
@@ -182,7 +204,8 @@ func _emitir(direcoes: Array[Vector2]) -> void:
 	var origem := global_position
 	var container := _container()
 	for d in direcoes:
-		var desvio := deg_to_rad(randf_range(-dados.impressao_graus, dados.impressao_graus))
+		var espalhamento := dados.impressao_graus + _dispersao_extra
+		var desvio := deg_to_rad(randf_range(-espalhamento, espalhamento))
 		var p := CENA_PROJETIL.instantiate()
 		container.add_child(p)
 		p.configurar(

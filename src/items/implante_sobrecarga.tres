@@ -19,8 +19,8 @@ condicao = 1
 
 [resource]
 script = ExtResource("1_di")
-nome = "Modulo de Sobrecarga"
-descricao = "Encurralado, o sistema queima reservas. Abaixo de 30% de vida: +40% de dano e +25% de cadencia."
+nome = "Módulo de Sobrecarga"
+descricao = "Encurralado, o sistema queima reservas. Abaixo de 30% de vida: +40% de dano e +25% de cadência."
 efeitos = Array[ExtResource("2_ef")]([SubResource("EfeitoItem_0"), SubResource("EfeitoItem_1")])
 comportamento = 5
 parametro = 0.3

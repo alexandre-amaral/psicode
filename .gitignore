@@ -40,3 +40,15 @@ graphify-out/
 
 # Builds geradas pelo CI de release.
 /builds/
+
+# Referencias de arte de terceiros (concept art, mood boards). Ficam na maquina
+# de quem coletou: sao material de consulta, nao do jogo, e nao ha licenca para
+# redistribuir junto de uma build publica.
+inspiração/
+
+# Material bruto de animacao. Os GIFs sao a ENTRADA de
+# tools/sprites/gerar_sprites.py, e o Godot nem sequer importa GIF -- o que o
+# jogo usa sao as fitas PNG normalizadas em assets/personagens/. Versionar os
+# dois seria guardar a mesma arte duas vezes, e a copia grande e a que ninguem
+# le. Quem for regerar precisa dos GIFs; quem so vai jogar, nao.
+animations/

@@ -2,8 +2,6 @@
 
 [ext_resource type="Script" path="res://src/player/eco.gd" id="1_eco"]
 
-[node name="EcoRolamento" type="Polygon2D"]
+[node name="EcoRolamento" type="Sprite2D"]
 z_index = -1
-color = Color(0.35, 0.95, 1, 0.5)
-polygon = PackedVector2Array(13, 0, 9.19, 9.19, 0, 13, -9.19, 9.19, -13, 0, -9.19, -9.19, 0, -13, 9.19, -9.19)
 script = ExtResource("1_eco")

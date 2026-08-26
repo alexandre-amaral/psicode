@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_dados")
 nome = "BRK-12 \"Corta-Fila\""
-descricao = "Doze fragmentos por disparo. Encosta e resolve. Municao e um problema seu."
+descricao = "Doze fragmentos por disparo. Encosta e resolve. Munição é um problema seu."
 dano = 2
 knockback = 300.0
 perfuracao = 1

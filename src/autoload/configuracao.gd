@@ -15,10 +15,25 @@ extends Node
 const CAMINHO := "user://config.cfg"
 const SECAO_VIDEO := "video"
 const SECAO_ACESSIBILIDADE := "acessibilidade"
+const SECAO_IDIOMA := "idioma"
+
+## Os idiomas que o jogo fala, na ordem em que aparecem no seletor.
+##
+## O rotulo de cada um esta NO PROPRIO idioma e nunca e traduzido: quem abriu as
+## opcoes com o jogo numa lingua que nao entende precisa reconhecer a dele na
+## lista, e "Portugues" traduzido para portugues nao ajuda ninguem.
+const IDIOMAS := [
+	{"codigo": "pt_BR", "rotulo": "Português"},
+	{"codigo": "en", "rotulo": "English"},
+]
 
 var tela_cheia: bool = false
 var shake: bool = true
 var glitch: bool = true
+## Vazio = ninguem escolheu ainda, e vale o idioma do sistema operacional.
+## Guardar o vazio, e nao ja resolver para pt_BR na primeira execucao, e o que
+## permite o jogo seguir o SO de quem instala em vez de decidir por ele.
+var idioma: String = ""
 
 ## Onde gravar. Existe para a suite de teste nao sujar a config real de quem
 ## roda o runner na propria maquina.
@@ -27,6 +42,10 @@ var _caminho: String = CAMINHO
 
 func _ready() -> void:
 	carregar()
+	# Idioma antes de tudo: sem esta linha o jogo abriria no locale que o Godot
+	# adivinhou do SO, ignorando a escolha salva -- e o comportamento mudaria de
+	# maquina para maquina, inclusive na do CI.
+	_aplicar_idioma()
 	# So a janela aqui. `Juice` e um autoload REGISTRADO DEPOIS deste, entao
 	# ainda nao existe neste instante -- escrever nele daria erro. Quem vem
 	# depois puxa a preferencia no proprio _ready (Juice faz isso), que e o
@@ -42,6 +61,7 @@ func carregar() -> void:
 	tela_cheia = bool(cfg.get_value(SECAO_VIDEO, "tela_cheia", tela_cheia))
 	shake = bool(cfg.get_value(SECAO_ACESSIBILIDADE, "shake", shake))
 	glitch = bool(cfg.get_value(SECAO_ACESSIBILIDADE, "glitch", glitch))
+	idioma = str(cfg.get_value(SECAO_IDIOMA, "codigo", idioma))
 
 
 func salvar() -> void:
@@ -49,6 +69,7 @@ func salvar() -> void:
 	cfg.set_value(SECAO_VIDEO, "tela_cheia", tela_cheia)
 	cfg.set_value(SECAO_ACESSIBILIDADE, "shake", shake)
 	cfg.set_value(SECAO_ACESSIBILIDADE, "glitch", glitch)
+	cfg.set_value(SECAO_IDIOMA, "codigo", idioma)
 	var erro := cfg.save(_caminho)
 	if erro != OK:
 		push_warning("Configuracao: nao consegui gravar em '%s' (erro %d)." % [_caminho, erro])
@@ -59,6 +80,7 @@ func salvar() -> void:
 ## Nao e chamado no boot -- ver o comentario em _ready. Serve para reaplicar
 ## tudo de uma vez quando algo externo mexer na configuracao.
 func aplicar() -> void:
+	_aplicar_idioma()
 	_aplicar_tela_cheia()
 	Juice.shake_habilitado = shake
 	EventBus.configuracao_mudou.emit()
@@ -109,6 +131,38 @@ func definir_shake(valor: bool) -> void:
 	Juice.shake_habilitado = valor
 	salvar()
 	EventBus.configuracao_mudou.emit()
+
+
+## Idioma em vigor, ja resolvido: nunca devolve vazio.
+func idioma_atual() -> String:
+	if not idioma.is_empty():
+		return idioma
+	return _idioma_do_sistema()
+
+
+func definir_idioma(codigo: String) -> void:
+	idioma = codigo
+	_aplicar_idioma()
+	salvar()
+	EventBus.configuracao_mudou.emit()
+
+
+## Qual idioma da lista mais se parece com o do SO.
+##
+## Compara so o prefixo: o SO pode dizer "pt_PT", "pt", "en_GB" ou "en_US", e
+## nenhum desses casa exatamente com os codigos da lista. Sem prefixo, quem
+## estivesse em pt_PT cairia no ingles.
+func _idioma_do_sistema() -> String:
+	var doSistema := OS.get_locale().to_lower()
+	for entrada in IDIOMAS:
+		var codigo: String = entrada["codigo"]
+		if doSistema.begins_with(codigo.to_lower().substr(0, 2)):
+			return codigo
+	return String(IDIOMAS[0]["codigo"])
+
+
+func _aplicar_idioma() -> void:
+	TranslationServer.set_locale(idioma_atual())
 
 
 func definir_glitch(valor: bool) -> void:

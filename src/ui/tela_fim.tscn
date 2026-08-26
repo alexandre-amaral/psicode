@@ -27,7 +27,7 @@ offset_top = -28.0
 offset_right = 316.0
 offset_bottom = 28.0
 theme_override_font_sizes/font_size = 39
-text = "CONSCIENCIA PERDIDA"
+text = "CONSCIÊNCIA PERDIDA"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -42,7 +42,7 @@ offset_top = 30.0
 offset_right = 316.0
 offset_bottom = 58.0
 theme_override_font_sizes/font_size = 12
-text = "Restaurando do ultimo backup..."
+text = "Restaurando do último backup..."
 horizontal_alignment = 1
 
 [node name="Stats" type="Label" parent="Painel"]

@@ -12,7 +12,7 @@ condicao = 0
 
 [resource]
 script = ExtResource("1_di")
-nome = "Reflexo Sintetico"
+nome = "Reflexo Sintético"
 descricao = "O rolamento volta antes. -15% de recarga da esquiva."
 efeitos = Array[ExtResource("2_ef")]([SubResource("EfeitoItem_0")])
 comportamento = 0

@@ -12,8 +12,8 @@ condicao = 0
 
 [resource]
 script = ExtResource("1_di")
-nome = "Dissipador Termico"
-descricao = "A cabeca esquenta devagar. -20% de Deterioracao."
+nome = "Dissipador Térmico"
+descricao = "A cabeça esquenta devagar. -20% de Deterioração."
 efeitos = Array[ExtResource("2_ef")]([SubResource("EfeitoItem_0")])
 comportamento = 0
 parametro = 0.0

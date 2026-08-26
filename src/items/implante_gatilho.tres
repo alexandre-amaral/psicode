@@ -13,7 +13,7 @@ condicao = 0
 [resource]
 script = ExtResource("1_di")
 nome = "Gatilho Overclock"
-descricao = "O dedo nao espera. +18% de cadencia."
+descricao = "O dedo não espera. +18% de cadência."
 efeitos = Array[ExtResource("2_ef")]([SubResource("EfeitoItem_0")])
 comportamento = 0
 parametro = 0.0

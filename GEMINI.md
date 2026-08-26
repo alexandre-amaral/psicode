@@ -97,6 +97,10 @@ src/
   util/        balistica (matematica da mira preditiva)
   main/        main.tscn — cena inicial
 assets/shaders/  glitch.gdshader
+locale/          textos.csv (gerado) -- a tabela de traducao
+tools/i18n/      gerar_csv.py (a fonte da tabela)
+assets/personagens/ <id>/{8 rotacoes parado, 8 fitas andar_*}.png -- gerados
+tools/sprites/   gerar_sprites.py (GIF -> fita PNG normalizada)
 assets/texturas/ PNGs gerados (chao, parede, filete por tipo; porta; props) — nunca editados a mao
 tools/           teste_fumaca, capturar, testes/ (suites unitarias),
                  texturas/ (paleta.gd + gerar_texturas: a fonte dos PNGs)
@@ -113,6 +117,12 @@ docs/
 | Quem pode nascer, e com que peso | `src/enemies/grupo_*.tres` |
 | Quanto a barra sobe ao limpar uma sala | `deterioracao_ao_limpar` em `src/mapa/tipo_*.tres` |
 | Dano, cadencia, municao, spread | `src/weapons/*.tres` |
+| **Personagem novo** | criar `src/player/personagem_*.tres` e por na lista `personagens` do no `SelecaoPersonagem` |
+| **Sprite, miniatura, escala e offset de um personagem** | grupo `Sprite` do `src/player/personagem_*.tres`; os PNGs em `assets/personagens/<id>/` |
+| **Velocidade do ciclo de caminhada** | `fps_andando` no `src/player/personagem_*.tres` |
+| **Arte de animacao nova** | por o GIF em `animations/<id>/` e rodar `python tools/sprites/gerar_sprites.py` |
+| **Arma inicial, Hack e texto do card de um personagem** | `src/player/personagem_*.tres` |
+| Dispersao que cresce com o gatilho preso | `dispersao_*` em `src/weapons/*.tres` — zero desliga |
 | Vida e velocidade dos inimigos | `@export` em `src/enemies/*.tscn` |
 | Limiares de 50% e 85% | `src/autoload/deterioracao.gd` |
 | Matematica de mira preditiva | `src/util/balistica.gd` |
@@ -129,7 +139,9 @@ docs/
 | **Textura de chao, parede, filete e props de um tipo de sala** | grupo `Visual` do `tipo_*.tres` — os PNGs saem de `tools/texturas/gerar_texturas.tscn`, nunca de editor de imagem |
 | **Uma cor nova no cenario** | `tools/texturas/paleta.gd` + a tabela de `docs/IDENTIDADE_VISUAL.md`; `teste_texturas.gd` recusa cor que compete com projetil |
 | Enquadramento e cores do minimapa | `@export` do no `Minimapa` em `src/ui/hud.tscn` |
-| Preferencias do jogador (tela cheia, acessibilidade) | `src/autoload/configuracao.gd` — grava em `user://config.cfg` |
+| Preferencias do jogador (tela cheia, acessibilidade, idioma) | `src/autoload/configuracao.gd` — grava em `user://config.cfg` |
+| **Texto de tela, em qualquer idioma** | `tools/i18n/gerar_csv.py` e rodar; nunca editar `locale/textos.csv` a mao |
+| **Idioma novo** | acrescentar em `Configuracao.IDIOMAS` + uma coluna no gerador do CSV |
 | Quantas salas o andar tem e o vao do corredor | `@export` do no `GerenciadorMapa` em `src/main/main.tscn` |
 | Tamanho de uma sala | os `points` do Line2D `Parede` — multiplos de 16, dimensao multipla de 32 |
 | Resolucao base | `[display]` do `project.godot` — 960x544, camera em zoom 1.0 |
@@ -312,6 +324,89 @@ em qualquer erro de script.
 - **`teste_texturas.gd` compara o PNG em disco com o gerador.** Mudou uma cor
   em `paleta.gd` ou um traco em `gerar_texturas.gd`? Rode o gerador e o
   `--import` de novo, senao a suite reprova com "gerou e esqueceu de rodar?".
+
+- **A CHAVE de traducao e o proprio texto em portugues.** Nao ha codigo tipo
+  `ITEM_NUCLEO_NOME`: o `.tres` guarda "Nucleo de Reserva" e a tabela mapeia
+  para "Reserve Core". Isso mantem o Inspetor legivel e faz o portugues rodar
+  sem tabela nenhuma (tr() devolve a chave quando nao acha entrada). O preco:
+  **editar o texto em portugues quebra o ingles em silencio**. Por isso existe
+  `tools/testes/teste_traducao.gd`, que exige par na tabela para toda string de
+  dado que chega a tela.
+- **`locale/fallback` tem de ser `pt_BR`, nao o padrao `en`.** So o ingles esta
+  na tabela; em portugues nao ha traducao carregada. Com o fallback em "en",
+  pedir portugues cairia no ingles em vez de devolver a chave.
+- **Chave de traducao nao pode ter quebra de linha.** O importador de CSV do
+  Godot le a quebra como fim de registro e parte a tabela ao meio. Frase de duas
+  linhas vira duas chaves juntadas em codigo -- e o que `hud.gd` faz no aviso de
+  50% de Deterioracao.
+- **Botao com marcador `>` precisa de `auto_translate_mode = DISABLED`.** O
+  marcador e escrito DENTRO de `text`, e "> NOVO JOGO" nao existe na tabela; com
+  a traducao automatica ligada o botao fica em portugues no jogo em ingles, sem
+  erro nenhum. `menu_inicial.gd` guarda a chave num dicionario, traduz na mao e
+  se reescreve em `NOTIFICATION_TRANSLATION_CHANGED`.
+- **Teste que le texto de tela tem de FIXAR o idioma.** `nome_fase()` passa por
+  `tr()`: sem fixar, a suite passa na maquina de quem tem o SO em portugues e
+  quebra no CI, que roda em ingles.
+- **O sprite do jogador e IRMAO de `Visual`, nunca filho.** O no `Arma` mora em
+  `Visual` na posicao (27, 0), e e a rotacao do `Visual` que faz a boca da arma
+  orbitar o jogador. Por em `Visual` um sprite direcional o faria girar junto
+  (arte 3/4 deitada); parar de girar o `Visual` para acomodar o sprite faria
+  todo projetil nascer 27px a direita do jogador, para sempre e sem erro no
+  console. Por isso o `Sprite` fica fora, e por isso os i-frames e a morte
+  precisam mexer nos DOIS nos -- fora de `Visual`, o sprite nao herda o
+  `modulate`.
+- **O Godot NAO importa GIF.** Nao existe importador; um `.gif` em `res://` e
+  ignorado sem aviso. Por isso `tools/sprites/gerar_sprites.py` e Python e nao
+  GDScript como o gerador de texturas: ele roda FORA do motor, e o que entra no
+  jogo e o PNG que ele escreve.
+- **Todo sprite de personagem vive numa moldura 80x80 ancorada nos PES.** A arte
+  chega com molduras diferentes (64 no parado, 88 ou 92 no andando) mas com o
+  personagem do mesmo tamanho -- so muda o vazio em volta. Usar como chega faz a
+  personagem saltar de lugar toda vez que comeca ou para de andar. A ancora e
+  horizontal pelo CENTRO DA MOLDURA de origem (a arte tem deslocamento lateral
+  intencional, e centralizar pelo desenho o apagaria) e vertical pela BASE do
+  bbox de alpha.
+- **`hframes` anda junto de `texture`, sempre.** Trocar a textura para uma fita
+  de caminhada sem trocar o `hframes` desenha os nove quadros espremidos no
+  lugar da personagem; o inverso mostra um nono dela. Nenhum dos dois gera erro.
+  Vale para o `Sprite` do Player e para o eco de rolamento, que copia os dois.
+- **Escala de pixel art e INTEIRA.** 64 -> 128 (2x) fica nitido; 64 -> 96
+  (1,5x) borra mesmo com o filtro Nearest do projeto, porque um pixel da arte
+  deixa de cair num numero redondo de pixels de tela.
+- **Suite que precisa fixar o quadro do jogador tem de desligar o
+  `_physics_process` dele.** `_mirar()` roda todo frame e reescreve a textura a
+  partir da posicao real do mouse; num harness o mouse nao se mexe, entao o
+  quadro que voce setou vira sempre o mesmo e o teste "prova" a coisa errada.
+- **A escolha de personagem NAO pode ser zerada por `iniciar_run()`.** Quem
+  chama `iniciar_run()` e o `_ready` do GerenciadorMapa -- a run comeca DEPOIS
+  de a tela de selecao ja ter escrito em `GameState.personagem`. Se o campo
+  entrasse no bloco de contadores que a funcao limpa, a escolha seria apagada no
+  boot da propria cena que ela pediu. E e o mesmo campo que faz o R da tela de
+  fim funcionar, ja que `reiniciar()` recarrega a cena sem passar pelo menu.
+- **Atributo de personagem se aplica no TOPO do `_ready` do Player.** A linha
+  `_vida_maxima_base = vida_maxima` congela a base; qualquer coisa aplicada
+  depois dela deixa todo o recalculo de implantes de vida somando em cima do
+  numero errado.
+- **A chance do Hack e sorteada por TIRO, em `Arma._consumir_tiro()`.** Sortear
+  dentro do projetil parece mais simples -- e la que existe alvo -- mas uma
+  shotgun rolaria os 10% oito vezes por disparo, ~57%. Por isso existe o par
+  `Modificadores.armar_hack()` / `consumir_hack()`, espelhando o
+  `_marcador_armado` da IA Predatoria, que resolve o mesmo problema.
+- **O bonus de dano do Hack entra em `projetil._dano_no_alvo()`, nunca em
+  `receber_dano`.** A Diretora reimplementa `receber_dano` sem chamar `super`:
+  aplicado la, o chefe seria o unico do jogo imune ao Hack, e em silencio.
+- **O tint de hackeado vai em `_corpo.color`, nunca em `_visual.modulate`.**
+  Aquele e do clarao de dano, que termina sempre em `Color.WHITE` e apagaria o
+  tint no primeiro tiro que acertasse. O modulate do pai multiplica por cima da
+  cor do poligono, entao os dois convivem sem se conhecer.
+- **Os tres campos de dispersao nascem em ZERO e tem de continuar assim.**
+  `Arma._emitir()` e o mesmo caminho do jogador e dos inimigos; um default acima
+  de zero daria bloom para a salva da Diretora sem ninguem pedir.
+- **Suite que cria inimigo tem de afastar o cenario da origem.** A propagacao do
+  Hack busca no grupo `inimigo`, que e global: inimigos de OUTRAS suites que
+  ainda nao foram coletados aparecem na busca, e quase todos ficam perto de
+  (0,0). `teste_hack.gd` monta o cenario em (6000, 6000) por isso -- foi um dia
+  de teste vermelho com o codigo certo.
 
 ## Ambiente
 

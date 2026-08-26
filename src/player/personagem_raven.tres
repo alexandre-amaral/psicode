@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="DadosPersonagem" load_steps=19 format=3]
+
+[ext_resource type="Script" path="res://src/player/dados_personagem.gd" id="1_dados"]
+[ext_resource type="Resource" path="res://src/weapons/smg_mantis.tres" id="2_arma"]
+
+[ext_resource type="Texture2D" path="res://assets/personagens/raven/east.png" id="10_east"]
+[ext_resource type="Texture2D" path="res://assets/personagens/raven/south-east.png" id="11_south_east"]
+[ext_resource type="Texture2D" path="res://assets/personagens/raven/south.png" id="12_south"]
+[ext_resource type="Texture2D" path="res://assets/personagens/raven/south-west.png" id="13_south_west"]
+[ext_resource type="Texture2D" path="res://assets/personagens/raven/west.png" id="14_west"]
+[ext_resource type="Texture2D" path="res://assets/personagens/raven/north-west.png" id="15_north_west"]
+[ext_resource type="Texture2D" path="res://assets/personagens/raven/north.png" id="16_north"]
+[ext_resource type="Texture2D" path="res://assets/personagens/raven/north-east.png" id="17_north_east"]
+
+[ext_resource type="Texture2D" path="res://assets/personagens/raven/andar_east.png" id="20_a_east"]
+[ext_resource type="Texture2D" path="res://assets/personagens/raven/andar_south-east.png" id="21_a_south_east"]
+[ext_resource type="Texture2D" path="res://assets/personagens/raven/andar_south.png" id="22_a_south"]
+[ext_resource type="Texture2D" path="res://assets/personagens/raven/andar_south-west.png" id="23_a_south_west"]
+[ext_resource type="Texture2D" path="res://assets/personagens/raven/andar_west.png" id="24_a_west"]
+[ext_resource type="Texture2D" path="res://assets/personagens/raven/andar_north-west.png" id="25_a_north_west"]
+[ext_resource type="Texture2D" path="res://assets/personagens/raven/andar_north.png" id="26_a_north"]
+[ext_resource type="Texture2D" path="res://assets/personagens/raven/andar_north-east.png" id="27_a_north_east"]
+
+[resource]
+script = ExtResource("1_dados")
+id = &"raven"
+nome = "RAVEN"
+papel = "Operadora de Combate"
+descricao = "- Dispara rapidamente, com dano baixo por tiro.\n- A dispersão cresce durante o disparo contínuo.\n- Parar de atirar devolve a precisão aos poucos."
+cor = Color(1, 0.93, 0.25, 1)
+arma_inicial = ExtResource("2_arma")
+hack_chance = 0.0
+hack_duracao = 0.0
+hack_bonus_dano = 1.0
+hack_chance_propagacao = 0.0
+hack_raio_propagacao = 0.0
+miniatura = ExtResource("12_south")
+sprites_direcao = Array[Texture2D]([ExtResource("10_east"), ExtResource("11_south_east"), ExtResource("12_south"), ExtResource("13_south_west"), ExtResource("14_west"), ExtResource("15_north_west"), ExtResource("16_north"), ExtResource("17_north_east")])
+sprites_andando = Array[Texture2D]([ExtResource("20_a_east"), ExtResource("21_a_south_east"), ExtResource("22_a_south"), ExtResource("23_a_south_west"), ExtResource("24_a_west"), ExtResource("25_a_north_west"), ExtResource("26_a_north"), ExtResource("27_a_north_east")])
+quadros_andando = 9
+fps_andando = 12.0
+escala_sprite = 1.0
+deslocamento_sprite = Vector2(0, -25)

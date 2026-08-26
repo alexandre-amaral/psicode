@@ -5,7 +5,7 @@
 
 [resource]
 script = ExtResource("1_di")
-nome = "Municao Inteligente"
+nome = "Munição Inteligente"
 descricao = "A bala procura de novo. 15% de chance de ricochetear na parede."
 efeitos = Array[ExtResource("2_ef")]([])
 comportamento = 1

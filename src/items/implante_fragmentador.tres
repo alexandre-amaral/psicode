@@ -5,7 +5,7 @@
 
 [resource]
 script = ExtResource("1_di")
-nome = "Fragmentador Quantico"
+nome = "Fragmentador Quântico"
 descricao = "10% dos tiros se partem em dois ao acertar, com metade do dano."
 efeitos = Array[ExtResource("2_ef")]([])
 comportamento = 2

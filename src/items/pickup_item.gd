@@ -28,7 +28,8 @@ func _ready() -> void:
 
 	if dados != null:
 		$Visual/Corpo.color = dados.cor
-		_rotulo.text = dados.nome
+		# O .tres guarda o portugues, que e a chave; a tela pode estar em ingles.
+		_rotulo.text = tr(dados.nome)
 		_rotulo.modulate = dados.cor
 		# Sigla fica FORA do Visual: o Visual gira, e texto girando fica de
 		# cabeca para baixo metade do tempo.

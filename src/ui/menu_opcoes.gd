@@ -13,6 +13,7 @@ signal fechado()
 @onready var _tela_cheia: CheckButton = %TelaCheia
 @onready var _shake: CheckButton = %Shake
 @onready var _glitch: CheckButton = %Glitch
+@onready var _idioma: OptionButton = %Idioma
 @onready var _btn_voltar: Button = %BtnVoltar
 
 
@@ -25,6 +26,7 @@ func _ready() -> void:
 	_tela_cheia.toggled.connect(Configuracao.definir_tela_cheia)
 	_shake.toggled.connect(Configuracao.definir_shake)
 	_glitch.toggled.connect(Configuracao.definir_glitch)
+	_montar_idiomas()
 	_btn_voltar.pressed.connect(fechar)
 
 
@@ -50,10 +52,34 @@ func fechar() -> void:
 ##
 ## `set_pressed_no_signal` e nao `set_pressed`: marcar o interruptor aqui nao
 ## pode disparar o `toggled` e regravar a configuracao que acabamos de ler.
+## Enche o seletor a partir de Configuracao.IDIOMAS.
+##
+## A lista vem do autoload e nao da cena: idioma novo e uma entrada la, sem
+## abrir o editor. Os rotulos NAO passam por tr() de proposito -- cada lingua
+## se anuncia na propria escrita, senao quem abriu as opcoes numa lingua que
+## nao le fica sem reconhecer a dele.
+func _montar_idiomas() -> void:
+	_idioma.clear()
+	for entrada in Configuracao.IDIOMAS:
+		_idioma.add_item(String(entrada["rotulo"]))
+	_idioma.item_selected.connect(_ao_escolher_idioma)
+
+
+func _ao_escolher_idioma(indice: int) -> void:
+	if indice < 0 or indice >= Configuracao.IDIOMAS.size():
+		return
+	Configuracao.definir_idioma(String(Configuracao.IDIOMAS[indice]["codigo"]))
+
+
 func _sincronizar() -> void:
 	_tela_cheia.set_pressed_no_signal(Configuracao.esta_em_tela_cheia())
 	_shake.set_pressed_no_signal(Configuracao.shake)
 	_glitch.set_pressed_no_signal(Configuracao.glitch)
+
+	var atual := Configuracao.idioma_atual()
+	for i in Configuracao.IDIOMAS.size():
+		if String(Configuracao.IDIOMAS[i]["codigo"]) == atual:
+			_idioma.selected = i
 
 
 ## ESC fecha o painel, e para por aqui.

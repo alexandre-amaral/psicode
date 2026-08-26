@@ -11,6 +11,10 @@ signal morreu(posicao: Vector2)
 
 const GRUPO := "inimigo"
 
+## Para onde a cor do corpo puxa enquanto o inimigo esta hackeado. Verde do
+## Cipher: quem hackeou tem de ser reconhecivel no alvo, nao so no cano.
+const COR_HACK := Color(0.45, 1.0, 0.3)
+
 @export_group("Atributos")
 @export var vida_maxima: int = 5
 @export var velocidade_base: float = 120.0
@@ -31,6 +35,12 @@ var morto: bool = false
 
 var _knockback: Vector2 = Vector2.ZERO
 var _t_contato: float = 0.0
+## Segundos restantes de Hack. O estado mora AQUI e nao num Dictionary do
+## autoload por dois motivos: um dicionario chaveado por instance_id acumularia
+## ids de inimigos mortos a run inteira sem ninguem podar, e o tint precisa do
+## estado localmente de qualquer jeito. Nascer e morrer com o no e o
+## comportamento certo.
+var _t_hack: float = 0.0
 var _visual: Node2D
 var _corpo: Polygon2D
 var _tween_flash: Tween
@@ -55,6 +65,11 @@ func _physics_process(delta: float) -> void:
 		_procurar_alvo()
 
 	_t_contato = maxf(_t_contato - delta, 0.0)
+
+	if _t_hack > 0.0:
+		_t_hack = maxf(_t_hack - delta, 0.0)
+		if _t_hack <= 0.0:
+			_pintar_hack(false)
 
 	_comportamento(delta)
 
@@ -185,9 +200,72 @@ func morrer() -> void:
 	if deterioracao_ao_morrer > 0.0:
 		Deterioracao.adicionar(deterioracao_ao_morrer)
 
+	# Antes do queue_free, e aqui e o unico lugar possivel: este e o unico ponto
+	# do jogo com a identidade do morto, a posicao dele e o no ainda na arvore.
+	# EventBus.inimigo_morreu so carrega (posicao, creditos) -- quem escuta la
+	# nao tem como saber que foi um hackeado que caiu.
+	if _t_hack > 0.0:
+		_propagar_hack()
+
 	morreu.emit(global_position)
 	EventBus.inimigo_morreu.emit(global_position, creditos)
 	queue_free()
+
+
+## Marca este inimigo por `duracao` segundos. Chamado pelo projetil.
+func aplicar_hack(duracao: float) -> void:
+	if morto or duracao <= 0.0:
+		return
+	# Renova em vez de somar: dois tiros seguidos nao empilham oito segundos.
+	_t_hack = maxf(_t_hack, duracao)
+	_pintar_hack(true)
+
+
+func esta_hackeado() -> bool:
+	return _t_hack > 0.0
+
+
+## O Hack pula para o vizinho vivo mais proximo dentro do raio.
+##
+## A busca e por grupo, a excecao que o GEMINI.md sanciona: Sala._vivos nao
+## serve porque ela guarda so quem a SALA colocou, e os invocados da Diretora
+## ficam de fora de proposito -- pelo grupo eles entram.
+func _propagar_hack() -> void:
+	if randf() >= Modificadores.chance_propagacao_hack():
+		return
+	var raio := Modificadores.raio_propagacao_hack()
+	if raio <= 0.0:
+		return
+
+	var melhor: Node2D = null
+	var menor := raio
+	for outro in get_tree().get_nodes_in_group(GRUPO):
+		if outro == self or not is_instance_valid(outro):
+			continue
+		var inimigo := outro as InimigoBase
+		# Ja hackeado nao conta como destino: propagar para ele desperdicaria o
+		# pulo e o Hack morreria com o proximo abate em vez de se espalhar.
+		if inimigo == null or inimigo.morto or inimigo.esta_hackeado():
+			continue
+		var d := global_position.distance_to(inimigo.global_position)
+		if d < menor:
+			menor = d
+			melhor = inimigo
+
+	if melhor != null:
+		melhor.aplicar_hack(Modificadores.duracao_hack())
+
+
+## Tint de hackeado.
+##
+## Vai em `_corpo.color` e NUNCA em `_visual.modulate`: aquele e do clarao de
+## dano, que termina sempre em Color.WHITE e apagaria o tint no primeiro tiro
+## que acertasse. Como o modulate do pai multiplica por cima da cor do
+## poligono, os dois efeitos convivem sem se conhecer.
+func _pintar_hack(ligado: bool) -> void:
+	if _corpo == null:
+		return
+	_corpo.color = cor_base.lerp(COR_HACK, 0.55) if ligado else cor_base
 
 
 func _procurar_alvo() -> void:

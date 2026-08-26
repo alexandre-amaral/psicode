@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+
+[resource]
+script = ExtResource("1_dados")
+nome = "Pistola \"Cipher\""
+descricao = "Disparo único, eletromagnético. Lenta, precisa, e o projétil chega antes do alvo reagir."
+dano = 5
+knockback = 240.0
+perfuracao = 0
+cadencia = 2.4
+automatica = false
+projeteis_por_tiro = 1
+abertura_graus = 0.0
+impressao_graus = 0.15
+dispersao_maxima_graus = 0.0
+dispersao_por_tiro = 0.0
+dispersao_recuperacao = 0.0
+velocidade_projetil = 1900.0
+alcance = 950.0
+raio_projetil = 4.5
+cor_projetil = Color(0.45, 1, 0.3, 1)
+municao_maxima = -1
+shake_intensidade = 3.2
+shake_duracao = 0.13
+recuo_player = 60.0
+tamanho_pente = 8
+tempo_recarga = 1.25

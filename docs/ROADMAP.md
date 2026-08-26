@@ -81,6 +81,12 @@ Só depois que a base for divertida.
 
 ---
 
+> **Fora da ordem das fases:** a **selecao de personagem** (RAVEN e NOVA) entrou
+> antes da Fase 2 fechar, a pedido. Ela nao estava escrita em fase nenhuma. O que
+> ela trouxe de infraestrutura: `DadosPersonagem` em `.tres` (personagem novo nao
+> custa GDScript), dispersao crescente em `DadosArma` e o Hack como efeito com
+> duracao no inimigo -- o primeiro status effect do projeto.
+
 ## Fase 3 — Roguelike de verdade
 
 - [x] Sistema de salas: gerar 8–12 salas conectadas, lockdown por sala

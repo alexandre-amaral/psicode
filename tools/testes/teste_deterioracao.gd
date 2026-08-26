@@ -236,11 +236,22 @@ func _glitch() -> void:
 ## mostraria isso para o jogador.
 func _rotulos() -> void:
 	Deterioracao.valor = 10.0
-	igual(Deterioracao.nome_fase(), "ESTAVEL", "fase BAIXA se chama ESTAVEL")
+	# Fixa o idioma: nome_fase() passa por tr(), e sem isto a suite passaria na
+	# maquina de quem tem o SO em portugues e quebraria no CI, que roda em ingles.
+	var idioma_antes := TranslationServer.get_locale()
+	TranslationServer.set_locale("pt_BR")
+
+	igual(Deterioracao.nome_fase(), "ESTÁVEL", "fase BAIXA se chama ESTÁVEL")
 	Deterioracao.valor = 60.0
 	igual(Deterioracao.nome_fase(), "DEGRADANDO", "fase MEDIA se chama DEGRADANDO")
 	Deterioracao.valor = 90.0
-	igual(Deterioracao.nome_fase(), "CRITICO", "fase CRITICA se chama CRITICO")
+	igual(Deterioracao.nome_fase(), "CRÍTICO", "fase CRITICA se chama CRÍTICO")
+
+	# A mesma fase, em ingles: prova que o nome da fase de fato passa pela tabela
+	# e nao e uma string solta que so parece traduzida.
+	TranslationServer.set_locale("en")
+	igual(Deterioracao.nome_fase(), "CRITICAL", "em ingles a fase CRITICA e CRITICAL")
+	TranslationServer.set_locale(idioma_antes)
 
 	var cores := {}
 	for v in [10.0, 60.0, 90.0]:

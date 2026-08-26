@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d25rohacg8ntc"
-path="res://.godot/imported/parede_item.png-bae17c71a44a9e82843f98f64ea7b1f8.ctex"
+uid="uid://chtnn5yk06aef"
+path="res://.godot/imported/parede_andar1_a.png-4abd8517b415910acc49dd3eeac0b30c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/texturas/parede_item.png"
-dest_files=["res://.godot/imported/parede_item.png-bae17c71a44a9e82843f98f64ea7b1f8.ctex"]
+source_file="res://assets/texturas/parede_andar1_a.png"
+dest_files=["res://.godot/imported/parede_andar1_a.png-4abd8517b415910acc49dd3eeac0b30c.ctex"]
 
 [params]
 

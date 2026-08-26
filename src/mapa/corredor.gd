@@ -13,8 +13,23 @@ extends Node2D
 ## Corredor nao tem tipo, e pintar cada metade com a cor da sala vizinha
 ## anunciaria o que ha do outro lado antes de o jogador chegar.
 
-const TEXTURA_CHAO := "res://assets/texturas/chao_combate.png"
-const TEXTURA_PAREDE := "res://assets/texturas/parede_combate.png"
+## O corredor nao tem tipo nem celula -- a API dele e `configurar(de, para,
+## largura)` e mais nada. Ele veste a variante base do andar, sorteada pela
+## PROPRIA POSICAO, que e a unica identidade estavel que ele tem: o mesmo
+## corredor entre as mesmas duas salas cai sempre na mesma textura.
+##
+## Continua sem tipo de proposito: pintar cada metade com a cor da sala vizinha
+## anunciaria o que ha do outro lado antes de o jogador chegar.
+const TEXTURAS_CHAO: Array[String] = [
+	"res://assets/texturas/chao_andar1_a.png",
+	"res://assets/texturas/chao_andar1_c.png",
+	"res://assets/texturas/chao_andar1_d.png",
+]
+const TEXTURAS_PAREDE: Array[String] = [
+	"res://assets/texturas/parede_andar1_a.png",
+	"res://assets/texturas/parede_andar1_b.png",
+	"res://assets/texturas/parede_andar1_c2.png",
+]
 ## Cor de emergencia, usada so quando a textura nao carrega: o chao N1 da
 ## paleta combate (docs/IDENTIDADE_VISUAL.md).
 const COR_CHAO_EMERGENCIA := Color("0b0d16")
@@ -69,6 +84,18 @@ func configurar(de: Vector2, para: Vector2, largura: float = 80.0) -> void:
 
 ## Bounding box GLOBAL, largura inteira incluida — o gerenciador expande o clamp
 ## da camera com isto durante a travessia.
+## Escolhe a variante pela posicao global, arredondada para inteiro.
+##
+## `global_position` ja esta valido aqui: `configurar()` a define antes de
+## montar as camadas. O deslocamento separa chao de parede pelo mesmo motivo que
+## em `Sala._textura()` -- para as duas listas nao andarem casadas.
+func _textura(lista: Array[String], deslocamento: int) -> Texture2D:
+	if lista.is_empty():
+		return null
+	var semente := hash(Vector2i(global_position)) ^ deslocamento
+	return load(lista[absi(semente) % lista.size()]) as Texture2D
+
+
 func obter_limites() -> Rect2:
 	if not _configurado:
 		return Rect2(global_position, Vector2.ZERO)
@@ -93,7 +120,7 @@ func _montar_parede_corpo(eixo: Vector2, lado: Vector2, comprimento: float, larg
 	])
 	# Um degrau abaixo do chao do corredor, que ja esta um abaixo do da sala.
 	corpo.z_index = -1
-	_texturizar(corpo, load(TEXTURA_PAREDE) as Texture2D, _retangulo_local.position)
+	_texturizar(corpo, _textura(TEXTURAS_PAREDE, 0x2f1b3c5d), _retangulo_local.position)
 	add_child(corpo)
 
 
@@ -106,7 +133,7 @@ func _montar_chao() -> void:
 		_retangulo_local.end,
 		Vector2(_retangulo_local.position.x, _retangulo_local.end.y),
 	])
-	_texturizar(chao, load(TEXTURA_CHAO) as Texture2D, _retangulo_local.position)
+	_texturizar(chao, _textura(TEXTURAS_CHAO, 0), _retangulo_local.position)
 	add_child(chao)
 
 

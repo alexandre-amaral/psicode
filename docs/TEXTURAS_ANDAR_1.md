@@ -1,5 +1,11 @@
 # Texturas do andar 1
 
+> **Executado na branch `docs/texturas-andar-1`.** O que este documento
+> prescrevia agora existe, com três desvios que a execução obrigou, anotados no
+> ponto onde acontecem: são **quatro** variações de chão e parede e não um par
+> (§4.1), a arte é **autorada** e não gerada (§8), e G1 virou **regra de gamut**
+> em vez de lista de 22 cores (§4.2).
+
 Este documento existe para que alguém consiga **desenhar textura nova para o mapa
 sem reinventar a direção de arte a cada vez**. Ele parte de `assets/bg_menu.jpg`
 e a converte em números e receitas.
@@ -59,7 +65,7 @@ contra texto. Então fica nominal:
 | Onde | O que morre |
 |---|---|
 | `IDENTIDADE_VISUAL.md` §"acento por tipo" | a tabela de 5 rampas **amarrada a chão/parede**. As rampas seguem vivas; o vínculo com o piso, não |
-| `IDENTIDADE_VISUAL.md` "as cinco variantes aparecem todas" | passa a ser uma variante só |
+| `IDENTIDADE_VISUAL.md` "as cinco variantes aparecem todas" | passam a ser quatro variações da MESMA noite, sorteadas por célula |
 | `IDENTIDADE_VISUAL.md` "Corredor: mesmo chão e parede da variante `combate`" | não há mais variante `combate` |
 | `IDENTIDADE_VISUAL.md` "a faixa de 24 px carrega sozinha a identidade da sala" | ela carrega a identidade do ANDAR; a da sala vai para o prop |
 | `IDENTIDADE_VISUAL.md` "o disco de perigo é `z=0`, acima do chão" | **é falso hoje** — ver §5.3 |
@@ -184,10 +190,18 @@ o jogo insinua. A luz de verdade pertence ao jogador, aos inimigos e aos tiros.
 
 ### 4.1 A decisão: uma noite só
 
-Hoje há cinco variantes de chão e cinco de parede, uma por tipo. **Passam a ser
-uma só para o andar inteiro.** A identidade do tipo migra para o painel de
-acento, a marcação de chão (props que já existem, linhas 2 e 3 do atlas) e o
-`cor_mapa` do minimapa.
+Havia cinco variantes de chão e cinco de parede, uma por tipo. A identidade do
+tipo migra para o painel de acento, a marcação de chão (props que já existem,
+linhas 2 e 3 do atlas) e o `cor_mapa` do minimapa.
+
+> **Corrigido na execução: são QUATRO variações da mesma noite, sorteadas por
+> célula** (`hash(coordenadas_grid)`), e não um par único para o andar. Um par só
+> lê como uma sala repetida sete vezes — e as ~7 salas de combate apontam todas
+> para a mesma instância de `tipo_combate.tres`, então "por tipo" e "por andar"
+> já eram a mesma coisa. O campo virou `Array[Texture2D]`, o que também é o que
+> deixa a onda 2 ser mudança de dado e não de código.
+>
+> O que segue valendo é a **família**: uma noite só para o andar.
 
 **Por quê:** o andar passa a ler como *um complexo*, que é o que a referência é —
 uma rua, não cinco. E a variação por tipo nunca foi forte: as cinco variantes de
@@ -466,8 +480,8 @@ está certa e não se mexe. `porta_campo.png` **não muda** — é SINAL.
 
 ### 8.4 Corredor
 
-O corredor usa `chao_combate.png`/`parede_combate.png` por constante cravada, e
-**não tem decoração nenhuma** — nem prop, nem decalque. É a superfície onde a
+O corredor sorteia a variante pela própria posição (`hash` de `global_position`),
+já que não tem célula, e **não tem decoração nenhuma** — nem prop, nem decalque. É a superfície onde a
 "rua molhada" da referência estaria mais disponível, e é a mais pelada do jogo.
 
 **Decisão: o corredor recebe decalque, não prop.** Ele é estreito (80 px de vão) e
@@ -585,7 +599,7 @@ também não pode ser claro. A saída, de novo, é composição.
 
 ### Um modo de falha silencioso que vale conhecer
 
-Se `chao_combate.png` sumir sem `TEXTURA_PADRAO` ser ajustada, `_textura()`
+Se a textura de fallback sumir sem `TEXTURA_PADRAO` ser ajustada, `_textura()`
 devolve `null`, `_texturizar()` cai em `COR_CHAO_EMERGENCIA` e **a sala fica
 lisa** — sem erro no console. Nenhuma suíte cobre isso: `teste_grade.gd` nunca
 faz `add_child`, então `_ready` não roda, e o teste de fumaça não toca em textura.

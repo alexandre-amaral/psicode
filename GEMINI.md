@@ -108,7 +108,8 @@ locale/          textos.csv (gerado) -- a tabela de traducao
 tools/i18n/      gerar_csv.py (a fonte da tabela)
 assets/personagens/ <id>/{8 rotacoes parado, 8 fitas andar_*}.png -- gerados
 tools/sprites/   gerar_sprites.py (GIF -> fita PNG normalizada)
-assets/texturas/ PNGs gerados (chao e parede por tipo; porta; props) — nunca editados a mao
+assets/texturas/ chao/parede: arte AUTORADA, preparada por tools/texturas/preparar_textura.py
+                 porta e props: ainda gerados por tools/texturas/gerar_texturas.tscn
 tools/           teste_fumaca, capturar, testes/ (suites unitarias),
                  texturas/ (paleta.gd + gerar_texturas: a fonte dos PNGs)
 docs/
@@ -147,7 +148,7 @@ docs/
 | **Arma que pode cair de loot** | listar o `.tres` em `src/items/pool_padrao.tres` |
 | Regras de onde cada sala nasce | `@export` do `tipo_*.tres` (beco, distancia da origem, prioridade) |
 | Cor e icone de uma sala no minimapa | `cor_mapa` e `icone` do `tipo_*.tres` |
-| **Textura de chao, parede e props de um tipo de sala** | grupo `Visual` do `tipo_*.tres` — os PNGs saem de `tools/texturas/gerar_texturas.tscn`, nunca de editor de imagem |
+| **Textura de chao, parede e props de um tipo de sala** | grupo `Visual` do `tipo_*.tres`. Chao e parede sao LISTAS: a sala sorteia a variante por `hash(coordenadas_grid)`. Os PNGs sao arte autorada passada por `tools/texturas/preparar_textura.py`; porta e props ainda saem do gerador |
 | **Uma cor nova no cenario** | `tools/texturas/paleta.gd` + a tabela de `docs/IDENTIDADE_VISUAL.md`; `teste_texturas.gd` recusa cor que compete com projetil |
 | Enquadramento e cores do minimapa | `@export` do no `Minimapa` em `src/ui/hud.tscn` |
 | Preferencias do jogador (tela cheia, acessibilidade, idioma) | `src/autoload/configuracao.gd` — grava em `user://config.cfg` |

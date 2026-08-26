@@ -103,9 +103,25 @@ func _capturar_sala_atual() -> void:
 func _capturar_combate(sala: Sala) -> void:
 	if "07_sala_de_combate" in _feitas:
 		return
+
+	# Sem inimigo vivo NA SALA nao ha o que fotografar: uma foto de "sala de
+	# combate" com HOSTIS 0 nao mostra nada do que a captura existe para
+	# mostrar. Isto tambem cobre o caso de o acelerador ter chegado antes.
+	var vivos := 0
+	for no in get_tree().get_nodes_in_group("inimigo"):
+		var inimigo := no as Node2D
+		if inimigo != null and is_instance_valid(inimigo) and sala.obter_limites().has_point(inimigo.global_position):
+			vivos += 1
+	if vivos == 0:
+		return
+
 	_combates_vistos += 1
+	# A camera nunca AFASTA: numa sala maior que a tela ela segue o jogador e
+	# mostra so um pedaco, e os inimigos podem estar todos fora do quadro. Por
+	# isso a primeira escolha e uma sala que caiba inteira.
 	var tela := Vector2(get_viewport().get_visible_rect().size)
-	var cabe := sala.obter_limites().size.x <= tela.x and sala.obter_limites().size.y <= tela.y
+	var caixa := sala.obter_limites().size
+	var cabe := caixa.x <= tela.x and caixa.y <= tela.y
 	if cabe or _combates_vistos >= 4:
 		_capturar("07_sala_de_combate")
 

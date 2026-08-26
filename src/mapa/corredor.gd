@@ -22,8 +22,8 @@ extends Node2D
 ## anunciaria o que ha do outro lado antes de o jogador chegar.
 const TEXTURAS_CHAO: Array[String] = [
 	"res://assets/texturas/chao_andar1_a.png",
+	"res://assets/texturas/chao_andar1_b.png",
 	"res://assets/texturas/chao_andar1_c.png",
-	"res://assets/texturas/chao_andar1_d.png",
 ]
 const TEXTURAS_PAREDE: Array[String] = [
 	"res://assets/texturas/parede_andar1_a.png",

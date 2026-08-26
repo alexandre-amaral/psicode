@@ -47,7 +47,7 @@ try:
 except ImportError:
     sys.exit("Precisa do numpy:  pip install numpy")
 try:
-    from PIL import Image
+    from PIL import Image, ImageFilter
 except ImportError:
     sys.exit("Precisa do Pillow:  pip install Pillow")
 
@@ -109,8 +109,25 @@ MARGEM_MATIZ = 3.0
 # O corredor NAO entra aqui. Ele fica na noite base de proposito: pintar cada
 # metade com a cor da sala vizinha anunciaria o que ha do outro lado antes de o
 # jogador chegar.
+#
+# A faixa do ANDAR 1 e larga -- 135 graus contra os 25 a 30 das outras -- e isso
+# e deliberado. O que ela separa e TIPO DE SALA, e nao mapa de ator: quem faz a
+# segunda separacao e o teto de valor logo acima (chao em 0,30 contra o piso de
+# 0,55 do portao G2), justamente porque o andar 1 ja abriu mao do matiz ao ir
+# para o azul, que e a familia de seis projeteis do jogo.
+#
+# Alargar veio da arte: as tres referencias de piso trazem acento ciano (~180) e
+# magenta (~320), e a faixa antiga de 200-250 os grampeava nos dois em azul --
+# o acento sobrevivia como brilho, mas perdia o vocabulario cyberpunk que fez
+# escolherem essas imagens. Como o teto de valor nao mudou, alargar nao aproxima
+# o chao de projetil nenhum: um pixel de piso continua no maximo a 0,30 de
+# valor, e ator comeca em 0,55.
+#
+# Os limites nao sao redondos por acaso: 185 fica 5 graus acima do teto do item
+# (180) e 320 fica 10 abaixo do piso do chefe (330). As tres faixas continuam
+# disjuntas, que e o que faz a sala de recompensa e a do chefe se anunciarem.
 MATIZ_POR_TIPO = {
-    "andar1": (200, 250),   # a base: combate e inicial
+    "andar1": (185, 320),   # a base: combate e inicial
     "boss":   (330, 355),
     "arma":   (25, 50),
     "item":   (150, 180),
@@ -198,6 +215,79 @@ def _abrir(caminho):
 def _canais(im):
     a = np.asarray(im).astype(float) / 255.0
     return a[:, :, :3], a[:, :, 3]
+
+
+# ----------------------------------------------------------------- pre-passo --
+# O funil abaixo e rede de SEGURANCA: ele apara o que passou do limite. As duas
+# funcoes daqui sao o contrario -- elas ADICIONAM o que a arte nao trouxe, e por
+# isso ficam separadas e desligadas por default. Textura que ja nasceu na paleta
+# nao deve passar por nenhuma delas.
+#
+# Elas existem porque as tres referencias de piso do andar 1 sao fotografia de
+# metal: quase cinza e com vinheta. Passadas cruas pelo funil, saem CINZA -- o
+# `teto_s` apara saturacao, nunca levanta -- e o andar perde a noite azul que e a
+# identidade dele.
+
+
+def desvinhetar(im):
+    """Divide a imagem pelo proprio borrao: mata gradiente de iluminacao global.
+
+    Arte gerada costuma vir com o centro aceso e os cantos apagados, o que e
+    bonito emoldurado e pessimo em ladrilho: a vinheta vira uma CRUZ escura na
+    junta, repetida por toda a sala. Dividir pelo borrao e normalizar pela media
+    devolve a mesma imagem com iluminacao chapada, sem tocar no detalhe fino --
+    que e o que sobrevive a divisao por um borrao largo.
+    """
+    a = np.asarray(im.convert("RGBA")).astype(float)
+    rgb = a[:, :, :3]
+    borrao = np.asarray(
+        Image.fromarray(rgb.round().astype(np.uint8)).filter(ImageFilter.GaussianBlur(45)),
+        dtype=float,
+    )
+    a[:, :, :3] = np.clip(rgb * (borrao.mean() / np.maximum(borrao, 1.0)), 0.0, 255.0)
+    return Image.fromarray(a.round().astype(np.uint8), "RGBA")
+
+
+def tingir(im, graus, limiar_neon, alvo_s):
+    """Puxa o METAL para um matiz so, e deixa o ACENTO ACESO passar intacto.
+
+    O limiar e a peca inteira. Levantar saturacao em tudo pintaria tambem o
+    ruido quase-cinza -- que tem matiz aleatorio, porque em S perto de zero o
+    matiz e so arredondamento -- e o piso viraria confete colorido. Separando
+    por saturacao, o metal apagado vira a noite azul do andar e o neon que o
+    artista acendeu continua sendo a cor que ele escolheu.
+
+    A mistura do metal e ponderada e nao cravada (0,3 do que veio, 0,7 do alvo):
+    cravar a saturacao apagaria a diferenca entre placa e junta, que e o que da
+    materia ao piso.
+    """
+    a = np.asarray(im.convert("RGBA")).astype(float)
+    rgb = a[:, :, :3] / 255.0
+    h, s, v = _rgb_para_hsv(rgb)
+
+    aceso = s >= limiar_neon
+    h = np.where(aceso, h, float(graus))
+    s = np.where(aceso, s, np.clip(s * 0.3 + alvo_s * 0.7, 0.0, 0.95))
+
+    a[:, :, :3] = np.clip(_hsv_para_rgb(h, s, v), 0.0, 1.0) * 255.0
+    return Image.fromarray(a.round().astype(np.uint8), "RGBA")
+
+
+def grampear_matiz(im, lo, hi):
+    """Grampeia o matiz ANTES do funil, com folga maior que MARGEM_MATIZ.
+
+    O funil ja grampeia, mas ele e a ultima etapa antes do disco: o que sai dele
+    ainda passa por HSV->RGB->uint8, e nesses valores escuros um passo de 1/255
+    gira o matiz varios graus. Com acento muito saturado os 3 graus de
+    MARGEM_MATIZ nao bastam -- medido: a referencia simetrica saiu em 180-322
+    contra uma faixa de 185-320. Grampear mais cedo e mais folgado poe a margem
+    onde ela cabe.
+    """
+    a = np.asarray(im.convert("RGBA")).astype(float)
+    rgb = a[:, :, :3] / 255.0
+    h, s, v = _rgb_para_hsv(rgb)
+    a[:, :, :3] = np.clip(_hsv_para_rgb(np.clip(h, lo, hi), s, v), 0.0, 1.0) * 255.0
+    return Image.fromarray(a.round().astype(np.uint8), "RGBA")
 
 
 # ------------------------------------------------------------------ costura --
@@ -431,6 +521,21 @@ def main():
     pr.add_argument("--lado", type=int, default=256)
     pr.add_argument("--sem-costura", action="store_true",
                     help="pula a costura (para arte que ja nasceu ladrilhavel)")
+    # Pre-passo: DESLIGADO por default, para nenhuma textura ja preparada mudar
+    # de comportamento se alguem reprocessar. Ver o bloco "pre-passo" acima.
+    pr.add_argument("--desvinheta", action="store_true",
+                    help="chapa a iluminacao global antes de costurar")
+    pr.add_argument("--tingir", type=float, default=None, metavar="GRAUS",
+                    help="matiz do metal base; o pixel aceso passa intacto")
+    pr.add_argument("--limiar-neon", type=float, default=0.30, metavar="S",
+                    help="acima desta saturacao o pixel e acento e nao e tingido")
+    pr.add_argument("--saturacao", type=float, default=0.78, metavar="S",
+                    help="alvo de saturacao do metal base, com --tingir")
+    pr.add_argument("--grampear-matiz", nargs=2, type=float, default=None,
+                    metavar=("LO", "HI"),
+                    help="grampeia o matiz na origem, com folga maior que a do funil")
+    pr.add_argument("--alvo-v", type=float, default=None, metavar="V",
+                    help="sobrescreve a mediana de valor alvo da familia")
 
     cf = sub.add_parser("conferir")
     cf.add_argument("alvo")
@@ -450,8 +555,19 @@ def main():
         # nos pixels que vao para o disco.
         if im.size != (a.lado, a.lado):
             im = im.resize((a.lado, a.lado), Image.BOX)
+        # O pre-passo vem ANTES da costura: costurar mistura a periferia com a
+        # copia deslocada, entao desvinhetar depois dela espalharia a vinheta em
+        # vez de apaga-la.
+        if a.desvinheta:
+            im = desvinhetar(im)
+        if a.tingir is not None:
+            im = tingir(im, a.tingir, a.limiar_neon, a.saturacao)
+        if a.grampear_matiz is not None:
+            im = grampear_matiz(im, a.grampear_matiz[0], a.grampear_matiz[1])
         if not a.sem_costura:
             im = costurar(im)
+        if a.alvo_v is not None:
+            FAMILIAS[familia] = dict(FAMILIAS[familia], alvo_v=a.alvo_v)
         im = forcar_gamut(im, familia, tipo)
         im = cravar_alpha(im)
         os.makedirs(os.path.dirname(os.path.abspath(a.destino)), exist_ok=True)

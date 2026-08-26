@@ -189,10 +189,11 @@ continuar, o problema é G2 estar frouxo, não a textura.
   inteira for múltipla de 32. `tools/testes/teste_grade.gd` recusa o resto.
 - O tile visual é **32 px**: é o que divide 960, 544, 1440, 800, 768 e 960 —
   todas as dimensões de sala. 64 não divide 544.
-- As texturas de chão e parede têm **128×128** (4×4 tiles) e são *seamless* por
-  construção: o ruído é amostrado em coordenada modular, então a borda direita
-  continua na esquerda sem retoque. 128 não divide 544, e não precisa: o olho lê
-  a sub-grade de 32, e essa está alinhada com todas as bordas.
+- As texturas de chão e parede têm **256×256** e ladrilham. O *seamless* já não
+  vem de construção: desde que a arte passou a ser autorada, quem devolve a
+  garantia é `costurar()` em `tools/texturas/preparar_textura.py`, e quem a
+  confere é `medir_costura()`. 256 não divide 544, e não precisa: o olho lê a
+  sub-grade de 32, e essa está alinhada com todas as bordas.
 - A UV é ancorada no **canto** do retângulo do contorno, nunca no centro. 272
   (meia altura da sala padrão) não é múltiplo de 32; ancorar no centro cortaria
   o tile no meio nas bordas norte e sul.
@@ -244,8 +245,10 @@ prop no meio do chão, sem colisão, pareceria um obstáculo mentiroso. A seed
 vem de `coordenadas_grid`, então reentrar na sala mostra a mesma sala.
 
 Os `@export` de `DadosSala` no grupo **Visual** são o único lugar onde uma
-textura é apontada: `textura_chao`, `textura_parede`, `atlas_props`,
-`regioes_props`, `quantidade_props`.
+textura é apontada: `texturas_chao`, `texturas_parede`, `atlas_props`,
+`regioes_props`, `quantidade_props`. As duas primeiras são **listas**, e a sala
+escolhe a variante por `hash(coordenadas_grid)` — um andar inteiro com o mesmo
+par lê como uma sala repetida sete vezes.
 
 ---
 

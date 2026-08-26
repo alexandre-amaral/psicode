@@ -155,7 +155,6 @@ const AUTORADAS: Dictionary = {
 	"chao_andar1_a.png": {&"familia": &"chao", &"tipo": &"andar1"},
 	"chao_andar1_b.png": {&"familia": &"chao", &"tipo": &"andar1"},
 	"chao_andar1_c.png": {&"familia": &"chao", &"tipo": &"andar1"},
-	"chao_andar1_d.png": {&"familia": &"chao", &"tipo": &"andar1"},
 	"parede_andar1_a.png": {&"familia": &"parede", &"tipo": &"andar1"},
 	"parede_andar1_b.png": {&"familia": &"parede", &"tipo": &"andar1"},
 	"parede_andar1_c2.png": {&"familia": &"parede", &"tipo": &"andar1"},
@@ -175,8 +174,21 @@ const AUTORADAS: Dictionary = {
 ## O corredor nao tem faixa propria de proposito: ele fica na noite base, porque
 ## pintar cada metade com a cor da sala vizinha anunciaria o que ha do outro lado
 ## antes de o jogador chegar.
+##
+## A faixa do ANDAR 1 e larga -- 135 graus contra os 25 a 30 das outras -- e e
+## deliberado. Ela separa TIPO DE SALA, e nao mapa de ator: quem faz a segunda
+## separacao e o teto de valor (chao em 0,30 contra o piso de 0,55 do portao
+## G2), porque o andar 1 ja abriu mao do matiz ao ir para o azul, que e a
+## familia de seis projeteis do jogo. Alargar veio da arte do piso, que traz
+## acento ciano (~180) e magenta (~320); como o teto de valor nao mudou, isso
+## nao aproxima o chao de projetil nenhum. 185 fica 5 graus acima do teto do
+## item e 320 fica 10 abaixo do piso do chefe -- as tres faixas seguem disjuntas.
+##
+## Este dicionario e GEMEO do MATIZ_POR_TIPO de preparar_textura.py, e os dois
+## tem de mudar juntos: mexer num so deixa o funil escrevendo o que o portao
+## recusa.
 const MATIZ_POR_TIPO: Dictionary = {
-	&"andar1": Vector2(200.0, 250.0),
+	&"andar1": Vector2(185.0, 320.0),
 	&"boss": Vector2(330.0, 355.0),
 	&"arma": Vector2(25.0, 50.0),
 	&"item": Vector2(150.0, 180.0),

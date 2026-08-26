@@ -54,7 +54,11 @@ var _t_nanite: float = 0.0
 var _dados_nanite: DadosArma = null
 var _cor_nanite: Color = Color.WHITE
 var _visual: Node2D
-var _corpo: Polygon2D
+## O no que carrega a COR do inimigo. `CanvasItem` e nao `Polygon2D` porque a
+## partir do Drone Aranha ele pode ser um sprite: quem pinta e `_pintar_corpo`,
+## que escolhe o canal certo pelo tipo. Tipar como Polygon2D fazia a atribuicao
+## explodir em runtime no primeiro inimigo com arte.
+var _corpo: CanvasItem
 var _tween_flash: Tween
 
 
@@ -63,8 +67,7 @@ func _ready() -> void:
 	vida = vida_maxima
 	_visual = get_node_or_null("Visual")
 	_corpo = get_node_or_null("Visual/Corpo")
-	if _corpo != null:
-		_corpo.color = cor_base
+	_pintar_corpo(_cor_neutra())
 	_procurar_alvo()
 	EventBus.inimigo_spawnou.emit(self)
 	_ao_nascer()
@@ -314,7 +317,7 @@ func _limpar_nanite() -> void:
 
 ## Escurece o corpo conforme o acumulo sobe.
 ##
-## Vai no `_corpo.color` pelo mesmo motivo do tint de Hack -- `_visual.modulate`
+## Vai no canal do corpo pelo mesmo motivo do tint de Hack -- `_visual.modulate`
 ## e do clarao de dano e termina sempre em branco, apagando qualquer tint no
 ## primeiro tiro. E ele SO pinta se nao houver Hack ativo: dois tints brigando
 ## pelo mesmo canal deixariam a cor final dependendo da ordem das chamadas.
@@ -322,12 +325,12 @@ func _pintar_nanite() -> void:
 	if _corpo == null or esta_hackeado():
 		return
 	if _stacks_nanite <= 0:
-		_corpo.color = cor_base
+		_pintar_corpo(_cor_neutra())
 		return
 	var fracao := 1.0
 	if _dados_nanite != null and _dados_nanite.stacks_nanite > 0:
 		fracao = float(_stacks_nanite) / float(_dados_nanite.stacks_nanite)
-	_corpo.color = cor_base.lerp(_cor_nanite, clampf(fracao, 0.0, 1.0) * 0.7)
+	_pintar_corpo(_cor_neutra().lerp(_cor_nanite, clampf(fracao, 0.0, 1.0) * 0.7))
 
 
 ## O Hack pula para o vizinho vivo mais proximo dentro do raio.
@@ -363,20 +366,47 @@ func _propagar_hack() -> void:
 
 ## Tint de hackeado.
 ##
-## Vai em `_corpo.color` e NUNCA em `_visual.modulate`: aquele e do clarao de
+## Vai no canal do corpo e NUNCA em `_visual.modulate`: aquele e do clarao de
 ## dano, que termina sempre em Color.WHITE e apagaria o tint no primeiro tiro
-## que acertasse. Como o modulate do pai multiplica por cima da cor do
-## poligono, os dois efeitos convivem sem se conhecer.
+## que acertasse. Como o modulate do pai multiplica por cima do corpo, os dois
+## efeitos convivem sem se conhecer.
 func _pintar_hack(ligado: bool) -> void:
 	if _corpo == null:
 		return
 	if ligado:
-		_corpo.color = cor_base.lerp(COR_HACK, 0.55)
+		_pintar_corpo(_cor_neutra().lerp(COR_HACK, 0.55))
 		return
 	# Ao SAIR do Hack devolve o canal para o nanite, se houver acumulo. Voltar
-	# direto para cor_base apagaria o aviso de que o inimigo esta carregado --
-	# e a explosao chegaria sem leitura nenhuma.
+	# direto para a cor neutra apagaria o aviso de que o inimigo esta carregado
+	# -- e a explosao chegaria sem leitura nenhuma.
 	_pintar_nanite()
+
+
+## Escreve `cor` no canal de cor do corpo, seja ele poligono ou sprite.
+##
+## Um `Polygon2D` e preenchido por `color`; um `Sprite2D` nao tem essa
+## propriedade, e o equivalente e `self_modulate`. `self_modulate` e nao
+## `modulate` porque `modulate` desce para os filhos e ja e do clarao de dano --
+## sao dois canais que nao podem se cruzar, e e essa separacao que faz Hack e
+## clarao conviverem.
+func _pintar_corpo(cor: Color) -> void:
+	if _corpo == null:
+		return
+	var poligono := _corpo as Polygon2D
+	if poligono != null:
+		poligono.color = cor
+		return
+	_corpo.self_modulate = cor
+
+
+## A cor de "nada acontecendo", e ela depende do canal.
+##
+## Num poligono o corpo E a cor solida, entao o neutro e `cor_base`. Num sprite
+## o `self_modulate` MULTIPLICA a arte, entao o neutro e branco -- usar
+## `cor_base` ali pintaria a carcaca de laranja e, pior, faria
+## `cor_base.lerp(COR_HACK, 0.55)` escurecer o inimigo em vez de esverdea-lo.
+func _cor_neutra() -> Color:
+	return cor_base if _corpo is Polygon2D else Color.WHITE
 
 
 func _procurar_alvo() -> void:

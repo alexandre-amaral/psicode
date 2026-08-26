@@ -1,4 +1,4 @@
-"""Normaliza a arte de personagem para uma moldura unica, ancorada nos pes.
+"""Normaliza a arte de personagem e de inimigo para uma moldura unica, ancorada nos pes.
 
 Por que este script existe, e por que ele e Python e nao GDScript como o
 gerador de texturas: **o Godot nao importa GIF**. Nao ha importador; um .gif em
@@ -40,11 +40,23 @@ except ImportError:  # pragma: no cover
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ORIGEM_ANIM = os.path.join(RAIZ, "animations")
-DESTINO = os.path.join(RAIZ, "assets", "personagens")
 
-## Lado da moldura de saida. 80 e o menor multiplo de 16 que cabe as duas
-## personagens: a maior exigencia medida e 66px (RAVEN). Uma moldura so para as
-## duas, em vez de uma por personagem, e um numero a menos para alguem errar.
+## As pastas de saida, e se cada uma quer miniatura. A miniatura e o retrato do
+## cartao de selecao de operador -- inimigo nao tem cartao, e sem esta distincao
+## o script reportaria "faltando: miniatura" em todo inimigo, para sempre.
+##
+## A pasta de ENTRADA continua sendo `animations/<id>/` para os dois: o GIF e
+## achado por sufixo e o `id` e o nome da pasta, entao nao ha por que separar.
+DESTINOS = [
+    (os.path.join(RAIZ, "assets", "personagens"), True),
+    (os.path.join(RAIZ, "assets", "inimigos"), False),
+]
+
+## Lado da moldura de saida. 80 e o menor multiplo de 16 que cabe tudo que ja
+## entrou: a maior exigencia medida e 66px (RAVEN), e o Drone Aranha pede 60x56.
+## Uma moldura so para o projeto inteiro, em vez de uma por personagem, e um
+## numero a menos para alguem errar -- e e o alinhamento ENTRE conjuntos que
+## impede o bicho de saltar de lugar ao comecar a andar.
 LADO = 80
 
 ## Folga entre o pe e o fundo da moldura. Nao e estetica: sem ela um quadro em
@@ -152,9 +164,9 @@ def gerar_miniatura(pasta_saida):
     return True
 
 
-def processar(personagem):
+def processar(destino, personagem, quer_miniatura):
     pasta_anim = os.path.join(ORIGEM_ANIM, personagem)
-    pasta_saida = os.path.join(DESTINO, personagem)
+    pasta_saida = os.path.join(destino, personagem)
     if not os.path.isdir(pasta_saida):
         sys.exit("nao achei %s" % pasta_saida)
 
@@ -184,11 +196,12 @@ def processar(personagem):
         escritos += 1
         print("  andar_%-11s %d quadros -> %dx%d" % (direcao, len(quadros), fita.width, fita.height))
 
-    if gerar_miniatura(pasta_saida):
-        escritos += 1
-        print("  miniatura     %dx%d" % (LADO_MINIATURA * 2, LADO_MINIATURA * 2))
-    else:
-        faltando.append("miniatura")
+    if quer_miniatura:
+        if gerar_miniatura(pasta_saida):
+            escritos += 1
+            print("  miniatura     %dx%d" % (LADO_MINIATURA * 2, LADO_MINIATURA * 2))
+        else:
+            faltando.append("miniatura")
 
     return escritos, faltando
 
@@ -196,14 +209,17 @@ def processar(personagem):
 def main():
     print("moldura %dx%d, pe a %dpx do fundo\n" % (LADO, LADO, FOLGA_PE))
     problemas = []
-    for personagem in sorted(os.listdir(DESTINO)):
-        if not os.path.isdir(os.path.join(DESTINO, personagem)):
+    for destino, quer_miniatura in DESTINOS:
+        if not os.path.isdir(destino):
             continue
-        print("%s:" % personagem)
-        escritos, faltando = processar(personagem)
-        print("  %d arquivos" % escritos)
-        problemas += ["%s: %s" % (personagem, f) for f in faltando]
-        print()
+        for personagem in sorted(os.listdir(destino)):
+            if not os.path.isdir(os.path.join(destino, personagem)):
+                continue
+            print("%s:" % personagem)
+            escritos, faltando = processar(destino, personagem, quer_miniatura)
+            print("  %d arquivos" % escritos)
+            problemas += ["%s: %s" % (personagem, f) for f in faltando]
+            print()
 
     if problemas:
         # Falta de arquivo nao para o script: melhor gerar o que da e dizer o

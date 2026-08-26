@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c41y3r2c1flvy"
-path="res://.godot/imported/south-west.png-56438c1243dbef2736616223206bdd27.ctex"
+uid="uid://cq7hknajt8fkn"
+path="res://.godot/imported/north.png-9ffe917485b55400e1f92e6732963e68.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://enemy/drone_aranha/O_Drone_Aranha_e_uma-Idle/Idle/rotations/south-west.png"
-dest_files=["res://.godot/imported/south-west.png-56438c1243dbef2736616223206bdd27.ctex"]
+source_file="res://assets/inimigos/drone_aranha/north.png"
+dest_files=["res://.godot/imported/north.png-9ffe917485b55400e1f92e6732963e68.ctex"]
 
 [params]
 

@@ -21,6 +21,11 @@ extends InimigoBase
 @export var alcance_anel: float = 260.0
 @export var projeteis: int = 8
 
+## Abaixo disto ele esta parando, nao andando. Sem um piso, o `move_toward` dos
+## estados de recuo deixaria o ciclo de pernas tremendo por uma fracao de
+## segundo depois de o drone ja ter travado no lugar.
+const VELOCIDADE_ANDANDO := 12.0
+
 const PERSEGUIR := &"PERSEGUIR"
 const CARREGAR := &"CARREGAR"
 const DISPARAR := &"DISPARAR"
@@ -29,6 +34,7 @@ const RECUPERAR := &"RECUPERAR"
 var _maquina: MaquinaEstados
 var _arma: Arma
 var _aviso: Polygon2D
+var _sprite: SpriteDirecional
 var _t_intervalo: float = 0.0
 
 
@@ -38,6 +44,7 @@ func _ready() -> void:
 	_arma.hostil = true
 	_aviso = $Aviso
 	_aviso.visible = false
+	_sprite = $Visual/Corpo
 	# Espalha o primeiro anel do grupo: quatro drones nascendo juntos e
 	# disparando no mesmo frame seria uma parede de projeteis, nao um padrao.
 	_t_intervalo = randf_range(0.6, intervalo)
@@ -54,6 +61,28 @@ func _comportamento(delta: float) -> void:
 	_arma.multiplicador_velocidade = Deterioracao.multiplicador_velocidade_projetil()
 	_maquina.processar(delta)
 	tentar_dano_contato()
+
+
+## Quem encara, e quando as pernas se mexem.
+##
+## Roda em `_pos_movimento` e nao em `_comportamento` porque aqui o
+## `move_and_slide()` ja aconteceu: `velocity` e a de verdade, com a colisao
+## descontada, e nao a que a IA pediu.
+##
+## A direcao vem de `direcao_para_alvo()` e NAO da `velocity`. Em tres dos
+## quatro estados o drone esta desacelerando para zero, entao a direcao sairia
+## oscilando ou zerada justamente no instante em que o jogador mais precisa ler
+## para onde ele aponta.
+##
+## E o ciclo de caminhada exige `PERSEGUIR`: o corpo travado no lugar e metade
+## do telegrafo do anel (ver `_carregar_entrar`). Deixar as pernas andando
+## enquanto o aviso cresce apagaria o sinal que se le de longe -- e como nao ha
+## arte de ataque, e a pose parada encarando o jogador que faz esse papel.
+func _pos_movimento(delta: float) -> void:
+	if _sprite == null:
+		return
+	var andando := _maquina.estado == PERSEGUIR and velocity.length() > VELOCIDADE_ANDANDO
+	_sprite.apontar(direcao_para_alvo(), andando, delta, velocity)
 
 
 # ------------------------------------------------------------- estados ------

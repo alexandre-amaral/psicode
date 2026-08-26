@@ -61,15 +61,22 @@ func _comportamento(delta: float) -> void:
 	tentar_dano_contato()
 
 
-## O quadro que o corpo mostra, e o eixo do agachamento.
+## O quadro que o corpo mostra.
 ##
 ## Roda em `_pos_movimento` porque aqui a `velocity` ja passou pelo
 ## `move_and_slide()` -- e o que decide se ele esta ANDANDO ou so escorregando
 ## contra uma parede no fim da investida.
+##
+## `andando` sai SO da velocidade, e nao do estado. Nao ha estado dele que se
+## mexa e nao deva animar: PREPARAR e RECUPERAR freiam (as patas tem de
+## desacelerar junto), INVESTIR corre, e OBSERVAR **circula o jogador** a ~53
+## px/s -- observar aqui nao e ficar parado, e rondar. Uma versao anterior disto
+## excluia OBSERVAR achando que sim, e as patas ficavam congeladas justo no
+## estado em que ele passa mais tempo se deslocando.
 func _pos_movimento(delta: float) -> void:
 	if _sprite == null:
 		return
-	var andando := _maquina.estado != OBSERVAR and velocity.length() > VELOCIDADE_ANDANDO
+	var andando := velocity.length() > VELOCIDADE_ANDANDO
 	_sprite.apontar(_direcao_encarada(), andando, delta, velocity)
 
 

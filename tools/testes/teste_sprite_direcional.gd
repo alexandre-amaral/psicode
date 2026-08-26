@@ -89,6 +89,9 @@ func executar() -> void:
 		# outras suites acharem.
 		raiz.free()
 
+	_o_ciclo_segue_o_chao()
+	_andar_em_qualquer_estado_anima()
+
 	# Guarda contra a suite virar decoracao: se a varredura parar de achar
 	# ninguem, todas as verificacoes acima somem e o relatorio fica verde.
 	ok(achados >= 1, "a varredura achou inimigo com sprite direcional (%d)" % achados)
@@ -213,12 +216,18 @@ func _textura_e_hframes_andam_juntos(s: SpriteDirecional, esperado: Array) -> vo
 ## andando de re, que e o que o knockback faz enquanto o drone encara o alvo.
 ## Sem o `fposmod`, o sentido negativo devolve quadro negativo.
 func _o_ciclo_nao_sai_da_fita(s: SpriteDirecional) -> void:
+	# A velocidade do movimento IMPORTA desde que o ciclo passou a seguir o
+	# chao: um `Vector2.DOWN` cru tem comprimento 1, e contra uma
+	# `velocidade_referencia` de 88 isso e praticamente parado -- o ciclo mal
+	# saia do lugar e o caso "de fato avanca de quadro" reprovava sem haver
+	# defeito nenhum. Anda-se a uma velocidade de verdade.
+	var rapidez := maxf(s.velocidade_referencia, 100.0)
 	var quadros: Array[int] = []
 	for i in 40:
-		s.apontar(Vector2.DOWN, true, 1.0 / 30.0, Vector2.DOWN)
+		s.apontar(Vector2.DOWN, true, 1.0 / 30.0, Vector2.DOWN * rapidez)
 		quadros.append(s.frame)
 	for i in 40:
-		s.apontar(Vector2.DOWN, true, 1.0 / 30.0, Vector2.UP)
+		s.apontar(Vector2.DOWN, true, 1.0 / 30.0, Vector2.UP * rapidez)
 		quadros.append(s.frame)
 
 	var dentro := true
@@ -266,3 +275,91 @@ func _o_tint_alcanca_o_sprite(drone: InimigoBase, sprite: SpriteDirecional) -> v
 func _avancar(inimigo: InimigoBase, segundos: float) -> void:
 	for i in int(ceil(segundos / PASSO)):
 		inimigo._physics_process(PASSO)
+
+## O ciclo de patas segue o CHAO, e nao o relogio.
+##
+## Cadencia fixa desliza em qualquer bicho com mais de uma velocidade -- e "uma
+## velocidade so" nao existe aqui, porque a Deterioracao multiplica a velocidade
+## de todo inimigo ate 1,55x. O caso que tornou isso obvio foi a Cyber-Besta:
+## 88 px/s andando contra 720 investindo, com as patas sempre no mesmo passo.
+func _o_ciclo_segue_o_chao() -> void:
+	var s := SpriteDirecional.new()
+	s.fps_andando = 12.0
+	s.quadros_andando = 9
+	s.velocidade_referencia = 100.0
+	s.aceleracao_maxima_do_ciclo = 3.0
+
+	var normal := _avanco(s, 100.0)
+	var dobro := _avanco(s, 200.0)
+	var quase_parado := _avanco(s, 5.0)
+
+	ok(dobro > normal * 1.9, "andar ao dobro roda o ciclo ao dobro (%.2f -> %.2f)" % [normal, dobro])
+	ok(quase_parado < normal, "quase parado, o ciclo desacelera junto (%.2f < %.2f)" % [quase_parado, normal])
+
+	# O teto. Sem ele a investida real -- 8x a referencia -- rodaria o ciclo de
+	# 9 quadros quase cinco vezes em 0,42 s: ruido, e nao galope.
+	perto(_avanco(s, 800.0), normal * 3.0, "a 8x a referencia o ciclo para no teto de 3x", 0.05)
+
+	# E quem nao optou continua exatamente como estava.
+	var fixo := SpriteDirecional.new()
+	fixo.fps_andando = 12.0
+	fixo.quadros_andando = 9
+	perto(
+		_avanco(fixo, 800.0), _avanco(fixo, 50.0),
+		"sem velocidade_referencia a cadencia e fixa, como antes", 0.001
+	)
+
+	s.free()
+	fixo.free()
+
+
+## Andar anima, em QUALQUER estado.
+##
+## Este caso existe por uma regressao concreta: `_pos_movimento` da Cyber-Besta
+## excluia o estado OBSERVAR de `andando`, achando que observar era ficar
+## parado. Nao e -- `_observar()` faz ela CIRCULAR o jogador a ~53 px/s, e e o
+## estado em que ela passa mais tempo. As patas ficavam congeladas exatamente
+## onde ela mais se desloca.
+##
+## A trava e sobre o inimigo montado, e nao sobre o sprite solto: o defeito
+## morava em quem CHAMA `apontar()`, nao nele.
+func _andar_em_qualquer_estado_anima() -> void:
+	var raiz := Node2D.new()
+	Engine.get_main_loop().root.add_child(raiz)
+	var besta := preload("res://src/enemies/cyber_besta.tscn").instantiate() as InimigoBase
+	raiz.add_child(besta)
+	besta.global_position = LONGE
+	besta.set_physics_process(false)
+
+	var sprite := besta.get_node_or_null("Visual/Corpo") as SpriteDirecional
+	if sprite == null:
+		ok(false, "a Cyber-Besta tem sprite direcional")
+		raiz.free()
+		return
+
+	# Deslocando-se de lado, como ela faz o tempo todo enquanto observa.
+	besta.velocity = Vector2(0.0, 60.0)
+	var quadros: Array[int] = []
+	for i in 20:
+		besta._pos_movimento(PASSO)
+		quadros.append(sprite.frame)
+
+	var mudou := false
+	for q in quadros:
+		if q != quadros[0]:
+			mudou = true
+	ok(mudou, "deslocar-se enquanto observa move as patas (%s)" % [quadros.slice(0, 6)])
+
+	raiz.free()
+
+
+## Quantos quadros o ciclo avanca em 1 s a esta velocidade.
+func _avanco(s: SpriteDirecional, velocidade: float) -> float:
+	s._t_ciclo = 0.0
+	var movimento := Vector2.RIGHT * velocidade
+	for i in 60:
+		s._avancar_ciclo(1.0 / 60.0, Vector2.RIGHT, movimento)
+	# fposmod dobra o valor dentro da fita; o que interessa aqui e o AVANCO, e
+	# ele so cabe cru enquanto for menor que um ciclo. Acima disso conta-se
+	# quantas voltas deram, e por isso o harness usa 1 s e nao mais.
+	return s._t_ciclo

@@ -83,6 +83,47 @@ func intervalo() -> float:
 	return 1.0 / maxf(cadencia, 0.01)
 
 
+# ------------------------------------------------------- perfil da arma ------
+# As quatro barras da tela de selecao. Elas medem a ARMA, e nao a personagem:
+# RAVEN e NOVA tem vida, velocidade e rolamento identicos de proposito, entao
+# barras de VIDA/DEFESA/AGILIDADE seriam quatro reguas dizendo "empate" -- ou,
+# pior, quatro numeros inventados. O que de fato separa as duas e o que sai do
+# cano, e e isso que estas funcoes leem.
+#
+# Os tetos abaixo sao a REGUA, nao o dado: dizem o que conta como "cheio" nesta
+# escala de jogo. Arma nova que passe de um deles satura a barra em vez de
+# quebrar o desenho.
+
+## Dano de um disparo inteiro. A shotgun solta 8 projeteis de 2 e satura aqui.
+const DANO_CHEIO := 8.0
+const CADENCIA_CHEIA := 14.0
+## Espalhamento total (impressao + o teto do bloom) que conta como pontaria zero.
+const DISPERSAO_CHEIA := 10.0
+const ALCANCE_CHEIO := 1000.0
+
+
+## Dano por disparo, nao por projetil: quem aperta o gatilho uma vez sente o
+## leque inteiro da shotgun, nao um chumbinho.
+func perfil_dano() -> float:
+	return clampf(float(dano * maxi(projeteis_por_tiro, 1)) / DANO_CHEIO, 0.0, 1.0)
+
+
+func perfil_cadencia() -> float:
+	return clampf(cadencia / CADENCIA_CHEIA, 0.0, 1.0)
+
+
+## Invertido: quanto MAIOR o espalhamento, menor a barra. Soma o bloom porque
+## uma SMG que abre 7 graus segurando o gatilho nao e precisa, ainda que o
+## primeiro tiro seja.
+func perfil_precisao() -> float:
+	var espalhamento := impressao_graus + dispersao_maxima_graus
+	return clampf(1.0 - espalhamento / DISPERSAO_CHEIA, 0.0, 1.0)
+
+
+func perfil_alcance() -> float:
+	return clampf(alcance / ALCANCE_CHEIO, 0.0, 1.0)
+
+
 ## Se esta arma tem dispersao crescente. Um teto de zero desliga o mecanismo
 ## inteiro -- e como as cinco armas antigas continuam intactas.
 func tem_bloom() -> bool:

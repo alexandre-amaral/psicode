@@ -56,7 +56,7 @@ Deterioração sem precisar limpar meio andar antes.
 | Renderer | Compatibility (GL) — garante export para web |
 | Versionamento | Git + GitHub, LFS já configurado para arte futura |
 | CI | GitHub Actions rodando o teste de fumaça a cada PR |
-| Arte | nenhuma ainda — tudo é forma geométrica desenhada por código |
+| Arte | pixel art: personagens com 8 direções e ciclo de caminhada, texturas de sala geradas por código, sprite do chefe. Projéteis, pickups e 7 dos 8 inimigos ainda são forma geométrica |
 
 Por que Godot e não Unity: cena (`.tscn`) e recurso (`.tres`) são **texto**,
 então merge entre três pessoas funciona de verdade; o setup de quem entra no

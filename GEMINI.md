@@ -4,8 +4,13 @@ Twin-stick shooter / bullet hell / roguelike cyberpunk em **Godot 4.7.2-stable**
 (versao standard, nao .NET) com **GDScript**. Renderer **Compatibility (GL)**,
 obrigatorio para o export web.
 
-Feito por tres pessoas. Objetivo declarado: **diversao e aprender fazendo** —
-ter algo jogavel rapido vale mais que infraestrutura bonita.
+Feito por tres pessoas. O objetivo era **diversao e aprender fazendo** -- ter
+algo jogavel rapido valia mais que infraestrutura bonita. **Isso mudou: o alvo
+agora e lancamento comercial** (ver `docs/ROADMAP.md`). O principio de trabalho
+continua o mesmo, mas duas coisas passam a pesar mais que antes: acabamento
+(som, gamepad, salvamento) e escopo alem de um andar. Duas das tres pessoas
+continuam sem conhecer Godot nem Git, e isso segue valendo para tudo que elas
+precisem executar.
 
 > O titulo antigo era "Ciberpsicose". O nome fechado e **psicode**.
 
@@ -17,7 +22,7 @@ documentos abaixo — leia antes de propor mecanica nova:
 | Documento | Para que |
 |---|---|
 | `docs/GDD.md` | Design: core loop, Deterioracao, mira preditiva, o chefe, escopo |
-| `docs/ROADMAP.md` | As cinco fases e o que falta em cada uma |
+| `docs/ROADMAP.md` | Onde o jogo esta hoje, em numeros, e os marcos do que falta |
 | `docs/CONVENCOES.md` | Git, divisao de arquivos, estilo de codigo |
 | `docs/HANDOFF.md` | Passo a passo para quem nao conhece Godot nem Git |
 | `docs/BUILD.md` | Export Windows e web |
@@ -92,7 +97,8 @@ src/
   items/       efeito_item.gd + dados_item.gd, implante_*.tres,
                pool_loot.gd, pickup de item
   ui/          hud, barra_vida, barra_deterioracao, minimapa, tela_fim,
-               menu_inicial, menu_pausa, menu_opcoes
+               menu_inicial, menu_pausa, menu_opcoes, selecao_personagem,
+               moldura_hud (a moldura chanfrada), barra_atributo
   fx/          explosao, impacto
   util/        balistica (matematica da mira preditiva)
   main/        main.tscn — cena inicial
@@ -119,6 +125,8 @@ docs/
 | Dano, cadencia, municao, spread | `src/weapons/*.tres` |
 | **Personagem novo** | criar `src/player/personagem_*.tres` e por na lista `personagens` do no `SelecaoPersonagem` |
 | **Sprite, miniatura, escala e offset de um personagem** | grupo `Sprite` do `src/player/personagem_*.tres`; os PNGs em `assets/personagens/<id>/` |
+| **Moldura chanfrada de qualquer painel** | `@export` do no com `src/ui/moldura_hud.gd` (chanfro, cor, colchetes, margem) |
+| **A regua das barras do cartao de selecao** | as consts `*_CHEIO`/`*_CHEIA` em `src/weapons/dados_arma.gd` |
 | **Velocidade do ciclo de caminhada** | `fps_andando` no `src/player/personagem_*.tres` |
 | **Arte de animacao nova** | por o GIF em `animations/<id>/` e rodar `python tools/sprites/gerar_sprites.py` |
 | **Arma inicial, Hack e texto do card de um personagem** | `src/player/personagem_*.tres` |
@@ -347,6 +355,26 @@ em qualquer erro de script.
 - **Teste que le texto de tela tem de FIXAR o idioma.** `nome_fase()` passa por
   `tr()`: sem fixar, a suite passa na maquina de quem tem o SO em portugues e
   quebra no CI, que roda em ingles.
+- **A selecao de operador e um PAINEL do menu, nao uma tela.** Ela alterna
+  `visible` como o menu_opcoes, e por isso precisa de `abrir()`, `fechar()` e do
+  sinal `fechado`. O botao SAIR da barra de baixo existe para quem joga no
+  MOUSE: quem usa teclado sai pelo ESC, e sem o botao o jogador de mouse ficava
+  sem saida a nao ser escolher um operador.
+- **As barras do cartao de selecao medem a ARMA, nao a personagem.** RAVEN e
+  NOVA tem vida, velocidade e rolamento identicos de proposito; barras de
+  VIDA/DEFESA/AGILIDADE seriam quatro reguas dizendo "empate", ou quatro numeros
+  inventados. `DadosArma.perfil_*()` le o `.tres`, entao a barra nunca descola do
+  que a arma faz de fato.
+- **`MolduraHud` e MarginContainer, nao Control.** Como Control puro ela nao tem
+  altura minima vinda do conteudo: um cartao com `size_flags_vertical =
+  SHRINK_CENTER` nasce com altura ZERO e o conteudo inteiro vaza para fora da
+  borda. Sendo container ela cresce com o que esta dentro, e o `_draw` do pai
+  roda antes dos filhos, entao a borda fica atras do conteudo de graca.
+- **Retrato do cartao usa `miniatura.png`, nao o sprite de 80.** A moldura de 80
+  existe para o quadro mais largo do conjunto de rotacoes e deixa vazio dos dois
+  lados; no cartao o personagem sairia pequeno demais. O gerador recorta no
+  alpha e dobra -- 128 e o tamanho certo E escala inteira, a unica que nao borra
+  pixel art. Qualquer outra caixa que nao 128 reescala e borra.
 - **O sprite do jogador e IRMAO de `Visual`, nunca filho.** O no `Arma` mora em
   `Visual` na posicao (27, 0), e e a rotacao do `Visual` que faz a boca da arma
   orbitar o jogador. Por em `Visual` um sprite direcional o faria girar junto
@@ -444,11 +472,15 @@ pessoas sem nenhuma reclamacao e sinal fraco, entao a base foi validada de forma
 rasa. Se alguem apostar alto em cima disso -- reescrever o core loop, por
 exemplo -- vale lembrar uma vez que a validacao e magra. Fora isso, siga.
 
-A **Fase 3 (salas, itens e inimigos) esta bem adiantada**: o `GerenciadorMapa`
-sorteia um andar de 8–12 salas com ramos, liga as vizinhas por corredor
-atravessado a pe, faz lockdown por sala, e o andar tem sete tipos de inimigo,
-16 implantes e composicao decidida no layout. A ordem do roadmap manda a
-**Fase 2 (arte e som)** vir agora.
+**As fases numeradas nao existem mais.** O `ROADMAP.md` foi reescrito em marcos,
+porque o trabalho nao seguiu a ordem das fases: arte entrou no meio da Fase 3, a
+selecao de personagem entrou fora de qualquer fase, e dois itens da Fase 5 sairam
+sem ninguem abrir aquela secao. Se um pedido citar "Fase 2" ou "Fase 3", traduza
+para o marco do roadmap antes de agir.
+
+O marco atual e o **M1 -- o loop fecha**: creditos com ralo, loot dropado, loja e
+meta-progressao. A semente ja esta no codigo e parada: `GameState.creditos`
+acumula a cada abate e **nada consome**.
 
 A regra de escopo que continua valendo: **numero de balanceamento novo tem de
 nascer medivel**. As reguas de `tools/` existem para isso, e um botao que

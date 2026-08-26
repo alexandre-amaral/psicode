@@ -7,6 +7,10 @@ bg_color = Color(0.05, 0.05, 0.08, 0.85)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_Btn"]
 
+[sub_resource type="Theme" id="Theme_Opcoes"]
+default_font_size = 14
+Label/colors/font_color = Color(0.85, 0.85, 0.9, 1)
+
 [node name="MenuOpcoes" type="Control"]
 layout_mode = 3
 anchors_preset = 15
@@ -32,12 +36,13 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -176.0
-offset_top = -112.0
-offset_right = 176.0
-offset_bottom = 112.0
+offset_left = -190.0
+offset_top = -128.0
+offset_right = 190.0
+offset_bottom = 128.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = SubResource("Theme_Opcoes")
 theme_override_styles/panel = SubResource("StyleBoxFlat_Opcoes")
 
 [node name="Conteudo" type="VBoxContainer" parent="Painel"]
@@ -45,47 +50,61 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 20.0
+offset_left = 22.0
 offset_top = 16.0
-offset_right = -20.0
+offset_right = -22.0
 offset_bottom = -16.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 10
 
 [node name="Titulo" type="Label" parent="Painel/Conteudo"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.6, 0.2, 1)
-theme_override_font_sizes/font_size = 18
 text = "OPÇÕES"
 horizontal_alignment = 1
 
-[node name="TelaCheia" type="CheckButton" parent="Painel/Conteudo"]
-unique_name_in_owner = true
+[node name="LinhaTelaCheia" type="HBoxContainer" parent="Painel/Conteudo"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.85, 0.9, 1)
-theme_override_colors/font_focus_color = Color(1, 0.8, 0.4, 1)
-theme_override_colors/font_hover_color = Color(1, 0.8, 0.4, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_constants/separation = 12
+
+[node name="Rotulo" type="Label" parent="Painel/Conteudo/LinhaTelaCheia"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
 text = "Tela cheia"
 
-[node name="Shake" type="CheckButton" parent="Painel/Conteudo"]
+[node name="TelaCheia" type="CheckButton" parent="Painel/Conteudo/LinhaTelaCheia"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.85, 0.9, 1)
-theme_override_colors/font_focus_color = Color(1, 0.8, 0.4, 1)
-theme_override_colors/font_hover_color = Color(1, 0.8, 0.4, 1)
-theme_override_font_sizes/font_size = 14
+
+[node name="LinhaShake" type="HBoxContainer" parent="Painel/Conteudo"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Rotulo" type="Label" parent="Painel/Conteudo/LinhaShake"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
 text = "Tremor de câmera"
 
-[node name="Glitch" type="CheckButton" parent="Painel/Conteudo"]
+[node name="Shake" type="CheckButton" parent="Painel/Conteudo/LinhaShake"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.85, 0.9, 1)
-theme_override_colors/font_focus_color = Color(1, 0.8, 0.4, 1)
-theme_override_colors/font_hover_color = Color(1, 0.8, 0.4, 1)
-theme_override_font_sizes/font_size = 14
+
+[node name="LinhaGlitch" type="HBoxContainer" parent="Painel/Conteudo"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Rotulo" type="Label" parent="Painel/Conteudo/LinhaGlitch"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
 text = "Distorção visual"
+
+[node name="Glitch" type="CheckButton" parent="Painel/Conteudo/LinhaGlitch"]
+unique_name_in_owner = true
+layout_mode = 2
 
 [node name="LinhaIdioma" type="HBoxContainer" parent="Painel/Conteudo"]
 layout_mode = 2
@@ -94,6 +113,7 @@ theme_override_constants/separation = 12
 [node name="Rotulo" type="Label" parent="Painel/Conteudo/LinhaIdioma"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 1
 text = "Idioma"
 
 [node name="Idioma" type="OptionButton" parent="Painel/Conteudo/LinhaIdioma"]
@@ -101,7 +121,7 @@ unique_name_in_owner = true
 layout_mode = 2
 
 [node name="Espaco" type="Control" parent="Painel/Conteudo"]
-custom_minimum_size = Vector2(0, 8)
+custom_minimum_size = Vector2(0, 6)
 layout_mode = 2
 
 [node name="BtnVoltar" type="Button" parent="Painel/Conteudo"]
@@ -110,7 +130,6 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.6, 0.2, 1)
 theme_override_colors/font_focus_color = Color(1, 0.8, 0.4, 1)
 theme_override_colors/font_hover_color = Color(1, 0.8, 0.4, 1)
-theme_override_font_sizes/font_size = 16
 theme_override_styles/normal = SubResource("StyleBoxEmpty_Btn")
 theme_override_styles/hover = SubResource("StyleBoxEmpty_Btn")
 theme_override_styles/pressed = SubResource("StyleBoxEmpty_Btn")

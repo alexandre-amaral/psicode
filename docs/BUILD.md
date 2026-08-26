@@ -94,4 +94,4 @@ sem "confia em mim, pode abrir".
 O `.exe` de 100 MB é o normal do Godot: o executável carrega o runtime inteiro.
 Compactado em `.zip` cai bastante. Se isso incomodar depois, dá para compilar
 um template customizado sem os módulos que não usamos — mas é otimização para
-a Fase 5, não para agora.
+o marco de lançamento (M5 no [ROADMAP](ROADMAP.md)), não para agora.

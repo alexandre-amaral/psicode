@@ -34,9 +34,10 @@ menu — é o estado mental do personagem, e ele piora enquanto você joga.
 4. **Limpar a sala** — portas abrem, coletar loot, seguir
 5. **Morrer** — a consciência é restaurada num backup na base; gastar Núcleos de Memória em novos implantes para as próximas runs
 
-No vertical slice o passo 5 vira uma tela de fim, e a meta-progressão fica para
-depois. Os passos 1 a 4 já são literais: o andar tem 10 salas sorteadas, as
-portas trancam ao entrar e abrem quando a última ameaça cai.
+Hoje o passo 5 ainda é só uma tela de fim: os créditos são ganhos a cada abate
+mas nada os consome. Fechar esse passo é o **marco M1** do
+[ROADMAP](ROADMAP.md). Os passos 1 a 4 já são literais: o andar tem 10 salas
+sorteadas, as portas trancam ao entrar e abrem quando a última ameaça cai.
 
 ## 3. Mecânicas
 
@@ -90,9 +91,10 @@ A cor muda — âmbar quando o inimigo aponta, vermelho quando ele prevê.
 
 Pós-MVP: o jogo analisa o estilo do jogador (distância média e uso de esquiva)
 e popula as salas seguintes com composições que *counteram* essas estratégias,
-forçando adaptação. No vertical slice, a Diretora existe apenas como chefe.
+forçando adaptação. Hoje a Diretora existe apenas como chefe — o sistema
+heurístico é o marco **M4**.
 
-## 4. Escopo do vertical slice — **implementado**
+## 4. O que já está implementado
 
 | Item | Estado |
 |---|---|
@@ -132,16 +134,27 @@ telegrafo encurta com a fase mas nunca abaixo de 0,35 s. Na virada de fase há
 uma janela de alívio de 0,9 s — sem ela, a transição vira dano gratuito em
 cima de quem estava no meio de uma esquiva.
 
-## 5. Fora do escopo desta build
+## 5. Fora do escopo — hoje
 
-Meta-progressão e loja clandestina, implantes que substituem a esquiva, IA
-Diretora heurística de verdade, arte, som e música, mais de duas armas.
+> **Esta seção mudou de sentido.** Ela dizia "fora do escopo desta build",
+> quando o alvo era um vertical slice. **O alvo agora é lançamento comercial**
+> (ver [ROADMAP](ROADMAP.md)), então nada aqui está fora do escopo do PROJETO —
+> só ainda não foi feito.
 
-> Duas coisas saíram desta lista porque foram entregues: a **geração de salas**
-> e os **tipos adicionais de inimigo** — o andar tem sete, cada um com padrão de
-> ataque próprio. As duas estão no `ROADMAP.md`, Fase 3.
+Ainda não existe:
 
-Estão no [ROADMAP](ROADMAP.md).
+- **Som e música.** Nenhum. É o buraco mais visível do jogo hoje
+- **Meta-progressão e loja clandestina** — os créditos já são ganhos a cada
+  abate, mas nada os consome
+- **Implantes que substituem a esquiva** (dash cortante, jetpack, escudo)
+- **IA Diretora heurística de verdade** — hoje "Diretora" é só o nome do chefe
+- **Vários andares** — o gerador monta um só
+- **Gamepad e remapeamento**
+
+Já foi entregue e saiu desta lista: geração de salas, **oito** tipos de inimigo,
+arte (personagens com oito direções e ciclo de caminhada, texturas de sala,
+sprite do chefe), **quatro** armas de jogador, seleção de operador e dois
+idiomas.
 
 ## 6. Pergunta que esta build precisa responder
 

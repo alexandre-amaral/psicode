@@ -29,12 +29,15 @@ extends Node2D
 ## Quinta decisao: **o visual tambem nasce do contorno, em codigo.** Nenhuma
 ## cena de sala carrega textura. No _ready, ao lado da parede fisica, a sala
 ## monta o corpo da parede (o contorno inflado 24 px para fora, atras do chao),
-## o chao (o proprio contorno, texturizado com UV ancorada no CANTO), os props
-## e o filete de neon -- este ultimo em trechos que param nos vaos das portas,
-## exatamente os mesmos trechos que viram colisao. O Line2D "Parede" continua
-## sendo a fonte da geometria, mas fica invisivel em runtime: quem desenha sao
-## os trechos. Qual textura e cada uma, o DadosSala do tipo diz em
-## definir_visual(); sem dados (cena aberta sozinha), cai na variante `combate`.
+## o chao (o proprio contorno, texturizado com UV ancorada no CANTO) e os props.
+## O Line2D "Parede" continua sendo a fonte da geometria, mas fica invisivel em
+## runtime. Qual textura e cada uma, o DadosSala do tipo diz em definir_visual();
+## sem dados (cena aberta sozinha), cai na variante `combate`.
+##
+## Houve tambem um filete de neon correndo pelo contorno. Ele saiu quando a
+## parede ganhou textura propria: com as duas coisas na tela o neon virava uma
+## segunda borda desenhada por cima da primeira, e como a camera para no
+## contorno era o neon -- e nao a parede -- que encostava na beira do quadro.
 
 enum Estado { INATIVA, OCUPADA, LIMPA }
 
@@ -586,9 +589,8 @@ func _montar_paredes() -> void:
 
 
 ## Um lado do contorno vira um ou mais trechos, dependendo de quantas portas
-## abrem vao nele. Cada trecho e um par (inicio, fim). A mesma lista serve a
-## colisao e ao filete de neon: e por isso que o filete para no vao da porta
-## em vez de atravessa-lo -- ele segue a parede fisica, nao o desenho.
+## abrem vao nele. Cada trecho e um par (inicio, fim). E a lista da COLISAO: o
+## solido segue a parede fisica e para no vao da porta, em vez de atravessa-lo.
 func _subtrechos(inicio: Vector2, fim: Vector2) -> Array[PackedVector2Array]:
 	var trechos: Array[PackedVector2Array] = []
 	var comprimento := inicio.distance_to(fim)
@@ -653,7 +655,6 @@ func _montar_visual() -> void:
 	var ancora := _caixa_de(contorno).position
 	var textura_chao := _textura(&"chao")
 	var textura_parede := _textura(&"parede")
-	var textura_filete := _textura(&"filete")
 
 	var corpo := Polygon2D.new()
 	corpo.name = "ParedeCorpo"
@@ -671,44 +672,27 @@ func _montar_visual() -> void:
 	add_child(chao)
 	move_child(chao, 1)
 
-	_montar_obstaculos_visuais(textura_parede, textura_filete, ancora)
-	_montar_filete(textura_filete)
+	_montar_obstaculos_visuais(textura_parede, ancora)
+
+	# O Line2D "Parede" do .tscn nunca aparece em jogo: ele e a fonte da
+	# geometria -- colisao, camera, minimapa e o corpo acima leem os `points`
+	# dele -- e o que o editor mostra para quem desenha a sala. Desenha-lo
+	# atravessaria o vao das portas, porque os pontos nao podem ser mexidos sem
+	# mexer na colisao. Quem esconde e esta linha; antes era o _montar_filete,
+	# que ja nao existe.
+	var linha_fonte := get_node_or_null("Parede") as Line2D
+	if linha_fonte != null:
+		linha_fonte.visible = false
 
 
-## O filete de neon em trechos, um por segmento de colisao. O Line2D "Parede"
-## do .tscn fica invisivel: ele e a fonte da geometria (e o que o editor mostra
-## para quem desenha a sala), mas se fosse desenhado atravessaria o vao da
-## porta -- e nao da para mexer nos pontos dele sem mexer na colisao.
-func _montar_filete(textura: Texture2D) -> void:
-	var parede := get_node_or_null("Parede") as Line2D
-	if parede == null:
-		return
-	var pontos := _pontos_do_contorno()
-
-	var raiz := Node2D.new()
-	raiz.name = "Filete"
-	add_child(raiz)
-	move_child(raiz, 2)
-
-	for i in range(pontos.size() - 1):
-		for trecho in _subtrechos(pontos[i], pontos[i + 1]):
-			var linha := Line2D.new()
-			linha.points = trecho
-			linha.width = parede.width
-			# Tampa quadrada: nas quinas os dois trechos se sobrepoem e fecham o
-			# canto sem junta; no vao da porta, avancam meia largura e param.
-			linha.begin_cap_mode = Line2D.LINE_CAP_BOX
-			linha.end_cap_mode = Line2D.LINE_CAP_BOX
-			_texturizar_linha(linha, textura, parede.default_color)
-			raiz.add_child(linha)
-
-	parede.visible = false
-
-
-## Obstaculo solido (o pilar) recebe o mesmo corpo de parede e o mesmo filete,
-## lido da forma de colisao: sem isso ele seria o unico solido sem textura da
-## sala. So retangulo por enquanto -- e o unico que existe.
-func _montar_obstaculos_visuais(textura_parede: Texture2D, textura_filete: Texture2D, ancora: Vector2) -> void:
+## Obstaculo solido (o pilar) recebe o mesmo corpo de parede, lido da forma de
+## colisao: sem isso ele seria o unico solido sem textura da sala. So retangulo
+## por enquanto -- e o unico que existe.
+##
+## Ele perdeu a borda de neon junto com a parede. Manter so a do pilar deixaria
+## o unico objeto brilhante da sala sendo o obstaculo, o que le como "isto e
+## interativo" -- e ele e so um bloco.
+func _montar_obstaculos_visuais(textura_parede: Texture2D, ancora: Vector2) -> void:
 	var raiz := get_node_or_null("Obstaculos")
 	if raiz == null:
 		return
@@ -732,14 +716,6 @@ func _montar_obstaculos_visuais(textura_parede: Texture2D, textura_filete: Textu
 		_texturizar(bloco, textura_parede, ancora)
 		add_child(bloco)
 
-		var borda := Line2D.new()
-		borda.name = "ObstaculoFilete"
-		borda.points = pontos
-		borda.closed = true
-		borda.width = 8.0
-		_texturizar_linha(borda, textura_filete, COR_CHAO_EMERGENCIA)
-		add_child(borda)
-
 
 ## Textura repetida com UV em pixels, ancorada no canto do contorno. As duas
 ## armadilhas previstas moram aqui: sem texture_repeat a textura aparece UMA
@@ -757,16 +733,6 @@ func _texturizar(poligono: Polygon2D, textura: Texture2D, ancora: Vector2) -> vo
 	for ponto in poligono.polygon:
 		uv.append(ponto - ancora)
 	poligono.uv = uv
-
-
-func _texturizar_linha(linha: Line2D, textura: Texture2D, cor_sem_textura: Color) -> void:
-	if textura == null:
-		linha.default_color = cor_sem_textura
-		return
-	linha.texture = textura
-	linha.texture_mode = Line2D.LINE_TEXTURE_TILE
-	linha.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	linha.default_color = Color.WHITE
 
 
 ## Contorno inflado para fora. offset_polygon com JOIN_MITER e seguro porque
@@ -801,8 +767,6 @@ func _textura(familia: StringName) -> Texture2D:
 				textura = _dados_visual.textura_chao
 			&"parede":
 				textura = _dados_visual.textura_parede
-			&"filete":
-				textura = _dados_visual.textura_filete
 	if textura == null:
 		textura = load(TEXTURA_PADRAO % familia) as Texture2D
 	return textura

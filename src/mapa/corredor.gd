@@ -15,12 +15,9 @@ extends Node2D
 
 const TEXTURA_CHAO := "res://assets/texturas/chao_combate.png"
 const TEXTURA_PAREDE := "res://assets/texturas/parede_combate.png"
-const TEXTURA_FILETE := "res://assets/texturas/filete_combate.png"
-## Cores de emergencia, usadas so quando a textura nao carrega: o chao N1 e o
-## filete A2 da paleta combate (docs/IDENTIDADE_VISUAL.md).
+## Cor de emergencia, usada so quando a textura nao carrega: o chao N1 da
+## paleta combate (docs/IDENTIDADE_VISUAL.md).
 const COR_CHAO_EMERGENCIA := Color("0b0d16")
-const COR_FILETE_EMERGENCIA := Color("2a7285")
-const ESPESSURA_FILETE := 8.0
 ## Mesma faixa que Sala.ESPESSURA_PAREDE, para o corredor parecer construido
 ## do mesmo material. Recuada nas duas pontas para nao pintar por cima da
 ## parede da sala, que ja cobre esses 24 px.
@@ -113,24 +110,14 @@ func _montar_chao() -> void:
 	add_child(chao)
 
 
-## Cada lateral e desenho e barreira ao mesmo tempo: a linha da a leitura visual
-## e o segmento impede o jogador de escapar pelo lado do corredor.
+## Cada lateral e SO barreira: quem da a leitura visual e a faixa de parede
+## texturizada de `_montar_parede_corpo`, que ja cobre os mesmos 24 px.
+##
+## Ela tambem desenhava um filete de neon de 8 px por cima. Saiu junto com o das
+## salas: com a parede texturizada dos dois lados, o neon virava uma segunda
+## borda em cima da primeira -- e um corredor brilhando enquanto a sala nao
+## brilha le como se o corredor fosse o caminho certo.
 func _montar_lateral(inicio: Vector2, fim: Vector2) -> void:
-	var linha := Line2D.new()
-	linha.width = ESPESSURA_FILETE
-	linha.points = PackedVector2Array([inicio, fim])
-	# Sobe de volta ao nivel do chao das salas para a parede nao sumir na boca.
-	linha.z_index = 1
-	var textura := load(TEXTURA_FILETE) as Texture2D
-	if textura == null:
-		linha.default_color = COR_FILETE_EMERGENCIA
-	else:
-		linha.texture = textura
-		linha.texture_mode = Line2D.LINE_TEXTURE_TILE
-		linha.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-		linha.default_color = Color.WHITE
-	add_child(linha)
-
 	var corpo := StaticBody2D.new()
 	corpo.collision_layer = CAMADA_PAREDE
 	corpo.collision_mask = 0

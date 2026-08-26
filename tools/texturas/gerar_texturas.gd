@@ -31,7 +31,6 @@ const PASTA := "res://assets/texturas"
 const TILE := 32
 const TAMANHO_CHAO := 128
 const TAMANHO_PAREDE := 128
-const FILETE := Vector2i(32, 8)
 const PORTA_MOLDURA := Vector2i(96, 48)
 const PORTA_CAMPO := Vector2i(80, 32)
 const PROPS_ATLAS := Vector2i(256, 128)
@@ -44,7 +43,6 @@ const TIPOS: Array[StringName] = [&"combate", &"boss", &"arma", &"item", &"inici
 const SEEDS: Dictionary = {
 	&"chao": 1001,
 	&"parede": 2002,
-	&"filete": 3003,
 	&"porta_moldura": 4004,
 	&"porta_campo": 5005,
 	&"props_atlas": 6006,
@@ -65,7 +63,6 @@ static func nomes() -> Array[String]:
 	for tipo in TIPOS:
 		lista.append("chao_%s.png" % tipo)
 		lista.append("parede_%s.png" % tipo)
-		lista.append("filete_%s.png" % tipo)
 	lista.append("porta_moldura.png")
 	lista.append("porta_campo.png")
 	lista.append("props_atlas.png")
@@ -89,8 +86,6 @@ static func gerar(nome: String) -> Image:
 			return gerar_chao(tipo, SEEDS[&"chao"] + i)
 		if nome == "parede_%s.png" % tipo:
 			return gerar_parede(tipo, SEEDS[&"parede"] + i)
-		if nome == "filete_%s.png" % tipo:
-			return gerar_filete(tipo)
 	match nome:
 		"porta_moldura.png":
 			return gerar_porta_moldura()
@@ -223,26 +218,6 @@ static func gerar_parede(tipo: StringName, semente: int) -> Image:
 				_ret(img, ox + 11, oy + 13, 10, 6, a0)
 				_ret(img, ox + 12, oy + 14, 8, 4, a1)
 				_ret(img, ox + 13, oy + 15, 6, 1, a2)
-	return img
-
-
-# ---------------------------------------------------------------- filete -----
-
-## O neon da parede: A2 no miolo, A1 nas bordas, um entalhe A1 a cada 16 px
-## para o tubo parecer segmentado. Sem grao: e uma linha de 8 px, e ruido nela
-## viraria cintilacao ao mover a camera.
-static func gerar_filete(tipo: StringName) -> Image:
-	var img := _nova(FILETE.x, FILETE.y)
-	var a1 := Paleta.acento(tipo, &"A1")
-	var a2 := Paleta.acento(tipo, &"A2")
-	for y in FILETE.y:
-		for x in FILETE.x:
-			var cor := a2
-			if y == 0 or y == FILETE.y - 1:
-				cor = a1
-			elif x % 16 == 0:
-				cor = a1
-			_pintar(img, x, y, cor)
 	return img
 
 

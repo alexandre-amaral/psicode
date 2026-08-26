@@ -4,14 +4,15 @@
 
 [resource]
 script = ExtResource("1_dados")
-nome = "BRK-12 \"Corta-Fila\""
-descricao = "Doze fragmentos por disparo. Encosta e resolve. Munição é um problema seu."
+nome = "Shotgun \"Riot-12\""
+descricao = "Oito a dez fragmentos por disparo, e nunca a mesma conta. Encosta e resolve."
 dano = 2
 knockback = 300.0
 perfuracao = 1
 cadencia = 1.7
 automatica = false
 projeteis_por_tiro = 8
+projeteis_extra = 2
 abertura_graus = 34.0
 impressao_graus = 3.0
 velocidade_projetil = 780.0

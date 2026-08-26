@@ -41,6 +41,18 @@ var _t_contato: float = 0.0
 ## estado localmente de qualquer jeito. Nascer e morrer com o no e o
 ## comportamento certo.
 var _t_hack: float = 0.0
+## Doses de nanite acumuladas e o tempo que falta para o acumulo apodrecer.
+##
+## O nanite EMPILHA onde o Hack RENOVA, e a diferenca e o desenho da arma: o
+## Hack quer marcar um alvo, o nanite quer recompensar insistir no mesmo alvo.
+## Sem a janela de validade bastaria acertar cada inimigo uma vez por sala e
+## voltar depois -- o acumulo tem de ser um compromisso de tiro, nao de memoria.
+var _stacks_nanite: int = 0
+var _t_nanite: float = 0.0
+## Guardados na primeira dose: quem estoura e o inimigo, e a arma que semeou ja
+## nao existe mais nesse instante.
+var _dados_nanite: DadosArma = null
+var _cor_nanite: Color = Color.WHITE
 var _visual: Node2D
 var _corpo: Polygon2D
 var _tween_flash: Tween
@@ -70,6 +82,14 @@ func _physics_process(delta: float) -> void:
 		_t_hack = maxf(_t_hack - delta, 0.0)
 		if _t_hack <= 0.0:
 			_pintar_hack(false)
+
+	if _stacks_nanite > 0:
+		_t_nanite = maxf(_t_nanite - delta, 0.0)
+		if _t_nanite <= 0.0:
+			# Apodrece INTEIRO, nao de uma dose por vez: decaimento gradual faria
+			# o acumulo se sustentar sozinho com tiro esporadico, e a arma perde
+			# o que ela pede em troca -- foco no mesmo alvo.
+			_limpar_nanite()
 
 	_comportamento(delta)
 
@@ -225,6 +245,74 @@ func esta_hackeado() -> bool:
 	return _t_hack > 0.0
 
 
+## Deposita uma dose de nanite. Ao encher, consome tudo e estoura.
+##
+## Recebe o DadosArma inteiro porque o estouro le raio, dano e knockback dele --
+## e no instante do estouro o projetil que semeou ja morreu ha segundos.
+func aplicar_nanite(dados: DadosArma, tinta: Color) -> void:
+	if morto or dados == null or not dados.semeia_nanite():
+		return
+
+	_dados_nanite = dados
+	_cor_nanite = tinta
+	_stacks_nanite += 1
+	_t_nanite = dados.duracao_nanite
+	_pintar_nanite()
+
+	if _stacks_nanite >= dados.stacks_nanite:
+		_estourar_nanite()
+
+
+func stacks_de_nanite() -> int:
+	return _stacks_nanite
+
+
+## Troca o acumulo por uma explosao em area, centrada no proprio inimigo.
+##
+## Reusa a ExplosaoArea da Onda 2 inteira, com falloff e tudo: uma segunda
+## implementacao de dano em area seria um segundo conjunto de bugs para o mesmo
+## problema, e o falloff aqui tem o mesmo papel -- premiar quem juntou os
+## inimigos antes de encher o ultimo stack.
+func _estourar_nanite() -> void:
+	var dados := _dados_nanite
+	var tinta := _cor_nanite
+	# Zera ANTES de estourar: a explosao pode matar este inimigo, e um estouro
+	# que reentrasse aqui somaria dano em cima de um alvo que ja morreu.
+	_limpar_nanite()
+
+	var explosao := preload("res://src/projectiles/explosao_area.tscn").instantiate()
+	var pai := get_parent()
+	if pai == null:
+		pai = get_tree().current_scene
+	pai.add_child(explosao)
+	explosao.configurar(global_position, dados, tinta)
+
+
+func _limpar_nanite() -> void:
+	_stacks_nanite = 0
+	_t_nanite = 0.0
+	_dados_nanite = null
+	_pintar_nanite()
+
+
+## Escurece o corpo conforme o acumulo sobe.
+##
+## Vai no `_corpo.color` pelo mesmo motivo do tint de Hack -- `_visual.modulate`
+## e do clarao de dano e termina sempre em branco, apagando qualquer tint no
+## primeiro tiro. E ele SO pinta se nao houver Hack ativo: dois tints brigando
+## pelo mesmo canal deixariam a cor final dependendo da ordem das chamadas.
+func _pintar_nanite() -> void:
+	if _corpo == null or esta_hackeado():
+		return
+	if _stacks_nanite <= 0:
+		_corpo.color = cor_base
+		return
+	var fracao := 1.0
+	if _dados_nanite != null and _dados_nanite.stacks_nanite > 0:
+		fracao = float(_stacks_nanite) / float(_dados_nanite.stacks_nanite)
+	_corpo.color = cor_base.lerp(_cor_nanite, clampf(fracao, 0.0, 1.0) * 0.7)
+
+
 ## O Hack pula para o vizinho vivo mais proximo dentro do raio.
 ##
 ## A busca e por grupo, a excecao que o GEMINI.md sanciona: Sala._vivos nao
@@ -265,7 +353,13 @@ func _propagar_hack() -> void:
 func _pintar_hack(ligado: bool) -> void:
 	if _corpo == null:
 		return
-	_corpo.color = cor_base.lerp(COR_HACK, 0.55) if ligado else cor_base
+	if ligado:
+		_corpo.color = cor_base.lerp(COR_HACK, 0.55)
+		return
+	# Ao SAIR do Hack devolve o canal para o nanite, se houver acumulo. Voltar
+	# direto para cor_base apagaria o aviso de que o inimigo esta carregado --
+	# e a explosao chegaria sem leitura nenhuma.
+	_pintar_nanite()
 
 
 func _procurar_alvo() -> void:

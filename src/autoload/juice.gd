@@ -8,6 +8,22 @@ var _camera: Camera2D = null
 var _shake_intensidade: float = 0.0
 var _shake_decaimento: float = 0.0
 var _hitstop_ativo: bool = false
+## Quando o ultimo hitstop TERMINOU, em ms de relogio de parede.
+##
+## `_hitstop_ativo` sozinho impede EMPILHAR, mas nao impede ENCADEAR: uma fonte
+## de dano continuo -- o feixe do Laser Cutter, a shotgun encostada, o chefe
+## sendo metralhado -- pede um hitstop novo no instante em que o anterior
+## acaba, e o jogo fica presa em camera lenta permanente. Medido: o feixe
+## entregava 19 de dano onde o .tres pedia 26, porque ele atrasava a si mesmo.
+##
+## Relogio de PAREDE (`get_ticks_msec`) e nao um timer da arvore: o timer
+## andaria devagar durante o proprio hitstop, que e exatamente o intervalo que
+## se quer medir.
+var _fim_do_ultimo_hitstop: int = 0
+
+## Intervalo minimo entre dois hitstops. Acima disso o efeito continua sendo
+## pontuacao de impacto; abaixo, vira uma segunda velocidade de jogo.
+const INTERVALO_HITSTOP := 120
 
 ## Duas chaves, e nao uma, de proposito: sao efeitos diferentes.
 ##
@@ -59,6 +75,8 @@ func shake(intensidade: float, duracao: float = 0.25) -> void:
 func hitstop(duracao: float = 0.06, escala: float = 0.05) -> void:
 	if not hitstop_habilitado or _hitstop_ativo:
 		return
+	if Time.get_ticks_msec() - _fim_do_ultimo_hitstop < INTERVALO_HITSTOP:
+		return
 	_hitstop_ativo = true
 	Engine.time_scale = escala
 	# O 4o argumento (ignore_time_scale) e essencial: sem ele o proprio timer
@@ -66,11 +84,13 @@ func hitstop(duracao: float = 0.06, escala: float = 0.05) -> void:
 	await get_tree().create_timer(duracao, true, false, true).timeout
 	Engine.time_scale = 1.0
 	_hitstop_ativo = false
+	_fim_do_ultimo_hitstop = Time.get_ticks_msec()
 
 
 func resetar() -> void:
 	_shake_intensidade = 0.0
 	_hitstop_ativo = false
+	_fim_do_ultimo_hitstop = 0
 	Engine.time_scale = 1.0
 	if is_instance_valid(_camera):
 		_camera.offset = Vector2.ZERO

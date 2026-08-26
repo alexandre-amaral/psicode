@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+
+[resource]
+script = ExtResource("1_dados")
+descricao = "Um feixe contínuo enquanto o gatilho estiver apertado. Não dispara: queima, e o dano cresce com o tempo em cima do alvo."
+nome = "Cortador Laser"
+comportamento = 8
+dano = 3
+knockback = 0.0
+perfuracao = 0
+cadencia = 6.0
+automatica = true
+projeteis_por_tiro = 1
+projeteis_extra = 0
+abertura_graus = 0.0
+impressao_graus = 0.0
+dispersao_maxima_graus = 0.0
+dispersao_por_tiro = 0.0
+dispersao_recuperacao = 0.0
+velocidade_projetil = 2400.0
+alcance = 380.0
+raio_projetil = 3.0
+cor_projetil = Color(0.99, 0.28, 1, 1)
+dano_por_segundo = 26.0
+largura_feixe = 6.0
+municao_maxima = -1
+shake_intensidade = 0.6
+shake_duracao = 0.04
+recuo_player = 0.0
+tamanho_pente = 40
+tempo_recarga = 2.2

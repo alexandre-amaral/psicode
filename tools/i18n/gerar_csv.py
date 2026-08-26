@@ -84,6 +84,18 @@ UI = [
     # personagens -- o NOME nao entra: RAVEN e NOVA sao marcas, nao frases.
     ("Operadora de Combate", "Combat Operator"),
     ("Hacker Experimental", "Experimental Hacker"),
+    ('A granada crava onde bate e espera. Serve para preparar a esquina antes de o inimigo chegar nela.',
+     'The grenade sticks where it lands and waits. Good for priming a corner before the enemy reaches it.'),
+    ('Estoura na parede, não no alvo. Em sala apertada, o ricochete de energia alcança quem a linha reta não alcança.',
+     'It bursts on the wall, not on the target. In a tight room, the energy splash reaches what a straight line cannot.'),
+    ('Três projéteis que curvam atrás do inimigo mais próximo. Perdoam a mira torta, mas ainda perdem quem se desvia.',
+     'Three rounds that curve after the nearest enemy. They forgive crooked aim, but still lose whoever dodges.'),
+    ('O acerto salta para até três vizinhos, doendo menos a cada pulo. Recompensa atirar na aglomeração, não no alvo isolado.',
+     'The hit jumps to up to three neighbours, hurting less each leap. It rewards shooting into the crowd, not the lone target.'),
+    ('Cada acerto deposita uma dose. Na quinta o alvo estoura em área — se você insistir nele antes que as doses apodreçam.',
+     'Each hit plants a dose. On the fifth the target bursts in an area — if you keep at it before the doses rot away.'),
+    ('Um feixe contínuo enquanto o gatilho estiver apertado. Não dispara: queima, e o dano cresce com o tempo em cima do alvo.',
+     'A continuous beam while the trigger is held. It does not fire: it burns, and damage grows with time on target.'),
 ]
 
 # Implantes: nome e descricao de cada um.
@@ -143,15 +155,27 @@ ARMAS = [
      "Também não impressiona.",
      "Service pistol with a self-recharging power cell. Never runs out. "
      "Never impresses either."),
-    ("Doze fragmentos por disparo. Encosta e resolve. Munição é um problema seu.",
-     "Twelve fragments per shot. Get close and settle it. Ammo is your problem."),
+    ("Oito a dez fragmentos por disparo, e nunca a mesma conta. Encosta e resolve.",
+     "Eight to ten fragments per shot, and never the same count. Get close and settle it."),
     ("Cadência alta, dano baixo. Segurar o gatilho abre o tiro; soltar fecha de novo.",
      "High fire rate, low damage. Holding the trigger opens the spread; "
      "letting go closes it again."),
-    ("Disparo único, eletromagnético. Lenta, precisa, e o projétil chega antes "
-     "do alvo reagir.",
-     "Single shot, electromagnetic. Slow, precise, and the round lands before "
-     "the target reacts."),
+    ("Disparo único, eletromagnético. Atravessa um corpo, então um tiro pode "
+     "marcar dois.",
+     "Single shot, electromagnetic. It goes through one body, so a single shot "
+     "can mark two."),
+    ("Um trilho eletromagnético. Atravessa três corpos antes de parar, e "
+     "recompensa quem alinha a fila.",
+     "An electromagnetic rail. Punches through three bodies before stopping, "
+     "and rewards whoever lines them up."),
+    ("O tiro ignora parede. Dano menor em troca de acertar quem se escondeu "
+     "atrás do pilar.",
+     "The shot ignores walls. Less damage in exchange for hitting whoever hid "
+     "behind the pillar."),
+    ("Quase não machuca: arremessa. Serve para tirar inimigo de cima de você e "
+     "para juntar quem estava espalhado.",
+     "It barely hurts: it throws. Good for getting enemies off you, and for "
+     "bunching up whoever was spread out."),
 ]
 
 

@@ -25,10 +25,12 @@ atirando, em vez de andando, rolando ou esperando o telegrafo passar. Por isso
 ela não usa um valor só: varre 25% (quem joga com cautela), 40% e 55% (quem já
 decorou os padrões). Olhe a faixa inteira, não uma coluna.
 
-A outra régua mede quantos inimigos cada sala recebe:
+As outras duas réguas medem quantos inimigos cada sala recebe e como as armas
+se comparam entre si:
 
 ```bash
 godot --headless --path . tools/medir_composicao.tscn
+godot --headless --path . tools/medir_armas.tscn
 ```
 
 ---
@@ -180,21 +182,42 @@ arrasta para a lista `inimigos` do `tipo_combate.tres`.
 
 ## Armas
 
-`src/weapons/*.tres`.
+`src/weapons/*.tres`. São **13 armas do jogador** hoje, e nenhuma tabela escrita
+à mão sobrevive a esse número — rode a régua:
 
-| | Pistola (PST-9) | Shotgun (BRK-12) |
-|---|---|---|
-| Dano por projétil | 2 | 2 |
-| Projéteis por tiro | 1 | 8 |
-| Cadência | 6.5/s | 1.7/s |
-| Pente / recarga | 14 / 0.9 s | 6 / 1.5 s |
-| Alcance | 544 | **256** |
-| **DPS sustentado** | **9.17/s** | **19.09/s** |
+```bash
+godot --headless --path . tools/medir_armas.tscn
+```
 
-O DPS já desconta pente e recarga. O da shotgun supõe os **oito** fragmentos
-acertando — o que, com alcance 256, só acontece encostado. Essa é a troca que a
-pergunta 3 do playtest existe para checar: *"a shotgun valeu a pena pegar, ou
-você ficou na pistola?"*.
+Ela imprime três colunas, e as três decidem coisas diferentes:
+
+- **DPS de pico** ignora recarga. É o que o jogador sente na rajada.
+- **DPS sustentado** dilui a recarga no pente inteiro. É o que decide uma sala
+  longa, e é onde pente pequeno se paga ou não.
+- **Segundos para matar** converte o DPS na única pergunta que o jogador faz de
+  verdade, contra a vida real lida de cada cena de inimigo.
+
+O dano de cada arma mora num campo diferente — `dano`, `dano_explosao`,
+`dano_por_segundo` — e a régua sabe de qual ler. Ela também sorteia a contagem
+variável da Riot-12 em vez de supor o extremo.
+
+### O que ela disse hoje
+
+Faixa de DPS sustentado: **21.5** (Riot-12) a **1.2** (Gravity Gun), com dez
+armas entre 4 e 20. A dispersão é intencional nas duas pontas:
+
+- A **Gravity Gun** fica em último porque o valor dela está no `knockback`, que
+  nenhuma coluna mede. Tirar inimigo de cima de você não aparece como dano.
+- O **Boomer** (4.4) e o **Plasma Arc** (7.8) são medidos com **um** alvo. O
+  número real de uma granada no meio de três corpos é o triplo, e a régua não
+  tem como saber quantos corpos estavam lá.
+- A **corrente** do Volt Caster é medida no **teto** — os três elos só somam se
+  houver três corpos alinhados dentro de 130px.
+
+> **A vida do chefe continua fora da faixa.** A Diretora tem 300 de vida e leva
+> de **14 s** (Riot-12) a **68 s** (Boomer) para cair, sem contar a
+> Deterioração, que ainda multiplica isso. É o item que o `ROADMAP.md` já tinha
+> adiado, e agora ele tem número.
 
 > Dano é `int`. Um "+10%" em cima de dano 2 volta a ser 2 no arredondamento —
 > por isso os implantes têm `DANO` (soma) e `DANO_PERCENTUAL` (multiplica) como

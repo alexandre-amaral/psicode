@@ -18,6 +18,7 @@ const FOLGA_RICOCHETE := 3.0
 const ABERTURA_FRAGMENTO := 42.0
 
 const CENA_PROJETIL := preload("res://src/projectiles/projetil.tscn")
+const CENA_EXPLOSAO := preload("res://src/projectiles/explosao_area.tscn")
 
 var velocidade: Vector2 = Vector2.ZERO
 var dano: int = 1
@@ -39,6 +40,24 @@ var _dados: DadosArma = null
 var _vida_total: float = 2.0
 var _vida_restante: float = 2.0
 var _atingidos: Array[int] = []
+## Cache do comportamento, resolvido uma vez em configurar(). Ler o enum do
+## .tres a cada frame de fisica seria uma consulta a Resource por projetil por
+## frame, e o valor nao muda em voo.
+var _atravessa_parede: bool = false
+## Cache do comportamento explosivo, pela mesma razao: nao consultar o Resource
+## a cada frame de fisica por projetil em voo.
+var _explode: bool = false
+var _e_plasma: bool = false
+## Tempo restante do pavio. Negativo = a granada ainda esta voando.
+var _t_fuse: float = -1.0
+## Comportamentos da Onda 3, todos em cache pelo mesmo motivo dos anteriores:
+## nao consultar o Resource a cada frame de fisica, por projetil em voo.
+var _teleguiado: bool = false
+var _encadeia: bool = false
+var _semeia_nanite: bool = false
+## Alvo travado da Swarm. Guardar o no -- e nao so a posicao -- e o que faz a
+## curva continuar valendo enquanto o inimigo se mexe.
+var _alvo: Node2D = null
 var _rastro: Line2D
 var _forma: CollisionShape2D
 var _visual: Polygon2D
@@ -115,6 +134,13 @@ func configurar(
 	_vida_total = dados.alcance / maxf(vel, 1.0)
 	_vida_restante = _vida_total
 
+	_atravessa_parede = dados.comportamento == DadosArma.Comportamento.FANTASMA
+	_explode = dados.explode()
+	_e_plasma = dados.comportamento == DadosArma.Comportamento.PLASMA
+	_teleguiado = dados.e_teleguiado()
+	_encadeia = dados.encadeia()
+	_semeia_nanite = dados.semeia_nanite()
+
 	if hostil:
 		collision_layer = LAYER_PROJ_INIMIGO
 		collision_mask = LAYER_PLAYER | LAYER_PAREDE
@@ -128,6 +154,18 @@ func configurar(
 
 
 func _physics_process(delta: float) -> void:
+	# Granada cravada: nao anda, nao consulta parede e NAO gasta alcance. Sem
+	# esta saida antecipada o `_vida_restante` continuaria correndo e a granada
+	# sumiria antes de estourar -- o pavio viraria uma corrida contra o alcance.
+	if _t_fuse >= 0.0:
+		_t_fuse -= delta
+		if _t_fuse <= 0.0:
+			_detonar()
+		return
+
+	if _teleguiado:
+		_curvar(delta)
+
 	var anterior := global_position
 	global_position += velocidade * delta
 
@@ -142,14 +180,23 @@ func _physics_process(delta: float) -> void:
 	#
 	# O segundo: body_entered nao entrega a normal da superficie, e sem normal
 	# nao ha ricochete. O raycast entrega.
-	var batida := _raycast_parede(anterior, global_position)
-	if not batida.is_empty():
-		_ao_bater_na_parede(batida)
-		return
+	# FANTASMA nem consulta a parede: a arma existe para atacar quem esta atras
+	# do obstaculo, e o `alcance` continua sendo o freio -- ele vira TEMPO de voo
+	# logo abaixo, entao o tiro nao cruza o andar inteiro.
+	if not _atravessa_parede:
+		var batida := _raycast_parede(anterior, global_position)
+		if not batida.is_empty():
+			_ao_bater_na_parede(batida)
+			return
 
 	_vida_restante -= delta
 	if _vida_restante <= 0.0:
-		queue_free()
+		# Granada que nao encostou em nada ainda e uma granada: sumir no ar
+		# faria o tiro parecer engolido. Ela estoura onde o alcance acabou.
+		if _explode:
+			_detonar()
+		else:
+			queue_free()
 		return
 	_atualizar_rastro()
 	_aplicar_glitch()
@@ -167,6 +214,19 @@ func _raycast_parede(de: Vector2, para: Vector2) -> Dictionary:
 
 func _ao_bater_na_parede(batida: Dictionary) -> void:
 	global_position = batida["position"]
+
+	if _explode:
+		# Afasta pela NORMAL antes de estourar. E o que faz a explosao nascer NA
+		# face da parede e nao meio enterrada nela -- metade do raio dentro do
+		# solido nao alcanca ninguem, e a arma existe justamente para usar o
+		# corredor a favor.
+		global_position += batida["normal"] * raio
+		if _e_plasma:
+			_detonar()
+		else:
+			_cravar()
+		return
+
 	_impacto()
 
 	if ricochetes_restantes <= 0:
@@ -216,6 +276,14 @@ func _ao_encostar(corpo: Node) -> void:
 		return
 	_atingidos.append(id)
 
+	# A granada nao machuca ao encostar: ela CRAVA e o dano e a explosao. Dano de
+	# contato mais explosao faria o alvo colado tomar duas vezes pelo mesmo tiro,
+	# e o falloff -- que existe para premiar quem acerta no meio -- perderia o
+	# sentido.
+	if _explode and not _e_plasma:
+		_cravar()
+		return
+
 	var acertou := false
 	if corpo.has_method("receber_dano"):
 		acertou = corpo.receber_dano(_dano_no_alvo(corpo), velocidade.normalized() * knockback)
@@ -229,12 +297,155 @@ func _ao_encostar(corpo: Node) -> void:
 		Modificadores.registrar_acerto(id)
 		_tentar_hackear(corpo)
 		_tentar_fragmentar()
+		if _semeia_nanite:
+			_tentar_nanite(corpo)
+		if _encadeia:
+			_encadear(corpo)
 
 	_impacto()
 	if perfuracao_restante > 0:
 		perfuracao_restante -= 1
 	else:
 		queue_free()
+
+
+## Para no lugar e acende o pavio.
+func _cravar() -> void:
+	velocidade = Vector2.ZERO
+	_t_fuse = _dados.fuse if _dados != null else 0.0
+	# Pavio zero explode no mesmo frame, e e assim que uma arma pode declarar
+	# "estoura no impacto" sem precisar de comportamento proprio.
+	if _t_fuse <= 0.0:
+		_detonar()
+
+
+## Troca o projetil por uma ExplosaoArea e sai de cena.
+func _detonar() -> void:
+	if _dados != null:
+		var explosao := CENA_EXPLOSAO.instantiate()
+		# add_child ANTES de configurar: global_position so tem significado
+		# dentro da arvore. Mesma convencao do projetil.
+		var pai := get_parent()
+		if pai == null:
+			pai = get_tree().current_scene
+		pai.add_child(explosao)
+		explosao.configurar(global_position, _dados, cor)
+	queue_free()
+
+
+## Aponta a velocidade um pouco mais para o alvo, com teto de graus por segundo.
+##
+## O teto e a arma inteira. Sem ele o projetil gruda no inimigo e vira um tiro
+## que nao erra -- e o GDD e explicito em que dificuldade se le antes de doer.
+## Com teto, a Swarm perdoa a mira torta mas ainda perde o alvo que se desvia.
+func _curvar(delta: float) -> void:
+	if not is_instance_valid(_alvo):
+		_alvo = _procurar_alvo()
+	if _alvo == null:
+		return
+
+	var desejada := (_alvo.global_position - global_position).normalized()
+	if desejada == Vector2.ZERO:
+		return
+	var teto := deg_to_rad(_dados.curva_graus) * delta
+	# limit_angle_to() nao existe: e angle_to() + clamp + rotated(). Girar o
+	# VETOR e nao a posicao preserva a velocidade escalar, entao curvar nao
+	# acelera nem freia o projetil.
+	var giro := clampf(velocidade.angle_to(desejada), -teto, teto)
+	velocidade = velocidade.rotated(giro)
+
+
+## O inimigo vivo mais proximo dentro do raio de busca.
+##
+## Busca por grupo, a excecao que o GEMINI.md sanciona. Projetil hostil nao
+## procura: um Vigia com arma teleguiada teria mira perfeita atras do jogador,
+## e mira que nao erra e o oposto do telegrafo que o GDD exige.
+func _procurar_alvo() -> Node2D:
+	if hostil or _dados == null:
+		return null
+	var melhor: Node2D = null
+	var menor := _dados.raio_busca
+	for outro in get_tree().get_nodes_in_group("inimigo"):
+		var inimigo := outro as Node2D
+		if inimigo == null or not is_instance_valid(inimigo):
+			continue
+		if inimigo.get("morto") == true:
+			continue
+		var d := global_position.distance_to(inimigo.global_position)
+		if d < menor:
+			menor = d
+			melhor = inimigo
+	return melhor
+
+
+## Deposita uma dose de nanite em quem foi atingido.
+func _tentar_nanite(corpo: Node) -> void:
+	if not corpo.has_method("aplicar_nanite"):
+		return
+	corpo.aplicar_nanite(_dados, cor)
+
+
+## Salta o dano para os vizinhos vivos, um pulo por vez.
+##
+## Refaz a busca a cada salto a partir do ULTIMO atingido, e nao do ponto de
+## impacto: e o que faz a corrente serpentear por uma fila em vez de virar um
+## circulo de dano centrado no primeiro alvo -- que e o que ela seria se todos
+## os pulos medissem distancia da mesma origem.
+func _encadear(primeiro: Node) -> void:
+	var visitados: Array[int] = [primeiro.get_instance_id()]
+	var atual := primeiro as Node2D
+	if atual == null:
+		return
+	var pontos := PackedVector2Array([atual.global_position])
+	var dano_do_salto := float(_dano_no_alvo(primeiro))
+
+	for _i in _dados.saltos_corrente:
+		var proximo := _vizinho_mais_proximo(atual, visitados)
+		if proximo == null:
+			break
+		dano_do_salto *= _dados.decaimento_corrente
+		# Piso 1: salto que chega com dano zero le como corrente quebrada.
+		var final := maxi(roundi(dano_do_salto), 1)
+		var empurrao := (proximo.global_position - atual.global_position).normalized() * knockback
+		proximo.receber_dano(final, empurrao)
+		visitados.append(proximo.get_instance_id())
+		pontos.append(proximo.global_position)
+		atual = proximo
+
+	if pontos.size() > 1:
+		_desenhar_arco(pontos)
+
+
+func _vizinho_mais_proximo(de: Node2D, visitados: Array[int]) -> Node2D:
+	var melhor: Node2D = null
+	var menor := _dados.raio_corrente
+	for outro in get_tree().get_nodes_in_group("inimigo"):
+		var inimigo := outro as Node2D
+		if inimigo == null or not is_instance_valid(inimigo):
+			continue
+		if inimigo.get_instance_id() in visitados or inimigo.get("morto") == true:
+			continue
+		if not inimigo.has_method("receber_dano"):
+			continue
+		var d := de.global_position.distance_to(inimigo.global_position)
+		if d < menor:
+			menor = d
+			melhor = inimigo
+	return melhor
+
+
+## O risco que liga os alvos da corrente.
+##
+## Nasce na CENA e nao como filho do projetil, que morre no mesmo frame: filho
+## dele o arco sumiria antes de ser desenhado. Mesma licao que a AreaDePerigo do
+## Parasita ja registra sobre nascer no lugar certo.
+func _desenhar_arco(pontos: PackedVector2Array) -> void:
+	var arco := preload("res://src/projectiles/arco_eletrico.tscn").instantiate()
+	var pai := get_parent()
+	if pai == null:
+		pai = get_tree().current_scene
+	pai.add_child(arco)
+	arco.configurar(pontos, cor, _dados.largura_feixe)
 
 
 ## Dano ja com os bonus que dependem de QUEM foi atingido -- o resto do calculo

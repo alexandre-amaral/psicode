@@ -33,6 +33,8 @@ const SUITES := [
 	"res://tools/testes/teste_personagem.gd",
 	"res://tools/testes/teste_hack.gd",
 	"res://tools/testes/teste_traducao.gd",
+	"res://tools/testes/teste_explosao.gd",
+	"res://tools/testes/teste_comportamento_arma.gd",
 ]
 
 
@@ -67,7 +69,12 @@ func _rodar() -> void:
 			continue
 
 		var suite: TesteBase = script.new()
-		suite.executar()
+		# `await` e nao chamada direta: suite que precisa de passo de FISICA --
+		# a explosao, por exemplo, so enxerga um corpo depois que ele entrou no
+		# espaco -- tem de poder esperar. Sem isto o runner imprime o relatorio
+		# antes de a suite terminar, e as verificacoes dela somem da conta sem
+		# uma linha de erro. Suite sincrona nao paga nada por este await.
+		await suite.executar()
 
 		print("  %s" % suite.nome())
 		for linha in suite.relatorio():

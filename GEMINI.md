@@ -123,6 +123,8 @@ docs/
 | Quem pode nascer, e com que peso | `src/enemies/grupo_*.tres` |
 | Quanto a barra sobe ao limpar uma sala | `deterioracao_ao_limpar` em `src/mapa/tipo_*.tres` |
 | Dano, cadencia, municao, spread | `src/weapons/*.tres` |
+| **Arma que faz algo alem de tiro reto** | `comportamento` em `src/weapons/*.tres` (enum `DadosArma.Comportamento`) |
+| **Quanto a rajada da escopeta varia** | `projeteis_extra` em `src/weapons/*.tres`; zero = contagem fixa |
 | **Personagem novo** | criar `src/player/personagem_*.tres` e por na lista `personagens` do no `SelecaoPersonagem` |
 | **Sprite, miniatura, escala e offset de um personagem** | grupo `Sprite` do `src/player/personagem_*.tres`; os PNGs em `assets/personagens/<id>/` |
 | **Moldura chanfrada de qualquer painel** | `@export` do no com `src/ui/moldura_hud.gd` (chanfro, cor, colchetes, margem) |
@@ -307,6 +309,73 @@ em qualquer erro de script.
 - **Conecte o sinal ANTES de `equipar()`.** `equipar()` emite `municao_alterada`
   na hora; ligar o sinal depois perde esse primeiro aviso e a HUD fica com o
   texto que estava escrito na cena.
+- **Area que estoura NAO pode estourar no `_ready`.** A convencao do projeto e
+  `add_child` ANTES de `configurar` -- entao no `_ready` a `ExplosaoArea` ainda
+  esta em (0,0) com o raio padrao, e varre o lugar errado. A primeira versao
+  disfarcava com uma segunda varredura diferida, e "as vezes acerta" e PIOR que
+  "nunca acerta": passa no teste e falha na sala cheia, que e quando a granada
+  importa. Hoje o estouro sai de `configurar()` e e sincrono.
+- **`get_overlapping_bodies()` nao serve para explosao.** Ele responde com o
+  estado do ultimo passo de fisica, e a area nasceu NESTE frame -- no instante
+  do estouro ela nao existia para o servidor. Pior: quem ja esta dentro do raio
+  nunca *entra* nele, e e onde esta a maioria dos alvos. Use
+  `intersect_shape` no espaco direto. A mesma licao ja estava em
+  `AreaDePerigo._explodir()`.
+- **Granada nao machuca ao encostar.** Dano de contato MAIS explosao cobraria
+  duas vezes do alvo colado e apagaria o falloff, que existe justamente para
+  premiar quem acerta no meio do grupo. `EXPLOSIVO` crava e some; quem fere e a
+  explosao.
+- **Projetil explosivo tem de sair do alcance explodindo, nao sumindo.** O
+  `_vida_restante` chega a zero e faz `queue_free()` -- numa granada isso le
+  como tiro engolido. E o pavio aceso precisa de saida antecipada no
+  `_physics_process`, senao o alcance continua correndo por baixo e a granada
+  morre antes de estourar.
+- **Explosao na parede nasce afastada pela NORMAL.** Sem o `+ normal * raio` a
+  area nasce meio enterrada no solido, e metade do raio nao alcanca ninguem --
+  numa arma que existe para usar o corredor a favor.
+- **Suite de teste que precisa de passo de fisica exige `await` no runner.** Um
+  corpo recem-adicionado so entra no espaco no passo seguinte. O `runner.gd` faz
+  `await suite.executar()` por isso; sem o await ele imprime o relatorio antes
+  de a suite terminar e as verificacoes dela somem da conta, sem erro nenhum.
+- **Dano continuo encadeia hitstop e prende o jogo em camera lenta.** O
+  `_hitstop_ativo` do `Juice` impede EMPILHAR, mas nao impede o proximo tique
+  ligar outro no instante em que o anterior acaba -- e `receber_dano()` pede um
+  hitstop a CADA acerto. O feixe do Laser entregava 19 de dano onde o `.tres`
+  pedia 26, porque ele atrasava a si mesmo. Por isso existe
+  `Juice.INTERVALO_HITSTOP`, medido em relogio de PAREDE: um timer da arvore
+  andaria devagar durante o proprio hitstop, que e justo o intervalo em questao.
+- **Arma que le tempo tem de ler o delta da FISICA.** Quem puxa o gatilho e o
+  `_physics_process` do Player, entao `get_process_delta_time()` num efeito
+  continuo faz o dano por segundo depender do framerate. E o raycast do feixe
+  so faz sentido num passo de fisica de qualquer jeito.
+- **`_t_cadencia` ja e decrementado pelo `_process` da `Arma`.** Decrementar de
+  novo dentro de um caminho proprio (o do feixe fazia isso) drena o pente no
+  DOBRO da velocidade que o `.tres` pede, sem erro nenhum no console.
+- **Projetil teleguiado precisa de teto de graus por segundo.** Sem teto ele
+  gruda no alvo e vira um tiro que nao erra -- o oposto do que o GDD pede, que e
+  poder ler a ameaca antes de ela doer. O teto e `curva_graus`, e o
+  `teste_comportamento_arma.gd` exige que ele exista e seja finito.
+- **Projetil hostil NAO procura alvo.** `_procurar_alvo()` devolve `null` quando
+  `hostil` -- um Vigia com arma teleguiada teria mira perfeita atras do jogador.
+  E o mesmo portao que `Arma` ja aplica para os implantes.
+- **Corrente mede distancia a partir do ULTIMO atingido, nao do impacto.** Do
+  ponto de impacto ela vira um circulo de dano centrado no primeiro alvo; do
+  ultimo elo ela serpenteia por uma fila, que e o que a arma promete.
+- **Nanite EMPILHA onde o Hack RENOVA.** Sao efeitos com desenhos opostos, e por
+  isso nao compartilham codigo: o Hack quer marcar um alvo, o nanite quer
+  recompensar insistir nele. O acumulo apodrece INTEIRO ao expirar -- decaimento
+  dose a dose se sustentaria com tiro esporadico e a arma perderia o que pede em
+  troca.
+- **Dois tints brigam pelo mesmo `_corpo.color`.** Hack e nanite escrevem no
+  mesmo canal, entao a cor final dependeria da ordem das chamadas. O nanite so
+  pinta se nao houver Hack ativo, e `_pintar_hack(false)` DEVOLVE o canal ao
+  nanite ao sair -- voltar direto para `cor_base` apagaria o aviso de que o
+  inimigo esta carregado, e a explosao chegaria sem leitura nenhuma.
+- **Arco e feixe nascem na CENA, nunca como filhos de quem os criou.** O
+  projetil morre no mesmo frame do acerto e levaria o arco junto antes de
+  alguem ver. Mesma licao da `AreaDePerigo` do Parasita.
+- **`Arma` nao tem cena.** E `class_name Arma extends Node2D`, script puro
+  pendurado num no dentro de outras cenas -- nao existe `arma.tscn`.
 - **Quem hospeda a run e dono de `GameState.iniciar_run()`/`terminar_run()`.**
   Perder essa chamada desliga a Deterioracao passiva sem erro nenhum no console.
 - **Textura em `Polygon2D` nao repete sozinha.** O projeto nao define
@@ -333,6 +402,17 @@ em qualquer erro de script.
   em `paleta.gd` ou um traco em `gerar_texturas.gd`? Rode o gerador e o
   `--import` de novo, senao a suite reprova com "gerou e esqueceu de rodar?".
 
+- **`DadosArma.Comportamento` e gravado como INT no .tres.** Valor novo entra
+  sempre NO FIM do enum; inserir no meio reescreve em silencio o significado de
+  toda arma ja salva. Mesma armadilha que ja vale para `DadosItem`.
+- **Teste que monta um `container_projeteis` tem de liberar com `free()`.** A
+  suite roda inteira num frame, entao um `queue_free()` deixa o container no
+  grupo e os casos SEGUINTES pedem `get_first_node_in_group` e recebem aquele --
+  contando zero no proprio. Sintoma: testes que passavam comecam a devolver 0
+  projeteis assim que um caso novo entra antes deles.
+- **Arma semiautomatica precisa de `atualizar_gatilho(false)` entre os tiros num
+  harness.** `pode_atirar()` exige `_gatilho_solto`, entao sem soltar so o
+  PRIMEIRO disparo sai -- e a medicao passa achando que mediu 40 amostras.
 - **A CHAVE de traducao e o proprio texto em portugues.** Nao ha codigo tipo
   `ITEM_NUCLEO_NOME`: o `.tres` guarda "Nucleo de Reserva" e a tabela mapeia
   para "Reserve Core". Isso mantem o Inspetor legivel e faz o portugues rodar

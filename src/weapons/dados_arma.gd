@@ -7,8 +7,45 @@ extends Resource
 ## Para criar uma arma: clique direito em src/weapons > Novo Recurso >
 ## DadosArma, salve como .tres, ajuste os campos.
 
+## O que a arma faz ALEM de cuspir um projetil reto.
+##
+## Mesmo molde de DadosItem.Comportamento, e pelo mesmo motivo: os numeros da
+## arma sao declarativos e cabem num .tres, mas ricochetear, explodir ou
+## perseguir e comportamento -- e comportamento custa codigo em quem sofre o
+## efeito. O enum e a costura entre as duas metades.
+##
+## **Valor novo entra sempre NO FIM.** O enum e gravado como INT no .tres
+## (`comportamento = 3`); inserir no meio reescreve em silencio o significado de
+## toda arma ja salva. E a mesma armadilha que o GEMINI.md registra para
+## DadosItem.
+enum Comportamento {
+	## Projetil reto. E o que todas as armas foram ate agora.
+	NENHUM,
+	## Atravessa parede. `alcance` continua limitando, porque ele vira TEMPO de
+	## voo -- entao o projetil nao cruza o andar inteiro.
+	FANTASMA,
+	## Empurra muito e machuca pouco: o dano esta no `knockback`, nao no `dano`.
+	GRAVIDADE,
+	## Para no impacto, espera `fuse` e explode em area.
+	EXPLOSIVO,
+	## Explode ao bater na PAREDE, orientado pela normal da superficie.
+	PLASMA,
+	## Curva atras do inimigo mais proximo, com teto de graus por segundo.
+	TELEGUIADO,
+	## Salta entre inimigos proximos, sem repetir alvo.
+	CORRENTE,
+	## Acumula cargas no alvo; ao encher, consome e detona.
+	NANITE,
+	## Feixe continuo enquanto o gatilho estiver pressionado. Nao instancia
+	## projetil nenhum.
+	FEIXE,
+}
+
 @export var nome: String = "Arma"
 @export_multiline var descricao: String = ""
+
+@export_group("Comportamento")
+@export var comportamento: Comportamento = Comportamento.NENHUM
 
 @export_group("Dano")
 ## Dano por projetil. A shotgun compensa dano baixo com muitos projeteis.
@@ -25,6 +62,13 @@ extends Resource
 
 @export_group("Projetil")
 @export var projeteis_por_tiro: int = 1
+## Quantos projeteis A MAIS o tiro pode soltar, sorteado a cada disparo.
+##
+## Zero deixa a contagem fixa, que e como todas as armas antigas se comportam.
+## A Riot-12 usa 2 para variar entre 8 e 10 por rajada: contagem fixa faz cada
+## disparo de escopeta parecer igual ao anterior, e o que se quer da escopeta e
+## justamente nao saber quanto vai sair.
+@export var projeteis_extra: int = 0
 ## Abertura total do leque, em graus. Zero = tiro reto.
 @export var abertura_graus: float = 0.0
 ## Espalhamento aleatorio adicional aplicado a cada projetil, em graus.
@@ -47,6 +91,53 @@ extends Resource
 @export var alcance: float = 544.0
 @export var raio_projetil: float = 4.0
 @export var cor_projetil: Color = Color("6ee7ff")
+
+@export_group("Explosao")
+## Valem para EXPLOSIVO (a granada) e PLASMA (o estouro na parede). Sao quatro
+## numeros separados de proposito, e nao um "poder de explosao": assim um item
+## pode mexer no RAIO sem mexer no dano, ou no knockback sem mexer em nenhum dos
+## dois. Foi o pedido explicito de quem desenhou as armas.
+@export var raio_explosao: float = 90.0
+@export var dano_explosao: int = 4
+@export var knockback_explosao: float = 260.0
+## Quanto a granada espera parada antes de estourar. Zero explode no impacto,
+## que e como o PLASMA se comporta.
+@export var fuse: float = 0.6
+
+@export_group("Teleguiado")
+## Ate onde a Swarm ENXERGA. Fora deste raio ela voa reto, e e o que a impede de
+## virar uma arma que acerta sozinha do outro lado do andar.
+@export var raio_busca: float = 260.0
+## Teto de curva, em graus por segundo. E o unico botao que separa "teleguiado
+## justo" de "teleguiado que nunca erra": com curva infinita o projetil gruda no
+## alvo e o inimigo perde a chance de se desviar. Baixo demais e ele voa reto.
+@export var curva_graus: float = 260.0
+
+@export_group("Corrente")
+## Quantos PULOS depois do alvo original. Zero desliga a corrente.
+@export var saltos_corrente: int = 0
+## Ate onde cada pulo procura o proximo corpo.
+@export var raio_corrente: float = 130.0
+## Quanto do dano sobra a cada pulo. Sem decaimento a corrente vira dano em area
+## disfarcado, e a arma deixaria de recompensar quem atira na aglomeracao certa.
+@export var decaimento_corrente: float = 0.6
+
+@export_group("Nanite")
+## Quantas doses o alvo aguenta antes de estourar. Ao contrario do Hack -- que
+## RENOVA o tempo -- o nanite EMPILHA: e a diferenca entre um efeito que so
+## marca e um efeito que recompensa insistir no mesmo alvo.
+@export var stacks_nanite: int = 0
+## Quanto tempo uma dose dura sem reforco. Passou disso, o acumulo zera inteiro:
+## sem essa janela bastaria acertar o mesmo inimigo uma vez por sala.
+@export var duracao_nanite: float = 4.0
+
+@export_group("Feixe")
+## Dano por SEGUNDO do feixe continuo, e nao por tiro: o Laser nao dispara, ele
+## fica ligado. `dano` continua existindo para os testes e para os implantes,
+## mas quem manda no feixe e este numero.
+@export var dano_por_segundo: float = 14.0
+## Largura do risco na tela. So visual -- o acerto sai de um raycast.
+@export var largura_feixe: float = 5.0
 
 @export_group("Municao")
 ## Quantos tiros cabem no pente antes de precisar recarregar. Zero nao existe:
@@ -81,6 +172,43 @@ func pente() -> int:
 
 func intervalo() -> float:
 	return 1.0 / maxf(cadencia, 0.01)
+
+
+## Quantos projeteis ESTE disparo solta. Sorteia dentro da faixa quando a arma
+## declara variacao; do contrario devolve o numero fixo.
+func sortear_projeteis() -> int:
+	var base := maxi(projeteis_por_tiro, 1)
+	if projeteis_extra <= 0:
+		return base
+	return base + randi_range(0, projeteis_extra)
+
+
+## Se a arma dispensa o projetil comum. Hoje so o FEIXE -- e e por isso que ele
+## e o unico que precisa de um caminho proprio em Arma.
+func e_feixe() -> bool:
+	return comportamento == Comportamento.FEIXE
+
+
+## Se o projetil desta arma termina em explosao de area.
+func explode() -> bool:
+	return comportamento == Comportamento.EXPLOSIVO or comportamento == Comportamento.PLASMA
+
+
+## Se o projetil desta arma curva atras do alvo.
+func e_teleguiado() -> bool:
+	return comportamento == Comportamento.TELEGUIADO
+
+
+## Se o acerto salta para os vizinhos. Exige salto configurado: comportamento
+## CORRENTE com `saltos_corrente` zero seria uma arma comum que se anuncia como
+## corrente, e o teste de contrato recusa.
+func encadeia() -> bool:
+	return comportamento == Comportamento.CORRENTE and saltos_corrente > 0
+
+
+## Se o acerto deposita doses que estouram ao acumular.
+func semeia_nanite() -> bool:
+	return comportamento == Comportamento.NANITE and stacks_nanite > 0
 
 
 # ------------------------------------------------------- perfil da arma ------

@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+
+[resource]
+script = ExtResource("1_dados")
+descricao = "Três projéteis que curvam atrás do inimigo mais próximo. Perdoam a mira torta, mas ainda perdem quem se desvia."
+nome = "Enxame \"Swarm\""
+comportamento = 5
+dano = 2
+knockback = 20.0
+perfuracao = 0
+cadencia = 3.2
+automatica = true
+projeteis_por_tiro = 3
+projeteis_extra = 0
+abertura_graus = 26.0
+impressao_graus = 4.0
+dispersao_maxima_graus = 0.0
+dispersao_por_tiro = 0.0
+dispersao_recuperacao = 0.0
+velocidade_projetil = 380.0
+alcance = 620.0
+raio_projetil = 3.0
+cor_projetil = Color(0.57, 1, 0.28, 1)
+raio_busca = 260.0
+curva_graus = 260.0
+municao_maxima = -1
+shake_intensidade = 1.0
+shake_duracao = 0.05
+recuo_player = 6.0
+tamanho_pente = 24
+tempo_recarga = 1.6

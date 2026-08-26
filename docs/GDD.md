@@ -121,18 +121,71 @@ heurístico é o marco **M4**.
 Conceito: até agora a Deterioração mexia nos inimigos; agora ela tem corpo.
 
 Orbita o centro da arena — não persegue, porque um sistema não corre atrás de
-você. Três fases por faixa de vida, com repertório crescente:
+você. **Quatro** fases por faixa de vida, com repertório crescente:
 
 | Fase | Vida | Repertório |
 |---|---|---|
-| 1 | 100–66% | Disparo preditivo triplo, invocação de Rastejantes |
-| 2 | 66–33% | + salva radial, passa a invocar Vigias |
-| 3 | 33–0% | + espiral de dois braços, telegrafos mais curtos, respiro menor |
+| 1 | 100–66% | Protocolo de Supressão, Enxame (Rastejantes) |
+| 2 | 66–33% | + salva radial, + Rede de Extermínio, passa a chamar Vigias |
+| 3 | 33–15% | + espiral de dois braços, + Sobrecarga do Núcleo, + Drones Aranha |
+| 4 | 15–0% | **Diretora Absoluta** — ela ancora e a arena ataca |
 
 **Todo ataque tem telegrafo** (laser, anel de aviso expandindo, ou clarão), e o
 telegrafo encurta com a fase mas nunca abaixo de 0,35 s. Na virada de fase há
 uma janela de alívio de 0,9 s — sem ela, a transição vira dano gratuito em
 cima de quem estava no meio de uma esquiva.
+
+**Ela lê o jogador.** Um `PerfilJogador` acumula três coisas — para que lado
+ele desvia da linha de tiro, a que distância costuma ficar, e quanto do tempo
+passa parado — e é isso, e não um sorteio, que escolhe o próximo ataque:
+distância vira ataque que fecha espaço, proximidade vira ataque circular, ficar
+parado vira Enxame em cima de você. Enquanto a amostra é curta ela **não**
+corrige: punir um hábito que o jogador ainda não teve chance de formar não é
+leitura, é adivinhação com cara de leitura.
+
+Na fase 4 ela diz *"Recalculando..."*, fica vulnerável por 1,5 s, **esquece o
+que aprendeu** e para de orbitar. Daí em diante quem ataca é a sala: torres
+sobem do chão nas quinas e a Rede passa a rodar de fundo. O corpo deixa de
+bastar, e ela deixa de precisar de um.
+
+---
+
+### A identidade da Diretora: o que não pode mudar
+
+Ela é a peça mais fácil do jogo de descaracterizar sem ninguém notar — basta
+uma "melhoria" de movimentação, um telegrafo encurtado num ajuste de
+dificuldade, um ataque novo que não deixa saída. Nada disso gera erro.
+
+`tools/testes/teste_diretora.gd` é o portão executável dessas travas; esta
+seção é o par em prosa dele. **O teste recusa, o GDD explica por quê.**
+
+| # | Trava | De onde vem |
+|---|---|---|
+| 1 | Todo ataque declara telegrafo > 0 | *"Bullet hell só é justo se dá para ler a intenção antes do projétil existir"* |
+| 2 | O telegrafo nunca cai abaixo de 0,35 s | esta seção, acima |
+| 3 | O telegrafo encurta a cada fase, e nunca zera | *"encurta com a fase, nunca some"* |
+| 4 | O repertório só cresce; nenhuma fase remove um padrão | a tabela de fases acima |
+| 5 | A virada de fase dá ≥ 0,9 s de alívio | esta seção, acima |
+| 6 | Nenhum ataque fecha a arena inteira | *"a explosão deixa apenas uma pequena área segura próxima ao núcleo"* |
+| 7 | Ela **nunca persegue** — a trajetória não depende de onde o jogador está | *"um sistema não corre atrás de você"* |
+| 8 | A mira preditiva dela independe da barra de Deterioração | *"ela É a Deterioração"* |
+| 9 | O perfil é usado de fato: com viés lido ela corrige, sem confiança não | *"PADRÃO IDENTIFICADO / CORREÇÃO APLICADA"* |
+| 10 | Invocado não segura a vitória; o Hack atravessa o chefe | duas armadilhas já registradas no `GEMINI.md` |
+
+A trava **7** é a que mais protege a ficção e a mais barata de perder: trocar a
+órbita por `direcao_para_alvo()` transformaria a Diretora num Rastejante de 300
+de vida, e o jogo continuaria rodando, e o teste de fumaça continuaria verde.
+
+A trava **6** é a que autoriza os ataques grandes a serem grandes. A Sobrecarga
+pode cobrir quase a arena inteira **porque** a coroa junto do núcleo é segura —
+e essa inversão (correr *para* o perigo) é o que faz o momento ser lembrado.
+Ataque que devolvesse zero aberturas seria dano inevitável **com** telegrafo, e
+ler a intenção sem poder agir sobre ela é pior do que não ler.
+
+O que a suíte deliberadamente **não** trava é a duração da luta. A faixa boa é
+60–90 s, mas o projeto já decidiu que o tempo é dominado pelo *uptime* e não
+pela vida, e que a resposta vem da tela de fim e do playtest. Travar duração ali
+seria trocar um chute por outro, com a autoridade de um teste verde.
 
 ## 5. Fora do escopo — hoje
 

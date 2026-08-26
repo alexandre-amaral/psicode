@@ -65,6 +65,19 @@ const ATOR: Dictionary = {
 	&"cyber_besta": Color(1.0, 0.45, 0.2),
 	&"hacker_parasita": Color(0.55, 1.0, 0.45),
 	&"diretora": Color(0.85, 0.25, 0.85),
+	# O ponto de energia da Sobrecarga. Ambar de proposito: dentro da sala do
+	# chefe tudo o mais e magenta (ela, 300 graus), rosa (o tiro dela, 336) e
+	# roxo (a salva, 263), e o chao e a rampa `boss` rebaixada. O ambar fica a
+	# ~250 graus de distancia de todos eles, que e o que importa -- a paleta e
+	# global, mas a LEITURA e por sala. Ele divide faixa com o tiro da Mantis, e
+	# a separacao ali e de FORMA: um hexagono parado de 26 px nao se confunde
+	# com um projetil, do mesmo jeito que o drone_aranha divide o laranja com o
+	# proprio tiro dele.
+	&"nucleo_sobrecarga": Color(1.0, 0.82, 0.25),
+	# A torre da fase Absoluta usa o roxo da SALVA dela, e nao uma cor propria:
+	# a torre nao e um inimigo novo, e a Diretora saindo pelo chao. Cor propria
+	# diria ao jogador que apareceu outra coisa na sala.
+	&"torre_diretora": Color(0.6, 0.35, 1.0),
 	&"tiro_pistola": Color(0.43, 0.9, 1.0),
 	&"tiro_shotgun": Color(1.0, 0.72, 0.29),
 	&"tiro_mantis": Color(1.0, 0.93, 0.25),

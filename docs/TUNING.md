@@ -118,6 +118,8 @@ barato demais e a virada não dói; caro demais e ela vira dano inescapável.
 | Cyber-Besta | 8 | 88 | 12 | 3 | 18 | a leitura — investida em linha, direção travada |
 | Hacker Parasita | 6 | 110 | 10 | 3 | 24 | a atenção — cobra por ser ignorado |
 | Diretora | **300** | 60 | 100 | 1 | — | (sozinha na sala) |
+| Núcleo de Sobrecarga | 12 | 0 | 4 | — | — | nasce só pela Diretora; não machuca |
+| Torre da arena | 18 | 0 | 8 | — | — | nasce só na fase Absoluta, teto de 3 vivas |
 
 **A coluna `Porta`** é o campo `deterioracao_minima` do `grupo_*.tres`: a partir
 de que Deterioração **estimada** aquele inimigo entra no sorteio. É o que faz o
@@ -213,6 +215,31 @@ armas entre 4 e 20. A dispersão é intencional nas duas pontas:
   tem como saber quantos corpos estavam lá.
 - A **corrente** do Volt Caster é medida no **teto** — os três elos só somam se
   houver três corpos alinhados dentro de 130px.
+
+### Os botões da Diretora
+
+Todos em `src/enemies/diretora.gd` (`@export` e consts do topo):
+
+| Botão | Hoje | O que muda |
+|---|---|---|
+| `disparos_supressao` | 3 | Tamanho da rajada. O **primeiro** nunca é corrigido |
+| `correcao_supressao` | 130 px | Quanto ela antecipa o lado da esquiva, com confiança cheia |
+| `atraso_do_pulso` / `forca_do_pulso` | 1,6 s / 520 | Quando e com que força o Enxame converge |
+| `FAIXAS_REDE` / `LARGURA_FAIXA` | 3 / 48 px | Densidade da Rede. Vãos = `(FAIXAS+1)²`, sempre |
+| `NUCLEOS_SOBRECARGA` | 4 | Quantos pontos o jogador pode derrubar para enfraquecer o estouro |
+| `RAIO_SEGURO_SOBRECARGA` | 132 px | A coroa segura. **Nunca zero** — é a trava 6 |
+| `FRACAO_ABSOLUTA` | 0,15 | Em que fração de vida a arena assume |
+| `MAX_TORRES` / `INTERVALO_TORRE` | 3 / 4,5 s | Teto e cadência das torres. Sem teto, a luta não termina |
+| `PerfilJogador.SEGUNDOS_PARA_CONFIANCA` | 2,5 s | Quanto ela precisa ver antes de corrigir |
+| `PerfilJogador.MEIA_VIDA` | 3,0 s | Em quanto tempo o jogador consegue **quebrar** a leitura |
+
+> **O corpo dela cresceu, e a luta tende a encurtar.** A colisão saiu de raio 44
+> para 72 (o desenho tinha 47 px contra uma hitbox de 88 — metade do que
+> acertava era invisível). Alvo 1,64× maior em raio é alvo mais fácil de
+> acertar. A régua `medir_ritmo` calcula HP ÷ DPS ÷ uptime e **não modela área
+> de acerto**, então ela não enxerga isso: quem responde é o `LUTA DO CHEFE` da
+> tela de fim. Se vier abaixo de 60 s para a maioria, aí sim os 300 HP viram
+> conversa.
 
 > **A vida do chefe continua fora da faixa.** A Diretora tem 300 de vida e leva
 > de **14 s** (Riot-12) a **68 s** (Boomer) para cair, sem contar a

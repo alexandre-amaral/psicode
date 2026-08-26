@@ -6,7 +6,6 @@
 collision_layer = 16
 collision_mask = 1
 monitoring = false
-z_index = -4
 script = ExtResource("1_area")
 
 [node name="Forma" type="CollisionShape2D" parent="."]

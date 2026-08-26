@@ -1,8 +1,25 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=22 format=3]
 
 [ext_resource type="Script" path="res://src/enemies/drone_aranha.gd" id="1_s"]
 [ext_resource type="Script" path="res://src/weapons/arma.gd" id="2_arma"]
 [ext_resource type="Resource" path="res://src/weapons/tiro_drone.tres" id="3_tiro"]
+[ext_resource type="Script" path="res://src/enemies/sprite_direcional.gd" id="4_sprite"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/drone_aranha/east.png" id="10_east"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/drone_aranha/south-east.png" id="11_south_east"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/drone_aranha/south.png" id="12_south"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/drone_aranha/south-west.png" id="13_south_west"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/drone_aranha/west.png" id="14_west"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/drone_aranha/north-west.png" id="15_north_west"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/drone_aranha/north.png" id="16_north"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/drone_aranha/north-east.png" id="17_north_east"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/drone_aranha/andar_east.png" id="20_a_east"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/drone_aranha/andar_south-east.png" id="21_a_south_east"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/drone_aranha/andar_south.png" id="22_a_south"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/drone_aranha/andar_south-west.png" id="23_a_south_west"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/drone_aranha/andar_west.png" id="24_a_west"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/drone_aranha/andar_north-west.png" id="25_a_north_west"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/drone_aranha/andar_north.png" id="26_a_north"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/drone_aranha/andar_north-east.png" id="27_a_north_east"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_drone"]
 radius = 15.0
@@ -29,29 +46,14 @@ polygon = PackedVector2Array(72.0, 0.0, 68.5, 22.2, 58.2, 42.3, 42.3, 58.2, 22.2
 
 [node name="Visual" type="Node2D" parent="."]
 
-[node name="Corpo" type="Polygon2D" parent="Visual"]
-color = Color(1, 0.55, 0.2, 1)
-polygon = PackedVector2Array(0, -15, 13, -7.5, 13, 7.5, 0, 15, -13, 7.5, -13, -7.5)
-
-[node name="Perna1" type="Polygon2D" parent="Visual"]
-color = Color(0.75, 0.35, 0.12, 1)
-polygon = PackedVector2Array(9, -9, 22, -20, 25, -17, 12, -6)
-
-[node name="Perna2" type="Polygon2D" parent="Visual"]
-color = Color(0.75, 0.35, 0.12, 1)
-polygon = PackedVector2Array(9, 9, 22, 20, 25, 17, 12, 6)
-
-[node name="Perna3" type="Polygon2D" parent="Visual"]
-color = Color(0.75, 0.35, 0.12, 1)
-polygon = PackedVector2Array(-9, -9, -22, -20, -25, -17, -12, -6)
-
-[node name="Perna4" type="Polygon2D" parent="Visual"]
-color = Color(0.75, 0.35, 0.12, 1)
-polygon = PackedVector2Array(-9, 9, -22, 20, -25, 17, -12, 6)
-
-[node name="Nucleo" type="Polygon2D" parent="Visual"]
-color = Color(1, 0.92, 0.6, 1)
-polygon = PackedVector2Array(0, -6, 5, 0, 0, 6, -5, 0)
+[node name="Corpo" type="Sprite2D" parent="Visual"]
+position = Vector2(0, -8)
+texture = ExtResource("12_south")
+script = ExtResource("4_sprite")
+sprites_parado = Array[Texture2D]([ExtResource("10_east"), ExtResource("11_south_east"), ExtResource("12_south"), ExtResource("13_south_west"), ExtResource("14_west"), ExtResource("15_north_west"), ExtResource("16_north"), ExtResource("17_north_east")])
+sprites_andando = Array[Texture2D]([ExtResource("20_a_east"), ExtResource("21_a_south_east"), ExtResource("22_a_south"), ExtResource("23_a_south_west"), ExtResource("24_a_west"), ExtResource("25_a_north_west"), ExtResource("26_a_north"), ExtResource("27_a_north_east")])
+quadros_andando = 9
+fps_andando = 12.0
 
 [node name="Arma" type="Node2D" parent="Visual"]
 script = ExtResource("2_arma")

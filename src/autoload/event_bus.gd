@@ -45,6 +45,12 @@ signal boss_revelado(nome: String, vida_max: int)
 signal boss_vida_mudou(atual: int, maximo: int)
 signal boss_fase_mudou(fase: int)
 signal boss_morreu()
+## O chefe anuncia o que leu do jogador. Existe porque a Predicao Comportamental
+## tem duas metades: a correcao que ela aplica e o AVISO de que aplicou. Sem o
+## aviso o jogador so sente que "o chefe ficou mais certeiro", e o duelo que a
+## ficcao dela promete nunca chega a acontecer -- nao da para quebrar um padrao
+## que voce nao sabe que foi lido.
+signal boss_leitura(rotulo: String, confianca: int)
 
 # --- Itens ---
 ## O implante ja foi aplicado quando isto chega: quem escuta le o efeito ja

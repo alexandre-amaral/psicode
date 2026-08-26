@@ -1,0 +1,30 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/enemies/nucleo_sobrecarga.gd" id="1_nuc"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_nuc"]
+radius = 13.0
+
+[node name="NucleoSobrecarga" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 4
+script = ExtResource("1_nuc")
+vida_maxima = 12
+velocidade_base = 0.0
+dano_contato = 0
+creditos = 4
+cor_base = Color(1, 0.82, 0.25, 1)
+raio_contato = 0.0
+
+[node name="Forma" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_nuc")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Corpo" type="Polygon2D" parent="Visual"]
+color = Color(1, 0.82, 0.25, 1)
+polygon = PackedVector2Array(0, -13, 11.3, -6.5, 11.3, 6.5, 0, 13, -11.3, 6.5, -11.3, -6.5)
+
+[node name="Nucleo" type="Polygon2D" parent="Visual"]
+color = Color(1, 0.98, 0.85, 1)
+polygon = PackedVector2Array(0, -5, 4.3, -2.5, 4.3, 2.5, 0, 5, -4.3, 2.5, -4.3, -2.5)

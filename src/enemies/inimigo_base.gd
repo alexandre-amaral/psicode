@@ -175,6 +175,23 @@ func tentar_dano_contato() -> void:
 			_knockback = -direcao_para_alvo() * 220.0
 
 
+## Puxa este inimigo na direcao de `ponto`, sem mandar nele.
+##
+## Escreve no MESMO canal do knockback, e e por isso que nao precisa de uma
+## linha de codigo em nenhuma IA: o knockback ja e somado por fora do
+## comportamento justamente para que empurrar um inimigo nunca cancele a IA
+## dele -- so desloque. O pulso de convergencia da Diretora e exatamente isso
+## visto de fora: o campo inteiro dando um passo na sua direcao, sem nenhum
+## inimigo mudar de ideia sobre o que estava fazendo.
+func atrair_para(ponto: Vector2, forca: float) -> void:
+	if morto or forca <= 0.0:
+		return
+	var direcao := ponto - global_position
+	if direcao.length_squared() < 1.0:
+		return
+	_knockback += direcao.normalized() * forca
+
+
 func receber_dano(quantidade: int, impulso: Vector2 = Vector2.ZERO) -> bool:
 	if morto:
 		return false

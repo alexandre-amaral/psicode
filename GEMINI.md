@@ -139,6 +139,8 @@ docs/
 | Limiares de 50% e 85% | `src/autoload/deterioracao.gd` |
 | Matematica de mira preditiva | `src/util/balistica.gd` |
 | Chefe | `src/enemies/diretora.gd` |
+| **O que o chefe le do jogador** | `src/enemies/perfil_jogador.gd` (logica pura, testada) |
+| **As travas de identidade do chefe** | `tools/testes/teste_diretora.gd` + a secao no `docs/GDD.md` |
 | Layout e conexao das salas | `src/mapa/gerenciador_mapa.gd`, `src/mapa/sala_*.tscn` |
 | **Tipo de sala novo (loja, desafio...)** | criar `src/mapa/tipo_*.tres` e por na lista `tipos_de_sala` do `GerenciadorMapa` |
 | **Estilo novo de uma sala que ja existe** | arrastar a cena para `cenas` no `tipo_*.tres` correspondente |
@@ -268,6 +270,23 @@ em qualquer erro de script.
   primeiro ponto no fim** — e todo `Line2D` `Parede` repete, para fechar o
   desenho. Por isso existe `Sala.contorno_local()` (aberto, para quem desenha)
   separado de `_pontos_do_contorno()` (fechado, para quem monta parede).
+- **Telegrafo desenha em `z = 0`, e o chao em `-1`.** A `AreaDePerigo` ficou em
+  `z_index = -4` desde que nasceu: o piso da sala desenhava POR CIMA do aviso, e
+  o telegrafo -- a unica coisa que torna aquele ataque justo -- era invisivel. O
+  `IDENTIDADE_VISUAL.md` ja pedia z=0 com todas as letras, e a cena dizia outra
+  coisa. Nao ha erro no console para "o aviso existe mas ninguem ve".
+- **A identidade da Diretora tem um portao executavel.**
+  `tools/testes/teste_diretora.gd` recusa a mudanca que a descaracteriza: todo
+  ataque telegrafa, o aviso encurta por fase mas nunca cai de 0,35 s, o
+  repertorio so cresce, todo ataque de area deixa saida, e ela NUNCA persegue.
+  A trava da orbita e a mais barata de perder -- trocar `_orbitar` por
+  `direcao_para_alvo()` faria dela um Rastejante de 300 de vida sem quebrar
+  nada. A prosa que explica cada trava esta em `docs/GDD.md`.
+- **`PerfilJogador` so corrige a mira com confianca.** Ela precisa ver o jogador
+  se mexer por alguns segundos antes de antecipar o lado da esquiva. Tirar esse
+  freio faz o PRIMEIRO disparo da luta ja sair corrigido -- punindo um habito
+  que o jogador nao teve chance de formar, que e a mesma armadilha que o GDD
+  descreve para a mira preditiva.
 - **`Arma` e o mesmo script no jogador e nos inimigos.** Ler `Modificadores`
   sem conferir `hostil` transforma upgrade do jogador em buff do Vigia.
 - **Dano e `int`.** Percentual em cima de int some no arredondamento: "+10%" num
@@ -321,8 +340,13 @@ em qualquer erro de script.
   estado do ultimo passo de fisica, e a area nasceu NESTE frame -- no instante
   do estouro ela nao existia para o servidor. Pior: quem ja esta dentro do raio
   nunca *entra* nele, e e onde esta a maioria dos alvos. Use
-  `intersect_shape` no espaco direto. A mesma licao ja estava em
-  `AreaDePerigo._explodir()`.
+  `intersect_shape` no espaco direto.
+  **Esta linha dizia que a licao "ja estava em `AreaDePerigo._explodir()`", e
+  nao estava** -- a area do Parasita chamava `get_overlapping_bodies()` no mesmo
+  frame em que ligava `monitoring`, entao a varredura voltava sempre vazia e
+  ficar PARADO dentro do circulo era a forma mais segura de sobreviver a ele. O
+  ataque punia quem se mexia e perdoava quem congelava, o inverso do que ele
+  existe para fazer. Corrigido, com regressao em `teste_area_de_perigo.gd`.
 - **Granada nao machuca ao encostar.** Dano de contato MAIS explosao cobraria
   duas vezes do alvo colado e apagaria o falloff, que existe justamente para
   premiar quem acerta no meio do grupo. `EXPLOSIVO` crava e some; quem fere e a

@@ -16,6 +16,11 @@ const SAIDA := "user://capturas"
 var _t: float = 0.0
 var _feitas: Array[String] = []
 var _t_chefe: float = -1.0
+## Desgaste do chefe: 20 de dano por segundo derruba 300 de vida em 15 s, que e
+## o que cabe entre as fotos 04 e o fim.
+const INTERVALO_DESGASTE := 0.05
+const DESGASTE_DO_CHEFE := 1
+var _t_desgaste: float = 0.0
 var _capturando := false
 
 var _mapa: GerenciadorMapa = null
@@ -51,7 +56,7 @@ func _process(delta: float) -> void:
 	# captura que importa aqui e "o jogador entrou e os inimigos ja estao
 	# distribuidos", e ela dura o intervalo de um frame.
 	_capturar_sala_atual()
-	_acelerar()
+	_acelerar(delta)
 	_avancar_se_der()
 
 	if _t > 4.2:
@@ -65,11 +70,14 @@ func _process(delta: float) -> void:
 	if _t_chefe > 0.0:
 		if _t > _t_chefe + 1.6:
 			_capturar("04_chefe_revelado")
-		if _t > _t_chefe + 5.0:
+		if _t > _t_chefe + 6.0:
 			_capturar("05_chefe_bullet_hell")
-		if _t > _t_chefe + 9.0:
+		# A fase ABSOLUTA comeca nos ultimos 15% da vida. Com o desgaste abaixo,
+		# isso cai por volta dos 13 s -- e e ela que a foto 06 precisa mostrar,
+		# porque e a unica em que a arena, e nao o corpo, e o inimigo.
+		if _t > _t_chefe + 13.5:
 			_capturar("06_chefe_fase_final")
-		if _t > _t_chefe + 12.0:
+		if _t > _t_chefe + 17.0:
 			get_tree().quit(0)
 	if _t > 90.0:
 		push_error("captura: tempo limite")
@@ -166,20 +174,38 @@ func _proxima_celula() -> Vector2i:
 
 ## Limpa a sala depressa para o percurso andar, mas so arranha o chefe --
 ## queremos ve-lo atacando, nao morrendo.
-func _acelerar() -> void:
+##
+## O desgaste do chefe e por RELOGIO e nao por frame. Por frame ele levava 60 de
+## dano por segundo e caia em 5 s: as fotos 05 e 06, marcadas para 6 s e 13,5 s,
+## fotografavam a tela de fim. As tres imagens do chefe sao o portao visual que
+## o IDENTIDADE_VISUAL.md cita pelo nome, e elas estavam fotografando o chefe
+## morto ha varias versoes.
+func _acelerar(delta: float) -> void:
 	# Nao mata nada enquanto ha foto pendente. `_capturar` e assincrono: ele
 	# reserva o nome de imediato mas so grava depois do frame_post_draw, e sem
 	# esta guarda o acelerador limpava a sala nesse intervalo -- a foto da sala
 	# de combate saia com "HOSTIS 0" e nenhum inimigo em tela.
 	if _capturando:
 		return
+	_t_desgaste -= delta
+	var pode_desgastar := _t_desgaste <= 0.0
+	if pode_desgastar:
+		_t_desgaste = INTERVALO_DESGASTE
+
 	for n in get_tree().get_nodes_in_group("inimigo"):
 		if not is_instance_valid(n) or not n.has_method("receber_dano"):
 			continue
 		if n.get("nome_exibicao") != null:
-			n.receber_dano(1, Vector2.ZERO)
-		else:
-			n.receber_dano(999, Vector2.ZERO)
+			if pode_desgastar:
+				n.receber_dano(DESGASTE_DO_CHEFE, Vector2.ZERO)
+			continue
+		# O que NAO anda e arquitetura da arena -- os nucleos da Sobrecarga e as
+		# torres da fase Absoluta. Mata-los na hora apagaria da foto justamente
+		# o que a fase 4 tem de novo. Nas salas comuns nada tem velocidade zero,
+		# entao esta regra nao afeta o percurso.
+		if n.get("velocidade_base") != null and float(n.velocidade_base) <= 0.0:
+			continue
+		n.receber_dano(999, Vector2.ZERO)
 
 
 func _capturar(nome: String) -> void:

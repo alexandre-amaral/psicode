@@ -119,6 +119,18 @@ O que transforma um andar num jogo à venda.
 - [ ] **Sprites dos 7 inimigos restantes.** Só a Diretora tem sprite; os outros
       sete são `Polygon2D`/`Line2D`. Projéteis e pickups também
 - [ ] **Animação do chefe** — ele tem sprite, mas estático
+- [ ] **Firewall Cinético** — paredes holográficas que atravessam a arena das
+      extremidades para o centro, deixando só um corredor de passagem; em fases
+      avançadas duas surgem de lados opostos e podem mudar de direção no último
+      instante. **Requisito não negociável: a abertura tem de existir sempre** —
+      é a trava 6 da identidade da Diretora (GDD). Parede sólida que empurra
+      pede `AnimatableBody2D`, e uma que prenda o jogador contra o contorno é
+      morte inevitável; foi por isso que a fase Absoluta entregou paredes que
+      **acendem e ferem** em vez de deslizar
+- [ ] **Execução Administrativa** — a sequência de vida baixa: a arena se
+      bloqueia, vários sistemas de mira aparecem juntos, e o chefe monta uma
+      ordem de ataques a partir do que registrou da luta inteira. Depende de o
+      `PerfilJogador` guardar histórico por ataque, e não só a tendência atual
 - [ ] **Pathfinding.** A dívida que o roadmap antigo previu e **que já mordeu**:
       as salas em L e com pilar estão em produção no `tipo_combate.tres`, e quem
       persegue encalha nelas. A costura existe:

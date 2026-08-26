@@ -23,7 +23,8 @@ var _recarregando: bool = false
 var _fila_avisos: Array[Dictionary] = []
 ## O tween do aviso em exibicao. Guardado para saber se ha algo na tela sem
 ## precisar de um booleano paralelo que possa dessincronizar.
-var _tween_aviso_item: Tween = null
+var _tween_aviso_item: Tween
+var _tween_leitura: Tween = null
 
 @onready var _rotulo_fase: Label = $Topo/Esquerda/Fase
 @onready var _rotulo_arma: Label = $Rodape/Arma
@@ -36,6 +37,7 @@ var _tween_aviso_item: Tween = null
 @onready var _boss: Control = $Boss
 @onready var _boss_nome: Label = $Boss/Nome
 @onready var _boss_barra: ProgressBar = $Boss/Barra
+@onready var _boss_leitura: Label = $Boss/Leitura
 @onready var _overlay: ColorRect = $Overlay
 @onready var _dica_preditiva: Label = $DicaPreditiva
 @onready var _aviso_item: VBoxContainer = $AvisoItem
@@ -74,6 +76,7 @@ func _ready() -> void:
 	EventBus.boss_revelado.connect(_ao_boss_revelado)
 	EventBus.boss_vida_mudou.connect(_ao_boss_vida)
 	EventBus.boss_morreu.connect(_ao_boss_morreu)
+	EventBus.boss_leitura.connect(_ao_boss_leitura)
 	EventBus.item_coletado.connect(_ao_item_coletado)
 	EventBus.item_recusado.connect(_ao_item_recusado)
 	EventBus.arma_adquirida.connect(_ao_arma_adquirida)
@@ -269,6 +272,27 @@ func _ao_boss_revelado(nome: String, vida_max: int) -> void:
 func _ao_boss_vida(atual: int, _maximo: int) -> void:
 	var t := create_tween()
 	t.tween_property(_boss_barra, "value", float(atual), 0.15)
+
+
+## O chefe anunciando o que leu do jogador.
+##
+## Vai num rotulo PROPRIO dentro do painel do chefe, e nao na fila de avisos de
+## item: a fila e para coisa que aconteceu UMA vez e precisa ser lida com calma,
+## e isto aqui pisca varias vezes por luta. Misturar os dois faria a leitura do
+## chefe empurrar da tela o nome do implante que o jogador acabou de pegar.
+##
+## Os 42 px sob a barra ja estavam reservados no layout -- o rotulo nasce dentro
+## deles, sem empurrar nada.
+func _ao_boss_leitura(rotulo: String, confianca: int) -> void:
+	if _boss_leitura == null:
+		return
+	_boss_leitura.text = "%s   %d%%" % [tr(rotulo), confianca]
+	if _tween_leitura != null and _tween_leitura.is_valid():
+		_tween_leitura.kill()
+	_boss_leitura.modulate.a = 1.0
+	_tween_leitura = create_tween()
+	_tween_leitura.tween_interval(1.6)
+	_tween_leitura.tween_property(_boss_leitura, "modulate:a", 0.0, 0.6)
 
 
 func _ao_boss_morreu() -> void:

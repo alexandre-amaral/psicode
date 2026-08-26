@@ -1,0 +1,37 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/enemies/torre_diretora.gd" id="1_torre"]
+[ext_resource type="Script" path="res://src/weapons/arma.gd" id="2_arma"]
+[ext_resource type="Resource" path="res://src/weapons/salva_diretora.tres" id="3_salva"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_torre"]
+radius = 16.0
+
+[node name="TorreDiretora" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 4
+script = ExtResource("1_torre")
+vida_maxima = 18
+velocidade_base = 0.0
+dano_contato = 0
+creditos = 8
+cor_base = Color(0.6, 0.35, 1, 1)
+raio_contato = 0.0
+
+[node name="Forma" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_torre")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Corpo" type="Polygon2D" parent="Visual"]
+color = Color(0.6, 0.35, 1, 1)
+polygon = PackedVector2Array(0, -16, 13.9, -8, 13.9, 8, 0, 16, -13.9, 8, -13.9, -8)
+
+[node name="Base" type="Polygon2D" parent="Visual"]
+color = Color(0.35, 0.2, 0.6, 1)
+polygon = PackedVector2Array(-19, 9, 19, 9, 15, 18, -15, 18)
+
+[node name="Arma" type="Node2D" parent="Visual"]
+script = ExtResource("2_arma")
+dados = ExtResource("3_salva")
+hostil = true

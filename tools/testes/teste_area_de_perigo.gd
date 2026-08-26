@@ -26,12 +26,22 @@ const PASSO := 0.1
 const MAX_FRAMES := 120
 
 
+## Longe da origem, pelo mesmo motivo das outras suites: o grupo "inimigo" e
+## global e sobras de outras suites ficam quase todas perto de (0,0).
+const LONGE := Vector2(12000, 12000)
+
+## O boneco tem de responder `receber_dano` -- a area so fere quem responde.
+const SCRIPT_BONECO := preload("res://tools/testes/boneco_de_dano.gd")
+
+
 func nome() -> String:
 	return "AreaDePerigo"
 
 
 func executar() -> void:
 	_ciclo_da_area()
+	await _quem_esta_parado_dentro_tambem_toma()
+	await _a_forma_alternativa_vale()
 	_o_parasita_semeia()
 	_as_areas_morrem_com_o_dono()
 
@@ -55,6 +65,90 @@ func _ciclo_da_area() -> void:
 	ok(area.global_position.is_equal_approx(Vector2(100, 100)), "configurar() poe a area no lugar pedido")
 
 	raiz.queue_free()
+
+
+## FICAR PARADO DENTRO DO CIRCULO NAO PODE SER A FORMA MAIS SEGURA DE
+## SOBREVIVER A ELE.
+##
+## Este caso existe porque o defeito era exatamente esse, e viveu no jogo desde
+## que a area foi escrita. `_explodir()` ligava `monitoring` e chamava
+## `get_overlapping_bodies()` no MESMO frame -- e aquele metodo responde com o
+## estado do ultimo passo de fisica, quando a area ainda estava desligada. A
+## lista voltava vazia, sempre. O comentario logo acima dela descrevia o
+## conserto que nao acontecia, e o GEMINI.md afirmava que a licao ja tinha sido
+## aplicada aqui.
+##
+## Quem so ENTRA na area continuava tomando dano, via `body_entered` -- e por
+## isso nada parecia quebrado. Quem ja estava dentro, nao. Ou seja: o ataque
+## punia quem se mexia e perdoava quem congelava, o inverso do que ele existe
+## para fazer.
+func _quem_esta_parado_dentro_tambem_toma() -> void:
+	var raiz := Node2D.new()
+	Engine.get_main_loop().root.add_child(raiz)
+
+	var vitima := _boneco()
+	raiz.add_child(vitima)
+	vitima.global_position = LONGE
+
+	var area := CENA_AREA.instantiate()
+	area.tempo_aviso = 0.05
+	raiz.add_child(area)
+	area.configurar(LONGE, 64.0, 3)
+
+	# Um passo de fisica: corpo recem-adicionado so entra no espaco no passo
+	# seguinte, e a varredura pergunta ao espaco.
+	await Engine.get_main_loop().physics_frame
+	await Engine.get_main_loop().physics_frame
+	area._explodir()
+
+	ok(vitima.dano_levado > 0, "quem ja estava parado dentro leva dano (%d)" % vitima.dano_levado)
+	raiz.free()
+
+
+## A forma alternativa vale, e `configurar()` de fato redesenha.
+##
+## O segundo defeito da mesma funcao: `_ready` montava a colisao com o `raio`
+## padrao e `configurar()` reatribuia o campo depois, sem redesenhar nada. O
+## raio pedido nao tinha efeito nem no desenho nem na colisao. Passava
+## despercebido porque o unico chamador pedia 60 contra um default de 56.
+func _a_forma_alternativa_vale() -> void:
+	var raiz := Node2D.new()
+	Engine.get_main_loop().root.add_child(raiz)
+
+	# Uma FAIXA, que e o que a Rede de Exterminio da Diretora usa. O alvo esta
+	# a 120 px no eixo longo: fora de qualquer circulo de raio 64, dentro da
+	# faixa de 400 de comprimento.
+	var vitima := _boneco()
+	raiz.add_child(vitima)
+	vitima.global_position = LONGE + Vector2(120, 0)
+
+	var area := CENA_AREA.instantiate()
+	area.tempo_aviso = 0.05
+	raiz.add_child(area)
+	area.configurar(LONGE, -1.0, 2, PackedVector2Array([
+		Vector2(-200, -24), Vector2(200, -24), Vector2(200, 24), Vector2(-200, 24),
+	]))
+
+	await Engine.get_main_loop().physics_frame
+	await Engine.get_main_loop().physics_frame
+	area._explodir()
+
+	ok(vitima.dano_levado > 0, "a faixa alcanca quem esta longe do centro dela (%d)" % vitima.dano_levado)
+	raiz.free()
+
+
+## Um corpo minimo que conta o dano que levou.
+func _boneco() -> CharacterBody2D:
+	var corpo := CharacterBody2D.new()
+	corpo.collision_layer = 1  # player
+	corpo.collision_mask = 0
+	var forma := CollisionShape2D.new()
+	var circulo := CircleShape2D.new()
+	circulo.radius = 11.0
+	forma.shape = circulo
+	corpo.add_child(forma)
+	corpo.set_script(SCRIPT_BONECO)
+	return corpo
 
 
 # --------------------------------------------------------- o parasita -------

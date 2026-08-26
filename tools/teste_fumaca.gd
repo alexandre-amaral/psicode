@@ -29,7 +29,13 @@ extends Node
 
 const TEMPO_LIMITE := 240.0
 const INTERVALO_TICK := 0.12
-const DANO_POR_TICK_CHEFE := 9
+## O chefe apanha DEVAGAR, e o numero e calibrado e nao chutado: 300 de vida a
+## 2 por tique de 0,12 s da ~18 s de luta simulada, e a fase Absoluta (ultimos
+## 15% da vida) recebe ~2,7 s -- tempo suficiente para a primeira torre subir,
+## que acontece 1,5 s depois do "Recalculando...". Com os 9 antigos a luta
+## inteira durava 4 s e a fase 4 nunca chegava a existir: o teste passaria verde
+## sobre um trecho do jogo que nunca rodou.
+const DANO_POR_TICK_CHEFE := 2
 
 ## Quanto o teste espera o GerenciadorMapa aparecer no grupo antes de desistir.
 ## Falhar aqui e muito melhor que ficar parado ate o tempo limite: a mensagem
@@ -73,6 +79,9 @@ var _salas_sem_combate_conferidas: Dictionary = {}
 var _spawns_conferidos: Dictionary = {}
 var _spawns_fora: int = 0
 var _diretora_conferida: bool = false
+## As fases que o chefe de fato executou. O log ja imprimia isso; aqui ele vira
+## assert -- um repertorio que nunca roda e um repertorio que ninguem testou.
+var _fases_do_chefe: Array[int] = []
 
 ## id de instancia -> true, por tipo de inimigo visto. Existe para o relatorio
 ## dizer QUAIS dos sete tipos a run exercitou -- com porta por Deterioracao,
@@ -91,7 +100,11 @@ func _ready() -> void:
 
 	EventBus.fase_deterioracao_mudou.connect(func(n: int, _a: int) -> void: _log("fase_deterioracao -> %s" % Deterioracao.nome_fase()))
 	EventBus.boss_revelado.connect(func(nome: String, hp: int) -> void: _log("boss_revelado %s (%d hp)" % [nome, hp]))
-	EventBus.boss_fase_mudou.connect(func(f: int) -> void: _log("boss_fase -> %d" % f))
+	EventBus.boss_fase_mudou.connect(func(f: int) -> void:
+		_log("boss_fase -> %d" % f)
+		if not _fases_do_chefe.has(f):
+			_fases_do_chefe.append(f)
+	)
 	EventBus.boss_morreu.connect(func() -> void: _log("boss_morreu"))
 	EventBus.sala_limpa.connect(_ao_sala_limpa)
 	EventBus.run_terminada.connect(_ao_terminar)
@@ -554,6 +567,14 @@ func _ao_terminar(venceu: bool, dados: Dictionary) -> void:
 	# decoracao sem alguem perceber.
 	if _spawns_conferidos.is_empty():
 		_falhar("nenhum inimigo apareceu no grupo 'inimigo' durante a run inteira -- a conferencia de spawn nao chegou a rodar")
+	# As quatro fases tem de ter acontecido. A 2, 3 e 4 sao viradas de vida; a 1
+	# e o estado inicial e nao emite sinal, entao o que se cobra sao as tres
+	# transicoes.
+	if venceu:
+		for f in [2, 3, 4]:
+			if not _fases_do_chefe.has(f):
+				_falhar("a luta terminou sem a fase %d do chefe -- fases vistas: %s" % [f, _fases_do_chefe])
+
 	if venceu and not _diretora_conferida:
 		_falhar("a run venceu sem que o teste visse a Diretora viva -- a posicao de nascimento dela nao foi conferida")
 

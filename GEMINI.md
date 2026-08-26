@@ -225,6 +225,15 @@ em qualquer erro de script.
   de colisao desenhado a mao no `.tscn` desalinha e chega a tapar as portas.
 - **`Area2D` nao bloqueia ninguem.** Porta trancada precisa de `StaticBody2D`
   com a colisao habilitada.
+- **Porta SELADA nao pode ligar a barreira.** So a TRANCADA precisa de solido
+  proprio: `Sala._vaos_no_trecho()` pula porta selada, entao a parede gerada ja
+  passa reta por cima daquele lado. E os dois solidos nao ficam no mesmo lugar
+  -- a parede e um `SegmentShape2D` sobre a linha do contorno, sem espessura, e
+  a barreira e um retangulo de 80x32 CENTRADO nessa linha. Metade dele, 16 px,
+  cai DENTRO da area jogavel: uma laje invisivel de 80x16 em todo lado de sala
+  sem vizinho, e o jogador esbarrando em nada. Nao ha erro no console para
+  colisao a mais, e o teste de fumaca nao encosta na parede. `teste_porta.gd`
+  guarda os tres estados.
 - **Layer de fisica e nomeada em `project.godot`.** Parede na layer 1
   ("player") em vez da 3 ("parede") faz alguem remendar o mask do Player e
   quebra o resto.

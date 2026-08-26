@@ -45,7 +45,7 @@ const UI_EM_CODIGO := [
 	"Restaurando do último backup...",
 	"SALAS LIMPAS", "HOSTIS NEUTRALIZADOS", "CRÉDITOS", "TEMPO",
 	"LUTA DO CHEFE", "DETERIORAÇÃO FINAL",
-	"R  outra run          ESC  trocar de personagem",
+	"RECOMEÇAR", "VOLTAR PARA O MENU",
 	"NOVO JOGO", "CARREGAR", "OPÇÕES", "SAIR",
 	"DANO", "CADÊNCIA", "PRECISÃO", "ALCANCE",
 	"ESCOLHA O OPERADOR",

@@ -79,8 +79,7 @@ UI = [
     ("TEMPO", "TIME"),
     ("LUTA DO CHEFE", "BOSS FIGHT"),
     ("DETERIORAÇÃO FINAL", "FINAL DETERIORATION"),
-    ("R  outra run          ESC  trocar de personagem",
-     "R  another run          ESC  change operator"),
+    ("RECOMEÇAR", "RESTART"),
     # personagens -- o NOME nao entra: RAVEN e NOVA sao marcas, nao frases.
     ("Operadora de Combate", "Combat Operator"),
     ("Hacker Experimental", "Experimental Hacker"),

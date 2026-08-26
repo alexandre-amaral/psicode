@@ -1,6 +1,9 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://src/ui/tela_fim.gd" id="1_fim"]
+[ext_resource type="Script" path="res://src/ui/moldura_hud.gd" id="2_moldura"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_Btn"]
 
 [node name="TelaFim" type="CanvasLayer"]
 layer = 20
@@ -12,64 +15,102 @@ anchor_bottom = 1.0
 mouse_filter = 2
 color = Color(0.02, 0.02, 0.05, 0.86)
 
-[node name="Painel" type="Control" parent="."]
-anchor_right = 1.0
-anchor_bottom = 1.0
-mouse_filter = 2
-
-[node name="Titulo" type="Label" parent="Painel"]
-anchor_left = 0.5
-anchor_top = 0.24
-anchor_right = 0.5
-anchor_bottom = 0.24
-offset_left = -316.0
-offset_top = -28.0
-offset_right = 316.0
-offset_bottom = 28.0
-theme_override_font_sizes/font_size = 39
-text = "CONSCIÊNCIA PERDIDA"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="Subtitulo" type="Label" parent="Painel"]
-modulate = Color(0.72, 0.78, 0.92, 1)
-anchor_left = 0.5
-anchor_top = 0.24
-anchor_right = 0.5
-anchor_bottom = 0.24
-offset_left = -316.0
-offset_top = 30.0
-offset_right = 316.0
-offset_bottom = 58.0
-theme_override_font_sizes/font_size = 12
-text = "Restaurando do último backup..."
-horizontal_alignment = 1
-
-[node name="Stats" type="Label" parent="Painel"]
-modulate = Color(0.6, 0.9, 1, 1)
+[node name="Quadro" type="MarginContainer" parent="."]
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -196.0
-offset_top = -45.0
-offset_right = 196.0
-offset_bottom = 68.0
+offset_left = -320.0
+offset_top = -168.0
+offset_right = 320.0
+offset_bottom = 72.0
+mouse_filter = 2
+script = ExtResource("2_moldura")
+chanfro = 20.0
+espessura = 2.0
+recuo_linha_interna = 6.0
+margem = 18
+
+[node name="Conteudo" type="VBoxContainer" parent="Quadro"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="Titulo" type="Label" parent="Quadro/Conteudo"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "CONSCIÊNCIA PERDIDA"
+horizontal_alignment = 1
+
+[node name="Subtitulo" type="Label" parent="Quadro/Conteudo"]
+modulate = Color(0.66, 0.72, 0.84, 1)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Restaurando do último backup..."
+horizontal_alignment = 1
+
+[node name="Separador" type="ColorRect" parent="Quadro/Conteudo"]
+custom_minimum_size = Vector2(0, 1)
+layout_mode = 2
+mouse_filter = 2
+color = Color(0.35, 0.62, 0.95, 0.22)
+
+[node name="Stats" type="Label" parent="Quadro/Conteudo"]
+modulate = Color(0.72, 0.78, 0.88, 1)
+layout_mode = 2
+size_flags_vertical = 3
 theme_override_font_sizes/font_size = 12
 text = "stats"
 horizontal_alignment = 1
-
-[node name="Dica" type="Label" parent="Painel"]
-modulate = Color(0.55, 0.62, 0.75, 1)
-anchor_left = 0.5
-anchor_top = 0.82
-anchor_right = 0.5
-anchor_bottom = 0.82
-offset_left = -240.0
-offset_top = -15.0
-offset_right = 240.0
-offset_bottom = 15.0
-theme_override_font_sizes/font_size = 12
-text = "R  reiniciar"
-horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="BarraInferior" type="MarginContainer" parent="."]
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -400.0
+offset_top = -64.0
+offset_right = 400.0
+offset_bottom = -14.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("2_moldura")
+chanfro = 14.0
+espessura = 1.0
+linha_interna = false
+margem = 6
+
+[node name="Botoes" type="HBoxContainer" parent="BarraInferior"]
+layout_mode = 2
+theme_override_constants/separation = 56
+alignment = 1
+
+[node name="BtnRecomecar" type="Button" parent="BarraInferior/Botoes"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.2, 1)
+theme_override_colors/font_focus_color = Color(1, 0.8, 0.4, 1)
+theme_override_colors/font_hover_color = Color(1, 0.8, 0.4, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_Btn")
+text = "RECOMEÇAR"
+alignment = 0
+
+[node name="BtnMenu" type="Button" parent="BarraInferior/Botoes"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.2, 1)
+theme_override_colors/font_focus_color = Color(1, 0.8, 0.4, 1)
+theme_override_colors/font_hover_color = Color(1, 0.8, 0.4, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_Btn")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_Btn")
+text = "VOLTAR PARA O MENU"
+alignment = 0

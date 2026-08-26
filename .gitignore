@@ -52,3 +52,8 @@ inspiração/
 # dois seria guardar a mesma arte duas vezes, e a copia grande e a que ninguem
 # le. Quem for regerar precisa dos GIFs; quem so vai jogar, nao.
 animations/
+
+# Hooks do git-lfs que foram parar num caminho literal `dev/null` num shell do
+# Windows -- `> /dev/null` cria o diretorio em vez de descartar. Nao sao do
+# projeto e nao devem voltar.
+dev/

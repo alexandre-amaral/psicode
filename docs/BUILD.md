@@ -14,11 +14,34 @@ assim ela é sempre reproduzível e sempre passou nos testes antes de sair.
 Para lançar uma versão:
 
 ```bash
-# 1. suba o config/version no project.godot (ex.: 0.1.0-alpha)
-# 2. com o main já atualizado e verde:
-git tag v0.1.0-alpha
-git push origin v0.1.0-alpha
+# 1. confira que o project.godot NAO tem os autoloads do godot_mcp (ver abaixo)
+# 2. suba o config/version no project.godot (ex.: 0.3.0-alpha)
+# 3. com o main já atualizado e verde:
+git tag v0.3.0-alpha
+git push origin v0.3.0-alpha
 ```
+
+> ### Antes de taguear: os autoloads do `godot_mcp`
+>
+> Ativar o plugin injeta três autoloads no `project.godot`:
+>
+> ```ini
+> MCPRuntimeBridge="*res://addons/godot_mcp/services/mcp_runtime_bridge.gd"
+> MCPInputBridge="*res://addons/godot_mcp/services/mcp_input_bridge.gd"
+> MCPScreenshotBridge="*res://addons/godot_mcp/services/mcp_screenshot_bridge.gd"
+> ```
+>
+> **Eles não podem ir para uma build de jogador**, por dois motivos que se
+> somam. O `mcp_runtime_bridge` lê `user://` todo frame e executa o que achar, e
+> a única guarda dele é `Engine.is_editor_hint()` — que é **falsa** na build. E
+> o `exclude_filter` das presets já tira `addons/*` do pacote, então o autoload
+> aponta para um script que não foi empacotado: o jogo exportado sobe com erro.
+>
+> Isso já foi corrigido uma vez (na preparação da v0.1.0) e **voltou sozinho**,
+> porque o editor reescreve o `project.godot` sempre que o plugin está ligado.
+> Some as três linhas antes de taguear; a linha do `[editor_plugins]` fica —
+> ela só liga o plugin no editor. `git show v0.2.0-alpha:project.godot` é o
+> gabarito de como o bloco `[autoload]` deve estar.
 
 A partir daí o workflow sozinho: baixa o Godot e os templates, roda os testes
 unitários e o teste de fumaça, exporta Windows e Web, e publica uma **GitHub

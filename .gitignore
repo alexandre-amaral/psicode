@@ -53,6 +53,13 @@ inspiração/
 # le. Quem for regerar precisa dos GIFs; quem so vai jogar, nao.
 animations/
 
+# Arte bruta de inimigo, pela mesma razao de `animations/` acima: os PNGs que o
+# exportador de arte cospe em `enemy/<id>/.../rotations/` sao a ENTRADA de
+# tools/sprites/gerar_sprites.py -- o que o jogo usa e a copia normalizada em
+# assets/inimigos/. Versionar os dois guardaria a mesma arte duas vezes e ainda
+# faria o Godot importar oito texturas que ninguem referencia.
+enemy/
+
 # Hooks do git-lfs que foram parar num caminho literal `dev/null` num shell do
 # Windows -- `> /dev/null` cria o diretorio em vez de descartar. Nao sao do
 # projeto e nao devem voltar.

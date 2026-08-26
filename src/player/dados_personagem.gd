@@ -86,8 +86,9 @@ extends Resource
 @export var hack_raio_propagacao: float = 220.0
 
 
-## Quantas direcoes o conjunto de sprites tem.
-const DIRECOES := 8
+## Quantas direcoes o conjunto de sprites tem. Vem de `Direcoes` para nao haver
+## dois numeros a manter em sincronia.
+const DIRECOES := Direcoes.TOTAL
 
 
 ## O frame que encara `direcao`.
@@ -101,19 +102,10 @@ func textura_para(direcao: Vector2) -> Texture2D:
 
 
 ## O indice da rotacao que encara `direcao`. Compartilhado pelas duas fontes de
-## textura para nao existir a chance de uma divergir da outra.
+## textura para nao existir a chance de uma divergir da outra -- e agora tambem
+## com os inimigos que tem sprite, pela mesma razao: o mapa mora em `Direcoes`.
 func _indice_da_direcao(direcao: Vector2) -> int:
-	# Sul: e para onde a personagem olha quando nao ha para onde olhar.
-	if direcao.length_squared() < 0.0001:
-		return 2
-	var passo := TAU / float(DIRECOES)
-	var indice := int(roundi(direcao.angle() / passo)) % DIRECOES
-	# GDScript herda o modulo de C: -1 % 8 da -1, nao 7. Angulos negativos sao
-	# metade do circulo (todo o hemisferio norte), entao sem esta linha a
-	# personagem so olharia para baixo.
-	if indice < 0:
-		indice += DIRECOES
-	return indice
+	return Direcoes.indice(direcao)
 
 
 ## A fita de caminhada que encara `direcao`, ou null se este personagem nao tem

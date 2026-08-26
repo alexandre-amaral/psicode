@@ -87,6 +87,7 @@ src/
   player/      player, eco de rolamento
   weapons/     arma.gd, dados_arma.gd, *.tres (pistola, shotgun, armas do chefe)
   enemies/     inimigo_base, maquina_estados, area_de_perigo,
+               sprite_direcional (o Sprite2D de oito rotacoes),
                rastejante, vigia, drone_aranha, sentinela_orbital,
                atirador_neon, cyber_besta, hacker_parasita, diretora (chefe),
                grupo_inimigo.gd + grupo_*.tres (quem nasce, a que custo, e a
@@ -101,12 +102,15 @@ src/
                menu_inicial, menu_pausa, menu_opcoes, selecao_personagem,
                moldura_hud (a moldura chanfrada), barra_atributo
   fx/          explosao, impacto
-  util/        balistica (matematica da mira preditiva)
+  util/        balistica (matematica da mira preditiva),
+               direcoes (angulo -> qual dos oito quadros desenhar)
   main/        main.tscn — cena inicial
 assets/shaders/  glitch.gdshader
 locale/          textos.csv (gerado) -- a tabela de traducao
 tools/i18n/      gerar_csv.py (a fonte da tabela)
-assets/personagens/ <id>/{8 rotacoes parado, 8 fitas andar_*}.png -- gerados
+assets/personagens/ <id>/{8 rotacoes parado, 8 fitas andar_*, miniatura}.png -- gerados
+assets/inimigos/    <id>/{8 rotacoes parado, 8 fitas andar_*}.png -- mesmo gerador,
+                    sem miniatura (inimigo nao tem cartao de selecao)
 tools/sprites/   gerar_sprites.py (GIF -> fita PNG normalizada)
 assets/texturas/ chao/parede: arte AUTORADA, preparada por tools/texturas/preparar_textura.py
                  porta e props: ainda gerados por tools/texturas/gerar_texturas.tscn
@@ -132,7 +136,8 @@ docs/
 | **Moldura chanfrada de qualquer painel** | `@export` do no com `src/ui/moldura_hud.gd` (chanfro, cor, colchetes, margem) |
 | **A regua das barras do cartao de selecao** | as consts `*_CHEIO`/`*_CHEIA` em `src/weapons/dados_arma.gd` |
 | **Velocidade do ciclo de caminhada** | `fps_andando` no `src/player/personagem_*.tres` |
-| **Arte de animacao nova** | por o GIF em `animations/<id>/` e rodar `python tools/sprites/gerar_sprites.py` |
+| **Arte de animacao nova** | por o GIF em `animations/<id>/` e rodar `python tools/sprites/gerar_sprites.py` -- vale para personagem E inimigo, o que muda e a pasta de saida |
+| **Sprite e rotacoes de um inimigo** | o no `Visual/Corpo` da `src/enemies/*.tscn`, com `src/enemies/sprite_direcional.gd`: as duas listas de 8 texturas, `quadros_andando`, `fps_andando`, mais `scale` e `position` do proprio no |
 | **Arma inicial, Hack e texto do card de um personagem** | `src/player/personagem_*.tres` |
 | Dispersao que cresce com o gatilho preso | `dispersao_*` em `src/weapons/*.tres` — zero desliga |
 | Vida e velocidade dos inimigos | `@export` em `src/enemies/*.tscn` |
@@ -268,6 +273,15 @@ em qualquer erro de script.
   primeiro ponto no fim** — e todo `Line2D` `Parede` repete, para fechar o
   desenho. Por isso existe `Sala.contorno_local()` (aberto, para quem desenha)
   separado de `_pontos_do_contorno()` (fechado, para quem monta parede).
+- **`Visual/Corpo` pode ser `Polygon2D` OU `Sprite2D`.** E o no que
+  `InimigoBase` procura para pintar Hack e nanite, e desde o Drone Aranha ele
+  nao e mais so poligono. Por isso `_corpo` e tipado `CanvasItem` e quem escreve
+  cor e `_pintar_corpo()`: num poligono vai em `color`, num sprite em
+  `self_modulate`. Escrever `.color` direto volta a explodir no inimigo com
+  arte, e tipar de volta como `Polygon2D` falha o cast em runtime. O neutro
+  tambem muda de canal -- `_cor_neutra()` devolve `cor_base` no poligono e
+  BRANCO no sprite, porque `self_modulate` multiplica a arte em vez de
+  preenche-la.
 - **`Arma` e o mesmo script no jogador e nos inimigos.** Ler `Modificadores`
   sem conferir `hostil` transforma upgrade do jogador em buff do Vigia.
 - **Dano e `int`.** Percentual em cima de int some no arredondamento: "+10%" num
@@ -491,6 +505,11 @@ em qualquer erro de script.
   horizontal pelo CENTRO DA MOLDURA de origem (a arte tem deslocamento lateral
   intencional, e centralizar pelo desenho o apagaria) e vertical pela BASE do
   bbox de alpha.
+- **O mapa de angulo -> quadro mora em `src/util/direcoes.gd`, e so ali.** Ele
+  nasceu dentro de `DadosPersonagem` e saiu de la quando o Drone Aranha ganhou
+  arte. Duas copias acabariam divergindo, e o sintoma seria o inimigo e a
+  personagem lendo o mesmo angulo de jeitos diferentes -- gritante em tela,
+  invisivel no console.
 - **`hframes` anda junto de `texture`, sempre.** Trocar a textura para uma fita
   de caminhada sem trocar o `hframes` desenha os nove quadros espremidos no
   lugar da personagem; o inverso mostra um nono dela. Nenhum dos dois gera erro.

@@ -566,7 +566,7 @@ em qualquer erro de script.
   em que ela passa mais tempo. Excluir esse estado de "esta andando" congela as
   patas exatamente onde ela mais se desloca -- ja aconteceu.
 - **Inimigo com ARMA no `Visual` precisa de uma TORRE, e nao de parar de girar.**
-  A Sentinela pendura `Arma` e `Clarao` em `Visual` numa posicao deslocada, e e
+  Vale para a Sentinela e para o Vigia. A Sentinela pendura `Arma` e `Clarao` em `Visual` numa posicao deslocada, e e
   a rotacao do `Visual` que faz a boca orbitar. Congelar o `Visual` para acomodar
   o sprite faria todo tiro nascer 26 px ao lado dela, para sempre e sem erro no
   console -- a mesma armadilha que o `Sprite` do Player evita saindo de dentro do
@@ -576,6 +576,11 @@ em qualquer erro de script.
   mostra oito passos. E o `Visual` parado mantem de graca o clarao de dano, o
   pop de nascimento e o canal de tint, que sairiam todos se o sprite virasse
   irmao.
+
+  No Vigia isso e ainda mais critico: o **laser de telegrafo** e desenhado a
+  partir de `_arma.global_position`, e ele e a aula que ensina a mira preditiva
+  sem tutorial. Boca no lugar errado = a linha saindo do lugar errado, e a
+  mecanica central do jogo passa a mentir.
 - **Sprite direcional e rotacao de `Visual` nao convivem.** O `Visual` do
   inimigo pode estar girando (`lerp_angle` para o alvo) -- seis dos oito fazem
   isso. Por um sprite de oito rotacoes dentro de um `Visual` que gira DEITA a

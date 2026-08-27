@@ -31,11 +31,20 @@ var _ponto_previsto: Vector2 = Vector2.ZERO
 
 var _arma: Arma
 var _laser: Line2D
+var _sprite: SpriteDirecional = null
+## O que gira: a boca da arma, de onde o laser sai. NAO e o `_visual`.
+var _torre: Node2D = null
+
+
+## Abaixo disto ele esta parando, nao circulando.
+const VELOCIDADE_ANDANDO := 12.0
 
 
 func _ready() -> void:
 	super._ready()
-	_arma = $Visual/Arma
+	_torre = $Torre
+	_sprite = $Visual/Corpo
+	_arma = $Torre/Arma
 	_arma.hostil = true
 	_laser = $Laser
 	_laser.top_level = true
@@ -127,12 +136,30 @@ func _disparar() -> void:
 	_t_ciclo = intervalo_disparo
 
 
+## Duas resolucoes de mira, como no jogador.
+##
+## A TORRE gira livre e continua: e dela que a boca herda a posicao, e e da boca
+## que o laser de telegrafo sai. Ela precisa ser exata, porque o laser E a aula
+## -- o jogador aprende a mira preditiva vendo a linha parar num ponto vazio a
+## frente dele. O corpo, que agora e sprite, mostra a direcao geral em oito
+## passos.
+##
+## A torre nasceu como no separado, e nao com o `_visual` parando de girar,
+## porque a arma mora deslocada em (20, 0): congelar o `_visual` faria o laser e
+## todo tiro nascerem 20 px ao lado dele, para sempre e sem erro no console.
 func _orientar() -> void:
-	if _visual == null:
-		return
 	var d := direcao_para_alvo()
-	if d.length_squared() > 0.01:
-		_visual.rotation = lerp_angle(_visual.rotation, d.angle(), 0.18)
+	if _torre != null and d.length_squared() > 0.01:
+		_torre.rotation = lerp_angle(_torre.rotation, d.angle(), 0.18)
+
+
+## O corpo encara o alvo mesmo andando de lado -- a dissociacao entre para onde
+## ele anda e para onde ele olha e a assinatura de movimento dele.
+func _pos_movimento(delta: float) -> void:
+	if _sprite == null:
+		return
+	var andando := velocity.length() > VELOCIDADE_ANDANDO
+	_sprite.apontar(direcao_para_alvo(), andando, delta, velocity)
 
 
 func morrer() -> void:

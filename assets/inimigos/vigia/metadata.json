@@ -1,0 +1,36 @@
+{
+  "group_id": "fd214acf-06ae-4c1d-af0a-5d7531d174cb",
+  "states": [
+    {
+      "character": {
+        "id": "aa02c6d6-e622-44a0-a1ae-9f88ed155de5",
+        "name": "Idle",
+        "prompt": "\nO Vigia \u00e9 uma unidade de observa\u00e7\u00e3o armada, e n\u00e3o um ca\u00e7ador. \u00c9 um corpo blindado compacto, de propor\u00e7\u00e3o larga e chata, sustentado por um sistema de locomo\u00e7\u00e3o que o mant\u00e9m sempre voltado para o alvo enquanto se desloca de lado. A carca\u00e7a \u00e9 roxo-violeta saturado, com placas lisas e limpas \u2014 ele \u00e9 claramente equipamento de vigil\u00e2ncia reaproveitado como arma, e n\u00e3o algo constru\u00eddo para o corpo a corpo.\n\nA pe\u00e7a central dele, e a mais importante para o jogador, \u00e9 a \u00f3ptica frontal: uma lente \u00fanica, saliente, montada na dianteira do casco e destacada em rosa-avermelhado contra o roxo do corpo. Ela \u00e9 grande demais para a propor\u00e7\u00e3o do resto, de prop\u00f3sito. Toda a leitura do Vigia acontece nela \u2014 \u00e9 dela que sai o feixe de mira, e \u00e9 ela que muda quando ele passa a prever.\n\nO Vigia mant\u00e9m dist\u00e2ncia. Ele n\u00e3o avan\u00e7a sobre o jogador: se aproxima at\u00e9 uma faixa confort\u00e1vel, e ali passa a circular lateralmente, trocando de lado de tempos em tempos, sempre com a lente fixa no alvo. O corpo anda numa dire\u00e7\u00e3o e olha em outra, e essa dissocia\u00e7\u00e3o \u00e9 a assinatura de movimento dele.\n\nO ataque tem duas fases muito distintas. Primeiro ele quase congela \u2014 a locomo\u00e7\u00e3o praticamente para, o casco se assenta e a \u00f3ptica se acende, projetando uma linha de mira fina que vai ficando mais espessa e mais intensa conforme o disparo se aproxima. S\u00f3 depois o tiro sai, e ele volta a circular.\n\nH\u00e1 uma diferen\u00e7a que precisa estar na arte: enquanto o Vigia est\u00e1 apenas apontando, a \u00f3ptica e o feixe s\u00e3o \u00e2mbar, quentes e relativamente calmos. Quando a Deteriora\u00e7\u00e3o avan\u00e7a e ele passa a calcular onde o jogador vai estar em vez de onde ele est\u00e1, a \u00f3ptica vira vermelho \u2014 mais fria, mais focada, com a lente parecendo se contrair. \u00c9 a mesma m\u00e1quina, operando num modo pior.\n\nVisualmente, o jogador deve conseguir perceber tr\u00eas coisas sem nenhum texto: que o Vigia est\u00e1 olhando para ele mesmo andando de lado; que ele parou e est\u00e1 prestes a atirar; e que a cor da \u00f3ptica mudou \u2014 porque essa mudan\u00e7a de cor \u00e9 o aviso de que a m",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-26T23:52:45.044664+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-26T23:57:17.613277"
+}

@@ -1,8 +1,25 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=21 format=3]
 
-[ext_resource type="Script" path="res://src/enemies/vigia.gd" id="1_vigia"]
-[ext_resource type="Script" path="res://src/weapons/arma.gd" id="2_arma"]
+[ext_resource type="Script" path="res://src/enemies/vigia.gd" id="1_s"]
+[ext_resource type="Script" path="res://src/enemies/sprite_direcional.gd" id="2_sprite"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/vigia/east.png" id="10_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/vigia/south-east.png" id="11_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/vigia/south.png" id="12_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/vigia/south-west.png" id="13_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/vigia/west.png" id="14_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/vigia/north-west.png" id="15_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/vigia/north.png" id="16_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/vigia/north-east.png" id="17_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/vigia/andar_east.png" id="20_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/vigia/andar_south-east.png" id="21_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/vigia/andar_south.png" id="22_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/vigia/andar_south-west.png" id="23_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/vigia/andar_west.png" id="24_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/vigia/andar_north-west.png" id="25_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/vigia/andar_north.png" id="26_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/vigia/andar_north-east.png" id="27_a"]
 [ext_resource type="Resource" path="res://src/weapons/tiro_vigia.tres" id="3_tiro"]
+[ext_resource type="Script" path="res://src/weapons/arma.gd" id="4_arma"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_vigia"]
 radius = 15.0
@@ -10,7 +27,7 @@ radius = 15.0
 [node name="Vigia" type="CharacterBody2D"]
 collision_layer = 2
 collision_mask = 6
-script = ExtResource("1_vigia")
+script = ExtResource("1_s")
 vida_maxima = 6
 velocidade_base = 96.0
 dano_contato = 1
@@ -26,17 +43,21 @@ shape = SubResource("CircleShape2D_vigia")
 
 [node name="Visual" type="Node2D" parent="."]
 
-[node name="Corpo" type="Polygon2D" parent="Visual"]
-color = Color(0.78, 0.36, 1, 1)
-polygon = PackedVector2Array(15, 0, 7.5, 13, -7.5, 13, -15, 0, -7.5, -13, 7.5, -13)
+[node name="Corpo" type="Sprite2D" parent="Visual"]
+position = Vector2(0, -15)
+texture = ExtResource("12_p")
+script = ExtResource("2_sprite")
+sprites_parado = Array[Texture2D]([ExtResource("10_p"), ExtResource("11_p"), ExtResource("12_p"), ExtResource("13_p"), ExtResource("14_p"), ExtResource("15_p"), ExtResource("16_p"), ExtResource("17_p")])
+sprites_andando = Array[Texture2D]([ExtResource("20_a"), ExtResource("21_a"), ExtResource("22_a"), ExtResource("23_a"), ExtResource("24_a"), ExtResource("25_a"), ExtResource("26_a"), ExtResource("27_a")])
+quadros_andando = 9
+fps_andando = 12.0
+velocidade_referencia = 96.0
 
-[node name="Lente" type="Polygon2D" parent="Visual"]
-color = Color(1, 0.35, 0.5, 1)
-polygon = PackedVector2Array(14, -4, 20, 0, 14, 4)
+[node name="Torre" type="Node2D" parent="."]
 
-[node name="Arma" type="Node2D" parent="Visual"]
+[node name="Arma" type="Node2D" parent="Torre"]
 position = Vector2(20, 0)
-script = ExtResource("2_arma")
+script = ExtResource("4_arma")
 dados = ExtResource("3_tiro")
 hostil = true
 

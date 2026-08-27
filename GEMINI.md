@@ -499,6 +499,13 @@ em qualquer erro de script.
   Godot le a quebra como fim de registro e parte a tabela ao meio. Frase de duas
   linhas vira duas chaves juntadas em codigo -- e o que `hud.gd` faz no aviso de
   50% de Deterioracao.
+- **A selecao de operador nao e uma cena: e um PAINEL do menu.** Quem quiser
+  "voltar para a selecao" de outra tela nao tem para onde trocar -- carrega o
+  `menu_inicial.tscn` e pede que ele abra o painel. O pedido e a bandeira
+  `GameState.abrir_selecao_ao_entrar`, lida por `consumir_pedido_de_selecao()`,
+  que LE E APAGA na mesma funcao. Ler o campo cru compila igual e esquece de
+  apagar -- e ai a selecao reabre toda vez que o jogador volta ao menu, prendendo
+  ele num painel que acabou de fechar, sem erro nenhum no console.
 - **Botao com marcador `>` precisa de `auto_translate_mode = DISABLED`.** O
   marcador e escrito DENTRO de `text`, e "> NOVO JOGO" nao existe na tabela; com
   a traducao automatica ligada o botao fica em portugues no jogo em ingles, sem

@@ -31,10 +31,27 @@ const CENA_MAIN := "res://src/main/main.tscn"
 ## DEPOIS de a tela ja ter escrito aqui. Se este campo fosse zerado junto com os
 ## contadores, a escolha seria apagada no boot da propria cena que ela pediu.
 ##
-## E tambem o que faz o R da tela de fim funcionar: reiniciar() chama
-## reload_current_scene(), que nao passa pelo menu -- sem a escolha viva num
-## autoload, o jogador voltaria calado para a arma default do player.tscn.
+## E ela precisa viver num autoload, e nao na cena: o caminho que entra na run
+## troca de cena, e sem a escolha guardada aqui o jogador cairia calado na arma
+## default do player.tscn.
 var personagem: DadosPersonagem = null
+
+
+## Pedido de quem carregou o menu para que ele abra a selecao de operador direto,
+## sem o menu piscar antes.
+##
+## E de MAO UNICA: quem le, CONSOME. Sem apagar, sair da selecao e voltar ao menu
+## a reabriria para sempre, e o jogador ficaria preso num painel que acabou de
+## fechar -- sem erro nenhum no console, porque nada ali esta quebrado.
+var abrir_selecao_ao_entrar: bool = false
+
+
+## Le e apaga o pedido. Existe como funcao, e nao como leitura crua do campo,
+## justamente para o consumo nao poder ser esquecido por quem le.
+func consumir_pedido_de_selecao() -> bool:
+	var pedido := abrir_selecao_ao_entrar
+	abrir_selecao_ao_entrar = false
+	return pedido
 
 
 ## Mede pelo `tempo_run`, e nao por um relogio proprio: assim a pausa e o
@@ -100,14 +117,6 @@ func _fechar_cronometro_do_chefe() -> void:
 	if _chefe_comecou < 0.0 or tempo_chefe > 0.0:
 		return
 	tempo_chefe = maxf(tempo_run - _chefe_comecou, 0.0)
-
-
-func reiniciar() -> void:
-	Engine.time_scale = 1.0
-	get_tree().paused = false
-	Deterioracao.resetar()
-	estado = Estado.MENU
-	get_tree().reload_current_scene()
 
 
 func alternar_pausa() -> void:

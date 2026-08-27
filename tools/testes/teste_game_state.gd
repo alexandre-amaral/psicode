@@ -16,6 +16,34 @@ func executar() -> void:
 	_estatisticas()
 	_cronometro_do_chefe()
 	_versao_do_projeto()
+	_o_pedido_de_selecao_e_de_mao_unica()
+
+
+## O botao RECOMECAR da tela de fim pede ao menu que abra a selecao de operador
+## direto, por uma bandeira no autoload -- a selecao e um PAINEL do menu, e nao
+## uma cena, entao nao ha para onde trocar.
+##
+## O que este caso guarda e o CONSUMO. Uma bandeira que nao se apaga reabre a
+## selecao toda vez que o jogador voltar ao menu, prendendo-o num painel que ele
+## acabou de fechar. Nada nisso gera erro: o menu esta funcionando, a selecao
+## esta funcionando, e o jogo so fica impossivel de sair.
+##
+## E por isso que ler e apagar moram na MESMA funcao: um `if
+## GameState.abrir_selecao_ao_entrar` cru compila igual e esquece de apagar.
+func _o_pedido_de_selecao_e_de_mao_unica() -> void:
+	GameState.abrir_selecao_ao_entrar = false
+	ok(not GameState.consumir_pedido_de_selecao(), "sem pedido, o menu abre normal")
+
+	GameState.abrir_selecao_ao_entrar = true
+	ok(GameState.consumir_pedido_de_selecao(), "com pedido, o menu abre a selecao")
+	ok(
+		not GameState.consumir_pedido_de_selecao(),
+		"e o pedido nao sobrevive a propria leitura"
+	)
+	ok(
+		not GameState.abrir_selecao_ao_entrar,
+		"a bandeira fica apagada no autoload, e nao so no valor devolvido"
+	)
 
 
 ## Usado na tela de fim. Erro aqui aparece para o jogador na ultima tela que ele

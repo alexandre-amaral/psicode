@@ -1,6 +1,10 @@
 extends Node
 ## Ponto de entrada. Junta Arena, HUD e tela de fim, e cuida das teclas
-## globais (reiniciar, pausar, atalho de debug).
+## globais (pausar, atalho de debug).
+##
+## O R saiu daqui. Ele reiniciava a run com a tela de fim aberta, e era a unica
+## acao do jogo que so existia como tecla decorada num rotulo -- hoje a tela de
+## fim tem botao para isso, como as outras tres telas sempre tiveram.
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -9,14 +13,6 @@ func _ready() -> void:
 
 
 func _unhandled_input(evento: InputEvent) -> void:
-	# R so reinicia com a run JA terminada. Durante o jogo a mesma tecla
-	# recarrega a arma -- e reiniciar por engano no meio de uma run boa e o
-	# tipo de acidente que o jogador nunca perdoa.
-	if evento.is_action_pressed("reiniciar") and _run_terminou():
-		GameState.reiniciar()
-		get_viewport().set_input_as_handled()
-		return
-
 	if evento.is_action_pressed("pausar"):
 		if GameState.estado == GameState.Estado.GAME_OVER or GameState.estado == GameState.Estado.VITORIA:
 			# Nao chega aqui com a tela de fim aberta: ela trata o ESC no _input,

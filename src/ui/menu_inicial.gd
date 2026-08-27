@@ -53,6 +53,11 @@ func _ready() -> void:
 
 	btn_jogar.grab_focus()
 
+	# Veio da tela de fim pedindo RECOMECAR: cai direto nos cartoes de operador.
+	# Fechar a selecao revela o menu por tras, que e o comportamento normal dela.
+	if GameState.consumir_pedido_de_selecao():
+		_on_btn_jogar_pressed()
+
 func _mostrar_versao() -> void:
 	if _rotulo_versao == null:
 		return
@@ -92,6 +97,11 @@ func _ao_escolher_personagem(dados: DadosPersonagem) -> void:
 func _ao_fechar_selecao() -> void:
 	_painel.visible = true
 	btn_jogar.grab_focus()
+
+	# Veio da tela de fim pedindo RECOMECAR: cai direto nos cartoes de operador.
+	# Fechar a selecao revela o menu por tras, que e o comportamento normal dela.
+	if GameState.consumir_pedido_de_selecao():
+		_on_btn_jogar_pressed()
 
 func _on_btn_sair_pressed() -> void:
 	get_tree().quit()

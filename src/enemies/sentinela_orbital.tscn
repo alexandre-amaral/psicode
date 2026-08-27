@@ -1,8 +1,24 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="Script" path="res://src/enemies/sentinela_orbital.gd" id="1_s"]
-[ext_resource type="Script" path="res://src/weapons/arma.gd" id="2_arma"]
-[ext_resource type="Resource" path="res://src/weapons/tiro_sentinela.tres" id="3_tiro"]
+[ext_resource type="Script" path="res://src/enemies/sprite_direcional.gd" id="2_sprite"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/east.png" id="10_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/south-east.png" id="11_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/south.png" id="12_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/south-west.png" id="13_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/west.png" id="14_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/north-west.png" id="15_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/north.png" id="16_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/north-east.png" id="17_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/andar_east.png" id="20_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/andar_south-east.png" id="21_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/andar_south.png" id="22_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/andar_south-west.png" id="23_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/andar_west.png" id="24_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/andar_north-west.png" id="25_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/andar_north.png" id="26_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/andar_north-east.png" id="27_a"][ext_resource type="Resource" path="res://src/weapons/tiro_sentinela.tres" id="3_tiro"]
+[ext_resource type="Script" path="res://src/weapons/arma.gd" id="4_arma"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_sent"]
 radius = 14.0
@@ -23,26 +39,26 @@ shape = SubResource("CircleShape2D_sent")
 
 [node name="Visual" type="Node2D" parent="."]
 
-[node name="Anel" type="Polygon2D" parent="Visual"]
-color = Color(0.28, 0.42, 0.62, 1)
-polygon = PackedVector2Array(16.0, 0.0, 15.2, 4.9, 12.9, 9.4, 9.4, 12.9, 4.9, 15.2, 0.0, 16.0, -4.9, 15.2, -9.4, 12.9, -12.9, 9.4, -15.2, 4.9, -16.0, 0.0, -15.2, -4.9, -12.9, -9.4, -9.4, -12.9, -4.9, -15.2, -0.0, -16.0, 4.9, -15.2, 9.4, -12.9, 12.9, -9.4, 15.2, -4.9)
+[node name="Corpo" type="Sprite2D" parent="Visual"]
+position = Vector2(0, -11)
+texture = ExtResource("12_p")
+script = ExtResource("2_sprite")
+sprites_parado = Array[Texture2D]([ExtResource("10_p"), ExtResource("11_p"), ExtResource("12_p"), ExtResource("13_p"), ExtResource("14_p"), ExtResource("15_p"), ExtResource("16_p"), ExtResource("17_p")])
+sprites_andando = Array[Texture2D]([ExtResource("20_a"), ExtResource("21_a"), ExtResource("22_a"), ExtResource("23_a"), ExtResource("24_a"), ExtResource("25_a"), ExtResource("26_a"), ExtResource("27_a")])
+quadros_andando = 9
+fps_andando = 12.0
+velocidade_referencia = 132.0
 
-[node name="Corpo" type="Polygon2D" parent="Visual"]
-color = Color(0.6, 0.8, 1, 1)
-polygon = PackedVector2Array(16, 0, 0, 11, -11, 0, 0, -11)
+[node name="Torre" type="Node2D" parent="."]
 
-[node name="Nucleo" type="Polygon2D" parent="Visual"]
-color = Color(1, 1, 0.85, 1)
-polygon = PackedVector2Array(3, 0, 0, 4, -4, 0, 0, -4)
-
-[node name="Clarao" type="Polygon2D" parent="Visual"]
+[node name="Clarao" type="Polygon2D" parent="Torre"]
 visible = false
-position = Vector2(20, 0)
+position = Vector2(26, 0)
 color = Color(1, 1, 0.8, 0.7)
 polygon = PackedVector2Array(7.0, 0.0, 6.1, 3.5, 3.5, 6.1, 0.0, 7.0, -3.5, 6.1, -6.1, 3.5, -7.0, 0.0, -6.1, -3.5, -3.5, -6.1, -0.0, -7.0, 3.5, -6.1, 6.1, -3.5)
 
-[node name="Arma" type="Node2D" parent="Visual"]
-position = Vector2(20, 0)
-script = ExtResource("2_arma")
+[node name="Arma" type="Node2D" parent="Torre"]
+position = Vector2(26, 0)
+script = ExtResource("4_arma")
 dados = ExtResource("3_tiro")
 hostil = true

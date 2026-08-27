@@ -1,6 +1,23 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=20 format=3]
 
-[ext_resource type="Script" path="res://src/enemies/rastejante.gd" id="1_rast"]
+[ext_resource type="Script" path="res://src/enemies/rastejante.gd" id="1_s"]
+[ext_resource type="Script" path="res://src/enemies/sprite_direcional.gd" id="2_sprite"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/rastejante/east.png" id="10_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/rastejante/south-east.png" id="11_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/rastejante/south.png" id="12_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/rastejante/south-west.png" id="13_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/rastejante/west.png" id="14_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/rastejante/north-west.png" id="15_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/rastejante/north.png" id="16_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/rastejante/north-east.png" id="17_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/rastejante/andar_east.png" id="20_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/rastejante/andar_south-east.png" id="21_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/rastejante/andar_south.png" id="22_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/rastejante/andar_south-west.png" id="23_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/rastejante/andar_west.png" id="24_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/rastejante/andar_north-west.png" id="25_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/rastejante/andar_north.png" id="26_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/rastejante/andar_north-east.png" id="27_a"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_rast"]
 radius = 13.0
@@ -8,7 +25,7 @@ radius = 13.0
 [node name="Rastejante" type="CharacterBody2D"]
 collision_layer = 2
 collision_mask = 6
-script = ExtResource("1_rast")
+script = ExtResource("1_s")
 vida_maxima = 4
 velocidade_base = 118.0
 dano_contato = 1
@@ -21,10 +38,12 @@ shape = SubResource("CircleShape2D_rast")
 
 [node name="Visual" type="Node2D" parent="."]
 
-[node name="Corpo" type="Polygon2D" parent="Visual"]
-color = Color(1, 0.3, 0.42, 1)
-polygon = PackedVector2Array(17, 0, -6, 11, -10, 0, -6, -11)
-
-[node name="Olho" type="Polygon2D" parent="Visual"]
-color = Color(1, 0.92, 0.6, 1)
-polygon = PackedVector2Array(9, 0, 3, 3.5, 3, -3.5)
+[node name="Corpo" type="Sprite2D" parent="Visual"]
+position = Vector2(0, -12)
+texture = ExtResource("12_p")
+script = ExtResource("2_sprite")
+sprites_parado = Array[Texture2D]([ExtResource("10_p"), ExtResource("11_p"), ExtResource("12_p"), ExtResource("13_p"), ExtResource("14_p"), ExtResource("15_p"), ExtResource("16_p"), ExtResource("17_p")])
+sprites_andando = Array[Texture2D]([ExtResource("20_a"), ExtResource("21_a"), ExtResource("22_a"), ExtResource("23_a"), ExtResource("24_a"), ExtResource("25_a"), ExtResource("26_a"), ExtResource("27_a")])
+quadros_andando = 9
+fps_andando = 12.0
+velocidade_referencia = 118.0

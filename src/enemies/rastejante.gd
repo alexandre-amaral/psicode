@@ -18,6 +18,17 @@ var _fase: int = Fase.PERSEGUINDO
 var _t_fase: float = 0.0
 var _t_investida_cd: float = 0.0
 var _dir_investida: Vector2 = Vector2.RIGHT
+var _sprite: SpriteDirecional = null
+
+
+## Abaixo disto ele esta parando, nao andando. Sem um piso, o `move_toward` da
+## preparacao deixaria o ciclo tremendo enquanto ele ja esta travado no lugar.
+const VELOCIDADE_ANDANDO := 12.0
+
+
+func _ready() -> void:
+	super._ready()
+	_sprite = $Visual/Corpo
 
 
 func _comportamento(delta: float) -> void:
@@ -47,7 +58,22 @@ func _comportamento(delta: float) -> void:
 				_t_investida_cd = investida_cooldown
 
 	tentar_dano_contato()
-	_orientar()
+
+
+## Monta a escala do bote no EIXO da investida.
+##
+## Enquanto o `_visual` girava, esticar em x LOCAL era esticar na direcao da
+## corrida -- o corpo se alongava para a frente, como quem se joga. Sem a
+## rotacao, um `Vector2(1.35, 0.72)` cru estica sempre na horizontal da TELA, e
+## um Rastejante partindo para cima apareceria alongado de lado: a anticipacao
+## contada no eixo errado.
+##
+## Escolhe o eixo dominante, que e a mesma quantizacao de oito passos do sprite.
+func _esticar(ao_longo: float, atravessado: float) -> Vector2:
+	var d := _dir_investida
+	if absf(d.x) >= absf(d.y):
+		return Vector2(ao_longo, atravessado)
+	return Vector2(atravessado, ao_longo)
 
 
 func _pode_investir() -> bool:
@@ -61,15 +87,35 @@ func _pode_investir() -> bool:
 func _iniciar_preparo() -> void:
 	_fase = Fase.PREPARANDO
 	_t_fase = investida_preparo
+	# Atualiza a direcao ANTES de montar o bote. `Fase.PREPARANDO` a reescreve
+	# todo frame, mas no frame da ENTRADA ela ainda guarda a investida anterior,
+	# e o alongamento sairia no eixo da corrida passada.
+	_dir_investida = direcao_para_alvo()
 	if _visual != null:
 		var t := create_tween()
-		t.tween_property(_visual, "scale", Vector2(1.35, 0.72), investida_preparo * 0.8)
+		t.tween_property(_visual, "scale", _esticar(1.35, 0.72), investida_preparo * 0.8)
 		t.tween_property(_visual, "scale", Vector2.ONE, 0.1)
 
 
-func _orientar() -> void:
-	if _visual == null:
+## Para onde o corpo aponta, e se as patas se mexem.
+##
+## Roda em `_pos_movimento` porque aqui a `velocity` ja passou pelo
+## `move_and_slide()`: e o que separa "andando" de "escorregando contra a parede
+## no fim da investida".
+##
+## `andando` sai SO da velocidade, e nao da fase. Nenhuma fase dele fica parada:
+## PERSEGUINDO corre, PREPARANDO freia (e as patas tem de desacelerar junto) e
+## INVESTINDO dispara em linha reta.
+func _pos_movimento(delta: float) -> void:
+	if _sprite == null:
 		return
+	var andando := velocity.length() > VELOCIDADE_ANDANDO
+	_sprite.apontar(_direcao_encarada(), andando, delta, velocity)
+
+
+## Aponta para onde ele VAI. Antes isto girava o `_visual` com `lerp_angle`;
+## agora quem carrega a direcao sao as oito rotacoes do sprite, e girar o
+## `_visual` deitaria a arte, que e desenhada em vista 3/4.
+func _direcao_encarada() -> Vector2:
 	var d := velocity if velocity.length_squared() > 25.0 else direcao_para_alvo()
-	if d.length_squared() > 0.01:
-		_visual.rotation = lerp_angle(_visual.rotation, d.angle(), 0.25)
+	return d if d.length_squared() > 0.01 else _dir_investida

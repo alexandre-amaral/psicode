@@ -1,0 +1,94 @@
+{
+  "group_id": "2293db53-8c22-4afa-aa2c-a4dbacc203d0",
+  "states": [
+    {
+      "character": {
+        "id": "c36a6364-844d-4ad5-964b-8407cabe30b7",
+        "name": "Idle",
+        "prompt": "1. Rastejante\n\nO Rastejante \u00e9 a unidade de assalto mais simples e mais numerosa do complexo: uma criatura-m\u00e1quina baixa e afilada, do tamanho de um c\u00e3o, constru\u00edda para correr em linha reta e colidir. O corpo \u00e9 uma lasca alongada terminada em ponta, com a carca\u00e7a em vermelho-carmim saturado, opaca e riscada \u2014 nada nele reflete, nada nele \u00e9 decorativo. \u00c9 a \u00fanica parte do besti\u00e1rio que parece ter sido feita para ser gasta e substitu\u00edda.\n\nEle se desloca rente ao ch\u00e3o, apoiado em membros curtos e m\u00faltiplos que ficam quase escondidos sob a carca\u00e7a, de modo que a silhueta que o jogador enxerga \u00e9 sempre a mesma cunha compacta apontada para a frente. Essa silhueta \u00e9 o ativo mais importante dele, porque o Rastejante quase nunca aparece sozinho: ele vem em grupos que se sobrep\u00f5em em tela, e o jogador precisa conseguir contar quantos s\u00e3o e para onde apontam mesmo quando est\u00e3o amontoados.\n\nLogo atr\u00e1s da ponta existe um \u00fanico ocelo \u00e2mbar, pequeno e sem p\u00e1lpebra, que \u00e9 o tra\u00e7o mais claro do corpo inteiro. Ele n\u00e3o gira nem procura: aponta sempre exatamente para onde a criatura vai. \u00c9 o que permite ler a inten\u00e7\u00e3o de um bando inteiro num relance.\n\nO Rastejante n\u00e3o dispara nada. Toda a amea\u00e7a dele \u00e9 o pr\u00f3prio corpo, e ele tem duas formas de andar. Na persegui\u00e7\u00e3o comum ele corre em passo constante, sem cerim\u00f4nia. Mas a partir do momento em que a Deteriora\u00e7\u00e3o corrompe a percep\u00e7\u00e3o do jogador, ele passa a arremeter: quando chega perto o suficiente, ele freia, recua o tronco e se comprime para tr\u00e1s por um instante \u2014 o corpo se alonga e se achata como uma mola sendo carregada \u2014 e ent\u00e3o dispara para a frente numa investida reta e muito r\u00e1pida, incapaz de corrigir a dire\u00e7\u00e3o no meio do caminho.\n\nVisualmente, o jogador deve conseguir distinguir de longe um Rastejante que est\u00e1 apenas correndo atr\u00e1s dele de um que travou, se comprimiu e est\u00e1 prestes a arremeter \u2014 e a pose de bote precisa ser leg\u00edvel mesmo com outros quatro Rastejantes por cima.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-26T23:33:42.838223+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {
+          "wlking_foward": {
+            "west": [
+              "Idle/animations/wlking_foward/west/frame_000.png",
+              "Idle/animations/wlking_foward/west/frame_001.png",
+              "Idle/animations/wlking_foward/west/frame_002.png",
+              "Idle/animations/wlking_foward/west/frame_003.png",
+              "Idle/animations/wlking_foward/west/frame_004.png",
+              "Idle/animations/wlking_foward/west/frame_005.png",
+              "Idle/animations/wlking_foward/west/frame_006.png",
+              "Idle/animations/wlking_foward/west/frame_007.png",
+              "Idle/animations/wlking_foward/west/frame_008.png"
+            ],
+            "east": [
+              "Idle/animations/wlking_foward/east/frame_000.png",
+              "Idle/animations/wlking_foward/east/frame_001.png",
+              "Idle/animations/wlking_foward/east/frame_002.png",
+              "Idle/animations/wlking_foward/east/frame_003.png",
+              "Idle/animations/wlking_foward/east/frame_004.png",
+              "Idle/animations/wlking_foward/east/frame_005.png",
+              "Idle/animations/wlking_foward/east/frame_006.png",
+              "Idle/animations/wlking_foward/east/frame_007.png",
+              "Idle/animations/wlking_foward/east/frame_008.png"
+            ],
+            "south-east": [
+              "Idle/animations/wlking_foward/south-east/frame_000.png",
+              "Idle/animations/wlking_foward/south-east/frame_001.png",
+              "Idle/animations/wlking_foward/south-east/frame_002.png",
+              "Idle/animations/wlking_foward/south-east/frame_003.png",
+              "Idle/animations/wlking_foward/south-east/frame_004.png",
+              "Idle/animations/wlking_foward/south-east/frame_005.png",
+              "Idle/animations/wlking_foward/south-east/frame_006.png",
+              "Idle/animations/wlking_foward/south-east/frame_007.png",
+              "Idle/animations/wlking_foward/south-east/frame_008.png"
+            ],
+            "south-west": [
+              "Idle/animations/wlking_foward/south-west/frame_000.png",
+              "Idle/animations/wlking_foward/south-west/frame_001.png",
+              "Idle/animations/wlking_foward/south-west/frame_002.png",
+              "Idle/animations/wlking_foward/south-west/frame_003.png",
+              "Idle/animations/wlking_foward/south-west/frame_004.png",
+              "Idle/animations/wlking_foward/south-west/frame_005.png",
+              "Idle/animations/wlking_foward/south-west/frame_006.png",
+              "Idle/animations/wlking_foward/south-west/frame_007.png",
+              "Idle/animations/wlking_foward/south-west/frame_008.png"
+            ],
+            "south": [
+              "Idle/animations/wlking_foward/south/frame_000.png",
+              "Idle/animations/wlking_foward/south/frame_001.png",
+              "Idle/animations/wlking_foward/south/frame_002.png",
+              "Idle/animations/wlking_foward/south/frame_003.png",
+              "Idle/animations/wlking_foward/south/frame_004.png",
+              "Idle/animations/wlking_foward/south/frame_005.png",
+              "Idle/animations/wlking_foward/south/frame_006.png",
+              "Idle/animations/wlking_foward/south/frame_007.png",
+              "Idle/animations/wlking_foward/south/frame_008.png"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-26T23:49:05.734403"
+}

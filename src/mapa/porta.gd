@@ -9,7 +9,8 @@ extends Area2D
 ## prendia ninguem.
 ##
 ## O estado SELADA existe para o lado do grid que nao tem vizinho: ali a parede
-## e definitiva, entao a porta nunca reabre e nunca aparece.
+## e definitiva, entao a porta nunca reabre, nunca aparece e NAO POE BARREIRA --
+## quem fecha aquele lado e a parede da sala, que passa reta por cima dela.
 ##
 ## Visual em duas pecas, e nao num retangulo que troca de cor: a "Moldura" e o
 ## batente, sempre visivel onde ha vao, com a passagem para fora pintada de
@@ -103,7 +104,18 @@ func _ao_corpo_entrar(corpo: Node2D) -> void:
 
 
 func _aplicar_estado() -> void:
-	var bloqueia := estado != Estado.ABERTA
+	# So a porta TRANCADA precisa de barreira. A SELADA nao: `Sala._vaos_no_trecho`
+	# pula porta selada, entao a parede gerada passa RETA por cima dela e o solido
+	# ja existe ali.
+	#
+	# Enquanto isto era `estado != Estado.ABERTA`, a porta selada somava um
+	# segundo solido em cima da parede -- e nao no mesmo lugar. A parede e um
+	# SegmentShape2D sobre a linha do contorno, sem espessura; a barreira e um
+	# retangulo de 80x32 CENTRADO nessa linha. Metade dele, 16 px, ficava DENTRO
+	# da area jogavel: uma laje invisivel de 80x16 encostada na parede, em todo
+	# lado de sala que nao tinha vizinho. O jogador esbarrava em nada, e nao ha
+	# erro no console para colisao a mais.
+	var bloqueia := estado == Estado.TRANCADA
 
 	if _barreira != null:
 		# Deferido porque trancar costuma ser chamado de dentro de um sinal de

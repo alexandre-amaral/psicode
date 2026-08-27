@@ -215,6 +215,14 @@ def main():
         for personagem in sorted(os.listdir(destino)):
             if not os.path.isdir(os.path.join(destino, personagem)):
                 continue
+            # Sem pasta de origem em animations/, este nao e um conjunto
+            # direcional -- e arte de uma peca so, assada a mao (a Diretora e o
+            # caso). Cobrar dele as oito rotacoes enche a lista de FALTANDO e
+            # faz o gerador sair com codigo != 0 sem nada de errado ter
+            # acontecido.
+            if not os.path.isdir(os.path.join(ORIGEM_ANIM, personagem)):
+                print("%s: sem fitas em animations/, ignorado" % personagem)
+                continue
             print("%s:" % personagem)
             escritos, faltando = processar(destino, personagem, quer_miniatura)
             print("  %d arquivos" % escritos)

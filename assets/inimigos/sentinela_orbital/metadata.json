@@ -1,0 +1,105 @@
+{
+  "group_id": "af5a4fa2-b3fe-4b74-abc7-33959a351ede",
+  "states": [
+    {
+      "character": {
+        "id": "e96e59fe-6fc7-478a-b476-1cf8c420738e",
+        "name": "Idle",
+        "prompt": "Sentinela Orbital \u00e9 um drone flutuante.\nSeu corpo possui uma estrutura esf\u00e9rica ou poligonal compacta, sem pernas ou membros convencionais. No centro existe um grande n\u00facleo antigravitacional, respons\u00e1vel por mant\u00ea-la suspensa no ar.\n\nAo redor do n\u00facleo existem v\u00e1rios pequenos m\u00f3dulos que giram independentemente, criando uma apar\u00eancia de uma m\u00e1quina composta por an\u00e9is e componentes orbitando seu centro.\n\nA Sentinela possui um \u00fanico sensor frontal semelhante a um olho digital, que permanece direcionado para o jogador. Pequenos emissores de energia ficam espalhados ao redor do corpo e podem rotacionar para alinhar os disparos.",
+        "size": {
+          "width": 64,
+          "height": 64
+        },
+        "template_id": "cat",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-08-26T23:06:01.216700+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {
+          "floating_foward": {
+            "east": [
+              "Idle/animations/floating_foward/east/frame_000.png",
+              "Idle/animations/floating_foward/east/frame_001.png",
+              "Idle/animations/floating_foward/east/frame_002.png",
+              "Idle/animations/floating_foward/east/frame_003.png",
+              "Idle/animations/floating_foward/east/frame_004.png",
+              "Idle/animations/floating_foward/east/frame_005.png",
+              "Idle/animations/floating_foward/east/frame_006.png",
+              "Idle/animations/floating_foward/east/frame_007.png",
+              "Idle/animations/floating_foward/east/frame_008.png"
+            ],
+            "west": [
+              "Idle/animations/floating_foward/west/frame_000.png",
+              "Idle/animations/floating_foward/west/frame_001.png",
+              "Idle/animations/floating_foward/west/frame_002.png",
+              "Idle/animations/floating_foward/west/frame_003.png",
+              "Idle/animations/floating_foward/west/frame_004.png",
+              "Idle/animations/floating_foward/west/frame_005.png",
+              "Idle/animations/floating_foward/west/frame_006.png",
+              "Idle/animations/floating_foward/west/frame_007.png",
+              "Idle/animations/floating_foward/west/frame_008.png"
+            ],
+            "south": [
+              "Idle/animations/floating_foward/south/frame_000.png",
+              "Idle/animations/floating_foward/south/frame_001.png",
+              "Idle/animations/floating_foward/south/frame_002.png",
+              "Idle/animations/floating_foward/south/frame_003.png",
+              "Idle/animations/floating_foward/south/frame_004.png",
+              "Idle/animations/floating_foward/south/frame_005.png",
+              "Idle/animations/floating_foward/south/frame_006.png",
+              "Idle/animations/floating_foward/south/frame_007.png",
+              "Idle/animations/floating_foward/south/frame_008.png"
+            ],
+            "south-east": [
+              "Idle/animations/floating_foward/south-east/frame_000.png",
+              "Idle/animations/floating_foward/south-east/frame_001.png",
+              "Idle/animations/floating_foward/south-east/frame_002.png",
+              "Idle/animations/floating_foward/south-east/frame_003.png",
+              "Idle/animations/floating_foward/south-east/frame_004.png",
+              "Idle/animations/floating_foward/south-east/frame_005.png",
+              "Idle/animations/floating_foward/south-east/frame_006.png",
+              "Idle/animations/floating_foward/south-east/frame_007.png",
+              "Idle/animations/floating_foward/south-east/frame_008.png"
+            ],
+            "south-west": [
+              "Idle/animations/floating_foward/south-west/frame_000.png",
+              "Idle/animations/floating_foward/south-west/frame_001.png",
+              "Idle/animations/floating_foward/south-west/frame_002.png",
+              "Idle/animations/floating_foward/south-west/frame_003.png",
+              "Idle/animations/floating_foward/south-west/frame_004.png",
+              "Idle/animations/floating_foward/south-west/frame_005.png",
+              "Idle/animations/floating_foward/south-west/frame_006.png",
+              "Idle/animations/floating_foward/south-west/frame_007.png",
+              "Idle/animations/floating_foward/south-west/frame_008.png"
+            ],
+            "north": [
+              "Idle/animations/floating_foward/north/frame_000.png",
+              "Idle/animations/floating_foward/north/frame_001.png",
+              "Idle/animations/floating_foward/north/frame_002.png",
+              "Idle/animations/floating_foward/north/frame_003.png",
+              "Idle/animations/floating_foward/north/frame_004.png",
+              "Idle/animations/floating_foward/north/frame_005.png",
+              "Idle/animations/floating_foward/north/frame_006.png",
+              "Idle/animations/floating_foward/north/frame_007.png",
+              "Idle/animations/floating_foward/north/frame_008.png"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-08-26T23:25:03.344114"
+}

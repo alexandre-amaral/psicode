@@ -39,13 +39,22 @@ var _t_intervalo: float = 0.0
 ## Sentido da orbita. Sorteado no nascimento: duas sentinelas girando para lados
 ## opostos fecham o campo de verdade.
 var _sentido: float = 1.0
+var _sprite: SpriteDirecional = null
+## O que gira: a boca da arma e o clarao. NAO e o `_visual`.
+var _torre: Node2D = null
+
+
+## Abaixo disto ela esta parando, nao orbitando.
+const VELOCIDADE_ANDANDO := 12.0
 
 
 func _ready() -> void:
 	super._ready()
-	_arma = $Visual/Arma
+	_torre = $Torre
+	_sprite = $Visual/Corpo
+	_arma = $Torre/Arma
 	_arma.hostil = true
-	_clarao = $Visual/Clarao
+	_clarao = $Torre/Clarao
 	_clarao.visible = false
 	_sentido = 1.0 if randf() < 0.5 else -1.0
 	_t_intervalo = randf_range(0.3, intervalo)
@@ -129,9 +138,28 @@ func _circular(delta: float, fator: float) -> void:
 	)
 
 
+## Duas resolucoes de mira convivendo, e e de proposito -- a mesma divisao que o
+## jogador tem.
+##
+## A TORRE gira livre e continua: e dela que a boca da arma e o clarao herdam a
+## posicao, entao ela mostra o angulo EXATO do tiro. O corpo, que agora e sprite,
+## mostra a direcao geral em oito passos.
+##
+## Foi por isso que a torre nasceu como no separado em vez de o `_visual` parar
+## de girar: com a arma pendurada em `Visual` na posicao (26, 0), congelar o
+## `_visual` faria todo tiro nascer 26 px a direita da sentinela, para sempre e
+## sem erro no console. E a mesma armadilha que o `Sprite` do Player evita saindo
+## de dentro do `Visual` -- aqui e o contrario, quem sai e a arma.
 func _orientar(delta: float) -> void:
-	if _visual == null:
-		return
 	var d := direcao_para_alvo()
-	if d.length_squared() > 0.01:
-		_visual.rotation = lerp_angle(_visual.rotation, d.angle(), 9.0 * delta)
+	if _torre != null and d.length_squared() > 0.01:
+		_torre.rotation = lerp_angle(_torre.rotation, d.angle(), 9.0 * delta)
+
+
+## O corpo encara o jogador -- ela nunca vira as costas, e o nome dela e o que
+## promete isso.
+func _pos_movimento(delta: float) -> void:
+	if _sprite == null:
+		return
+	var andando := velocity.length() > VELOCIDADE_ANDANDO
+	_sprite.apontar(direcao_para_alvo(), andando, delta, velocity)

@@ -534,6 +534,18 @@ em qualquer erro de script.
   lados; no cartao o personagem sairia pequeno demais. O gerador recorta no
   alpha e dobra -- 128 e o tamanho certo E escala inteira, a unica que nao borra
   pixel art. Qualquer outra caixa que nao 128 reescala e borra.
+- **O `Visual` do Player nao desenha mais nada, e mesmo assim nao pode sumir.**
+  A mira deixou de ser o cano ciano preso ao corpo e virou um reticulo colado no
+  MOUSE, entao `Aura` e `Cano` sairam da cena. O que sobrou dentro do `Visual` e
+  o no `Arma`, em (27, 0) -- e e a rotacao do `Visual` que faz a boca orbitar.
+  Apagar o `Visual` por "estar vazio" faria todo projetil do jogador nascer 27 px
+  a direita dele, para sempre e sem erro no console.
+- **O reticulo e o dono do cursor do sistema.** `src/player/mira.gd` esconde a
+  seta enquanto aparece e a devolve ao sair -- inclusive no `_exit_tree`, que e o
+  que cobre a troca de cena para o menu. Ele roda em `PROCESS_MODE_ALWAYS` de
+  proposito: com a arvore pausada ele ainda precisa rodar para devolver a seta
+  ao menu de pausa. Dois cursores na tela e pior que nenhum, e nenhum e pior
+  ainda -- um menu sem seta nao da erro, so nao da para usar.
 - **O sprite do jogador e IRMAO de `Visual`, nunca filho.** O no `Arma` mora em
   `Visual` na posicao (27, 0), e e a rotacao do `Visual` que faz a boca da arma
   orbitar o jogador. Por em `Visual` um sprite direcional o faria girar junto

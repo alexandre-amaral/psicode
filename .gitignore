@@ -60,6 +60,13 @@ animations/
 # faria o Godot importar oito texturas que ninguem referencia.
 enemy/
 
+# Arte bruta do reticulo de mira, mesma politica: o que o jogo usa e o
+# assets/ui/mira.png assado a partir dela.
+#
+# A BARRA INICIAL e obrigatoria. Sem ela, `player/` casa em qualquer nivel e
+# levaria junto `src/player/` -- o Player inteiro sumiria do repositorio.
+/player/
+
 # Hooks do git-lfs que foram parar num caminho literal `dev/null` num shell do
 # Windows -- `> /dev/null` cria o diretorio em vez de descartar. Nao sao do
 # projeto e nao devem voltar.

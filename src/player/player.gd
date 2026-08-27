@@ -217,8 +217,9 @@ func _iniciar_rolamento(entrada: Vector2) -> void:
 
 ## O `Visual` gira livre (e dele que a boca da arma herda a posicao, e por isso
 ## ele NAO pode parar de girar); o `Sprite`, que e irmao e nao filho, so troca de
-## quadro. Sao duas resolucoes de mira convivendo de proposito: o cano mostra o
-## angulo exato do tiro, e o corpo mostra a direcao geral em oito passos.
+## quadro. Sao duas resolucoes de mira convivendo de proposito: o corpo mostra a
+## direcao geral em oito passos, e quem mostra o alvo exato e o reticulo no
+## mouse -- que substituiu o cano ciano que ficava preso ao corpo.
 func _mirar(delta: float) -> void:
 	var direcao := _direcao_mira()
 	_visual.rotation = direcao.angle()
@@ -279,14 +280,13 @@ func _atualizar_visual() -> void:
 	# Pisca durante a invulnerabilidade pos-dano (mas nao durante o rolamento,
 	# senao o eco ja comunica e vira poluicao visual).
 	#
-	# Os DOIS nos: o Sprite saiu de dentro do Visual para nao girar junto, e com
-	# isso deixou de herdar o modulate. Piscar so a aura e o cano deixaria a
-	# personagem opaca durante os i-frames -- o feedback sumiria justo de quem
-	# precisa dele.
+	# So o Sprite: desde que a mira virou reticulo no mouse, o `Visual` nao
+	# desenha mais nada -- ele existe para girar e carregar a boca da arma. O
+	# `modulate` dele nao alcanca o `Sprite`, que e irmao e nao filho, e por isso
+	# o piscar sempre morou aqui de qualquer jeito.
 	var alfa := 1.0
 	if estado != Estado.ROLANDO and _t_invuln > 0.0:
 		alfa = 0.35 + 0.65 * absf(sin(Time.get_ticks_msec() * 0.02))
-	_visual.modulate.a = alfa
 	_sprite.modulate.a = alfa
 
 

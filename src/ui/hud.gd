@@ -29,9 +29,7 @@ var _tween_leitura: Tween = null
 @onready var _rotulo_fase: Label = $Topo/Esquerda/Fase
 @onready var _rotulo_arma: Label = $Rodape/Arma
 @onready var _rotulo_municao: Label = $Rodape/Municao
-@onready var _rotulo_salas: Label = $Topo/Direita/Salas
-@onready var _rotulo_inimigos: Label = $Topo/Direita/Inimigos
-@onready var _rotulo_tempo: Label = $Topo/Direita/Tempo
+@onready var _rotulo_tempo: Label = $Tempo
 @onready var _aviso: Label = $Aviso
 @onready var _aviso_sub: Label = $AvisoSub
 @onready var _boss: Control = $Boss
@@ -66,13 +64,6 @@ func _ready() -> void:
 	EventBus.municao_mudou.connect(_ao_municao)
 	EventBus.recarga_iniciada.connect(_ao_recarga_iniciada)
 	EventBus.recarga_concluida.connect(_ao_recarga_concluida)
-	# andar_gerado tambem, e nao so as transicoes: o total de salas so existe
-	# depois que o andar e montado, e sem este a HUD abriria com o campo vazio
-	# ate o jogador limpar a primeira sala.
-	EventBus.andar_gerado.connect(_atualizar_progresso)
-	EventBus.sala_limpa.connect(func(_s: Node2D) -> void: _atualizar_progresso())
-	EventBus.transicao_concluida.connect(func(_s: Node2D) -> void: _atualizar_progresso())
-	EventBus.contagem_inimigos_mudou.connect(_ao_contagem)
 	EventBus.boss_revelado.connect(_ao_boss_revelado)
 	EventBus.boss_vida_mudou.connect(_ao_boss_vida)
 	EventBus.boss_morreu.connect(_ao_boss_morreu)
@@ -162,15 +153,6 @@ func _ao_recarga_concluida() -> void:
 	_rotulo_municao.text = _texto_municao()
 
 
-func _atualizar_progresso() -> void:
-	if GameState.total_salas <= 0:
-		_rotulo_salas.text = ""
-		return
-	_rotulo_salas.text = tr("SALAS %d / %d") % [GameState.salas_limpas, GameState.total_salas]
-
-
-func _ao_contagem(vivos: int) -> void:
-	_rotulo_inimigos.text = tr("HOSTIS %d") % vivos
 
 
 func _mostrar_aviso(titulo: String, subtitulo: String) -> void:
@@ -260,9 +242,6 @@ func _proximo_aviso() -> void:
 
 
 func _ao_boss_revelado(nome: String, vida_max: int) -> void:
-	# Na onda do chefe a contagem de hostis so confunde -- o que importa
-	# esta na barra dele.
-	_rotulo_inimigos.visible = false
 	_boss.visible = true
 	_boss_nome.text = nome
 	_boss_barra.max_value = vida_max

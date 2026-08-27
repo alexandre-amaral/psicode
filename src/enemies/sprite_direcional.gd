@@ -33,6 +33,28 @@ extends Sprite2D
 ## deixaria o ciclo em camera lenta.
 @export var fps_andando: float = 12.0
 
+## A velocidade em que `fps_andando` esta certo, em px/s. Acima dela o ciclo
+## acelera; abaixo, desacelera. ZERO = cadencia fixa, o comportamento antigo.
+##
+## Ciclo de caminhada deveria seguir o CHAO, e nao o relogio -- senao qualquer
+## bicho com mais de uma velocidade desliza. E "uma velocidade so" nao existe de
+## verdade neste jogo: a Deterioracao multiplica a velocidade de todo inimigo
+## ate 1,55x. O caso extremo e a Cyber-Besta, que anda a 88 px/s e investe a 720:
+## com cadencia fixa, a investida corria 8,2x mais rapido que o passo que as
+## patas mostravam.
+##
+## Fica opcional em vez de virar padrao porque um sprite direcional pode um dia
+## animar PARADO -- um bicho que respira, uma torre que gira. Zero mantem esse
+## caso possivel, e deixa a escolha legivel no `.tscn` de quem a fez.
+@export var velocidade_referencia: float = 0.0
+
+## Teto do multiplicador de cadencia. So vale com `velocidade_referencia` > 0.
+##
+## Sem teto, a investida da Cyber-Besta rodaria o ciclo de 9 quadros 4,6 vezes
+## em 0,42 s: com filtro Nearest isso vira ruido, e a investida e justamente o
+## momento que precisa ser lido. A 3x, ela sai a 36 fps -- galope, nao estrobo.
+@export var aceleracao_maxima_do_ciclo: float = 3.0
+
 ## Posicao no ciclo, em quadros. Float porque o avanco e continuo; quem indexa a
 ## fita e o int() dele.
 var _t_ciclo: float = 0.0
@@ -78,13 +100,27 @@ func _andando_para(direcao: Vector2) -> Texture2D:
 	return sprites_andando[Direcoes.indice(direcao)]
 
 
-## Anda o ciclo, para a frente ou para tras.
+## Anda o ciclo, para a frente ou para tras, no ritmo do chao.
 func _avancar_ciclo(delta: float, direcao: Vector2, movimento: Vector2) -> void:
 	var sentido := -1.0 if movimento.dot(direcao) < 0.0 else 1.0
-	_t_ciclo += delta * fps_andando * sentido
+	_t_ciclo += delta * fps_andando * _fator_de_cadencia(movimento) * sentido
 	# fposmod e nao fmod: com sentido negativo o fmod devolve negativo, e o
 	# int() disso indexaria fora da fita.
 	_t_ciclo = fposmod(_t_ciclo, float(quadros_andando))
+
+
+## Quantas vezes a cadencia base, dada a velocidade de agora.
+##
+## Com `velocidade_referencia` zerada devolve 1.0 e nada muda -- e o que mantem
+## intacto quem nao optou por seguir o chao.
+func _fator_de_cadencia(movimento: Vector2) -> float:
+	if velocidade_referencia <= 0.0:
+		return 1.0
+	return clampf(
+		movimento.length() / velocidade_referencia,
+		0.0,
+		maxf(aceleracao_maxima_do_ciclo, 0.0)
+	)
 
 
 ## Textura, hframes e quadro SEMPRE juntos.

@@ -546,6 +546,32 @@ em qualquer erro de script.
   horizontal pelo CENTRO DA MOLDURA de origem (a arte tem deslocamento lateral
   intencional, e centralizar pelo desenho o apagaria) e vertical pela BASE do
   bbox de alpha.
+- **Ciclo de caminhada dirigido por TEMPO desliza.** O passo tem de seguir o
+  CHAO, e nao o relogio: `fps_andando` sozinho so acerta se o bicho tiver uma
+  velocidade so -- e isso nao existe aqui, porque a Deterioracao multiplica a
+  velocidade de todo inimigo ate 1,55x. O caso extremo foi a Cyber-Besta, que
+  anda a 88 px/s e investe a 720: as patas corriam 8,2x mais devagar que o chao.
+  Quem liga isso e `velocidade_referencia` no `SpriteDirecional` (zero =
+  cadencia fixa), e `aceleracao_maxima_do_ciclo` poe teto para a corrida nao
+  virar estrobo. Sobra deslize acima do teto, e e proposital.
+- **`OBSERVAR` da Cyber-Besta nao e ficar parado, e CIRCULAR.** `_observar()`
+  anda a 0,6 da velocidade numa direcao 65% ortogonal ao jogador, e e o estado
+  em que ela passa mais tempo. Excluir esse estado de "esta andando" congela as
+  patas exatamente onde ela mais se desloca -- ja aconteceu.
+- **Sprite direcional e rotacao de `Visual` nao convivem.** O `Visual` do
+  inimigo pode estar girando (`lerp_angle` para o alvo) -- seis dos oito fazem
+  isso. Por um sprite de oito rotacoes dentro de um `Visual` que gira DEITA a
+  arte, que e desenhada em vista 3/4. Quando o corpo vira sprite, a rotacao sai
+  e quem passa a carregar a direcao sao os oito quadros. **Mas o motivo pelo
+  qual aquele inimigo girava tem de sobreviver**: na Cyber-Besta a rotacao
+  existia para o corpo apontar para onde ele VAI durante a investida, e nao para
+  onde o jogador esta -- e essa regra continua, so mudou quem a executa.
+- **Agachamento anisotropico depende do `Visual` girado.** `scale(0.7, 1.35)`
+  comprime no x LOCAL: com o `Visual` girado, isso e comprimir na direcao da
+  corrida. Tirada a rotacao, o mesmo vetor comprime sempre na horizontal da
+  TELA, e um bicho carregando para cima aparece achatado de lado -- a
+  anticipacao contada no eixo errado. `CyberBesta._agachar()` escolhe o eixo
+  dominante, a mesma quantizacao de oito passos do sprite.
 - **O mapa de angulo -> quadro mora em `src/util/direcoes.gd`, e so ali.** Ele
   nasceu dentro de `DadosPersonagem` e saiu de la quando o Drone Aranha ganhou
   arte. Duas copias acabariam divergindo, e o sintoma seria o inimigo e a

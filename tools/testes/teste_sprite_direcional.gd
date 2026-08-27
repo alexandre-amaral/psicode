@@ -1,6 +1,11 @@
 extends TesteBase
-## Confere o sprite direcional do Drone Aranha -- os arquivos, o mapa de
-## angulos e o canal de cor.
+## Confere TODO inimigo com sprite direcional -- os arquivos, o mapa de angulos
+## e o canal de cor.
+##
+## A suite VARRE `src/enemies/*.tscn` em vez de listar cenas: inimigo novo com
+## arte entra na conta sozinho, sem ninguem lembrar de acrescentar. Uma lista
+## fixa aqui teria o mesmo defeito que a `AUTORADAS` do teste de texturas ja tem
+## -- arquivo fora dela nao e conferido por nada, e ninguem descobre.
 ##
 ## Esta suite existe porque **nada disto avisa quando quebra**. Trocar duas
 ## rotacoes de lugar faz o inimigo encarar o lado errado; declarar 8 quadros
@@ -15,7 +20,7 @@ extends TesteBase
 ## `Visual/Corpo` ausente e um `Visual/Corpo` que nao aceita cor se comportam
 ## exatamente igual em tela -- sem nada.
 
-const CENA_DRONE := preload("res://src/enemies/drone_aranha.tscn")
+const PASTA_INIMIGOS := "res://src/enemies/"
 
 ## Lado da moldura de todo sprite do projeto, parado ou andando. Uma so para os
 ## dois conjuntos: e o alinhamento entre eles que impede o bicho de saltar de
@@ -30,31 +35,80 @@ const LONGE := Vector2(6000, 6000)
 ## Passo do relogio manual, em segundos.
 const PASSO := 0.1
 
+## De quem sao as verificacoes que estao rodando agora. Sem isto, "rotacao 3
+## mede 80x80" nao diz de qual inimigo, e um relatorio com tres bichos vira
+## adivinhacao.
+var _nome_atual: String = "?"
+
 
 func nome() -> String:
 	return "SpriteDirecional"
 
 
 func executar() -> void:
-	var raiz := Node2D.new()
-	Engine.get_main_loop().root.add_child(raiz)
+	# O mapa de angulos nao depende de cena nenhuma: confere uma vez so.
+	var esperado := _o_mapa_de_angulos()
 
-	var drone := CENA_DRONE.instantiate() as InimigoBase
-	raiz.add_child(drone)
-	drone.global_position = LONGE
+	var achados := 0
+	for arquivo in _cenas_de_inimigo():
+		var cena: PackedScene = load(PASTA_INIMIGOS + arquivo)
+		if cena == null:
+			continue
+		var raiz := Node2D.new()
+		Engine.get_main_loop().root.add_child(raiz)
 
-	var sprite := drone.get_node_or_null("Visual/Corpo") as SpriteDirecional
-	ok(sprite != null, "o Drone Aranha tem um Visual/Corpo direcional")
-	if sprite != null:
+		# add_child ANTES do cast: nem todo .tscn de src/enemies/ e um inimigo
+		# (area_de_perigo tem Area2D na raiz). Testando o cast primeiro, o no
+		# instanciado ficava orfao -- fora da arvore, sem ninguem para libera-lo,
+		# e o Godot reclamava de RID vazado no fim da suite. Dentro da arvore,
+		# o `raiz.free()` leva tudo junto.
+		var no := cena.instantiate()
+		raiz.add_child(no)
+		var inimigo := no as InimigoBase
+		if inimigo == null:
+			raiz.free()
+			continue
+		inimigo.global_position = LONGE
+
+		var sprite := inimigo.get_node_or_null("Visual/Corpo") as SpriteDirecional
+		if sprite == null:
+			# Inimigo de poligono. Nao se aplica -- e ausencia de sprite nao e
+			# falha, do mesmo jeito que ausencia de `cor_base` nao e no teste de
+			# texturas.
+			raiz.free()
+			continue
+
+		achados += 1
+		_nome_atual = arquivo.get_basename()
 		_o_conjunto_de_arquivos(sprite)
-		var esperado := _o_mapa_de_angulos()
 		_textura_e_hframes_andam_juntos(sprite, esperado)
-	_o_tint_alcanca_o_sprite(drone, sprite)
+		_o_tint_alcanca_o_sprite(inimigo, sprite)
 
-	# free() e nao queue_free(): a suite roda inteira num frame, entao um
-	# queue_free deixaria o drone no grupo "inimigo" para os casos das outras
-	# suites acharem.
-	raiz.free()
+		# free() e nao queue_free(): a suite roda inteira num frame, entao um
+		# queue_free deixaria o inimigo no grupo "inimigo" para os casos das
+		# outras suites acharem.
+		raiz.free()
+
+	_o_ciclo_segue_o_chao()
+	_andar_em_qualquer_estado_anima()
+
+	# Guarda contra a suite virar decoracao: se a varredura parar de achar
+	# ninguem, todas as verificacoes acima somem e o relatorio fica verde.
+	ok(achados >= 1, "a varredura achou inimigo com sprite direcional (%d)" % achados)
+
+
+## Os `.tscn` de `src/enemies/`, em ordem estavel.
+func _cenas_de_inimigo() -> Array[String]:
+	var nomes: Array[String] = []
+	var pasta := DirAccess.open(PASTA_INIMIGOS)
+	if pasta == null:
+		ok(false, "src/enemies/ pode ser aberta")
+		return nomes
+	for arquivo in pasta.get_files():
+		if arquivo.ends_with(".tscn"):
+			nomes.append(arquivo)
+	nomes.sort()
+	return nomes
 
 
 ## As oito paradas e as oito fitas, medidas em disco.
@@ -64,11 +118,11 @@ func executar() -> void:
 ## sem erro no console, sem nada que aponte para a cena. Multiplicar
 ## `quadros_andando` pelo lado e o que amarra os dois.
 func _o_conjunto_de_arquivos(s: SpriteDirecional) -> void:
-	igual(s.sprites_parado.size(), Direcoes.TOTAL, "tem as %d rotacoes paradas" % Direcoes.TOTAL)
-	igual(s.sprites_andando.size(), Direcoes.TOTAL, "tem as %d fitas de caminhada" % Direcoes.TOTAL)
-	ok(s.quadros_andando >= 2, "um ciclo precisa de ao menos 2 quadros")
-	ok(s.fps_andando > 0.0, "o ciclo tem cadencia positiva")
-	ok(s.tem_ciclo(), "o conjunto declara ter ciclo de caminhada")
+	igual(s.sprites_parado.size(), Direcoes.TOTAL, "%s: tem as %d rotacoes paradas" % [_nome_atual, Direcoes.TOTAL])
+	igual(s.sprites_andando.size(), Direcoes.TOTAL, "%s: tem as %d fitas de caminhada" % [_nome_atual, Direcoes.TOTAL])
+	ok(s.quadros_andando >= 2, "%s: um ciclo precisa de ao menos 2 quadros" % _nome_atual)
+	ok(s.fps_andando > 0.0, "%s: o ciclo tem cadencia positiva" % _nome_atual)
+	ok(s.tem_ciclo(), "%s: o conjunto declara ter ciclo de caminhada" % _nome_atual)
 
 	_medir(s.sprites_parado, Vector2(LADO_SPRITE, LADO_SPRITE), "rotacao")
 	_medir(
@@ -86,12 +140,12 @@ func _medir(texturas: Array[Texture2D], tamanho: Vector2, rotulo: String) -> voi
 	for i in texturas.size():
 		var t: Texture2D = texturas[i]
 		if t == null:
-			ok(false, "%s %d nao e nula" % [rotulo, i])
+			ok(false, "%s: %s %d nao e nula" % [_nome_atual, rotulo, i])
 			continue
-		igual(t.get_size(), tamanho, "%s %d mede %s" % [rotulo, i, tamanho])
+		igual(t.get_size(), tamanho, "%s: %s %d mede %s" % [_nome_atual, rotulo, i, tamanho])
 		ok(
 			not vistas.has(t.resource_path),
-			"%s %d nao repete outro arquivo (%s)" % [rotulo, i, t.resource_path.get_file()]
+			"%s: %s %d nao repete outro arquivo (%s)" % [_nome_atual, rotulo, i, t.resource_path.get_file()]
 		)
 		vistas.append(t.resource_path)
 
@@ -141,18 +195,18 @@ func _textura_e_hframes_andam_juntos(s: SpriteDirecional, esperado: Array) -> vo
 		s.apontar(direcao, false, 0.0)
 		ok(
 			s.texture == s.sprites_parado[indice],
-			"parado para %s usa a rotacao %d" % [caso[2], indice]
+			"%s: parado para %s usa a rotacao %d" % [_nome_atual, caso[2], indice]
 		)
-		igual(s.hframes, 1, "parado para %s le a textura como um quadro so" % caso[2])
+		igual(s.hframes, 1, "%s: parado para %s le a textura como um quadro so" % [_nome_atual, caso[2]])
 
 		s.apontar(direcao, true, 0.0, direcao)
 		ok(
 			s.texture == s.sprites_andando[indice],
-			"andando para %s usa a fita %d" % [caso[2], indice]
+			"%s: andando para %s usa a fita %d" % [_nome_atual, caso[2], indice]
 		)
 		igual(
 			s.hframes, s.quadros_andando,
-			"andando para %s le a fita em %d quadros" % [caso[2], s.quadros_andando]
+			"%s: andando para %s le a fita em %d quadros" % [_nome_atual, caso[2], s.quadros_andando]
 		)
 
 	_o_ciclo_nao_sai_da_fita(s)
@@ -162,12 +216,18 @@ func _textura_e_hframes_andam_juntos(s: SpriteDirecional, esperado: Array) -> vo
 ## andando de re, que e o que o knockback faz enquanto o drone encara o alvo.
 ## Sem o `fposmod`, o sentido negativo devolve quadro negativo.
 func _o_ciclo_nao_sai_da_fita(s: SpriteDirecional) -> void:
+	# A velocidade do movimento IMPORTA desde que o ciclo passou a seguir o
+	# chao: um `Vector2.DOWN` cru tem comprimento 1, e contra uma
+	# `velocidade_referencia` de 88 isso e praticamente parado -- o ciclo mal
+	# saia do lugar e o caso "de fato avanca de quadro" reprovava sem haver
+	# defeito nenhum. Anda-se a uma velocidade de verdade.
+	var rapidez := maxf(s.velocidade_referencia, 100.0)
 	var quadros: Array[int] = []
 	for i in 40:
-		s.apontar(Vector2.DOWN, true, 1.0 / 30.0, Vector2.DOWN)
+		s.apontar(Vector2.DOWN, true, 1.0 / 30.0, Vector2.DOWN * rapidez)
 		quadros.append(s.frame)
 	for i in 40:
-		s.apontar(Vector2.DOWN, true, 1.0 / 30.0, Vector2.UP)
+		s.apontar(Vector2.DOWN, true, 1.0 / 30.0, Vector2.UP * rapidez)
 		quadros.append(s.frame)
 
 	var dentro := true
@@ -176,8 +236,8 @@ func _o_ciclo_nao_sai_da_fita(s: SpriteDirecional) -> void:
 		if q < 0 or q >= s.quadros_andando:
 			dentro = false
 		maior = maxi(maior, q)
-	ok(dentro, "o ciclo nunca indexa fora da fita, nos dois sentidos")
-	ok(maior > 0, "o ciclo de fato avanca de quadro")
+	ok(dentro, "%s: o ciclo nunca indexa fora da fita, nos dois sentidos" % _nome_atual)
+	ok(maior > 0, "%s: o ciclo de fato avanca de quadro" % _nome_atual)
 
 
 ## O tint de Hack tem de CHEGAR num corpo que e sprite.
@@ -189,25 +249,25 @@ func _o_ciclo_nao_sai_da_fita(s: SpriteDirecional) -> void:
 func _o_tint_alcanca_o_sprite(drone: InimigoBase, sprite: SpriteDirecional) -> void:
 	if sprite == null:
 		return
-	igual(sprite.self_modulate, Color.WHITE, "sem nada acontecendo o sprite fica neutro")
+	igual(sprite.self_modulate, Color.WHITE, "%s: sem nada acontecendo o sprite fica neutro" % _nome_atual)
 
 	drone.aplicar_hack(4.0)
-	ok(drone.esta_hackeado(), "o drone aceita ser hackeado")
-	ok(sprite.self_modulate != Color.WHITE, "o tint de Hack chega ao sprite")
-	ok(sprite.self_modulate.g > sprite.self_modulate.r, "o tint de Hack puxa para o verde")
+	ok(drone.esta_hackeado(), "%s: aceita ser hackeado" % _nome_atual)
+	ok(sprite.self_modulate != Color.WHITE, "%s: o tint de Hack chega ao sprite" % _nome_atual)
+	ok(sprite.self_modulate.g > sprite.self_modulate.r, "%s: o tint de Hack puxa para o verde" % _nome_atual)
 
 	# O clarao de dano mora no modulate do PAI. Sao dois canais que nao podem se
 	# cruzar: se o clarao escrevesse aqui, o primeiro tiro apagaria a marca.
 	drone.receber_dano(1)
-	ok(sprite.self_modulate != Color.WHITE, "o clarao de dano nao apaga o tint de Hack")
+	ok(sprite.self_modulate != Color.WHITE, "%s: o clarao de dano nao apaga o tint de Hack" % _nome_atual)
 
 	# Expira pelo caminho de verdade -- o `_t_hack` do `_physics_process` --, e
 	# nao chamando `_pintar_hack(false)` na mao: aquele so devolve o canal se o
 	# Hack ja tiver acabado, entao chamar direto testaria uma ordem que nao
 	# acontece no jogo e passaria verde com a marca ainda pintada.
 	_avancar(drone, 4.2)
-	ok(not drone.esta_hackeado(), "a marca expira sozinha")
-	igual(sprite.self_modulate, Color.WHITE, "sair do Hack devolve o sprite ao neutro")
+	ok(not drone.esta_hackeado(), "%s: a marca expira sozinha" % _nome_atual)
+	igual(sprite.self_modulate, Color.WHITE, "%s: sair do Hack devolve o sprite ao neutro" % _nome_atual)
 
 
 ## Avanca o relogio do inimigo na mao. O _physics_process nao roda numa suite
@@ -215,3 +275,91 @@ func _o_tint_alcanca_o_sprite(drone: InimigoBase, sprite: SpriteDirecional) -> v
 func _avancar(inimigo: InimigoBase, segundos: float) -> void:
 	for i in int(ceil(segundos / PASSO)):
 		inimigo._physics_process(PASSO)
+
+## O ciclo de patas segue o CHAO, e nao o relogio.
+##
+## Cadencia fixa desliza em qualquer bicho com mais de uma velocidade -- e "uma
+## velocidade so" nao existe aqui, porque a Deterioracao multiplica a velocidade
+## de todo inimigo ate 1,55x. O caso que tornou isso obvio foi a Cyber-Besta:
+## 88 px/s andando contra 720 investindo, com as patas sempre no mesmo passo.
+func _o_ciclo_segue_o_chao() -> void:
+	var s := SpriteDirecional.new()
+	s.fps_andando = 12.0
+	s.quadros_andando = 9
+	s.velocidade_referencia = 100.0
+	s.aceleracao_maxima_do_ciclo = 3.0
+
+	var normal := _avanco(s, 100.0)
+	var dobro := _avanco(s, 200.0)
+	var quase_parado := _avanco(s, 5.0)
+
+	ok(dobro > normal * 1.9, "andar ao dobro roda o ciclo ao dobro (%.2f -> %.2f)" % [normal, dobro])
+	ok(quase_parado < normal, "quase parado, o ciclo desacelera junto (%.2f < %.2f)" % [quase_parado, normal])
+
+	# O teto. Sem ele a investida real -- 8x a referencia -- rodaria o ciclo de
+	# 9 quadros quase cinco vezes em 0,42 s: ruido, e nao galope.
+	perto(_avanco(s, 800.0), normal * 3.0, "a 8x a referencia o ciclo para no teto de 3x", 0.05)
+
+	# E quem nao optou continua exatamente como estava.
+	var fixo := SpriteDirecional.new()
+	fixo.fps_andando = 12.0
+	fixo.quadros_andando = 9
+	perto(
+		_avanco(fixo, 800.0), _avanco(fixo, 50.0),
+		"sem velocidade_referencia a cadencia e fixa, como antes", 0.001
+	)
+
+	s.free()
+	fixo.free()
+
+
+## Andar anima, em QUALQUER estado.
+##
+## Este caso existe por uma regressao concreta: `_pos_movimento` da Cyber-Besta
+## excluia o estado OBSERVAR de `andando`, achando que observar era ficar
+## parado. Nao e -- `_observar()` faz ela CIRCULAR o jogador a ~53 px/s, e e o
+## estado em que ela passa mais tempo. As patas ficavam congeladas exatamente
+## onde ela mais se desloca.
+##
+## A trava e sobre o inimigo montado, e nao sobre o sprite solto: o defeito
+## morava em quem CHAMA `apontar()`, nao nele.
+func _andar_em_qualquer_estado_anima() -> void:
+	var raiz := Node2D.new()
+	Engine.get_main_loop().root.add_child(raiz)
+	var besta := preload("res://src/enemies/cyber_besta.tscn").instantiate() as InimigoBase
+	raiz.add_child(besta)
+	besta.global_position = LONGE
+	besta.set_physics_process(false)
+
+	var sprite := besta.get_node_or_null("Visual/Corpo") as SpriteDirecional
+	if sprite == null:
+		ok(false, "a Cyber-Besta tem sprite direcional")
+		raiz.free()
+		return
+
+	# Deslocando-se de lado, como ela faz o tempo todo enquanto observa.
+	besta.velocity = Vector2(0.0, 60.0)
+	var quadros: Array[int] = []
+	for i in 20:
+		besta._pos_movimento(PASSO)
+		quadros.append(sprite.frame)
+
+	var mudou := false
+	for q in quadros:
+		if q != quadros[0]:
+			mudou = true
+	ok(mudou, "deslocar-se enquanto observa move as patas (%s)" % [quadros.slice(0, 6)])
+
+	raiz.free()
+
+
+## Quantos quadros o ciclo avanca em 1 s a esta velocidade.
+func _avanco(s: SpriteDirecional, velocidade: float) -> float:
+	s._t_ciclo = 0.0
+	var movimento := Vector2.RIGHT * velocidade
+	for i in 60:
+		s._avancar_ciclo(1.0 / 60.0, Vector2.RIGHT, movimento)
+	# fposmod dobra o valor dentro da fita; o que interessa aqui e o AVANCO, e
+	# ele so cabe cru enquanto for menor que um ciclo. Acima disso conta-se
+	# quantas voltas deram, e por isso o harness usa 1 s e nao mais.
+	return s._t_ciclo

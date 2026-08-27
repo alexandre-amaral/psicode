@@ -54,6 +54,7 @@ sprites_parado = Array[Texture2D]([ExtResource("10_east"), ExtResource("11_south
 sprites_andando = Array[Texture2D]([ExtResource("20_a_east"), ExtResource("21_a_south_east"), ExtResource("22_a_south"), ExtResource("23_a_south_west"), ExtResource("24_a_west"), ExtResource("25_a_north_west"), ExtResource("26_a_north"), ExtResource("27_a_north_east")])
 quadros_andando = 9
 fps_andando = 12.0
+velocidade_referencia = 78.0
 
 [node name="Arma" type="Node2D" parent="Visual"]
 script = ExtResource("2_arma")

@@ -90,35 +90,19 @@ script = ExtResource("4_det")
 theme_override_font_sizes/font_size = 11
 text = "ESTÁVEL 0%"
 
-[node name="Direita" type="VBoxContainer" parent="Topo"]
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -184.0
-offset_top = 16.0
-offset_right = -20.0
-offset_bottom = 100.0
-grow_horizontal = 0
-mouse_filter = 2
-alignment = 2
-theme_override_constants/separation = 4
-
-[node name="Salas" type="Label" parent="Topo/Direita"]
-modulate = Color(0.55, 0.85, 1, 1)
-theme_override_font_sizes/font_size = 14
-text = "SALAS 0 / 0"
-horizontal_alignment = 2
-
-[node name="Inimigos" type="Label" parent="Topo/Direita"]
-modulate = Color(1, 0.45, 0.55, 1)
-theme_override_font_sizes/font_size = 11
-text = "HOSTIS 0"
-horizontal_alignment = 2
-
-[node name="Tempo" type="Label" parent="Topo/Direita"]
+[node name="Tempo" type="Label" parent="."]
 modulate = Color(0.65, 0.72, 0.85, 1)
-theme_override_font_sizes/font_size = 10
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -80.0
+offset_top = 4.0
+offset_right = 80.0
+offset_bottom = 24.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 12
 text = "00:00"
-horizontal_alignment = 2
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="Rodape" type="VBoxContainer" parent="."]
 anchor_top = 1.0
@@ -229,15 +213,12 @@ horizontal_alignment = 1
 
 [node name="Minimapa" type="Control" parent="."]
 anchor_left = 1.0
-anchor_top = 1.0
 anchor_right = 1.0
-anchor_bottom = 1.0
 offset_left = -208.0
-offset_top = -160.0
+offset_top = 16.0
 offset_right = -16.0
-offset_bottom = -16.0
+offset_bottom = 160.0
 grow_horizontal = 0
-grow_vertical = 0
 mouse_filter = 2
 script = ExtResource("5_minimapa")
 

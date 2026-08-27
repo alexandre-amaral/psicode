@@ -31,7 +31,7 @@ const ARMAS_DO_JOGADOR := [
 ## so aparecem quando o evento acontece, e por isso passam despercebidos.
 const UI_EM_CODIGO := [
 	"ESTÁVEL", "DEGRADANDO", "CRÍTICO",
-	"SALAS %d / %d", "HOSTIS %d", "RECARREGANDO...",
+	"RECARREGANDO...",
 	"MIRA PREDITIVA ATIVA",
 	"DEGRADAÇÃO EM 50%",
 	"Eles pararam de mirar em você.",

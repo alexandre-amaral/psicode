@@ -31,6 +31,9 @@ documentos abaixo — leia antes de propor mecanica nova:
 | `docs/MCP.md` | Servidor MCP que liga assistente de IA ao editor aberto |
 | `docs/IDENTIDADE_VISUAL.md` | Identidade visual: as tres paletas, a grade, as regras de leitura de combate e como adicionar textura nova |
 | `docs/TEXTURAS_ANDAR_1.md` | A referencia `bg_menu.jpg` medida e virada receita: a paleta do andar 1, prop contra decalque, e o que copiar dela e o que nao |
+| `docs/LOW_TOPDOWN_SQUARED.md` | **A direcao de camera e arte que o jogo passa a seguir**: parede com topo e face, Y-sort pela base, grade quadrada. Manda na PERSPECTIVA e na FORMA; a paleta continua no `IDENTIDADE_VISUAL.md` |
+| `docs/Plano de Implementação — Migração para Low Top-Down Squared.md` | **O plano que comanda a migracao**, em 30 fases. Tile visual 64, grade estrutural 16/32. Dissolvido nas issues `[LTD 00-16]`, epico em #47 |
+| `docs/PIVO_LOW_TOPDOWN.md` | O levantamento por tras do plano: o que ja esta conforme, as decisoes e o inventario do que os testes recusam |
 
 Quando o codigo e o texto discordarem, **o codigo ganha e o texto se
 atualiza**. Se um pedido contradiz o GDD — genero, camera, mecanica central —

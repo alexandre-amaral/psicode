@@ -196,6 +196,43 @@ PISO_MATIZ_LEGIVEL = 0.06
 ## e a decisao continua sendo de quem olha.
 LIMIAR_DETALHE = 24
 
+## O PONTO-PROJETIL: quantas manchas claras compactas a textura tem.
+##
+## A regra existe em prosa em tres documentos -- IDENTIDADE_VISUAL ("ponto
+## isolado de N7 ou A2 com raio de 3 a 6 px e proibido -- e exatamente a
+## silhueta de um tiro"), o plano de migracao (Fase 6, "evitar pontos
+## brilhantes") e a issue LTD 06. Aqui ela vira numero.
+##
+## O que separa "ponto" de "junta" nao e o brilho, e a FORMA: um projetil e
+## compacto e redondo, uma junta de placa e longa, um canto e um L. Por isso a
+## medicao filtra por area, por razao de lados e por preenchimento do bbox, e
+## nao por valor -- o chao do item tem 377 manchas claras e nenhuma delas e
+## redonda, que e o resultado certo.
+##
+## O fundo sai de uma MEDIANA 2D e nao de uma media: a media e puxada pelo
+## proprio ponto que se quer achar, e a de caixa fez o chao do item pular de 0
+## para 30. A mediana ignora a minoria clara por construcao, que e a definicao
+## dela.
+##
+## ISTO E INFORMATIVO, NAO E PORTAO -- pelo mesmo motivo que a densidade acima,
+## e vale registrar porque a tentacao de travar e forte. A medicao NAO separa
+## limpo fora do chao: rebite de parede e redondo de verdade (parede_arma mede
+## 23, parede_andar1_d mede 37) e prop tem luz por definicao (props_atlas mede
+## 8), e nenhum dos tres e defeito -- um rebite na face vertical da parede, na
+## beira do quadro, nao vira tiro na cabeca de ninguem. Mesmo entre chaos ela
+## acusa 2 no chao do item, que e visualmente limpo.
+##
+## Travar isso reprovaria arte boa com a autoridade de um numero. Entao o numero
+## fica ao lado dos outros, para quem desenha comparar: chao_arma e chao_boss
+## medem 0, e sao o gabarito do que a Fase 6 pede do chao.
+PONTO_MARGEM = 0.055
+PONTO_JANELA = 17
+PONTO_AREA_MIN = 12    # menor que um disco de raio 2 e grao, nao ponto
+PONTO_AREA_MAX = 154   # maior que um disco de raio 7 e mancha, nao projetil
+PONTO_LADO_MAX = 15
+PONTO_PREENCHIMENTO = 0.55  # abaixo disto o componente e vazado: junta, nao disco
+PONTO_RAZAO_MAX = 2.0       # acima disto ele e alongado: linha ou canto
+
 
 # ------------------------------------------------------------------ helpers --
 
@@ -440,6 +477,66 @@ def medir_densidade(im):
     return float(d.mean())
 
 
+def _mediana_2d(V, k):
+    """Mediana de uma janela k x k, com wrap -- a textura ladrilha, a borda tem
+    vizinho do outro lado."""
+    r = k // 2
+    P = np.pad(V, r, mode="wrap")
+    janelas = np.lib.stride_tricks.sliding_window_view(P, (k, k))
+    return np.median(janelas, axis=(2, 3))
+
+
+def medir_pontos(im):
+    """Manchas claras compactas -- as que tem silhueta de projetil.
+
+    Devolve (quantos, total_de_manchas_claras). O segundo numero e o
+    denominador honesto: uma textura pode ter centenas de manchas claras e zero
+    pontos, e e isso que separa "detalhe em junta" de "detalhe em bolinha".
+    """
+    rgb, _ = _canais(im)
+    V = rgb.max(axis=2)
+    aceso = (V - _mediana_2d(V, PONTO_JANELA)) > PONTO_MARGEM
+
+    # Rotulagem por componentes conexos em 8-vizinhanca, por varredura com
+    # pilha. Sem scipy de proposito: o resto do arquivo so depende de numpy e
+    # Pillow, e o funil roda em maquina de artista.
+    h, w = aceso.shape
+    rotulo = np.zeros((h, w), np.int32)
+    atual = 0
+    pontos = 0
+    vizinhos = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+    for y0, x0 in zip(*np.nonzero(aceso)):
+        if rotulo[y0, x0]:
+            continue
+        atual += 1
+        pilha = [(y0, x0)]
+        rotulo[y0, x0] = atual
+        celulas = []
+        while pilha:
+            y, x = pilha.pop()
+            celulas.append((y, x))
+            for dy, dx in vizinhos:
+                ny, nx = y + dy, x + dx
+                if 0 <= ny < h and 0 <= nx < w and aceso[ny, nx] and not rotulo[ny, nx]:
+                    rotulo[ny, nx] = atual
+                    pilha.append((ny, nx))
+        area = len(celulas)
+        if not (PONTO_AREA_MIN <= area <= PONTO_AREA_MAX):
+            continue
+        ys = [c[0] for c in celulas]
+        xs = [c[1] for c in celulas]
+        alt = max(ys) - min(ys) + 1
+        larg = max(xs) - min(xs) + 1
+        if max(alt, larg) > PONTO_LADO_MAX:
+            continue
+        if area / float(alt * larg) <= PONTO_PREENCHIMENTO:
+            continue
+        if max(alt, larg) / float(min(alt, larg)) >= PONTO_RAZAO_MAX:
+            continue
+        pontos += 1
+    return pontos, atual
+
+
 def medir_gamut(im):
     rgb, alpha = _canais(im)
     h, s, v = _rgb_para_hsv(rgb)
@@ -495,6 +592,9 @@ def conferir(caminho, familia, tipo="andar1"):
     dentro = "dentro" if lo_d <= dens <= hi_d else "FORA"
     linhas.append("  [--]  densidade %.1f%% (%s da faixa %.0f-%.0f%%, informativo)"
                   % (100 * dens, dentro, 100 * lo_d, 100 * hi_d))
+    pts, manchas = medir_pontos(im)
+    linhas.append("  [--]  pontos com silhueta de projetil: %d de %d manchas claras (informativo)"
+                  % (pts, manchas))
     tudo &= checa(cx <= LIMITE_COSTURA and cy <= LIMITE_COSTURA,
                   "costura x=%.2f y=%.2f (teto %.2f)" % (cx, cy, LIMITE_COSTURA))
 

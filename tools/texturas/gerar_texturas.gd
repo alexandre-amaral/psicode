@@ -74,8 +74,14 @@ func _ready() -> void:
 ## CHAO E PAREDE SAIRAM DAQUI. Eles viraram arte autorada em
 ## `assets/texturas/chao_andar1_*.png` e `parede_andar1_*.png`, preparada por
 ## `tools/texturas/preparar_textura.py`. O que sobrou aqui e o que continua
-## nascendo de codigo: as duas metades da porta, o atlas de props chapados e o
-## TOPO da parede.
+## nascendo de codigo: o CAMPO da porta, o atlas de props chapados e o TOPO da
+## parede.
+##
+## A MOLDURA da porta saiu na LTD 11, pelo mesmo motivo da face: ela virou arte
+## autorada -- batentes rebitados, verga aparafusada, ferragem lateral -- e G1
+## cobra pertinencia a uma lista de 22 cores, o que proibe gradiente e sombra.
+## O CAMPO fica: ele e SINAL, nao ambiente, e a funcao dele e dizer "trancada"
+## em um quadro. Cor de sinal nao e lugar para arte autorada.
 ##
 ## A FACE saiu daqui na identidade industrial do andar 1. O motivo e o mesmo do
 ## chao: ela virou arte autorada, e arte autorada nao passa por G1 -- aquele
@@ -95,7 +101,6 @@ func _ready() -> void:
 ## silencio justamente os props que carregam a identidade de cada sala.
 static func nomes() -> Array[String]:
 	var lista: Array[String] = []
-	lista.append("porta_moldura.png")
 	lista.append("porta_campo.png")
 	lista.append("props_atlas.png")
 	lista.append("parede_topo.png")

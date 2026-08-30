@@ -242,6 +242,12 @@ const AUTORADAS: Dictionary = {
 	"parede_face_boss.png": {&"familia": &"parede", &"tipo": &"boss"},
 	"parede_face_arma.png": {&"familia": &"parede", &"tipo": &"arma"},
 	"parede_face_item.png": {&"familia": &"parede", &"tipo": &"item"},
+	# A MOLDURA da porta (LTD 11). Familia `prop` e nao `parede`: ela serve
+	# todos os tipos de sala, entao nao pode ter faixa de matiz -- amarra-la a
+	# uma pintaria a mesma porta de vermelho no chefe e de ambar na sala de arma.
+	# O CAMPO continua gerado: ele e SINAL e tem lista de cor propria.
+	"porta_moldura.png": {&"familia": &"prop", &"tipo": &"andar1"},
+	"props_frente.png": {&"familia": &"prop", &"tipo": &"andar1"},
 }
 
 ## A faixa de matiz e do TIPO DE SALA, e e ela que faz a sala do chefe se

@@ -15,6 +15,7 @@ dano_contato = 0
 creditos = 4
 cor_base = Color(1, 0.82, 0.25, 1)
 raio_contato = 0.0
+largura_sombra = 0.0
 
 [node name="Forma" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_nuc")

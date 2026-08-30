@@ -58,6 +58,9 @@ var _sprite: Sprite2D
 ## Abaixo disto o jogador esta parando, nao andando. Sem um piso, o atrito
 ## deixaria o ciclo tremendo por uma fracao de segundo depois de soltar a tecla.
 const VELOCIDADE_ANDANDO := 12.0
+## Largura da elipse de sombra do jogador. Perto do dobro do raio de colisao
+## (11), que e a pegada real dele no chao.
+const LARGURA_SOMBRA := 24.0
 
 ## Posicao no ciclo de caminhada, em quadros. Float porque o avanco e continuo;
 ## quem indexa a fita e o int() dele.
@@ -107,9 +110,18 @@ func _ready() -> void:
 	_arma = $Visual/Arma
 	_camera = $Camera
 
-	Juice.registrar_camera(_camera)
-
+	# A sombra e irma do Visual e do Sprite, como os dois sao entre si: o
+	# Visual gira e o piscar de i-frames escreve em `_sprite.modulate`, e a
+	# sombra nao pode girar nem piscar.
+	#
+	# Criada DEPOIS de _aplicar_personagem(): o deslocamento do sprite vem do
+	# .tres da personagem, e antes dessa chamada ele ainda e o default da cena.
 	_aplicar_personagem()
+	var sombra := Sombra.criar(LARGURA_SOMBRA, Sombra.base_de(_sprite))
+	add_child(sombra)
+	move_child(sombra, 0)
+
+	Juice.registrar_camera(_camera)
 
 	_vida_maxima_base = vida_maxima
 	vida_maxima = _vida_maxima_base + Modificadores.bonus_vida_maxima()

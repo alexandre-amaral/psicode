@@ -27,6 +27,11 @@ const COR_HACK := Color(0.45, 1.0, 0.3)
 @export_group("Feedback")
 @export var cor_base: Color = Color("ff4d6d")
 @export var raio_contato: float = 26.0
+## Largura da elipse de sombra. Ajustavel por inimigo no .tscn porque o corpo
+## de cada um tem uma pegada diferente -- o Drone Aranha e largo e baixo, o
+## Vigia e estreito. Zero desliga a sombra, que e o que a arena do chefe usa:
+## torre e nucleo nascem DO chao e nao sobre ele.
+@export var largura_sombra: float = 28.0
 @export var intervalo_dano_contato: float = 0.7
 
 var vida: int = 5
@@ -67,6 +72,7 @@ func _ready() -> void:
 	vida = vida_maxima
 	_visual = get_node_or_null("Visual")
 	_corpo = get_node_or_null("Visual/Corpo")
+	_montar_sombra()
 	_pintar_corpo(_cor_neutra())
 	_procurar_alvo()
 	EventBus.inimigo_spawnou.emit(self)
@@ -389,6 +395,21 @@ func _pintar_hack(ligado: bool) -> void:
 ## `modulate` porque `modulate` desce para os filhos e ja e do clarao de dano --
 ## sao dois canais que nao podem se cruzar, e e essa separacao que faz Hack e
 ## clarao conviverem.
+## A sombra e irma do `Visual`, nunca filha dele -- exatamente pelo motivo que
+## faz o Sprite do jogador ficar de fora: o clarao de dano escreve em
+## `_visual.modulate`, que desce para os filhos, e uma sombra piscando branco a
+## cada tiro recebido seria pior que nenhuma sombra.
+##
+## Ela tambem fica fora do pop de nascimento (`_visual.scale`), e isso e
+## proposital: o corpo cresce do nada, mas o lugar onde ele pisa ja existe.
+func _montar_sombra() -> void:
+	if largura_sombra <= 0.0:
+		return
+	var sombra := Sombra.criar(largura_sombra, Sombra.base_de(_corpo as Node2D))
+	add_child(sombra)
+	move_child(sombra, 0)
+
+
 func _pintar_corpo(cor: Color) -> void:
 	if _corpo == null:
 		return

@@ -37,6 +37,7 @@ func executar() -> void:
 	_a_corrente_do_y_sort_esta_inteira()
 	_o_mundo_da_cena_principal_ordena_por_y()
 	_as_camadas_de_cenario_ficam_fora_do_y_sort()
+	_o_ator_tem_sombra_na_base()
 
 
 ## O contrato em si: as faixas sobem na ordem em que as coisas se empilham.
@@ -195,6 +196,46 @@ func _as_camadas_de_cenario_ficam_fora_do_y_sort() -> void:
 		ok(camada.z_index < Sala.Z_MUNDO,
 			"%s fica abaixo da faixa do mundo, entao o Y-sort nao o mistura com os atores" % nome)
 	sala.free()
+
+
+## A sombra e o que responde "onde esta a base disto?" -- a pergunta que a
+## perspectiva Low Top-Down cria e nao resolve sozinha. Ela tem de existir, tem
+## de ficar NA base (nao no centro do corpo) e tem de ficar FORA do Visual: o
+## clarao de dano escreve em `_visual.modulate`, que desce para os filhos, e
+## sombra piscando branco a cada tiro e pior que sombra nenhuma.
+func _o_ator_tem_sombra_na_base() -> void:
+	var cena: PackedScene = load("res://src/enemies/rastejante.tscn")
+	ok(cena != null, "rastejante.tscn carrega")
+	if cena == null:
+		return
+	var inimigo := cena.instantiate()
+	Engine.get_main_loop().root.add_child(inimigo)
+
+	var sombra := inimigo.get_node_or_null("Sombra") as Sombra
+	ok(sombra != null, "o inimigo com sprite ganha sombra")
+	if sombra != null:
+		ok(sombra.get_parent() == inimigo,
+			"a sombra e irma do Visual, nao filha -- senao o clarao de dano a faz piscar")
+		var corpo := inimigo.get_node_or_null("Visual/Corpo") as Node2D
+		if corpo != null:
+			perto(sombra.position.y, Sombra.base_de(corpo),
+				"a sombra fica nos pes, e nao no centro do corpo")
+			ok(sombra.position.y > corpo.position.y,
+				"a sombra fica ABAIXO do corpo (pes %.0f, corpo %.0f)" % [sombra.position.y, corpo.position.y])
+		ok(sombra.z_index < 0, "a sombra desenha sob o corpo do proprio ator")
+		ok(sombra.color.a > 0.0 and sombra.color.a < 1.0,
+			"a sombra e translucida -- opaca ela vira buraco no chao")
+	inimigo.free()
+
+	# A arena do chefe nasce DO chao. Sombra nela leria como se a torre
+	# estivesse pousada sobre o piso em vez de ter subido dele.
+	var cena_torre: PackedScene = load("res://src/enemies/torre_diretora.tscn")
+	if cena_torre != null:
+		var torre := cena_torre.instantiate()
+		Engine.get_main_loop().root.add_child(torre)
+		ok(torre.get_node_or_null("Sombra") == null,
+			"a torre da arena nao tem sombra: ela sobe do chao, nao pousa nele")
+		torre.free()
 
 
 # ------------------------------------------------------------------ ajuda ----

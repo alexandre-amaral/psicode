@@ -34,6 +34,12 @@ const TAMANHO_PAREDE := 128
 const PORTA_MOLDURA := Vector2i(96, 48)
 const PORTA_CAMPO := Vector2i(80, 32)
 const PROPS_ATLAS := Vector2i(256, 128)
+## Lado do tile da parede Low Top-Down (docs/LOW_TOPDOWN_SQUARED.md secao 14).
+## Multiplo de 16 e de 32, entao nao mexe na grade estrutural do projeto.
+const TILE_PAREDE := 64
+## Sub-grade dentro do tile: e nela que caem as juntas entre placas. O olho le
+## a placa de 32 mesmo com o tile de 64, e 32 divide toda dimensao de sala.
+const PLACA := 32
 
 ## Os tipos de sala na ordem em que ganham semente. Novo tipo entra no fim: mudar a
 ## ordem muda a semente de todos e re-gera o mundo inteiro por nada.
@@ -46,6 +52,8 @@ const SEEDS: Dictionary = {
 	&"porta_moldura": 4004,
 	&"porta_campo": 5005,
 	&"props_atlas": 6006,
+	&"parede_topo": 7007,
+	&"parede_face": 8008,
 }
 
 
@@ -73,6 +81,8 @@ static func nomes() -> Array[String]:
 	lista.append("porta_moldura.png")
 	lista.append("porta_campo.png")
 	lista.append("props_atlas.png")
+	lista.append("parede_topo.png")
+	lista.append("parede_face.png")
 	return lista
 
 
@@ -94,6 +104,10 @@ static func gerar(nome: String) -> Image:
 			return gerar_porta_campo()
 		"props_atlas.png":
 			return gerar_props_atlas(SEEDS[&"props_atlas"])
+		"parede_topo.png":
+			return gerar_parede_topo(SEEDS[&"parede_topo"])
+		"parede_face.png":
+			return gerar_parede_face(SEEDS[&"parede_face"])
 	push_error("GeradorTexturas: textura desconhecida '%s'" % nome)
 	return null
 
@@ -174,6 +188,95 @@ static func gerar_chao(tipo: StringName, semente: int) -> Image:
 ## painel alternado. So uma faixa de 24 px aparece no jogo, e a fatia muda de
 ## lado para lado da sala -- por isso o desenho e simetrico em x e y: qualquer
 ## fatia de 24 px, em qualquer direcao, tem de ler como "parede".
+## O TOPO da parede: a espessura dela, vista de cima.
+##
+## Base N6 porque a paleta ja dizia isso antes desta migracao existir --
+## "N6 metal medio: o topo da parede". A direcao de luz global (de cima e da
+## esquerda, IDENTIDADE_VISUAL) cai daqui: o topo pega a luz e por isso e mais
+## CLARO que a face; a face fica no tom intermediario e a base, na sombra.
+##
+## Esse par claro/escuro nao e enfeite -- e o que vende a altura. Se o topo e a
+## face tiverem o mesmo valor, a parede volta a ler como faixa chapada, que e
+## exatamente o que a migracao existe para sair. `teste_texturas.gd` mede.
+##
+## Placas de 32 dentro do tile de 64: o olho le a sub-grade que o projeto ja
+## usa, e 32 divide toda dimensao de sala (64 nao divide 544).
+static func gerar_parede_topo(semente: int) -> Image:
+	var img := _nova(TILE_PAREDE, TILE_PAREDE)
+	var n4 := Paleta.neutro(&"N4")
+	var n5 := Paleta.neutro(&"N5")
+	var n6 := Paleta.neutro(&"N6")
+	var n7 := Paleta.neutro(&"N7")
+
+	for y in TILE_PAREDE:
+		for x in TILE_PAREDE:
+			var cor := n6
+			var grao := _ruido(x, y, semente)
+			if grao < 0.10:
+				cor = n5
+			var px := x % PLACA
+			var py := y % PLACA
+			# Junta entre placas: sempre linha, nunca ponto. Ponto isolado de
+			# 3 a 6 px e a silhueta de um projetil, e o cenario nao pode ter.
+			if px == 0 or py == 0:
+				cor = n5
+			elif px == PLACA - 1 or py == PLACA - 1:
+				cor = n4
+			_pintar(img, x, y, cor)
+
+	# Aresta iluminada da placa: N7 e o teto do brilho do ambiente, entao entra
+	# em pixel solto no canto lit, nunca em linha inteira.
+	for py in range(0, TILE_PAREDE, PLACA):
+		for px in range(0, TILE_PAREDE, PLACA):
+			_pintar(img, px + 1, py + 1, n7)
+			_pintar(img, px + 2, py + 1, n7)
+	return img
+
+
+## A FACE da parede: a superficie vertical que a camera Low Top-Down enxerga.
+##
+## Base N5 -- "metal escuro: o corpo da parede", de novo direto da paleta. Ela
+## e mais escura que o topo de proposito (ver gerar_parede_topo).
+##
+## Tres faixas horizontais, e as tres saem da direcao de luz:
+##   - o LABIO de cima, onde a face encontra o topo, pega luz -> N6
+##   - o CORPO fica no tom intermediario -> N5
+##   - a BASE, onde a parede encontra o chao, fica na sombra -> N4
+##
+## Costura so importa na horizontal: a face ladrilha ao longo da parede, e na
+## vertical ela e uma peca so.
+static func gerar_parede_face(semente: int) -> Image:
+	var img := _nova(TILE_PAREDE, TILE_PAREDE)
+	var n4 := Paleta.neutro(&"N4")
+	var n5 := Paleta.neutro(&"N5")
+	var n6 := Paleta.neutro(&"N6")
+
+	const LABIO := 4
+	const BASE := 8
+
+	for y in TILE_PAREDE:
+		for x in TILE_PAREDE:
+			var cor := n5
+			if y < LABIO:
+				cor = n6
+			elif y >= TILE_PAREDE - BASE:
+				cor = n4
+			else:
+				var grao := _ruido(x, y, semente)
+				if grao < 0.08:
+					cor = n4
+				elif grao > 0.94:
+					cor = n6
+				# Montante vertical a cada placa: da ritmo a face sem nenhum
+				# elemento aceso. O acento da sala entra depois (LTD 13).
+				if x % PLACA == 0:
+					cor = n4
+				elif x % PLACA == 1:
+					cor = n6
+			_pintar(img, x, y, cor)
+	return img
+
+
 static func gerar_parede(tipo: StringName, semente: int) -> Image:
 	var img := _nova(TAMANHO_PAREDE, TAMANHO_PAREDE)
 	var n4 := Paleta.neutro(&"N4")

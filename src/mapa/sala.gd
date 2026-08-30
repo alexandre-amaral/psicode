@@ -1024,6 +1024,7 @@ func _montar_decoracao() -> void:
 
 	_montar_props_chapados(dados, contorno, aberto, bocas, colocados, rng)
 	_montar_props_volumetricos(dados, contorno, aberto, bocas, colocados, rng)
+	_montar_props_frente(dados, contorno, aberto, bocas, colocados, rng)
 
 
 ## A familia CHAPADA, como sempre foi: uma raiz so, numa faixa de z propria.
@@ -1113,6 +1114,62 @@ func _montar_props_volumetricos(
 			corpo.add_child(sprite)
 
 			colocados.append(ponto)
+			break
+
+
+## A camada FOREGROUND (LTD 10): o que passa POR CIMA do ator.
+##
+## Viga, tubulacao, cabo suspenso. Eles ficam em `Z_FRENTE`, acima de tudo que
+## se ordena por Y -- sao a unica coisa do jogo que pode cobrir o jogador.
+##
+## A trava e ESTRUTURAL: eles nascem na margem e `_cabe_prop` ja recusa qualquer
+## ponto que toque a `area_spawn`. Telegrafo nasce onde o inimigo esta, e inimigo
+## nasce na area util; ficando fora dela, "o Foreground nao cobre telegrafo"
+## deixa de ser revisao de olho e vira comparacao de retangulos.
+##
+## Eles NAO tem sombra, e isso nao e esquecimento: sombra responde "onde isto
+## encosta no chao", e uma viga suspensa nao encosta. Dar sombra a ela diria que
+## ha um obstaculo no piso onde nao ha.
+##
+## Eles tambem nao entram na lista `colocados`. Um cabo suspenso passa por cima
+## de uma caixa sem conflito -- eles estao em alturas diferentes, e disputar o
+## mesmo chao seria justamente o erro de trata-los como corpo.
+func _montar_props_frente(
+	dados: DadosSala, contorno: PackedVector2Array, aberto: PackedVector2Array,
+	bocas: Array[Vector2], colocados: Array[Vector2], rng: RandomNumberGenerator
+) -> void:
+	if dados.atlas_props_frente == null or dados.regioes_props_frente.is_empty():
+		return
+	if dados.quantidade_props_frente <= 0:
+		return
+
+	var raiz := Node2D.new()
+	raiz.name = "Frente"
+	raiz.z_index = Z_FRENTE
+	add_child(raiz)
+
+	for _i in dados.quantidade_props_frente:
+		var regiao: Rect2i = dados.regioes_props_frente[
+			rng.randi_range(0, dados.regioes_props_frente.size() - 1)
+		]
+		var largura := float(regiao.size.x)
+		for _tentativa in PROP_TENTATIVAS:
+			var ponto := _sortear_ponto_de_prop(rng, contorno, aberto, largura)
+			if ponto == Vector2.INF:
+				continue
+			# Passa a lista VAZIA de propositio: a checagem de contorno, porta e
+			# area util continua valendo, mas um elemento suspenso nao precisa de
+			# espaco livre no chao -- ele nao esta no chao.
+			var vazia: Array[Vector2] = []
+			if not _cabe_prop(ponto, aberto, bocas, vazia, largura):
+				continue
+			var sprite := Sprite2D.new()
+			sprite.texture = dados.atlas_props_frente
+			sprite.region_enabled = true
+			sprite.region_rect = Rect2(regiao)
+			sprite.flip_h = rng.randf() < 0.5
+			sprite.position = ponto
+			raiz.add_child(sprite)
 			break
 
 

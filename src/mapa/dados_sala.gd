@@ -169,6 +169,34 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## a partir da REGIAO sorteada -- nao ha constante de tamanho aqui.
 @export var atlas_props_volume: Texture2D
 @export var regioes_props_volume: Array[Rect2i] = []
+## A camada FOREGROUND: o que passa POR CIMA do ator (LTD 10).
+##
+## Viga, tubulacao suspensa, cabo pendurado, topo de maquina alta. Eles moram em
+## `Sala.Z_FRENTE`, acima de tudo que se ordena por Y, e e a unica camada do
+## jogo que pode esconder o jogador.
+##
+## Por isso ela e a mais perigosa do projeto, e a regra dela e ESTRUTURAL e nao
+## de bom senso: **o Foreground nunca entra na `area_spawn`**. Ele fica na
+## margem, entre a parede e a area util -- exatamente onde os props ja ficam.
+##
+## A alternativa seria confiar em quem posiciona, e a issue LTD 10 pede o
+## contrario: "nenhum telegrafo de inimigo ou do chefe fica coberto". Telegrafo
+## nasce onde o inimigo esta, e inimigo nasce na `area_spawn`. Mantendo o
+## Foreground fora dela, "nao cobre telegrafo" deixa de ser revisao de olho e
+## vira uma comparacao de retangulos que uma suite faz.
+##
+## O jogador AINDA passa por baixo -- ele anda na margem o tempo todo, e e la
+## que os props estao. O que ele nao faz e perder de vista um telegrafo no meio
+## da sala.
+@export var atlas_props_frente: Texture2D
+@export var regioes_props_frente: Array[Rect2i] = []
+## Quantos elementos de Foreground a sala tenta colocar.
+##
+## O default e ZERO e a issue pede moderacao com todas as letras: "o objetivo e
+## aumentar profundidade, nao esconder constantemente o combate". Sala que quer
+## Foreground pede explicitamente.
+@export var quantidade_props_frente: int = 0
+
 ## Quantos props volumetricos a sala tenta colocar. Contagem propria e nao uma
 ## fracao de `quantidade_props`: sao ocupacoes diferentes do mesmo chao, e a
 ## sala do chefe quer muitos chapados e quase nenhum corpo no caminho.

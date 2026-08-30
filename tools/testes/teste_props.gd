@@ -43,6 +43,7 @@ func executar() -> void:
 	_o_prop_volumetrico_nasce_com_base_sombra_e_y_sort()
 	_o_prop_chapado_continua_chapado()
 	_a_arena_do_chefe_fica_limpa()
+	_o_foreground_nunca_entra_na_area_util()
 
 
 ## Metade 1 do contrato: a arte de cada celula encosta no FUNDO dela.
@@ -230,3 +231,84 @@ func _ultima_linha_com_arte(imagem: Image, regiao: Rect2i) -> int:
 			if imagem.get_pixel(px.x, px.y).a > 0.5:
 				return y
 	return -1
+
+
+## O FOREGROUND (LTD 10) nunca entra na area util da sala.
+##
+## Este e o criterio de aceite da issue -- "nenhum telegrafo de inimigo ou do
+## chefe fica coberto pelo Foreground" -- na unica forma que da para cobrar sem
+## alguem olhar cada captura.
+##
+## A cadeia e esta: telegrafo nasce onde o inimigo esta; inimigo nasce dentro da
+## `area_spawn`; logo, elemento que nunca toca a `area_spawn` nunca cobre
+## telegrafo. Sai uma pergunta de revisao visual e entra uma comparacao de
+## retangulos.
+##
+## Ele tambem cobra a DOSAGEM. A issue diz "usar com moderacao: o objetivo e
+## aumentar profundidade, nao esconder constantemente o combate", e sem numero
+## isso e opiniao. O numero e `quantidade_props_frente`, e o teste prova que a
+## sala respeita o teto em vez de encher a margem.
+func _o_foreground_nunca_entra_na_area_util() -> void:
+	var dados: DadosSala = load("res://src/mapa/tipo_combate.tres")
+	ok(dados != null, "tipo_combate carrega")
+	if dados == null:
+		return
+	ok(dados.quantidade_props_frente > 0, "a sala de combate pede Foreground")
+
+	# Varre varias celulas: o sorteio e por celula, e uma celula so poderia
+	# passar por sorte. Se algum lugar do andar puser uma viga sobre a area
+	# util, alguem vai jogar naquele lugar.
+	var conferidas := 0
+	var vistos := 0
+	for x in 10:
+		var sala := CENA_SALA.instantiate() as Sala
+		sala.coordenadas_grid = Vector2i(x, 0)
+		sala.definir_visual(dados)
+		sala.position = LONGE
+		Engine.get_main_loop().root.add_child(sala)
+
+		var raiz := sala.get_node_or_null("Frente") as Node2D
+		if raiz != null:
+			igual(raiz.z_index, Sala.Z_FRENTE, "a camada Frente esta na faixa dela")
+			ok(
+				raiz.get_child_count() <= dados.quantidade_props_frente,
+				"a sala respeita o teto de Foreground (%d de %d)"
+					% [raiz.get_child_count(), dados.quantidade_props_frente]
+			)
+			for filho in raiz.get_children():
+				var sprite := filho as Sprite2D
+				if sprite == null:
+					continue
+				vistos += 1
+				var r := sprite.region_rect
+				var caixa := Rect2(
+					sprite.position - r.size * 0.5, r.size
+				)
+				ok(
+					not sala.area_spawn.intersects(caixa),
+					"o Foreground fica FORA da area util -- telegrafo nasce la dentro (%s)" % caixa
+				)
+			conferidas += 1
+		sala.free()
+
+	ok(conferidas > 0, "alguma celula montou a camada Frente (%d)" % conferidas)
+	# Piso: uma varredura que nao achasse nenhum elemento passaria como aprovacao
+	# sem ter olhado nada -- a mesma armadilha que o piso de atores do
+	# teste_texturas evita.
+	ok(vistos > 0, "a varredura viu ao menos um elemento de Foreground (%d)" % vistos)
+
+	# E ele NAO tem sombra: sombra responde "onde isto encosta no chao", e uma
+	# viga suspensa nao encosta. Sombra ali diria que ha obstaculo no piso.
+	var amostra := CENA_SALA.instantiate() as Sala
+	amostra.coordenadas_grid = Vector2i(2, 2)
+	amostra.definir_visual(dados)
+	amostra.position = LONGE
+	Engine.get_main_loop().root.add_child(amostra)
+	var frente := amostra.get_node_or_null("Frente") as Node2D
+	if frente != null:
+		for filho in frente.get_children():
+			ok(
+				filho.get_node_or_null("Sombra") == null,
+				"elemento de Foreground nao tem sombra: ele nao encosta no chao"
+			)
+	amostra.free()

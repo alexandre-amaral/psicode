@@ -13,8 +13,25 @@ extends InimigoBase
 
 @export_group("Posicionamento")
 ## Mais longe que o Vigia (180): ele e o que pune quem fica parado no aberto.
+##
+## MEDIDO ao avaliar a faixa de 350-500 que o plano sugeria (INIM 02): a camera
+## mostra 960x544 centrada no jogador, entao meia tela e 480 px na horizontal e
+## 272 na VERTICAL. A 425 px ele estaria fora do quadro por cima ou por baixo, e
+## a 500 fora nos dois eixos -- um atirador invisivel tracando uma linha rapida
+## e exatamente o que o GDD proibe.
+##
+## A faixa de hoje (250-350) ja passa dos 272 verticais no topo dela, e isso e
+## uma ressalva conhecida e nao um descuido. Aperta-la mudaria a identidade dele
+## -- ele e o punidor de longa distancia --, entao e decisao de design e nao de
+## implementacao.
 @export var distancia_ideal: float = 300.0
 @export var margem: float = 50.0
+## Abaixo disto ele CANCELA a mira e se afasta.
+##
+## Sem isso, encostar nele era a forma trivial de mata-lo: ele continuava
+## plantado, mirando, enquanto levava tiro a queima-roupa. Um inimigo cuja
+## contra-jogada e "chegue perto e fique la" nao ensina nada.
+@export var distancia_de_esquiva: float = 120.0
 
 @export_group("Disparo")
 @export var intervalo: float = 2.6
@@ -23,10 +40,17 @@ extends InimigoBase
 @export var tempo_mira: float = 1.0
 @export var tempo_cooldown: float = 0.6
 
+@export_group("Esquiva")
+## Quanto dura o arranque para longe.
+@export var tempo_esquiva: float = 0.4
+## Quanto ele corre mais rapido enquanto esquiva.
+@export var impulso_esquiva: float = 1.9
+
 const PROCURAR_POSICAO := &"PROCURAR_POSICAO"
 const MIRAR := &"MIRAR"
 const DISPARAR := &"DISPARAR"
 const COOLDOWN := &"COOLDOWN"
+const ESQUIVAR := &"ESQUIVAR"
 
 var _maquina: MaquinaEstados
 var _arma: Arma
@@ -35,6 +59,9 @@ var _linha: Line2D
 var _direcao_travada: Vector2 = Vector2.RIGHT
 var _t_intervalo: float = 0.0
 var _lado: float = 1.0
+## Congelada em `_esquivar_entrar`: recalcular durante o arranque faria ele
+## curvar atras do jogador, que e perseguir e nao fugir.
+var _direcao_esquiva: Vector2 = Vector2.RIGHT
 
 
 func _ready() -> void:
@@ -52,13 +79,32 @@ func _ready() -> void:
 	_maquina.adicionar(MIRAR, _mirar, _mirar_entrar, _mirar_sair)
 	_maquina.adicionar(DISPARAR, _disparar, _disparar_entrar)
 	_maquina.adicionar(COOLDOWN, _cooldown)
+	_maquina.adicionar(ESQUIVAR, _esquivar, _esquivar_entrar)
 	_maquina.iniciar(PROCURAR_POSICAO)
 
 
 func _comportamento(delta: float) -> void:
 	_arma.multiplicador_velocidade = Deterioracao.multiplicador_velocidade_projetil()
+	if _deve_esquivar():
+		_maquina.trocar(ESQUIVAR)
 	_maquina.processar(delta)
 	_orientar(delta)
+
+
+## O jogador encostou, e ele ainda nao esta fugindo.
+##
+## A checagem fica FORA da maquina, antes do `processar`, porque ela vale em
+## qualquer estado -- inclusive no meio da mira. Poe-la dentro de cada estado
+## daria tres copias da mesma condicao, e a que faltasse seria justamente a que
+## o jogador ia achar.
+##
+## Trocar de estado aqui cancela a mira de graca: quem apaga a linha e o `sair`
+## de MIRAR, que a MaquinaEstados roda mesmo quando a troca vem de fora. E o
+## motivo pelo qual a esquiva e um ESTADO e nao um `if` dentro de `_mirar`.
+func _deve_esquivar() -> bool:
+	if _maquina.estado == ESQUIVAR:
+		return false
+	return distancia_do_alvo() < distancia_de_esquiva
 
 
 # ------------------------------------------------------------- estados ------
@@ -99,6 +145,32 @@ func _disparar_entrar() -> void:
 func _disparar(_delta: float) -> void:
 	if _maquina.passou(0.1):
 		_maquina.trocar(COOLDOWN)
+
+
+## Um arranque curto para longe, e nada mais.
+##
+## Nao e um recuo continuo de propositio: um atirador que recua enquanto o
+## jogador avanca vira uma perseguicao invertida que nunca termina, e o combate
+## trava. Ele se afasta uma vez, o suficiente para sair do corpo a corpo, e
+## volta a rotina -- se o jogador insistir, esquiva de novo, e cada esquiva
+## custa a ele o tempo de mira que ele nao esta usando.
+##
+## A direcao mistura "para longe" com "de lado". Puro para longe o encostaria na
+## parede e ele ficaria preso ali; o componente lateral o faz contornar.
+func _esquivar_entrar() -> void:
+	var para_longe := -direcao_para_alvo()
+	if para_longe.length_squared() < 0.01:
+		para_longe = Vector2.RIGHT
+	_direcao_esquiva = (para_longe + para_longe.orthogonal() * _lado * 0.6).normalized()
+	# A esquiva CUSTA: ela adia o proximo tiro. Sem isso, chegar perto dele seria
+	# de graca para o jogador -- ele esquivaria e atiraria na mesma cadencia.
+	_t_intervalo = maxf(_t_intervalo, tempo_esquiva)
+
+
+func _esquivar(_delta: float) -> void:
+	velocity = direcao_de_locomocao(_direcao_esquiva) * velocidade_atual() * impulso_esquiva
+	if _maquina.passou(tempo_esquiva):
+		_maquina.trocar(PROCURAR_POSICAO)
 
 
 func _cooldown(delta: float) -> void:

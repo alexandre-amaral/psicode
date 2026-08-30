@@ -65,7 +65,7 @@ extends Resource
 ## Sobe o sprite em relacao ao centro de colisao. A arte e de corpo inteiro em
 ## vista 3/4 e a colisao e um circulo de raio 11 na origem; sem deslocar, a
 ## personagem parece flutuar com os pes muito abaixo de onde ela de fato esbarra.
-@export var deslocamento_sprite: Vector2 = Vector2(0, -20)
+@export var deslocamento_sprite: Vector2 = Direcoes.DESLOCAMENTO_PARA_BASE
 
 @export_group("Combate")
 ## A arma do slot 0. Nunca sai do jogador, entao precisa de reserva infinita

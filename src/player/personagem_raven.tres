@@ -42,4 +42,4 @@ sprites_andando = Array[Texture2D]([ExtResource("20_a_east"), ExtResource("21_a_
 quadros_andando = 9
 fps_andando = 12.0
 escala_sprite = 1.0
-deslocamento_sprite = Vector2(0, -25)
+deslocamento_sprite = Vector2(0, -36)

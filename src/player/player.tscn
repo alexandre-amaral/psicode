@@ -21,7 +21,7 @@ personagem_padrao = ExtResource("4_padrao")
 shape = SubResource("CircleShape2D_player")
 
 [node name="Sprite" type="Sprite2D" parent="."]
-position = Vector2(0, -20)
+position = Vector2(0, -36)
 
 [node name="Visual" type="Node2D" parent="."]
 

@@ -15,6 +15,26 @@ extends RefCounted
 ## Quantos quadros tem uma volta completa.
 const TOTAL := 8
 
+## Lado da moldura em que todo sprite de ator e normalizado, e onde os PES
+## caem dentro dela. Espelham `tools/sprites/gerar_sprites.py` (LADO 80,
+## FOLGA_PE 4): os pes ficam na linha 76, e num Sprite2D centrado isso e
+## 76 - 40 = 36 px abaixo da origem do no.
+##
+## Moram aqui pelo mesmo motivo que o mapa de angulo mora: personagem e inimigo
+## passam pelo MESMO gerador, e duas copias deste numero divergiriam com o
+## sintoma aparecendo em tela e nao no console.
+const LADO_QUADRO := 80.0
+const BASE_NO_QUADRO := 36.0
+
+## Onde o sprite tem de ficar para os PES coincidirem com a origem do ator.
+##
+## E a regra de origem do Low Top-Down (LOW_TOPDOWN_SQUARED secao 6): a posicao
+## logica do ator e o ponto em que ele encosta no chao, e o desenho sobe a
+## partir dali. Antes cada ator tinha um deslocamento proprio, ajustado a olho,
+## e o efeito colateral era o Y-sort ordenar pelo MEIO do corpo -- um inimigo
+## alto passava na frente de outro mais abaixo na tela.
+const DESLOCAMENTO_PARA_BASE := Vector2(0.0, -BASE_NO_QUADRO)
+
 
 ## O indice do quadro que encara `direcao`, na ordem canonica:
 ##

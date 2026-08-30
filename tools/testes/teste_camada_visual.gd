@@ -38,6 +38,7 @@ func executar() -> void:
 	_o_mundo_da_cena_principal_ordena_por_y()
 	_as_camadas_de_cenario_ficam_fora_do_y_sort()
 	_o_ator_tem_sombra_na_base()
+	_todo_ator_com_arte_tem_origem_nos_pes()
 
 
 ## O contrato em si: as faixas sobem na ordem em que as coisas se empilham.
@@ -236,6 +237,68 @@ func _o_ator_tem_sombra_na_base() -> void:
 		ok(torre.get_node_or_null("Sombra") == null,
 			"a torre da arena nao tem sombra: ela sobe do chao, nao pousa nele")
 		torre.free()
+
+
+## A regra de origem do Low Top-Down: a posicao logica do ator e o ponto em que
+## ele encosta no CHAO, e o desenho sobe a partir dali.
+##
+## Isto e portao e nao convencao porque o sintoma nao aparece no console e quase
+## nao aparece parado: com o sprite ancorado no meio do corpo, o Y-sort ordena
+## pelo MEIO e um inimigo alto passa na frente de outro que esta mais abaixo na
+## tela. So se ve em movimento, e so quando dois corpos se cruzam.
+##
+## Os quatro inimigos que ainda sao Polygon2D ficam de fora de proposito: eles
+## sao desenhados em volta da propria origem, entao a base deles JA e a origem.
+func _todo_ator_com_arte_tem_origem_nos_pes() -> void:
+	var esperado := -Direcoes.BASE_NO_QUADRO
+	var conferidos := 0
+
+	var dir := DirAccess.open("res://src/enemies/")
+	ok(dir != null, "a pasta de inimigos abre")
+	if dir != null:
+		for arquivo in dir.get_files():
+			if not arquivo.ends_with(".tscn"):
+				continue
+			var cena: PackedScene = load("res://src/enemies/" + arquivo)
+			if cena == null:
+				continue
+			var inimigo := cena.instantiate()
+			Engine.get_main_loop().root.add_child(inimigo)
+			var corpo := inimigo.get_node_or_null("Visual/Corpo")
+			if corpo is Sprite2D:
+				conferidos += 1
+				perto((corpo as Sprite2D).position.y, esperado,
+					"%s: o sprite e ancorado nos pes" % arquivo)
+			inimigo.free()
+
+	# Piso: os cinco inimigos com sprite direcional existem desde a v0.3.
+	# Sem ele, uma varredura que nao achasse nada passaria como aprovacao.
+	ok(conferidos >= 5, "a varredura achou os inimigos com arte (%d)" % conferidos)
+
+	# O jogador, pelas duas pontas: a cena e o .tres de cada operador.
+	var cena_player: PackedScene = load("res://src/player/player.tscn")
+	if cena_player != null:
+		var estado := cena_player.get_state()
+		for i in estado.get_node_count():
+			if estado.get_node_name(i) != "Sprite":
+				continue
+			var pos: Variant = _propriedade(estado, i, "position")
+			if pos != null:
+				perto((pos as Vector2).y, esperado, "player.tscn: o Sprite e ancorado nos pes")
+
+	var operadores := 0
+	var dir_p := DirAccess.open("res://src/player/")
+	if dir_p != null:
+		for arquivo in dir_p.get_files():
+			if not arquivo.begins_with("personagem_") or not arquivo.ends_with(".tres"):
+				continue
+			var dados: Resource = load("res://src/player/" + arquivo)
+			if dados == null or not "deslocamento_sprite" in dados:
+				continue
+			operadores += 1
+			perto(dados.deslocamento_sprite.y, esperado,
+				"%s: o deslocamento poe os pes na origem" % arquivo)
+	ok(operadores >= 2, "os dois operadores foram conferidos (%d)" % operadores)
 
 
 # ------------------------------------------------------------------ ajuda ----

@@ -66,8 +66,14 @@ func configurar(de: Vector2, para: Vector2, largura: float = 80.0) -> void:
 		return
 
 	global_position = (de + para) * 0.5
-	# O chao do corredor passa por baixo do chao das salas para a boca nao costurar.
-	z_index = -1
+	# Zero de proposito: as faixas de z vem de Sala e sao ABSOLUTAS. Antes este
+	# no valia -1 e os filhos herdavam o deslocamento, o que fazia o mesmo
+	# numero significar coisas diferentes na sala e no corredor -- e o empate
+	# entre os dois chaos era desempatado por ordem de arvore, funcionando por
+	# acidente. O corredor desenha nas mesmas faixas da sala; a boca nao
+	# costura porque os retangulos nao se sobrepoem, e nao porque um esta
+	# abaixo do outro.
+	z_index = 0
 
 	var eixo: Vector2 = Vector2.RIGHT if horizontal else Vector2.DOWN
 	var lado: Vector2 = Vector2.DOWN if horizontal else Vector2.RIGHT
@@ -111,15 +117,14 @@ func _montar_parede_corpo(eixo: Vector2, lado: Vector2, comprimento: float, larg
 	if comprimento <= ESPESSURA_PAREDE * 2.0:
 		return
 	var corpo := Polygon2D.new()
-	corpo.name = "ParedeCorpo"
 	corpo.polygon = PackedVector2Array([
 		-meio - meia_largura,
 		meio - meia_largura,
 		meio + meia_largura,
 		-meio + meia_largura,
 	])
-	# Um degrau abaixo do chao do corredor, que ja esta um abaixo do da sala.
-	corpo.z_index = -1
+	corpo.name = "ParedeTopo"
+	corpo.z_index = Sala.Z_PAREDE_TOPO
 	_texturizar(corpo, _textura(TEXTURAS_PAREDE, 0x2f1b3c5d), _retangulo_local.position)
 	add_child(corpo)
 
@@ -127,6 +132,7 @@ func _montar_parede_corpo(eixo: Vector2, lado: Vector2, comprimento: float, larg
 func _montar_chao() -> void:
 	var chao := Polygon2D.new()
 	chao.name = "Chao"
+	chao.z_index = Sala.Z_CHAO
 	chao.polygon = PackedVector2Array([
 		_retangulo_local.position,
 		Vector2(_retangulo_local.end.x, _retangulo_local.position.y),

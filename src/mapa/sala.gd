@@ -211,6 +211,21 @@ var _area_contorno: float = -1.0
 var _ponto_seguro_local: Vector2 = Vector2.ZERO
 var _ponto_seguro_pronto: bool = false
 
+## Quao fundo no andar esta sala fica: 0.0 na entrada, 1.0 na mais distante.
+##
+## Escrito pelo GerenciadorMapa ANTES do add_child, como `coordenadas_grid` --
+## e o `_ready` que monta o visual, e ele precisa do numero ja valendo.
+##
+## Sala montada sozinha (editor, suite, amostra do catalogo de portas) fica em
+## 0.0 e veste a variante mais conservada. E o default certo: sem andar, nao ha
+## progressao a mostrar.
+##
+## Ele NAO e a Deterioracao. A barra e estado de runtime e vale zero na hora em
+## que o andar e montado -- ler ela aqui daria o andar inteiro conservado, para
+## sempre e sem erro nenhum. E a mesma armadilha que a porta por Deterioracao do
+## GrupoInimigo ja documenta.
+var fracao_do_andar: float = 0.0
+
 ## O tipo que veste esta sala. Nulo = variante neutra, sem props.
 var _dados_visual: DadosSala = null
 
@@ -852,8 +867,10 @@ func _montar_faces(contorno: PackedVector2Array, ancora: Vector2) -> void:
 ## ANTES do add_child.
 func _face_do_lado(indice_do_lado: int, semente: int, neutra: Texture2D) -> Texture2D:
 	if _dados_visual != null and not _dados_visual.texturas_face.is_empty():
-		var propria := _dados_visual.textura_de(
-			_dados_visual.texturas_face, semente ^ (indice_do_lado * 0x9e3779b1)
+		var propria := _dados_visual.textura_progressiva(
+			_dados_visual.texturas_face,
+			semente ^ (indice_do_lado * 0x9e3779b1),
+			fracao_do_andar
 		)
 		if propria != null:
 			return propria
@@ -969,13 +986,17 @@ func _textura(familia: StringName) -> Texture2D:
 		var semente := hash(coordenadas_grid)
 		match familia:
 			&"chao":
-				textura = _dados_visual.textura_de(_dados_visual.texturas_chao, semente)
+				textura = _dados_visual.textura_progressiva(
+					_dados_visual.texturas_chao, semente, fracao_do_andar
+				)
 			&"parede":
 				# Desloca a semente para chao e parede nao andarem juntos: com a
 				# mesma semente, a sala que pega o chao 2 pegaria sempre a parede
 				# 2, e quatro combinacoes possiveis virariam quatro de fato em vez
 				# das dezesseis que as listas oferecem.
-				textura = _dados_visual.textura_de(_dados_visual.texturas_parede, semente ^ 0x5bf03635)
+				textura = _dados_visual.textura_progressiva(
+					_dados_visual.texturas_parede, semente ^ 0x5bf03635, fracao_do_andar
+				)
 	if textura == null:
 		textura = load(TEXTURA_PADRAO % familia) as Texture2D
 	return textura

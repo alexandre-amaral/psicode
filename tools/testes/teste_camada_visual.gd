@@ -43,6 +43,7 @@ func executar() -> void:
 	_o_corredor_usa_a_mesma_perspectiva_da_sala()
 	_a_razao_face_topo_fica_em_um_para_um()
 	_o_topo_cerca_a_sala_e_a_face_so_aparece_ao_norte()
+	_a_deterioracao_visual_nunca_decresce()
 
 
 ## O contrato em si: as faixas sobem na ordem em que as coisas se empilham.
@@ -397,14 +398,28 @@ func _a_face_sorteia_por_lado() -> void:
 			"ela usa o modulo declarado pelo tipo, nao a face neutra (%s)" % usadas[0]
 		)
 
-	# 2. Ao longo do ANDAR os modulos variam. E aqui que a biblioteca aparece.
+	# 2. Ao longo do ANDAR os modulos variam. E aqui que a biblioteca aparece --
+	#    e a variacao vem da FRACAO, nao so da celula: desde a AND1 01 a escolha
+	#    passa pelo terco do andar em que a sala esta. Varrer celulas com fracao
+	#    fixa mediria so o hash, e o hash sozinho nao e mais quem decide.
 	var vistas := {}
-	for x in 16:
-		for t in _texturas_de_face(_montar_com(CENA_SALA, dados, Vector2i(x, 0))):
+	for i in 16:
+		var sala_i := _montar_com(CENA_SALA, dados, Vector2i(i, 0))
+		sala_i.fracao_do_andar = float(i) / 15.0
+		# A fracao e lida na montagem, entao a sala precisa remontar o visual.
+		# Monta uma nova em vez de remontar: a suite mede o caminho real.
+		sala_i.free()
+		var outra := CENA_SALA.instantiate() as Sala
+		outra.coordenadas_grid = Vector2i(i, 0)
+		outra.fracao_do_andar = float(i) / 15.0
+		outra.definir_visual(dados)
+		outra.position = LONGE
+		Engine.get_main_loop().root.add_child(outra)
+		for t in _texturas_de_face(outra):
 			vistas[t] = true
 	ok(
 		vistas.size() >= 2,
-		"salas diferentes do andar vestem modulos diferentes (%d de 2)" % vistas.size()
+		"o andar veste modulos diferentes conforme avanca (%d de 2)" % vistas.size()
 	)
 
 	# 3. Determinismo: a mesma celula veste igual nas duas montagens. Sem isso,
@@ -579,3 +594,51 @@ func _o_topo_cerca_a_sala_e_a_face_so_aparece_ao_norte() -> void:
 						% [cena.resource_path.get_file(), c.position.y]
 				)
 		sala.free()
+
+
+## A progressao visual do andar nunca ANDA PARA TRAS (AND1 01).
+##
+## O andar conta uma historia: conservado, deteriorado, critico. Isso prepara a
+## mecanica do chefe antes da luta -- quando ele comeca lento e enferrujado,
+## parece natural porque o andar inteiro mostrou maquinas com o mesmo problema.
+##
+## A historia so funciona numa direcao. Uma sala mais funda que a anterior e
+## mais CONSERVADA quebra a leitura, e o defeito e invisivel numa sala so: ele
+## exige comparar duas, e o jogador compara sem perceber.
+##
+## Mede a funcao pura em vez de montar um andar: `textura_progressiva` e quem
+## decide, e uma varredura da fracao de 0 a 1 cobre todos os andares possiveis
+## de uma vez -- inclusive os curtos, onde o terco final chega mais cedo.
+func _a_deterioracao_visual_nunca_decresce() -> void:
+	var dados := DadosSala.new()
+	var lista: Array[Texture2D] = []
+	# Tres variantes, na ordem que a convencao pede: conservada -> critica.
+	for nome in ["chao_andar1_a.png", "chao_andar1_b.png", "chao_andar1_c.png"]:
+		var t: Texture2D = load("res://assets/texturas/" + nome)
+		if t != null:
+			lista.append(t)
+	igual(lista.size(), 3, "as tres variantes de chao carregam")
+	if lista.size() < 3:
+		return
+	dados.texturas_chao = lista
+
+	var indice_anterior := -1
+	var passos := 40
+	var subiu := false
+	for i in passos + 1:
+		var fracao := float(i) / float(passos)
+		var escolhida := dados.textura_progressiva(lista, 12345, fracao)
+		var indice := lista.find(escolhida)
+		ok(indice >= 0, "a escolha pertence a lista (fracao %.2f)" % fracao)
+		if indice_anterior >= 0:
+			ok(
+				indice >= indice_anterior,
+				"a deterioracao nao anda para tras (fracao %.2f: %d depois de %d)"
+					% [fracao, indice, indice_anterior]
+			)
+			if indice > indice_anterior:
+				subiu = true
+		indice_anterior = indice
+	# Piso: uma funcao que devolvesse sempre o mesmo indice passaria em todas as
+	# comparacoes acima sem progredir nada.
+	ok(subiu, "e ela de fato PROGRIDE ao longo do andar, nao fica no mesmo")

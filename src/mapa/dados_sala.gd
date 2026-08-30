@@ -243,6 +243,44 @@ func textura_de(lista: Array[Texture2D], semente: int) -> Texture2D:
 	return validas[absi(semente) % validas.size()]
 
 
+## A textura desta lista para uma sala que esta a `fracao` do caminho ate o
+## chefe -- 0.0 na entrada, 1.0 na sala mais funda do andar (AND1 01).
+##
+## A LISTA E ORDENADA, e essa e a convencao que este metodo cria: da variante
+## mais CONSERVADA para a mais CRITICA. O andar conta uma historia conforme o
+## jogador avanca -- "antigo mas funcional", depois "isto deveria ter sido
+## reformado", depois "o sistema esta no limite" -- e e isso que prepara a
+## mecanica do chefe antes da luta.
+##
+## Ele NAO troca o sorteio por um indice fixo. A fracao escolhe o TERCO da lista
+## e o hash escolhe dentro do terco, entao duas salas do mesmo terco continuam
+## podendo ser diferentes. Um indice fixo por profundidade daria um andar com
+## tres aparencias e nada mais.
+##
+## Com uma lista de tres, cada terco tem uma variante e o resultado e o mapa
+## direto -- o que esta certo, e o caso de hoje. A janela so comeca a valer com
+## listas maiores, e ela existe para nao precisar mexer aqui quando elas vierem.
+func textura_progressiva(lista: Array[Texture2D], semente: int, fracao: float) -> Texture2D:
+	var validas: Array[Texture2D] = []
+	for t in lista:
+		if t != null:
+			validas.append(t)
+	if validas.is_empty():
+		return null
+	var n := validas.size()
+	# clampi antes de int(): fracao 1.0 daria terco 3, que e fora da lista.
+	var terco := clampi(int(clampf(fracao, 0.0, 1.0) * 3.0), 0, 2)
+	var inicio := (terco * n) / 3
+	var fim := ((terco + 1) * n) / 3
+	if fim <= inicio:
+		fim = inicio + 1
+	fim = mini(fim, n)
+	var largura := fim - inicio
+	# absi() porque hash() devolve negativo, e o modulo de negativo em GDScript
+	# devolve negativo -- indice negativo aqui seria um crash intermitente.
+	return validas[inicio + absi(semente) % largura]
+
+
 func celulas_reservadas() -> int:
 	if not eh_pendurada():
 		return 0

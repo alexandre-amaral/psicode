@@ -820,6 +820,8 @@ func _montar_andar() -> void:
 	_corredores.clear()
 
 	var centros := _centros_das_bandas()
+	# Uma vez so, fora do laco: `_distancias()` roda um BFS no andar inteiro.
+	var distancias_visuais := _distancias()
 
 	for celula in _arestas:
 		var cena: PackedScene = _cena_por_celula[celula]
@@ -827,9 +829,10 @@ func _montar_andar() -> void:
 		if sala == null:
 			continue
 		sala.coordenadas_grid = celula
+		sala.fracao_do_andar = _fracao_do_andar(celula, distancias_visuais)
 		# Antes do add_child de proposito: e o _ready da sala que sela as portas
 		# sem vizinho, monta a parede em cima delas e veste a sala com as
-		# texturas do tipo.
+		# texturas do tipo -- inclusive escolhendo a variante pela fracao acima.
 		sala.definir_visual(_dados_por_celula.get(celula))
 		sala.configurar_conexoes(vizinhos_de(celula))
 		add_child(sala)
@@ -897,6 +900,32 @@ func _sortear_composicao(
 		lista.append(escolhido.cena)
 		restante -= escolhido.custo_real()
 	return lista
+
+
+## Quao fundo no andar esta a celula, de 0.0 a 1.0 (AND1 01).
+##
+## Sai do MESMO BFS que decide quais inimigos podem nascer onde -- reusar em vez
+## de inventar um segundo numero para "quao longe da entrada", que acabaria
+## divergindo do primeiro sem ninguem notar.
+##
+## Normaliza pela celula mais funda do andar, e nao por uma contagem fixa: o
+## andar tem entre oito e doze salas dependendo do sorteio, e dividir por um
+## numero fixo faria o terco final nunca chegar nos andares curtos.
+##
+## As celulas soltas que `_distancias()` marca com 9999 sao ignoradas na hora de
+## achar o fundo -- uma delas puxaria o divisor para 9999 e achataria o andar
+## inteiro no primeiro terco.
+func _fracao_do_andar(celula: Vector2i, distancias: Dictionary) -> float:
+	var fundo := 0
+	for valor: int in distancias.values():
+		if valor < 9999 and valor > fundo:
+			fundo = valor
+	if fundo <= 0:
+		return 0.0
+	var passos := int(distancias.get(celula, 0))
+	if passos >= 9999:
+		return 1.0
+	return clampf(float(passos) / float(fundo), 0.0, 1.0)
 
 
 ## Quanto a barra deve marcar quando o jogador chegar nesta celula.

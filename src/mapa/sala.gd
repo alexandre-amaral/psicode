@@ -138,6 +138,10 @@ const Z_FRENTE := 10
 ## faz `add_child`, entao o `_ready` nao roda, e o teste de fumaca nao olha
 ## textura.
 const TEXTURA_PADRAO := "res://assets/texturas/%s_andar1_a.png"
+## A face NEUTRA, usada quando o tipo nao declara modulo nenhum -- e tambem pela
+## cena aberta sozinha no editor, que nao tem DadosSala. Ela e o modulo
+## "simples" da biblioteca: paineis metalicos antigos, sem tubo nem escotilha.
+const FACE_NEUTRA := "res://assets/texturas/parede_face.png"
 ## Cor de emergencia do chao quando a textura nao carrega: o N1 da paleta, que
 ## e o chao que o jogo sempre teve. Sala invisivel seria pior que sala lisa.
 const COR_CHAO_EMERGENCIA := Color("0b0d16")
@@ -802,11 +806,11 @@ func _montar_visual() -> void:
 func _montar_faces(contorno: PackedVector2Array, ancora: Vector2) -> void:
 	if contorno.size() < 3:
 		return
-	var textura := load("res://assets/texturas/parede_face.png") as Texture2D
-	if textura == null:
+	var neutra := load(FACE_NEUTRA) as Texture2D
+	if neutra == null and (_dados_visual == null or _dados_visual.texturas_face.is_empty()):
 		# Sem face o jogo continua jogavel, so volta a parecer chapado. Avisar
 		# importa porque nenhuma suite instancia a sala com textura em disco.
-		push_warning("Sala '%s': parede_face.png nao carregou; parede sem volume." % name)
+		push_warning("Sala '%s': nenhuma face carregou; parede sem volume." % name)
 		return
 
 	var raiz := Node2D.new()
@@ -814,17 +818,46 @@ func _montar_faces(contorno: PackedVector2Array, ancora: Vector2) -> void:
 	raiz.z_index = Z_PAREDE_FACE
 	add_child(raiz)
 
+	var semente := hash(coordenadas_grid)
 	for i in contorno.size():
 		var a := contorno[i]
 		var b := contorno[(i + 1) % contorno.size()]
 		var normal := _normal_externa(contorno, a, b)
 		if normal.y > LIMIAR_LADO_NORTE:
 			continue
+		var textura := _face_do_lado(i, semente, neutra)
+		if textura == null:
+			continue
 		var recuo := normal * ALTURA_FACE
 		var quad := Polygon2D.new()
 		quad.polygon = PackedVector2Array([a, b, b + recuo, a + recuo])
 		_texturizar(quad, textura, ancora)
 		raiz.add_child(quad)
+
+
+## O modulo de face que veste UM lado da sala.
+##
+## O sorteio e por LADO e nao por sala, e essa e a peca inteira desta issue. Uma
+## face por sala daria o mesmo painel nos quatro lados -- que e exatamente o que
+## a face ja fazia quando era textura unica, so que com mais arquivos em disco.
+## Sorteando por lado, a parede norte pode ter uma escotilha e a leste um duto, e
+## e isso que transforma uma lista de texturas numa biblioteca de MODULOS.
+##
+## O indice do lado entra na semente por multiplicacao com um primo grande: a
+## soma simples faria o lado 1 da celula (3,0) cair no mesmo modulo do lado 0 da
+## celula (4,0), e o andar ganharia faixas diagonais de painel repetido.
+##
+## Continua deterministico: mesma celula, mesmos modulos, e uma suite consegue
+## reproduzir. `coordenadas_grid` ja vale aqui porque o GerenciadorMapa a escreve
+## ANTES do add_child.
+func _face_do_lado(indice_do_lado: int, semente: int, neutra: Texture2D) -> Texture2D:
+	if _dados_visual != null and not _dados_visual.texturas_face.is_empty():
+		var propria := _dados_visual.textura_de(
+			_dados_visual.texturas_face, semente ^ (indice_do_lado * 0x9e3779b1)
+		)
+		if propria != null:
+			return propria
+	return neutra
 
 
 ## Normal para FORA de um lado do contorno.

@@ -39,6 +39,7 @@ func executar() -> void:
 	_as_camadas_de_cenario_ficam_fora_do_y_sort()
 	_o_ator_tem_sombra_na_base()
 	_todo_ator_com_arte_tem_origem_nos_pes()
+	_a_face_sorteia_por_lado()
 
 
 ## O contrato em si: as faixas sobem na ordem em que as coisas se empilham.
@@ -331,3 +332,91 @@ func _area_do(pontos: PackedVector2Array) -> float:
 		var b := pontos[(i + 1) % pontos.size()]
 		soma += a.x * b.y - b.x * a.y
 	return absf(soma) * 0.5
+
+## Como a face escolhe o modulo que veste cada lado (LTD 13).
+##
+## Este caso existe porque a medicao contrariou o desenho, e o que ficou no
+## codigo foi o resultado da medicao.
+##
+## **Uma sala mostra UMA face.** `LIMIAR_LADO_NORTE` so desenha face no lado
+## cuja normal aponta para o norte -- ou seja, a parede do fundo, a unica cuja
+## superficie vertical esta virada para a camera. Medido nas nove formas de
+## sala: todas dao exatamente uma. E geometricamente certo para esta
+## perspectiva, e e o que impede o cenario de cobrir jogador e telegrafo.
+##
+## A consequencia manda no planejamento de arte, e nao e obvia: uma biblioteca
+## de cinco modulos de face NAO produz cinco paineis diferentes numa sala. Ela
+## produz variedade ao longo do ANDAR -- salas vizinhas vestindo modulos
+## diferentes. Quem for produzir os modulos precisa saber disso, senao desenha
+## pensando numa composicao que nunca acontece.
+##
+## O sorteio continua sendo por (celula, lado) e nao so por celula: custa nada,
+## e o dia em que uma sala tiver dois trechos de fundo -- um L entalhado por
+## cima -- ela ja veste os dois sem mudanca nenhuma.
+func _a_face_sorteia_por_lado() -> void:
+	var um: Texture2D = load("res://assets/texturas/parede_face_boss.png")
+	var dois: Texture2D = load("res://assets/texturas/parede_face_arma.png")
+	ok(um != null and dois != null, "as faces de teste carregam do disco")
+	if um == null or dois == null:
+		return
+	var dados := DadosSala.new()
+	dados.texturas_face = [um, dois]
+
+	# 1. A sala veste a face que o TIPO manda, e nao a neutra em disco.
+	var usadas := _texturas_de_face(_montar_com(CENA_SALA, dados, Vector2i(3, 1)))
+	igual(usadas.size(), 1, "a sala retangular desenha uma face -- so o lado de fundo aparece")
+	if not usadas.is_empty():
+		ok(
+			usadas[0] != Sala.FACE_NEUTRA,
+			"ela usa o modulo declarado pelo tipo, nao a face neutra (%s)" % usadas[0]
+		)
+
+	# 2. Ao longo do ANDAR os modulos variam. E aqui que a biblioteca aparece.
+	var vistas := {}
+	for x in 16:
+		for t in _texturas_de_face(_montar_com(CENA_SALA, dados, Vector2i(x, 0))):
+			vistas[t] = true
+	ok(
+		vistas.size() >= 2,
+		"salas diferentes do andar vestem modulos diferentes (%d de 2)" % vistas.size()
+	)
+
+	# 3. Determinismo: a mesma celula veste igual nas duas montagens. Sem isso,
+	#    voltar para uma sala a redecora, e o jogador percebe.
+	var a := _texturas_de_face(_montar_com(CENA_SALA, dados, Vector2i(7, 2)))
+	var b := _texturas_de_face(_montar_com(CENA_SALA, dados, Vector2i(7, 2)))
+	igual(a, b, "a mesma celula veste os mesmos modulos nas duas montagens")
+
+	# 4. Sem dados, a sala nao fica sem face -- ela cai na neutra. E o caso da
+	#    cena aberta sozinha no editor, e ele nao pode virar parede chapada.
+	var sem := _texturas_de_face(_montar_com(CENA_SALA, null, Vector2i(1, 1)))
+	igual(sem.size(), 1, "sala sem DadosSala ainda desenha a face")
+	if not sem.is_empty():
+		igual(sem[0], Sala.FACE_NEUTRA, "e ela e a face neutra")
+
+
+## Monta uma sala numa celula dada, com os dados dados. Longe da origem, como o
+## resto desta suite.
+func _montar_com(cena: PackedScene, dados: DadosSala, celula: Vector2i) -> Sala:
+	var sala := cena.instantiate() as Sala
+	sala.coordenadas_grid = celula
+	# Os dois ANTES do add_child: e o _ready que monta as faces, e ele le os
+	# dois. E a mesma ordem que o GerenciadorMapa usa.
+	sala.definir_visual(dados)
+	sala.position = LONGE
+	Engine.get_main_loop().root.add_child(sala)
+	return sala
+
+
+## Os caminhos das texturas de cada quad de face, na ordem em que a sala montou.
+## Caminho e nao Texture2D para a mensagem de falha ser legivel.
+func _texturas_de_face(sala: Sala) -> Array[String]:
+	var achados: Array[String] = []
+	var raiz := sala.get_node_or_null("ParedeFace") as Node2D
+	if raiz != null:
+		for filho in raiz.get_children():
+			var poly := filho as Polygon2D
+			if poly != null and poly.texture != null:
+				achados.append(poly.texture.resource_path)
+	sala.free()
+	return achados

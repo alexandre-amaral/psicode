@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="DadosSala" load_steps=23 format=3]
+[gd_resource type="Resource" script_class="DadosSala" load_steps=24 format=3]
 
 [ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
 [ext_resource type="Texture2D" path="res://assets/texturas/chao_andar1_a.png" id="30_c0"]
@@ -8,6 +8,7 @@
 [ext_resource type="Texture2D" path="res://assets/texturas/parede_andar1_b.png" id="31_p1"]
 [ext_resource type="Texture2D" path="res://assets/texturas/parede_andar1_c2.png" id="31_p2"]
 [ext_resource type="Texture2D" path="res://assets/texturas/parede_andar1_d.png" id="31_p3"]
+[ext_resource type="Texture2D" path="res://assets/texturas/parede_face_combate.png" id="40_fc"]
 [ext_resource type="Texture2D" path="res://assets/texturas/props_atlas.png" id="23_atlas"]
 [ext_resource type="Texture2D" path="res://assets/texturas/props_volume.png" id="24_pvol"]
 [ext_resource type="PackedScene" uid="uid://b1c2d3e4f5g6h" path="res://src/mapa/sala_1_retangular.tscn" id="2_s1"]
@@ -43,6 +44,7 @@ cor_mapa = Color(0.3, 0.9, 1, 1)
 icone = ""
 texturas_chao = Array[Texture2D]([ExtResource("30_c0"), ExtResource("30_c1"), ExtResource("30_c2")])
 texturas_parede = Array[Texture2D]([ExtResource("31_p0"), ExtResource("31_p1"), ExtResource("31_p2"), ExtResource("31_p3")])
+texturas_face = Array[Texture2D]([ExtResource("40_fc")])
 atlas_props = ExtResource("23_atlas")
 regioes_props = Array[Rect2i]([Rect2i(0, 0, 32, 32), Rect2i(32, 0, 32, 32), Rect2i(64, 0, 32, 32), Rect2i(96, 0, 32, 32), Rect2i(128, 0, 32, 32), Rect2i(160, 0, 32, 32), Rect2i(192, 0, 32, 32), Rect2i(224, 0, 32, 32), Rect2i(0, 32, 32, 32), Rect2i(32, 32, 32, 32), Rect2i(64, 32, 32, 32), Rect2i(96, 32, 32, 32), Rect2i(128, 32, 32, 32), Rect2i(160, 32, 32, 32), Rect2i(192, 32, 32, 32), Rect2i(224, 32, 32, 32), Rect2i(0, 64, 32, 32), Rect2i(0, 96, 32, 32)])
 quantidade_props = 10

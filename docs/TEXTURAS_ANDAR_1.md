@@ -536,6 +536,42 @@ registro de onde o valor dela veio.
 python tools/texturas/preparar_textura.py preparar ORIGEM.png     assets/texturas/parede_face.png     --familia parede --tipo andar1 --manter-tamanho --sem-costura     --desvinheta --tingir 232 --saturacao 0.50 --grampear-matiz 195 310
 ```
 
+### Uma sala mostra UMA face — e isso manda no planejamento de arte
+
+Medido nas nove formas de sala: **todas desenham exatamente uma face.**
+
+`Sala.LIMIAR_LADO_NORTE` só desenha face no lado cuja normal aponta para o
+norte — a parede do fundo, a única cuja superfície vertical está virada para a
+câmera. É geometricamente certo para esta perspectiva, e é o que impede o
+cenário de cobrir jogador, inimigo, projétil e telegrafo.
+
+A consequência não é óbvia e vale antes de desenhar: **uma biblioteca de cinco
+módulos de face não produz cinco painéis diferentes numa sala.** Ela produz
+variedade ao longo do ANDAR — salas vizinhas vestindo módulos diferentes. Quem
+produzir os módulos precisa saber disso, senão desenha pensando numa composição
+que nunca acontece.
+
+O sorteio é por `(célula, lado)` mesmo assim. Custa nada, e o dia em que uma
+sala tiver dois trechos de fundo — um L entalhado por cima — ela já veste os
+dois sem mudança nenhuma.
+
+### A identidade do tipo mora na face
+
+Cada `tipo_*.tres` declara `texturas_face`. As cinco são a mesma estrutura
+industrial tingida na rampa do tipo:
+
+| tipo | matiz | faixa que o portão cobra |
+|---|---|---|
+| combate | 200, ciano rebaixado | 185–320 |
+| inicial | 221, cinza-azulado | 185–320 |
+| boss | 342, rosa rebaixado | 330–355 |
+| arma | 37, âmbar rebaixado | 25–50 |
+| item | 165, verde-água rebaixado | 150–180 |
+
+Estrutura e acento são eixos **ortogonais** de propósito: a estrutura diz "é o
+mesmo setor", o acento diz "é outra sala". Trocar a estrutura por tipo faria o
+andar deixar de ser um lugar só.
+
 ### A ferrugem: por que ela NÃO é matiz no chão nem na parede
 
 Isto custou quatro gerações e vale ficar escrito.

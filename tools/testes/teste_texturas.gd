@@ -222,11 +222,26 @@ const AUTORADAS: Dictionary = {
 	# GERADO e trancado pelo determinismo -- sao dois arquivos justamente
 	# para cada um ficar no regime que sabe provar o que ele e.
 	"props_volume.png": {&"familia": &"prop", &"tipo": &"andar1"},
-	# A FACE da parede, autorada na identidade industrial do andar 1. Ela e a
-	# superficie que carrega a identidade do setor: o chao fica quase liso
-	# porque e onde o combate e lido, e a informacao visual desce para as
+	# As FACES da parede, autoradas na identidade industrial do andar 1. Elas
+	# sao a superficie que carrega a identidade do setor: o chao fica quase
+	# liso porque e onde o combate e lido, e a informacao visual desce para as
 	# bordas da sala. O TOPO (`parede_topo.png`) continua gerado.
+	#
+	# `parede_face.png` e a NEUTRA -- o modulo "simples", usado como fallback
+	# pela sala sem DadosSala. As cinco seguintes sao a mesma estrutura
+	# industrial tingida na rampa de cada tipo (LTD 13): mesma arquitetura,
+	# acento diferente. As duas coisas sao ortogonais de proposito -- a
+	# estrutura diz "e o mesmo setor", o acento diz "e outra sala".
+	#
+	# Combate e inicial declaram tipo `andar1` porque e a faixa que o portao
+	# cobra deles; o que os separa e o matiz DENTRO da faixa (ciano contra
+	# cinza-azulado), nao a faixa.
 	"parede_face.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"parede_face_combate.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"parede_face_inicial.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"parede_face_boss.png": {&"familia": &"parede", &"tipo": &"boss"},
+	"parede_face_arma.png": {&"familia": &"parede", &"tipo": &"arma"},
+	"parede_face_item.png": {&"familia": &"parede", &"tipo": &"item"},
 }
 
 ## A faixa de matiz e do TIPO DE SALA, e e ela que faz a sala do chefe se
@@ -500,6 +515,13 @@ func _tipos_apontam_textura() -> void:
 		conferidos += 1
 		ok(not dados.texturas_chao.is_empty(), "%s declara ao menos uma textura de chao" % etiqueta)
 		ok(not dados.texturas_parede.is_empty(), "%s declara ao menos uma textura de parede" % etiqueta)
+		# A FACE e a superficie que carrega a identidade do tipo (LTD 13). Lista
+		# vazia nao quebra nada -- a sala cai na face neutra -- e e exatamente
+		# por isso que precisa de portao: o sintoma de esquecer de declarar e o
+		# andar inteiro ficar com a mesma parede, sem uma linha no console.
+		ok(not dados.texturas_face.is_empty(), "%s declara ao menos uma face de parede" % etiqueta)
+		for t in dados.texturas_face:
+			ok(t != null, "%s: nenhuma entrada nula na lista de face" % etiqueta)
 		for t in dados.texturas_chao:
 			ok(t != null, "%s: nenhuma entrada nula na lista de chao" % etiqueta)
 		for t in dados.texturas_parede:

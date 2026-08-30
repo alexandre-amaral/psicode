@@ -121,6 +121,23 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## outra, e era o neon que encostava na beira do quadro.
 @export var texturas_chao: Array[Texture2D] = []
 @export var texturas_parede: Array[Texture2D] = []
+## As FACES da parede -- os modulos que a sala pode vestir nos lados que a
+## camera enxerga de frente (LTD 13).
+##
+## Lista, e nao textura unica, pelo mesmo motivo de chao e parede: um andar
+## inteiro com o mesmo painel repetido le como corredor de escritorio, nao como
+## setor industrial. A diferenca e QUANDO ela e sorteada -- ver
+## `Sala._montar_faces()`: a face sorteia por LADO da sala, e nao uma por sala.
+##
+## E aqui, e nao num caminho fixo no codigo, porque a face e a superficie que
+## carrega a identidade de cada tipo de sala: ela e a maior area de ambiente em
+## tela desde que a parede ganhou altura, e e nela que o acento rebaixado do
+## tipo aparece. Enquanto isto foi um `load()` cravado em `sala.gd`, nenhum
+## modulo produzido chegava a tela.
+##
+## Vazia = cai na face neutra em disco. Sala aberta sozinha no editor nao tem
+## DadosSala e nao pode ficar sem face.
+@export var texturas_face: Array[Texture2D] = []
 ## Atlas de props e QUAIS celulas dele esta sala pode usar. O atlas e um so
 ## para o jogo inteiro; a lista e o que da identidade -- a sala do chefe nao
 ## recebe o painel de acento da sala de arma.

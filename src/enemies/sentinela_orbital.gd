@@ -28,6 +28,24 @@ extends InimigoBase
 ## para dano pequeno vira ruido, nao leitura.
 @export var tempo_clarao: float = 0.28
 
+@export_group("Rajada")
+## Quantos tiros unicos saem antes de uma rajada. Zero desliga a rajada.
+##
+## Ela existe para quebrar o RITMO. Com tiro unico a intervalo fixo o jogador
+## encontra uma cadencia de orbita e fica nela; a rajada obriga a mudar a
+## movimentacao no meio do circulo, que e a pergunta que esta inimiga faz.
+@export var tiros_ate_rajada: int = 3
+@export var projeteis_rajada: int = 3
+## Abertura TOTAL do leque, em graus. 24 da -12 / 0 / +12.
+@export var abertura_rajada: float = 24.0
+## Quanto o aviso da rajada dura a mais que o do tiro unico.
+##
+## Nao e enfeite: a regra do projeto e "quanto mais forte o ataque, maior o
+## telegrafo". Se a rajada avisasse igual ao tiro unico, o jogador nao teria
+## como saber qual esta vindo -- e um ataque que nao da para distinguir do
+## outro nao da para preparar.
+@export var fator_aviso_rajada: float = 1.6
+
 const APROXIMAR := &"APROXIMAR"
 const ORBITAR := &"ORBITAR"
 const DISPARAR := &"DISPARAR"
@@ -36,6 +54,10 @@ var _maquina: MaquinaEstados
 var _arma: Arma
 var _clarao: Polygon2D
 var _t_intervalo: float = 0.0
+## Quantos tiros unicos ainda faltam para a proxima rajada. Comeca sorteado para
+## duas sentinelas na mesma sala nao rajarem no mesmo momento -- duas rajadas
+## simultaneas viram seis projeteis, que e outro ataque.
+var _ate_rajada: int = 0
 ## Sentido da orbita. Sorteado no nascimento: duas sentinelas girando para lados
 ## opostos fecham o campo de verdade.
 var _sentido: float = 1.0
@@ -46,6 +68,10 @@ var _torre: Node2D = null
 
 ## Abaixo disto ela esta parando, nao orbitando.
 const VELOCIDADE_ANDANDO := 12.0
+## Quanto o clarao cresce a mais quando a proxima salva e rajada. E o unico
+## sinal que o jogador tem para distinguir os dois ataques, entao ele e visivel
+## de proposito.
+const ESCALA_CLARAO_RAJADA := 1.9
 
 
 func _ready() -> void:
@@ -57,6 +83,7 @@ func _ready() -> void:
 	_clarao = $Torre/Clarao
 	_clarao.visible = false
 	_sentido = 1.0 if randf() < 0.5 else -1.0
+	_ate_rajada = randi_range(0, maxi(tiros_ate_rajada, 0))
 	_t_intervalo = randf_range(0.3, intervalo)
 
 	_maquina = MaquinaEstados.new(name)
@@ -99,16 +126,47 @@ func _orbitar(delta: float) -> void:
 func _disparar_entrar() -> void:
 	_clarao.visible = true
 	_clarao.scale = Vector2(0.4, 0.4)
+	# O aviso da rajada e MAIOR e mais longo. Sem isso os dois ataques ficam
+	# indistinguiveis ate o projetil existir, e o jogador so pode reagir.
+	var alvo := 1.3 * (ESCALA_CLARAO_RAJADA if _vai_rajar() else 1.0)
 	var t := create_tween()
-	t.tween_property(_clarao, "scale", Vector2(1.3, 1.3), tempo_clarao)
+	t.tween_property(_clarao, "scale", Vector2(alvo, alvo), _duracao_do_aviso())
 
 
 func _disparar(delta: float) -> void:
 	_circular(delta, 0.7)
-	if _maquina.passou(tempo_clarao):
+	if not _maquina.passou(_duracao_do_aviso()):
+		return
+	if _vai_rajar():
+		# `atirar_varias` e obrigatorio aqui, e nao preferencia: um `for` com
+		# `atirar()` sairia com UM projetil. O `_t_cadencia` e setado no primeiro
+		# tiro e `pode_atirar()` recusa o resto, porque o `_process` que
+		# decrementa nao roda no meio do laco. Foi este mesmo defeito que fez o
+		# anel da Diretora sair com um projetil.
+		_arma.atirar_varias(
+			Balistica.leque(direcao_para_alvo(), projeteis_rajada, abertura_rajada)
+		)
+		_ate_rajada = maxi(tiros_ate_rajada, 0)
+	else:
 		_arma.atirar(direcao_para_alvo())
-		_t_intervalo = intervalo
-		_maquina.trocar(ORBITAR)
+		_ate_rajada -= 1
+	_t_intervalo = intervalo
+	_maquina.trocar(ORBITAR)
+
+
+## A proxima salva e rajada?
+##
+## Consultado em DOIS lugares -- no aviso e no tiro -- e por isso e uma pergunta
+## e nao uma bandeira levantada no meio do caminho. Se o aviso decidisse e o
+## tiro relesse um contador ja alterado, o clarao grande sairia antes do tiro
+## unico: o telegrafo mentiria, que e o pior defeito possivel neste projeto.
+func _vai_rajar() -> bool:
+	return tiros_ate_rajada > 0 and _ate_rajada <= 0
+
+
+## Quanto o aviso dura nesta salva.
+func _duracao_do_aviso() -> float:
+	return tempo_clarao * (fator_aviso_rajada if _vai_rajar() else 1.0)
 
 
 func _disparar_sair() -> void:

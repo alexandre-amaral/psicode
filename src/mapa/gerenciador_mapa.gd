@@ -1214,9 +1214,15 @@ func _clampar(limites: Rect2) -> void:
 ## depois. Um numero solto aqui descolaria no dia em que alguem engrossasse a
 ## parede, e o sintoma seria uma tira preta na borda -- ou meia parede cortada.
 ##
-## O custo, e ele e real: numa sala do tamanho exato da tela a camera deixa de
-## ser fixa e passa a deslizar ate 24 px. Era a decisao que o GEMINI.md deixava
-## em aberto, e ela foi tomada em favor de ver a parede.
+## O custo, e ele e real e CRESCEU com a migracao Low Top-Down: a faixa passou
+## de 24 para 64 px, entao numa sala do tamanho exato da tela (960x544) o quadro
+## util vira 1088x672 e a camera desliza ate 64 px por eixo. Com o jogador no
+## centro, nenhuma parede aparece -- ela entra quando ele anda ate a borda.
+##
+## Nao ha conserto por margem: o retangulo tem de casar com a parede desenhada,
+## e e isso que `tools/testes/teste_camera.gd` trava. O conserto e geometrico --
+## sala de 832x416 fecharia 960x544 exato -- e mexe em tamanho de sala, que a
+## Fase 25 do plano de migracao proibe alterar enquanto ela acontece.
 func margem_da_parede() -> float:
 	return Sala.ESPESSURA_PAREDE
 

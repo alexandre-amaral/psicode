@@ -248,3 +248,51 @@ caminho delas:
 > removido — uma build publicada assim subiria com autoload apontando para
 > script fora do pacote, e o `mcp_runtime_bridge` lê `user://` todo frame. O
 > `BUILD.md` passou a ter esse passo no pré-voo, que era onde ele faltava.
+
+**`v0.4.0-alpha`.** A migração **Low Top-Down Squared** fechada — as nove issues
+da trilha LTD (#36 a #46) — mais o começo da identidade industrial do andar 1 e
+do refinamento de inimigos.
+
+O mundo passou a ter altura de ponta a ponta:
+
+- **Chão na grade de 64**, com zero pontos de silhueta de projétil. As seis
+  texturas já passavam nos seis portões; o que faltava — a grade — nenhum
+  portão media.
+- **Props com volume**: topo e face, origem na base, sombra e Y-sort. São
+  **dois atlas** e não um: o chapado continua gerado e trancado pelo
+  determinismo, o volumétrico é autorado e trancado por propriedade medida.
+  Fundir obrigaria a escolher um regime, e o perdedor seria o determinismo.
+- **A face da parede virou a superfície de identidade.** Ela era um `load()` de
+  caminho fixo — nenhum módulo produzido chegaria à tela. Agora é lista por
+  tipo de sala, sorteada por `(célula, lado)`.
+- **Corredor com face**: era a última parte chapada do jogo, e atravessar de uma
+  sala para outra trocava de perspectiva no meio do caminho.
+- **Camada Foreground**, com a trava do telegrafo feita **estrutural**: o
+  Foreground nunca entra na `area_spawn`, então "não cobre telegrafo" deixou de
+  ser revisão de olho e virou comparação de retângulos.
+- **Porta industrial** autorada, e **progressão visual** por posição no andar.
+
+**A medição contrariou a suposição em cinco das nove issues**, incluindo
+suposições escritas nas próprias issues e duas afirmações minhas:
+
+> - A face desenha **uma** por sala, não uma por lado — medido nas nove formas.
+>   Isso muda o que a biblioteca de módulos precisa desenhar.
+> - `capturar.gd` comparava o contorno com a tela e **passava por um fio**,
+>   porque a sala retangular tem exatamente o tamanho da tela. "A sala cabe"
+>   nunca significou "os inimigos estão no quadro", e a foto 07 saía com hostis
+>   fora da moldura.
+> - Duas das quatro suspeitas sobre a Diretora **não eram defeito**: ela não tem
+>   pés, e girar um disco radialmente simétrico não muda perspectiva. As duas que
+>   eram: ela era o **único inimigo do jogo sem tint de Hack**, e carregava uma
+>   sombra 100% coberta pelo próprio sprite.
+
+**A ferrugem não entrou, e o motivo é medido.** Ela cai em ~25–40°, que é a
+faixa da sala de arma; o funil a empurra para dentro da faixa do andar 1 e a
+corrosão vira manchinha ciano — a cor do projétil do jogador. Uma variante mediu
+**68 pontos com silhueta de projétil**. Ela precisa vir de padrão e valor, ou de
+uma decisão formal de paleta. É o que mantém duas das dez perguntas do protótipo
+em aberto.
+
+De quebra, **2657 verificações em 27 suítes** contra 2291 no início, com quatro
+suítes novas — props, Drone Aranha, Atirador Neon, e a sala de teste que confere
+a própria lista antes de fotografar.

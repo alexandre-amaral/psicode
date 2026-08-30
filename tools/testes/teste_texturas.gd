@@ -51,6 +51,59 @@ func executar() -> void:
 	_arquivos()
 	_determinismo()
 	_tipos_apontam_textura()
+	_a_parede_tem_volume()
+
+
+## O portao da direcao de luz (IDENTIDADE_VISUAL, "Direcao da luz"): a luz vem
+## de cima e da esquerda, entao o TOPO da parede e mais claro que a FACE.
+##
+## Isto e a forma medivel do que vende a altura na perspectiva Low Top-Down. Se
+## topo e face tiverem o mesmo valor, a parede volta a ler como faixa chapada --
+## exatamente o defeito que a migracao existe para corrigir -- e nada no console
+## avisa, porque as duas texturas continuam validas pela paleta.
+##
+## Mede a MEDIANA e nao a media: a face tem uma faixa de sombra de 8 px na base
+## que puxaria a media para baixo por um motivo diferente do que se quer medir.
+func _a_parede_tem_volume() -> void:
+	var topo := _abrir("parede_topo.png")
+	var face := _abrir("parede_face.png")
+	if topo == null or face == null:
+		ok(false, "parede_topo.png e parede_face.png existem em disco")
+		return
+
+	igual(topo.get_width(), GeradorTexturas.TILE_PAREDE, "o topo usa o tile da parede")
+	igual(topo.get_height(), GeradorTexturas.TILE_PAREDE, "o topo e quadrado")
+	igual(face.get_width(), GeradorTexturas.TILE_PAREDE, "a face usa o tile da parede")
+	igual(face.get_height(), GeradorTexturas.TILE_PAREDE, "a face e quadrada")
+
+	var v_topo := _mediana_de_valor(topo)
+	var v_face := _mediana_de_valor(face)
+	ok(v_topo > v_face,
+		"o topo da parede e mais claro que a face (topo %.3f, face %.3f) -- e o que vende a altura" % [v_topo, v_face])
+
+
+func _abrir(nome: String) -> Image:
+	var caminho := "%s/%s" % [PASTA, nome]
+	if not ResourceLoader.exists(caminho):
+		return null
+	var textura: Texture2D = load(caminho)
+	if textura == null:
+		return null
+	return textura.get_image()
+
+
+func _mediana_de_valor(imagem: Image) -> float:
+	var valores: Array[float] = []
+	for y in imagem.get_height():
+		for x in imagem.get_width():
+			var cor := imagem.get_pixel(x, y)
+			if cor.a < 0.5:
+				continue
+			valores.append(cor.v)
+	if valores.is_empty():
+		return 0.0
+	valores.sort()
+	return valores[valores.size() / 2]
 
 
 ## G2 e G3 sobre a PALETA, antes de qualquer pixel: se a lista ja estiver

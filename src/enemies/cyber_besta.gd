@@ -20,6 +20,19 @@ extends InimigoBase
 @export var duracao_investida: float = 0.42
 ## Janela de punicao. Longa de proposito: e o pagamento pelo dano alto.
 @export var tempo_recuperacao: float = 1.1
+## A pausa encarando, entre circular e agachar.
+##
+## Curta de propositio. Ela nao existe para dar tempo de reagir -- o agachamento
+## de `PREPARAR` ja faz isso -- e sim para SEPARAR os dois momentos. Sem ela a
+## besta sai de contornar e agacha no mesmo frame, e o jogador nao ve o instante
+## em que ela escolheu ele.
+@export var tempo_encarando: float = 0.3
+## Quanto ele fica aberto depois de bater numa parede.
+##
+## E a principal janela de contra-ataque do inimigo, e sem ela a Cyber-Besta era
+## pressao pura sem resposta: a investida terminava por tempo, acertasse ela o
+## que acertasse. Errar a esquiva custava dano; ACERTAR nao rendia nada.
+@export var tempo_atordoado: float = 1.0
 ## So investe a partir daqui. Longe demais a investida vira corrida.
 @export var alcance: float = 420.0
 
@@ -29,8 +42,10 @@ const PREPARAR := &"PREPARAR"
 ## preparacao deixaria o ciclo de patas tremendo enquanto ele ja esta travado.
 const VELOCIDADE_ANDANDO := 12.0
 
+const ENCARAR := &"ENCARAR"
 const INVESTIR := &"INVESTIR"
 const RECUPERAR := &"RECUPERAR"
+const ATORDOADO := &"ATORDOADO"
 
 var _maquina: MaquinaEstados
 ## Guardada em `_investir_entrar` e lida sem reescrever ate o fim do ataque.
@@ -50,9 +65,11 @@ func _ready() -> void:
 
 	_maquina = MaquinaEstados.new(name)
 	_maquina.adicionar(OBSERVAR, _observar)
+	_maquina.adicionar(ENCARAR, _encarar)
 	_maquina.adicionar(PREPARAR, _preparar, _preparar_entrar, _preparar_sair)
 	_maquina.adicionar(INVESTIR, _investir, _investir_entrar)
 	_maquina.adicionar(RECUPERAR, _recuperar, _recuperar_entrar)
+	_maquina.adicionar(ATORDOADO, _atordoado, _atordoado_entrar)
 	_maquina.iniciar(OBSERVAR)
 
 
@@ -74,6 +91,10 @@ func _comportamento(delta: float) -> void:
 ## excluia OBSERVAR achando que sim, e as patas ficavam congeladas justo no
 ## estado em que ele passa mais tempo se deslocando.
 func _pos_movimento(delta: float) -> void:
+	# ANTES do retorno antecipado: a batida na parede e regra de combate, e nao
+	# de arte. Deixa-la depois faria a besta com sprite ausente atravessar a
+	# parede sem se atordoar -- um comportamento que dependeria de ter arte.
+	_conferir_batida()
 	if _sprite == null:
 		return
 	var andando := velocity.length() > VELOCIDADE_ANDANDO
@@ -92,6 +113,22 @@ func _observar(delta: float) -> void:
 		900.0 * delta
 	)
 	if _maquina.passou(tempo_observando) and distancia_do_alvo() <= alcance:
+		_maquina.trocar(ENCARAR)
+
+
+## Ela para e vira para o jogador antes de agachar.
+##
+## O corpo travado e o sinal que se le de LONGE -- antes de o agachamento ficar
+## visivel, e muito antes do rastro. E o instante em que ela escolheu voce, e
+## ele precisa existir separado do preparo para o jogador poder ler os dois.
+##
+## Ela continua acompanhando o angulo aqui: a trava so acontece na transicao
+## para INVESTIR, e adiantar isso tiraria do jogador a ultima chance de mudar de
+## lado.
+func _encarar(delta: float) -> void:
+	velocity = velocity.move_toward(Vector2.ZERO, 2400.0 * delta)
+	_direcao_travada = direcao_para_alvo()
+	if _maquina.passou(tempo_encarando):
 		_maquina.trocar(PREPARAR)
 
 
@@ -133,11 +170,49 @@ func _investir_entrar() -> void:
 
 func _investir(_delta: float) -> void:
 	# Sem `direcao_de_locomocao` aqui, e de proposito: durante a investida ele
-	# NAO desvia de nada. E o que torna o ataque legivel, e o que fara a parede
-	# ser um recurso do jogador quando o pathfinding entrar.
+	# NAO desvia de nada. E o que torna o ataque legivel, e o que faz a parede
+	# ser um recurso do jogador.
 	velocity = _direcao_travada * velocidade_investida
 	if _maquina.passou(duracao_investida):
 		_maquina.trocar(RECUPERAR)
+
+
+## A batida.
+##
+## Roda em `_pos_movimento` porque so depois do `move_and_slide()` o
+## `is_on_wall()` significa alguma coisa -- antes dele, o motor ainda nao tentou
+## mover ninguem.
+##
+## Esta e a peca que faltava no inimigo. A investida terminava por TEMPO,
+## acertasse ela o que acertasse: errar a esquiva custava dano ao jogador, e
+## acertar nao rendia nada. Agora esquivar tem premio, e o premio e uma janela
+## em que ela nao pode fazer nada.
+##
+## O jogador nao precisa saber que existe uma layer de parede -- ele so aprende
+## que dar um passo para o lado no momento certo poe a besta contra o muro.
+func _conferir_batida() -> void:
+	if _maquina.estado != INVESTIR:
+		return
+	if is_on_wall():
+		_maquina.trocar(ATORDOADO)
+
+
+func _atordoado_entrar() -> void:
+	velocity = Vector2.ZERO
+	EventBus.pedido_shake.emit(5.0, 0.2)
+	if _visual != null:
+		# Achatamento no eixo da CORRIDA, e nao na horizontal da tela: e o mesmo
+		# raciocinio do agachamento, e sem ele uma besta que bateu numa parede ao
+		# norte apareceria amassada de lado.
+		var t := create_tween()
+		t.tween_property(_visual, "scale", _agachar(0.75, 1.3), 0.08)
+		t.tween_property(_visual, "scale", Vector2.ONE, tempo_atordoado * 0.5)
+
+
+func _atordoado(delta: float) -> void:
+	velocity = velocity.move_toward(Vector2.ZERO, 4000.0 * delta)
+	if _maquina.passou(tempo_atordoado):
+		_maquina.trocar(OBSERVAR)
 
 
 func _recuperar_entrar() -> void:
@@ -165,8 +240,13 @@ func _recuperar(delta: float) -> void:
 ## para oito passos, que e a mesma do jogador -- e ainda assim a leitura MELHOROU,
 ## porque um bicho desenhado virado para o nordeste diz mais que um hexagono
 ## girado.
+## ATORDOADO entra junto com INVESTIR, e nao e detalhe: atordoada contra a
+## parede ela continua encarando PARA ONDE CORREU. Deixa-la virar para o jogador
+## faria a pose ler como alerta -- exatamente o oposto da janela de
+## contra-ataque que o estado existe para anunciar.
 func _direcao_encarada() -> Vector2:
-	var d := _direcao_travada if _maquina.estado == INVESTIR else direcao_para_alvo()
+	var travada := _maquina.estado == INVESTIR or _maquina.estado == ATORDOADO
+	var d := _direcao_travada if travada else direcao_para_alvo()
 	return d if d.length_squared() > 0.01 else _direcao_travada
 
 

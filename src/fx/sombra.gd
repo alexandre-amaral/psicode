@@ -39,14 +39,6 @@ const ACHATAMENTO := 0.42
 ## o ator vive na faixa Z_MUNDO e se ordena por Y, e a sombra tem de viajar
 ## junto com ele nessa ordenacao em vez de disputar faixa propria.
 const Z := -1
-## Distancia da ORIGEM do sprite ate os pes, dentro do quadro de 80x80.
-##
-## Espelha `tools/sprites/gerar_sprites.py`: LADO 80, FOLGA_PE 4, entao os pes
-## caem na linha 76 de um quadro centrado -- 76 - 40 = 36. Todo personagem e
-## todo inimigo com arte passam por aquele script, entao o numero vale para
-## todos. Se a moldura mudar de 80, este numero muda junto, e a sombra sair do
-## pe e o sintoma visivel.
-const BASE_DO_QUADRO := 36.0
 
 
 ## Onde um ator com sprite direcional encosta no chao, em coordenadas locais.
@@ -60,7 +52,7 @@ static func base_de(corpo: Node2D) -> float:
 	# JA e a origem -- somar 36 poria a sombra 36 px abaixo dos pes dele.
 	if not (corpo is Sprite2D):
 		return corpo.position.y
-	return corpo.position.y + BASE_DO_QUADRO
+	return corpo.position.y + Direcoes.BASE_NO_QUADRO
 
 
 ## Cria a sombra de um ator de `largura` px, ja posicionada na base dele.

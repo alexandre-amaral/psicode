@@ -39,7 +39,7 @@ shape = SubResource("CircleShape2D_rast")
 [node name="Visual" type="Node2D" parent="."]
 
 [node name="Corpo" type="Sprite2D" parent="Visual"]
-position = Vector2(0, -12)
+position = Vector2(0, -36)
 texture = ExtResource("12_p")
 script = ExtResource("2_sprite")
 sprites_parado = Array[Texture2D]([ExtResource("10_p"), ExtResource("11_p"), ExtResource("12_p"), ExtResource("13_p"), ExtResource("14_p"), ExtResource("15_p"), ExtResource("16_p"), ExtResource("17_p")])

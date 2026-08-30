@@ -72,10 +72,33 @@ const PASSO_VARREDURA := 32.0
 ## Quanto o corpo da parede avanca para FORA do contorno. Combina com a
 ## moldura da porta (96x48 centrada no vao), que cobre exatamente esta faixa.
 const ESPESSURA_PAREDE := 24.0
-## Camadas: o corpo da parede fica atras do chao, e e o chao que recorta a
-## faixa visivel -- sem calcular anel com furo, o que salva a sala em L.
-const Z_PAREDE_CORPO := -2
-const Z_CHAO := -1
+## As faixas de z do mundo, em ordem. Este bloco e o CONTRATO que a migracao
+## para Low Top-Down Squared usa (docs/LOW_TOPDOWN_SQUARED.md secao 22): quem
+## desenha no mundo escolhe uma faixa daqui, e nunca um numero solto.
+##
+## Elas sao espacadas de 2 de proposito -- sobra lugar para uma camada nova
+## entre duas existentes sem renumerar as outras, e renumerar seria justamente
+## o tipo de mudanca que quebra ordem de desenho sem erro no console.
+##
+## ATENCAO ao ParedeTopo: ele e a UNICA faixa fora da ordem do documento, e o
+## motivo e geometrico. O corpo da parede e o contorno inteiro INFLADO e
+## solido, desenhado ATRAS do chao -- e o chao, por cima, recorta a faixa de 24
+## px que sobra. E isso que faz a sala em L funcionar sem calcular anel com
+## furo. Subi-lo para acima do chao, como o documento pede, faria o poligono
+## cobrir a sala inteira. Quem sobe para -14 e a FACE da parede (issue LTD 04),
+## e ela pode: a face e desenhada FORA do contorno, entao nao cobre nada.
+const Z_PAREDE_TOPO := -22
+const Z_CHAO := -20
+const Z_CHAO_DETALHE := -18
+## Reservada para a face vertical da parede (LTD 04). O obstaculo solido usa
+## esta faixa desde ja: ele e parede no meio da sala e PRECISA cobrir o chao,
+## entao nao pode usar o truque do recorte.
+const Z_PAREDE_FACE := -14
+## Onde vive quem se ordena por Y: player, inimigos, props com volume, pickups.
+## Ainda nao existe nó -- e a issue LTD 02.
+const Z_MUNDO := 0
+## O que passa POR CIMA do ator: viga, cabo, topo de maquina alta (LTD 10).
+const Z_FRENTE := 10
 ## Onde moram as texturas da variante neutra, usadas quando a sala roda sem
 ## GerenciadorMapa (aberta sozinha no editor, instanciada por uma suite).
 ## Fallback quando a sala nao recebeu DadosSala -- cena aberta sozinha no editor,
@@ -652,10 +675,14 @@ func _adicionar_forma(corpo: StaticBody2D, de: Vector2, para: Vector2) -> void:
 
 # ---------------------------------------------------------------- visual -----
 
-## Monta as camadas visuais a partir do contorno. Ordem na arvore importa
-## tanto quanto z_index: nos com o mesmo z desenham na ordem dos filhos, e a
-## moldura da porta (z -1, dentro de "Portas") precisa ficar POR CIMA do chao
-## (z -1). Por isso as camadas geradas entram no INICIO da lista de filhos.
+## Monta as camadas visuais a partir do contorno, cada uma na sua faixa de z.
+##
+## Antes as camadas geradas precisavam entrar no INICIO da lista de filhos:
+## chao e moldura da porta empatavam em z = -1, e nos com o mesmo z desenham na
+## ordem dos filhos. Era uma dependencia frouxa -- bastava alguem chamar
+## add_child depois para a moldura sumir atras do chao, sem erro nenhum.
+## Com as faixas separadas (chao -20, moldura -1) a moldura fica por cima por
+## construcao, e os move_child sairam.
 func _montar_visual() -> void:
 	var contorno := contorno_local()
 	if contorno.size() < 3:
@@ -664,13 +691,12 @@ func _montar_visual() -> void:
 	var textura_chao := _textura(&"chao")
 	var textura_parede := _textura(&"parede")
 
-	var corpo := Polygon2D.new()
-	corpo.name = "ParedeCorpo"
-	corpo.polygon = _inflar(contorno, ESPESSURA_PAREDE)
-	corpo.z_index = Z_PAREDE_CORPO
-	_texturizar(corpo, textura_parede, ancora)
-	add_child(corpo)
-	move_child(corpo, 0)
+	var topo := Polygon2D.new()
+	topo.name = "ParedeTopo"
+	topo.polygon = _inflar(contorno, ESPESSURA_PAREDE)
+	topo.z_index = Z_PAREDE_TOPO
+	_texturizar(topo, textura_parede, ancora)
+	add_child(topo)
 
 	var chao := Polygon2D.new()
 	chao.name = "Chao"
@@ -678,7 +704,6 @@ func _montar_visual() -> void:
 	chao.z_index = Z_CHAO
 	_texturizar(chao, textura_chao, ancora)
 	add_child(chao)
-	move_child(chao, 1)
 
 	_montar_obstaculos_visuais(textura_parede, ancora)
 
@@ -720,7 +745,7 @@ func _montar_obstaculos_visuais(textura_parede: Texture2D, ancora: Vector2) -> v
 		var bloco := Polygon2D.new()
 		bloco.name = "ObstaculoCorpo"
 		bloco.polygon = pontos
-		bloco.z_index = Z_CHAO
+		bloco.z_index = Z_PAREDE_FACE
 		_texturizar(bloco, textura_parede, ancora)
 		add_child(bloco)
 
@@ -811,9 +836,8 @@ func _montar_decoracao() -> void:
 
 	var raiz := Node2D.new()
 	raiz.name = "Decoracao"
-	raiz.z_index = Z_CHAO
+	raiz.z_index = Z_CHAO_DETALHE
 	add_child(raiz)
-	move_child(raiz, 2)
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(coordenadas_grid)

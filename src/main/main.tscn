@@ -21,8 +21,12 @@ script = ExtResource("1_main")
 
 [node name="MenuPausa" parent="." instance=ExtResource("5_pausa")]
 
-[node name="GerenciadorMapa" type="Node2D" parent="." unique_id=2082792232]
+[node name="Mundo" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="GerenciadorMapa" type="Node2D" parent="Mundo" unique_id=2082792232]
+y_sort_enabled = true
 script = ExtResource("5_jkpqq")
 tipos_de_sala = Array[Resource]([ExtResource("6_combate"), ExtResource("7_boss"), ExtResource("8_arma"), ExtResource("9_item"), ExtResource("11_inicial")])
 
-[node name="Player" parent="." unique_id=220117599 groups=["player"] instance=ExtResource("10_km7bn")]
+[node name="Player" parent="Mundo" unique_id=220117599 groups=["player"] instance=ExtResource("10_km7bn")]

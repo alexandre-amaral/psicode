@@ -445,7 +445,51 @@ Usam os helpers que `gerar_texturas.gd` já oferece: `_nova`, `_pintar` (é ele 
 faz o wrap e garante o seamless), `_ret`, `_disco`, `_anel`, `_cel`, `_ruido`
 (hash puro) e `_rng` (semente fixa).
 
-### 8.1 Chão — `chao_andar1.png`, 128×128
+### 8.1 Chão — a receita em vigor (LTD 06)
+
+> **§8.1.1 abaixo é a receita PROCEDURAL, superada.** Ela descreve o chão como
+> `gerar_texturas.gd` o desenhava, em 128×128. O chão do andar 1 é arte autorada
+> em 256×256 desde a migração Low Top-Down, e §8.1.1 fica só como registro de
+> onde os números vieram.
+
+As três variantes (`chao_andar1_a/b/c.png`) foram refeitas na **LTD 06** (issue
+#36). O que mudou, e por quê:
+
+| antes | agora |
+|---|---|
+| foto de metal recortada de `bg_menu.jpg` | pixel art gerada, grade de placas |
+| **sem grade** — o deslocamento só cresce (5,3 em 64) | **grade de 64** — cai a 1,1–3,2 em 64 |
+| pontos claros redondos: 8 no `a`, 2 no `b` | **0 nos três** |
+| S mediano 0,40–0,56, V mediano 0,16 | S 0,40–0,41, V 0,12 |
+
+A medida de grade é `mean(abs(img - roll(img, d)))` por deslocamento `d`: se o
+mínimo cai em 64, o olho tem onde se apoiar a cada 64 px. O gabarito é
+`chao_boss.png`, que já media 1,03 ali.
+
+**O comando, literal** — o mesmo para as três, mudando só os nomes:
+
+```bash
+python tools/texturas/preparar_textura.py preparar ORIGEM.png     assets/texturas/chao_andar1_a.png     --familia chao --tipo andar1 --lado 256     --desvinheta --tingir 235 --saturacao 0.55 --grampear-matiz 195 310
+```
+
+Os três pré-passos são obrigatórios aqui e nenhum é enfeite:
+
+- `--desvinheta` porque a arte chega com um facho diagonal, e vinheta em
+  ladrilho vira uma cruz escura repetida pela sala inteira;
+- `--tingir 235 --saturacao 0.55` porque a arte chega quase cinza (S mediano
+  0,10). Sem isso o funil só apara — `teto_s` nunca levanta — e o andar perde a
+  noite azul, que é a identidade dele;
+- `--grampear-matiz 195 310` porque sem ele o matiz sai em 180–330 e estoura a
+  faixa `andar1` (185–320) pelos dois lados.
+
+A origem é gerada pelo PixelLab, `create_image_pixflux`, 256×256, `high
+top-down`, `low detail`, `flat shading`, `lineless`. O prompt pede grade 4×4 de
+placas — 256/4 = 64, que é como a grade de 64 entra. **Prompt negativo não
+funciona**: pedir "no bolts, no rivets" continuou trazendo parafusos nas três
+tentativas. O que resolveu foi medir depois e trocar a variante, não insistir no
+texto.
+
+### 8.1.1 Chão — `chao_andar1.png`, 128×128 (receita procedural, SUPERADA)
 
 **Mandamento: repete 32 vezes na tela. Nada memorável aqui.**
 

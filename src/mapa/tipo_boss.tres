@@ -1,9 +1,10 @@
-[gd_resource type="Resource" script_class="DadosSala" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="DadosSala" load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
 [ext_resource type="Texture2D" path="res://assets/texturas/chao_boss.png" id="30_c0"]
 [ext_resource type="Texture2D" path="res://assets/texturas/parede_boss.png" id="31_p0"]
 [ext_resource type="Texture2D" path="res://assets/texturas/props_atlas.png" id="23_atlas"]
+[ext_resource type="Texture2D" path="res://assets/texturas/props_volume.png" id="24_pvol"]
 [ext_resource type="PackedScene" uid="uid://u6i7o8p9q0a1b" path="res://src/mapa/sala_6_boss.tscn" id="2_boss"]
 [ext_resource type="Resource" path="res://src/enemies/grupo_diretora.tres" id="3_dir"]
 
@@ -30,3 +31,6 @@ texturas_parede = Array[Texture2D]([ExtResource("31_p0")])
 atlas_props = ExtResource("23_atlas")
 regioes_props = Array[Rect2i]([Rect2i(0, 0, 32, 32), Rect2i(64, 0, 32, 32), Rect2i(96, 0, 32, 32), Rect2i(160, 0, 32, 32), Rect2i(192, 0, 32, 32), Rect2i(32, 32, 32, 32), Rect2i(96, 32, 32, 32), Rect2i(128, 32, 32, 32), Rect2i(160, 32, 32, 32), Rect2i(224, 32, 32, 32), Rect2i(32, 64, 32, 32), Rect2i(32, 96, 32, 32)])
 quantidade_props = 6
+atlas_props_volume = ExtResource("24_pvol")
+regioes_props_volume = Array[Rect2i]([Rect2i(64, 64, 64, 64), Rect2i(192, 64, 64, 64), Rect2i(0, 64, 64, 64)])
+quantidade_props_volume = 0

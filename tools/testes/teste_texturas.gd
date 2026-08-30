@@ -218,6 +218,10 @@ const AUTORADAS: Dictionary = {
 	"parede_arma.png": {&"familia": &"parede", &"tipo": &"arma"},
 	"chao_item.png": {&"familia": &"chao", &"tipo": &"item"},
 	"parede_item.png": {&"familia": &"parede", &"tipo": &"item"},
+	# O atlas VOLUMETRICO (LTD 09). O chapado (`props_atlas.png`) continua
+	# GERADO e trancado pelo determinismo -- sao dois arquivos justamente
+	# para cada um ficar no regime que sabe provar o que ele e.
+	"props_volume.png": {&"familia": &"prop", &"tipo": &"andar1"},
 }
 
 ## A faixa de matiz e do TIPO DE SALA, e e ela que faz a sala do chefe se
@@ -240,6 +244,16 @@ const AUTORADAS: Dictionary = {
 ## Este dicionario e GEMEO do MATIZ_POR_TIPO de preparar_textura.py, e os dois
 ## tem de mudar juntos: mexer num so deixa o funil escrevendo o que o portao
 ## recusa.
+## Familias que NAO tem faixa de matiz por tipo de sala.
+##
+## Existe UM atlas de props volumetricos para o jogo inteiro, oferecido a todos
+## os tipos. Amarra-lo a faixa de um tipo pintaria a mesma caixa de vermelho na
+## sala do chefe e de ambar na sala de arma, no mesmo andar. Quem carrega a
+## identidade do tipo e o atlas CHAPADO, que tem uma celula por tipo para isso.
+##
+## Gemeo de SEM_FAIXA_DE_MATIZ em preparar_textura.py, e muda junto.
+const SEM_FAIXA_DE_MATIZ: Array[StringName] = [&"prop"]
+
 const MATIZ_POR_TIPO: Dictionary = {
 	&"andar1": Vector2(185.0, 320.0),
 	&"boss": Vector2(330.0, 355.0),
@@ -262,6 +276,11 @@ const TETO_ESPECIAL: Dictionary = {
 const TETO_VALOR: Dictionary = {
 	&"chao": 0.30,
 	&"parede": 0.50,
+	## O prop volumetrico fica ENTRE os dois, e nao e meio-termo preguicoso: ele
+	## precisa ler como corpo -- senao a face vertical que a LTD 09 pede nao
+	## aparece -- mas vive no miolo por onde o combate passa, entao nao chega aos
+	## 0,50 da parede, que e moldura e fica na beira do quadro.
+	&"prop": 0.42,
 }
 
 ## Abaixo deste valor o matiz de um pixel de 8 bits e ruido de arredondamento --
@@ -309,7 +328,11 @@ func _arquivos() -> void:
 		_grade(imagem, nome)
 		var d: Dictionary = AUTORADAS[nome]
 		_regra_de_gamut(imagem, nome, d[&"familia"], d[&"tipo"])
-		_costura(imagem, nome)
+		# Atlas nao ladrilha: ele e uma grade de CELULAS, e a borda direita dele
+		# nao encosta na esquerda em lugar nenhum. Medir costura ali cobraria
+		# continuidade entre dois props que nunca se tocam.
+		if d[&"familia"] != &"prop":
+			_costura(imagem, nome)
 
 	igual(autoradas, AUTORADAS.size(), "todas as texturas autoradas foram abertas")
 
@@ -385,7 +408,7 @@ func _regra_de_gamut(imagem: Image, nome: String, familia: StringName, tipo: Str
 	ok(opacos > 0, "%s tem ao menos um pixel opaco" % nome)
 	igual(compete, 0, "%s: G1 -- nenhum pixel compete com ator" % nome)
 	igual(acima, 0, "%s: nenhum pixel acima do teto de valor %.2f (%s)" % [nome, teto, pior])
-	if matiz_max >= 0.0:
+	if matiz_max >= 0.0 and not SEM_FAIXA_DE_MATIZ.has(familia):
 		ok(
 			matiz_min >= faixa.x - 1.0 and matiz_max <= faixa.y + 1.0,
 			"%s: matiz na faixa %.0f-%.0f do tipo '%s' (achado %.0f-%.0f)"
@@ -486,6 +509,32 @@ func _tipos_apontam_textura() -> void:
 				ok(
 					regiao.position.x % GeradorTexturas.TILE == 0 and regiao.position.y % GeradorTexturas.TILE == 0,
 					"%s: regiao %s esta na grade do atlas" % [etiqueta, regiao]
+				)
+
+		# O atlas VOLUMETRICO (LTD 09) tem as mesmas duas travas, e uma terceira
+		# que so vale para ele: a ALTURA da celula entra na conta da origem.
+		# `Sala._montar_props_volumetricos` desloca o sprite em `-altura/2` para
+		# por a base do prop na origem do no, e essa conta so fecha se a arte
+		# estiver ancorada no fundo da celula. Regiao de altura errada nao da
+		# erro nenhum -- o prop so flutua, ou afunda no chao.
+		if dados.quantidade_props_volume > 0:
+			ok(dados.atlas_props_volume != null,
+				"%s pede prop volumetrico e tem atlas" % etiqueta)
+			ok(not dados.regioes_props_volume.is_empty(),
+				"%s pede prop volumetrico e lista regioes" % etiqueta)
+		if dados.atlas_props_volume != null:
+			var caixa_v := Rect2i(Vector2i.ZERO, Vector2i(
+				dados.atlas_props_volume.get_width(), dados.atlas_props_volume.get_height()))
+			for regiao in dados.regioes_props_volume:
+				ok(caixa_v.encloses(regiao),
+					"%s: regiao volumetrica %s cabe no atlas" % [etiqueta, regiao])
+				ok(
+					regiao.position.x % GeradorTexturas.TILE == 0 and regiao.position.y % GeradorTexturas.TILE == 0,
+					"%s: regiao volumetrica %s esta na grade" % [etiqueta, regiao]
+				)
+				ok(
+					regiao.size.y > regiao.size.x or regiao.size.y == regiao.size.x,
+					"%s: regiao volumetrica %s nao e mais larga que alta -- prop com volume sobe, nao deita" % [etiqueta, regiao]
 				)
 	igual(conferidos, TIPOS.size(), "todos os tipos de sala foram conferidos")
 

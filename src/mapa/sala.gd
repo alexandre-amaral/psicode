@@ -154,6 +154,11 @@ const PROP_DISTANCIA_DE_PORTA := 96.0
 const PROP_ESPACO := 40.0
 ## Tentativas por prop antes de desistir dele. Sala recortada rejeita muito.
 const PROP_TENTATIVAS := 12
+## Quanto da largura da celula a sombra de um prop volumetrico ocupa. Menor que
+## 1 porque a arte nunca preenche a celula inteira -- ela e ancorada na base e
+## centrada, com vazio nas laterais. Sombra do tamanho da celula apareceria
+## saindo de baixo do prop pelos dois lados.
+const PROP_FRACAO_SOMBRA := 0.72
 
 ## StringName e nao String porque este campo virou chave: o gerenciador e o
 ## minimapa comparam com os ids de DadosSala, e comparacao de StringName e por
@@ -949,49 +954,64 @@ func _textura(familia: StringName) -> Texture2D:
 ## das coordenadas da celula: reentrar na sala mostra a mesma sala, e um teste
 ## consegue reproduzir. Sem dados nao ha props -- e o tipo que diz o que cabe.
 ##
-## DIVIDA conhecida, e ela e de PERSPECTIVA: estes props continuam CENTRADOS na
-## propria origem, fora do Y-sort, em `Z_CHAO_DETALHE`. Isso esta certo para o
-## que eles sao HOJE -- decalques chapados, arte de chao, coisa que ninguem
-## contorna -- e por isso a regra de origem na base (LTD 07) foi aplicada a
-## Player e inimigos e nao a eles.
+## Sao DUAS FAMILIAS, e a diferenca entre elas e de PERSPECTIVA, nao de arte
+## (LTD 09):
 ##
-## Deixa de estar certo na LTD 09 (issue #39), que da VOLUME aos props. Prop com
-## volume e um corpo na sala: ele passa a precisar dos tres, juntos, e nenhum
-## dos tres funciona sozinho --
-##   1. origem na base, como `Direcoes.DESLOCAMENTO_PARA_BASE` faz nos atores;
-##   2. subir de `Z_CHAO_DETALHE` para `Z_MUNDO`, que e a faixa que se ordena
-##      por Y (`Decoracao` teria de perder o z_index proprio, porque z_index
-##      tem prioridade sobre Y e congelaria a ordem);
-##   3. sombra por `Sombra.criar()`, que e o que responde "onde e a base disto".
+##   CHAPADO     mancha, marcacao, grade de ventilacao, painel. Coisas que
+##               estao NO chao. Ficam em `Z_CHAO_DETALHE`, centradas na
+##               propria origem e FORA do Y-sort -- o jogador passa por cima
+##               delas, e e isso que se quer. Dar face vertical a uma mancha de
+##               oleo seria mentir sobre a perspectiva.
+##   VOLUMETRICO caixa, terminal, mesa, armario, maquina. Coisas que estao
+##               SOBRE o chao, com topo e face. Sao corpos na sala: entram em
+##               `Z_MUNDO`, se ordenam por Y contra o jogador e os inimigos,
+##               tem origem na BASE e ganham sombra.
 ##
-## Migrar so o item 2 e o pior dos mundos: o prop entra na disputa de ordem
-## ordenado pelo MEIO do corpo, e passa na frente de quem esta mais abaixo na
-## tela. `teste_camada_visual.gd` mede isso nos atores e nao alcanca props.
+## As duas dividem a lista `colocados`, senao uma caixa nasceria em cima de uma
+## mancha -- elas nao se conhecem, mas disputam o mesmo chao.
+##
+## O volumetrico precisa dos TRES de uma vez -- origem na base, `Z_MUNDO` e
+## sombra -- e migrar so o z_index e o pior dos mundos: o prop entra na disputa
+## de ordem ordenado pelo MEIO do corpo e passa na frente de quem esta mais
+## abaixo na tela. E o mesmo defeito que a LTD 07 corrigiu nos atores, e que
+## nao aparece parado nem no console: so quando dois corpos se cruzam andando.
 func _montar_decoracao() -> void:
 	var dados := _dados_visual
-	if dados == null or dados.atlas_props == null or dados.regioes_props.is_empty() or dados.quantidade_props <= 0:
+	if dados == null:
 		return
 	var contorno := _pontos_do_contorno()
 	if contorno.size() < 4:
 		return
 	var aberto := contorno_local()
 
-	var raiz := Node2D.new()
-	raiz.name = "Decoracao"
-	raiz.z_index = Z_CHAO_DETALHE
-	add_child(raiz)
-
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(coordenadas_grid)
 	var bocas := _bocas_locais()
 	var colocados: Array[Vector2] = []
 
+	_montar_props_chapados(dados, contorno, aberto, bocas, colocados, rng)
+	_montar_props_volumetricos(dados, contorno, aberto, bocas, colocados, rng)
+
+
+## A familia CHAPADA, como sempre foi: uma raiz so, numa faixa de z propria.
+func _montar_props_chapados(
+	dados: DadosSala, contorno: PackedVector2Array, aberto: PackedVector2Array,
+	bocas: Array[Vector2], colocados: Array[Vector2], rng: RandomNumberGenerator
+) -> void:
+	if dados.atlas_props == null or dados.regioes_props.is_empty() or dados.quantidade_props <= 0:
+		return
+
+	var raiz := Node2D.new()
+	raiz.name = "Decoracao"
+	raiz.z_index = Z_CHAO_DETALHE
+	add_child(raiz)
+
 	for _i in dados.quantidade_props:
 		for _tentativa in PROP_TENTATIVAS:
-			var ponto := _sortear_ponto_de_prop(rng, contorno, aberto)
+			var ponto := _sortear_ponto_de_prop(rng, contorno, aberto, PROP_LADO)
 			if ponto == Vector2.INF:
 				continue
-			if not _cabe_prop(ponto, aberto, bocas, colocados):
+			if not _cabe_prop(ponto, aberto, bocas, colocados, PROP_LADO):
 				continue
 			var sprite := Sprite2D.new()
 			sprite.texture = dados.atlas_props
@@ -1004,10 +1024,72 @@ func _montar_decoracao() -> void:
 			break
 
 
+## A familia VOLUMETRICA. Cada prop e um Node2D no ponto em que ele ENCOSTA no
+## chao, com o sprite subindo a partir dali e a sombra no pe.
+##
+## Eles sao filhos DIRETOS da sala, e nao de uma raiz propria, e isso e a peca
+## inteira: a sala tem `y_sort_enabled`, e z_index tem prioridade sobre Y --
+## uma raiz com z_index proprio congelaria a ordem, e o prop voltaria a ser
+## chapado, so que desenhado por cima de todo mundo. Ficar sem raiz e o preco
+## de participar da ordenacao.
+##
+## O deslocamento do sprite e `-altura/2`, e nao uma tabela por prop: o atlas e
+## composto com a base de cada arte ancorada no FUNDO da celula, entao a regra
+## vale para os doze e para qualquer um que entre depois. E o mesmo contrato que
+## `Direcoes.BASE_NO_QUADRO` carrega para os atores, e pelo mesmo motivo -- duas
+## copias do numero divergiriam com o sintoma so aparecendo em tela.
+func _montar_props_volumetricos(
+	dados: DadosSala, contorno: PackedVector2Array, aberto: PackedVector2Array,
+	bocas: Array[Vector2], colocados: Array[Vector2], rng: RandomNumberGenerator
+) -> void:
+	if dados.atlas_props_volume == null or dados.regioes_props_volume.is_empty():
+		return
+	if dados.quantidade_props_volume <= 0:
+		return
+
+	for _i in dados.quantidade_props_volume:
+		var regiao: Rect2i = dados.regioes_props_volume[
+			rng.randi_range(0, dados.regioes_props_volume.size() - 1)
+		]
+		var largura := float(regiao.size.x)
+		for _tentativa in PROP_TENTATIVAS:
+			var ponto := _sortear_ponto_de_prop(rng, contorno, aberto, largura)
+			if ponto == Vector2.INF:
+				continue
+			if not _cabe_prop(ponto, aberto, bocas, colocados, largura):
+				continue
+
+			var corpo := Node2D.new()
+			corpo.name = "PropVolume"
+			corpo.position = ponto
+			# Sem z_index proprio: Z_MUNDO e o default, e e o unico jeito de ele
+			# se ordenar por Y contra jogador e inimigo.
+			add_child(corpo)
+
+			# A sombra entra ANTES do sprite para desenhar por baixo dele. Ela
+			# nasce na origem do corpo, que ja e o ponto de contato com o chao.
+			var sombra := Sombra.criar(largura * PROP_FRACAO_SOMBRA, 0.0)
+			corpo.add_child(sombra)
+
+			var sprite := Sprite2D.new()
+			sprite.texture = dados.atlas_props_volume
+			sprite.region_enabled = true
+			sprite.region_rect = Rect2(regiao)
+			sprite.flip_h = rng.randf() < 0.5
+			sprite.position = Vector2(0.0, -float(regiao.size.y) * 0.5)
+			corpo.add_child(sprite)
+
+			colocados.append(ponto)
+			break
+
+
 ## Um ponto encostado num lado do contorno, para DENTRO. O lado e sorteado com
 ## peso pelo comprimento, senao o braco curto do L recebe tanto quanto a parede
 ## longa. Vector2.INF quando o sorteio nao serviu.
-func _sortear_ponto_de_prop(rng: RandomNumberGenerator, contorno: PackedVector2Array, aberto: PackedVector2Array) -> Vector2:
+func _sortear_ponto_de_prop(
+	rng: RandomNumberGenerator, contorno: PackedVector2Array,
+	aberto: PackedVector2Array, largura: float
+) -> Vector2:
 	var perimetro := 0.0
 	for i in range(contorno.size() - 1):
 		perimetro += contorno[i].distance_to(contorno[i + 1])
@@ -1019,11 +1101,11 @@ func _sortear_ponto_de_prop(rng: RandomNumberGenerator, contorno: PackedVector2A
 		if alvo > comprimento:
 			alvo -= comprimento
 			continue
-		if comprimento < PROP_LADO * 2.0:
+		if comprimento < largura * 2.0:
 			return Vector2.INF
 		var direcao := (b - a) / comprimento
 		var normal := Vector2(-direcao.y, direcao.x)
-		var ao_longo := clampf(alvo, PROP_LADO, comprimento - PROP_LADO)
+		var ao_longo := clampf(alvo, largura, comprimento - largura)
 		var afastamento := rng.randf_range(PROP_AFASTAMENTO_MINIMO, PROP_AFASTAMENTO_MAXIMO)
 		var base := a + direcao * ao_longo
 		var ponto := base + normal * afastamento
@@ -1035,18 +1117,27 @@ func _sortear_ponto_de_prop(rng: RandomNumberGenerator, contorno: PackedVector2A
 	return Vector2.INF
 
 
-func _cabe_prop(ponto: Vector2, aberto: PackedVector2Array, bocas: Array[Vector2], colocados: Array[Vector2]) -> bool:
+## `largura` e a PEGADA do prop, e vem da regiao sorteada em vez de `PROP_LADO`:
+## o atlas volumetrico tem celulas de 32 e de 64, e cobrar 32 de uma maquina de
+## 64 a deixaria com metade do corpo dentro da parede -- sem erro no console,
+## porque prop nao tem colisao para reclamar.
+func _cabe_prop(
+	ponto: Vector2, aberto: PackedVector2Array, bocas: Array[Vector2],
+	colocados: Array[Vector2], largura: float
+) -> bool:
 	# Dentro do contorno com folga de meio prop, e fora de qualquer obstaculo.
-	if not _local_livre(ponto, aberto, PROP_LADO * 0.5 + 8.0):
+	if not _local_livre(ponto, aberto, largura * 0.5 + 8.0):
 		return false
 	# Fora da area util: prop no meio do chao, sem colisao, e obstaculo mentiroso.
-	if area_spawn.intersects(Rect2(ponto - Vector2.ONE * PROP_LADO * 0.5, Vector2.ONE * PROP_LADO)):
+	if area_spawn.intersects(Rect2(ponto - Vector2.ONE * largura * 0.5, Vector2.ONE * largura)):
 		return false
 	for boca in bocas:
 		if boca.distance_to(ponto) < PROP_DISTANCIA_DE_PORTA:
 			return false
 	for outro in colocados:
-		if outro.distance_to(ponto) < PROP_ESPACO:
+		# O espaco minimo cresce com o prop: dois props de 64 a 40 px um do outro
+		# se sobrepoem, e a lista nao sabe o tamanho de quem ja esta nela.
+		if outro.distance_to(ponto) < maxf(PROP_ESPACO, largura):
 			return false
 	return true
 

@@ -130,6 +130,33 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## spawn. Zero desliga a decoracao.
 @export var quantidade_props: int = 0
 
+## O atlas VOLUMETRICO e as celulas dele que esta sala pode usar (LTD 09).
+##
+## E uma segunda lista, e nao uma bandeira na primeira, porque as duas familias
+## de prop nao sao variacoes de estilo -- elas sao desenhadas em perspectivas
+## diferentes e a sala as monta de jeitos diferentes. O chapado esta NO chao,
+## fica em `Z_CHAO_DETALHE` e nao se ordena; o volumetrico esta SOBRE o chao,
+## entra em `Z_MUNDO`, se ordena por Y e ganha sombra. Uma bandeira numa lista
+## so esconderia isso atras de um booleano.
+##
+## Sao tambem dois ARQUIVOS, e nao um atlas maior. O chapado nasce de codigo
+## (`gerar_texturas.gd`) e e trancado byte a byte pelo determinismo; o
+## volumetrico e arte autorada e e trancado por propriedade medida, como o chao
+## e a parede. Fundir os dois obrigaria a escolher um regime so, e o perdedor
+## seria o determinismo -- que hoje e o que impede alguem mexer no gerador e
+## esquecer de rodar.
+##
+## As celulas tem geometrias diferentes de proposito: 32x64 para o que e
+## estreito (caixa, terminal, mesa) e 64x64 para o que e largo (maquina,
+## gerador). Quem le a largura para saber se o prop cabe e `Sala._cabe_prop`,
+## a partir da REGIAO sorteada -- nao ha constante de tamanho aqui.
+@export var atlas_props_volume: Texture2D
+@export var regioes_props_volume: Array[Rect2i] = []
+## Quantos props volumetricos a sala tenta colocar. Contagem propria e nao uma
+## fracao de `quantidade_props`: sao ocupacoes diferentes do mesmo chao, e a
+## sala do chefe quer muitos chapados e quase nenhum corpo no caminho.
+@export var quantidade_props_volume: int = 0
+
 
 func eh_pendurada() -> bool:
 	return colocacao == Colocacao.PENDURADA

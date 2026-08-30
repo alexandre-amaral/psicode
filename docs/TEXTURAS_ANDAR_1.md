@@ -516,7 +516,73 @@ nenhum caminho de decoração. Fica em §11 como trabalho de código.
 
 Regra de forma para todos: **alongado ou grande, nunca disco pequeno.**
 
-### 8.6 Props novos
+### 8.6 Props — as DUAS famílias (LTD 09)
+
+Desde a LTD 09 existem **dois atlas**, e a divisão não é de estilo, é de
+perspectiva. §8.6.1 abaixo descreve os chapados, que continuam valendo.
+
+| | `props_atlas.png` | `props_volume.png` |
+|---|---|---|
+| o que é | coisas **no** chão | coisas **sobre** o chão |
+| exemplos | mancha, marcação, grade, painel | caixa, terminal, mesa, armário, máquina |
+| célula | 32×32 | 32×64 e 64×64 |
+| z | `Z_CHAO_DETALHE`, fora do Y-sort | `Z_MUNDO`, ordenado por Y |
+| origem | centro | **base**, com sombra |
+| como nasce | gerado por código | arte autorada |
+| o que o tranca | **determinismo** byte a byte | gamut e teto de valor medidos |
+
+São dois ARQUIVOS de propósito. Fundir num atlas só obrigaria a escolher um
+regime, e o perdedor seria o determinismo — que hoje é o que impede alguém
+mexer no gerador e esquecer de rodar.
+
+**O layout de `props_volume.png`** (256×128). Todo `x` e `y` é múltiplo de 32,
+que é o que `teste_texturas.gd` cobra:
+
+```text
+y= 0  32x64 : 0 caixa | 32 terminal | 64 mesa | 96 armario
+              128 barril | 160 duto | 192 caixote | 224 cilindro
+y=64  64x64 : 0 maquina | 64 rack | 128 caixas | 192 gerador
+```
+
+**A âncora é o contrato, e ela tem duas pontas.** O atlas encosta a arte no
+**fundo** da célula; `Sala._montar_props_volumetricos` desloca o sprite em
+`-altura/2`. As duas juntas põem a base do prop na origem do nó — que é por
+onde o Y-sort o ordena e onde a sombra nasce. Nenhuma das duas se prova
+sozinha, e `tools/testes/teste_props.gd` mede as duas: recompor o atlas
+centralizando a arte faria **todos** os props flutuarem meio corpo, com a sala
+continuando a fazer a conta certa sobre um dado errado, e sem erro no console.
+
+**O comando, literal:**
+
+```bash
+python tools/texturas/preparar_textura.py preparar ORIGEM.png \
+    assets/texturas/props_volume.png \
+    --familia prop --manter-tamanho --sem-costura \
+    --tingir 232 --saturacao 0.50 --limiar-neon 0.42 --alvo-v 0.20
+```
+
+As três flags que não são óbvias:
+
+- `--manter-tamanho` porque o funil nasceu para **ladrilho**, que é sempre
+  quadrado, e `--lado` força `lado × lado`. Um atlas não é ladrilho: esticar
+  256×128 para 256×256 deforma cada prop e desalinha **todas** as regiões dos
+  `tipo_*.tres` de uma vez. A flag nasceu nesta issue, por ter acontecido.
+- `--sem-costura` porque a borda direita de um atlas nunca encosta na esquerda.
+  Costurar misturaria o cilindro com a caixa.
+- `--limiar-neon 0.42` deixa passar o acento âmbar das cintas do cilindro, que
+  é o único acento aceso do conjunto.
+
+A origem sai do PixelLab, `create_image_pixflux`, `low top-down` (e não `high`:
+é o ângulo que mostra topo E frente), `basic shading`, `selective outline`,
+`no_background`. Um prop por geração, no tamanho exato da célula.
+
+**A arena do chefe fica com zero volumétricos**, e isso é escolha travada em
+teste. Ela é a sala mais densa de projétil do jogo; corpo com face vertical ali
+é o que a LTD 10 manda dosar e o que o GDD proíbe encostar num telegrafo. O
+tipo declara as regiões mesmo assim, para quem experimentar não ter de procurar
+quais servem.
+
+### 8.6.1 Props chapados
 
 Todos 32×32, na margem, teto `B5`.
 

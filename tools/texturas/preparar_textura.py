@@ -88,6 +88,16 @@ FAMILIAS = {
     "chao":     {"teto_v": 0.30, "alvo_v": 0.12, "teto_s": 0.95, "densidade": (0.08, 0.18)},
     "parede":   {"teto_v": 0.50, "alvo_v": 0.30, "teto_s": 0.95, "densidade": (0.18, 0.34)},
     "decalque": {"teto_v": 0.19, "alvo_v": 0.10, "teto_s": 0.95, "densidade": (0.00, 1.00)},
+    # O prop VOLUMETRICO (LTD 09). Teto entre a parede (0,50) e o decalque
+    # (0,19), e nao e meio-termo preguicoso: ele tem de ler como CORPO na sala,
+    # senao a face vertical que a Fase 7 pede nao aparece -- mas ele vive no
+    # miolo, por onde o combate passa, entao nao pode chegar aos 0,50 da parede,
+    # que e moldura e fica na beira do quadro.
+    #
+    # Densidade fica aberta de proposito: a faixa das outras familias mede
+    # TEXTURA que ladrilha, e um atlas de props e majoritariamente alpha zero.
+    # Medir densidade nele seria medir quanto do atlas esta vazio.
+    "prop":     {"teto_v": 0.42, "alvo_v": 0.22, "teto_s": 0.95, "densidade": (0.00, 1.00)},
     "livre":    {"teto_v": 0.55, "alvo_v": 0.00, "teto_s": 0.95, "densidade": (0.00, 1.00)},
 }
 
@@ -142,6 +152,16 @@ MATIZ_POR_TIPO = {
 TETO_POR_TIPO = {
     "boss": {"chao": 0.24},
 }
+
+# Familias que NAO tem faixa de matiz por tipo de sala.
+#
+# `livre` porque nao e superficie de sala nenhuma. `prop` por um motivo mais
+# concreto: existe UM atlas de props volumetricos para o jogo inteiro, e ele e
+# oferecido a todos os tipos de sala. Amarra-lo a faixa de um tipo pintaria a
+# caixa de vermelho na sala do chefe e de ambar na sala de arma -- e a mesma
+# caixa, no mesmo andar. Quem carrega a identidade do tipo e o atlas CHAPADO,
+# que tem uma celula por tipo justamente para isso.
+SEM_FAIXA_DE_MATIZ = frozenset({"livre", "prop"})
 
 ## Teto da razao de costura, CALIBRADO e nao chutado. Medido em tres regimes:
 ##
@@ -373,7 +393,7 @@ def medir_costura(im):
 def regra_de(familia, tipo):
     """Junta a familia (o que a superficie e) com o tipo (de que sala ela e)."""
     regra = dict(FAMILIAS[familia])
-    regra["matiz"] = MATIZ_POR_TIPO.get(tipo) if familia != "livre" else None
+    regra["matiz"] = None if familia in SEM_FAIXA_DE_MATIZ else MATIZ_POR_TIPO.get(tipo)
     regra["teto_v"] = TETO_POR_TIPO.get(tipo, {}).get(familia, regra["teto_v"])
     return regra
 
@@ -489,7 +509,7 @@ def conferir(caminho, familia, tipo="andar1"):
 
 def _familia_do_nome(nome):
     base = os.path.basename(nome)
-    for f in ("chao", "parede", "decalque"):
+    for f in ("chao", "parede", "decalque", "prop"):
         if base.startswith(f):
             return f
     return "livre"
@@ -519,6 +539,12 @@ def main():
     pr.add_argument("--familia", choices=list(FAMILIAS), default=None)
     pr.add_argument("--tipo", choices=list(MATIZ_POR_TIPO), default=None)
     pr.add_argument("--lado", type=int, default=256)
+    pr.add_argument("--manter-tamanho", action="store_true",
+                    help="nao redimensiona: usa a imagem no tamanho em que ela chegou. "
+                         "O funil nasceu para textura de ladrilho, que e sempre quadrada, "
+                         "e por isso --lado forca lado x lado. Um ATLAS nao e ladrilho: "
+                         "ele e uma grade de celulas, e esticar 256x128 para 256x256 "
+                         "deforma cada prop e desalinha todas as regioes dos tipo_*.tres.")
     pr.add_argument("--sem-costura", action="store_true",
                     help="pula a costura (para arte que ja nasceu ladrilhavel)")
     # Pre-passo: DESLIGADO por default, para nenhuma textura ja preparada mudar
@@ -553,7 +579,7 @@ def main():
         # depois nao sobrevive a reamostragem. Medido no piloto -- a junta em y
         # saiu de 0,28 para 1,27 so por causa do BOX. A costura tem de ser feita
         # nos pixels que vao para o disco.
-        if im.size != (a.lado, a.lado):
+        if not a.manter_tamanho and im.size != (a.lado, a.lado):
             im = im.resize((a.lado, a.lado), Image.BOX)
         # O pre-passo vem ANTES da costura: costurar mistura a periferia com a
         # copia deslocada, entao desvinhetar depois dela espalharia a vinheta em

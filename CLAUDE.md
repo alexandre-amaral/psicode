@@ -123,8 +123,26 @@ de enxergar.
   supor: `get_scene_tree`, `get_node_properties`, `get_editor_errors`,
   `validate_script`. Um `.tscn` lido pelo MCP e mais confiavel que um lido como
   texto.
-- Ferramenta de MCP dando timeout quase sempre significa **Godot fechado**, nao
-  bug. Conferir antes de investigar qualquer outra coisa.
+- **O MCP tem DOIS modos de falha, e o sintoma separa os dois.** Vale conferir
+  qual antes de investigar qualquer outra coisa:
+  - **Timeout, a chamada pendura** -> Godot fechado.
+  - **Erro imediato e explicito** (`Godot editor not connected. Open your
+    project in Godot...`) -> o servidor MCP esta VIVO e nao ha editor DESTE
+    projeto conectado. Isso acontece com o Godot aberto: basta o editor estar
+    em outro projeto. Ja aconteceu uma sessao inteira assim, com um editor do
+    `just-keep-typing` aberto o tempo todo e o psicode nunca aberto -- e o
+    diagnostico que se repetiu foi "o MCP esta caindo", que estava errado.
+
+  A conferida barata e listar os processos e olhar a linha de comando, nao so o
+  nome: `--editor` diz qual PROJETO esta aberto.
+- **Cena headless nem sempre encerra sozinha, e o resto vira runaway.** O
+  `--headless` roda a cena, imprime o resultado e as vezes fica. Um
+  `runner.tscn` esquecido assim acumulou **1574 s de CPU em tres horas**,
+  girando num nucleo -- e o par `_console.exe` ao lado fica em 0% esperando o
+  filho, entao olhar so o console engana. Para separar preso de trabalhando,
+  meca o DELTA de CPU em alguns segundos: quem terminou e nao saiu continua
+  consumindo, quem terminou e saiu sumiu da lista. Eles seguram handle dentro
+  do OneDrive, que e a primeira suspeita de arquivo travado (ver `GEMINI.md`).
 - Editar cena pelo MCP passa pelo undo do editor, mas **grava em disco so no
   save**. Depois de mexer em `.tscn`, chame `save_scene` — senao o `git status`
   nao vai ver a mudanca.

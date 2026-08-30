@@ -34,6 +34,9 @@ func executar() -> void:
 	_a_moldura_da_porta_fica_acima_do_chao()
 	_o_obstaculo_cobre_o_chao()
 	_a_sala_em_l_monta_as_camadas()
+	_a_corrente_do_y_sort_esta_inteira()
+	_o_mundo_da_cena_principal_ordena_por_y()
+	_as_camadas_de_cenario_ficam_fora_do_y_sort()
 
 
 ## O contrato em si: as faixas sobem na ordem em que as coisas se empilham.
@@ -134,7 +137,75 @@ func _a_sala_em_l_monta_as_camadas() -> void:
 	sala.free()
 
 
+## O Y-sort do Godot so alcanca um no se TODOS os ancestrais entre ele e a raiz
+## ordenada tambem estiverem ligados. Um elo solto nao gera erro: o jogo roda,
+## e a ordem daquele ramo passa a vir da arvore em vez da posicao.
+func _a_corrente_do_y_sort_esta_inteira() -> void:
+	var sala := _montar(CENA_SALA)
+	ok(sala.y_sort_enabled, "a Sala ordena os filhos por Y")
+
+	# O container vem da CENA nesta sala. Metade das salas o traz pronto e
+	# metade o cria em codigo -- os dois caminhos tem de acabar ligados.
+	var container := sala.get_node_or_null("ContainerInimigos") as Node2D
+	ok(container != null, "a sala_1 traz o ContainerInimigos da cena")
+	if container != null:
+		ok(container.y_sort_enabled, "o ContainerInimigos que veio da cena ordena por Y")
+
+	sala.free()
+
+
+## A cena principal e onde a corrente comeca. Conferida pelo PackedSceneState,
+## sem instanciar: instanciar main.tscn sobe o jogo inteiro e chama
+## iniciar_run(), o que nao cabe numa suite unitaria.
+func _o_mundo_da_cena_principal_ordena_por_y() -> void:
+	var cena: PackedScene = load("res://src/main/main.tscn")
+	ok(cena != null, "main.tscn carrega")
+	if cena == null:
+		return
+	var estado := cena.get_state()
+
+	var achou_mundo := false
+	var pais: Dictionary = {}
+	for i in estado.get_node_count():
+		var nome := estado.get_node_name(i)
+		pais[nome] = String(estado.get_node_path(i, true))
+		if nome != "Mundo":
+			continue
+		achou_mundo = true
+		ok(_propriedade(estado, i, "y_sort_enabled") == true,
+			"o no Mundo da cena principal ordena por Y")
+
+	ok(achou_mundo, "a cena principal tem o no Mundo")
+	# Player e GerenciadorMapa tem de estar DENTRO dele: irmaos do Mundo nao se
+	# ordenam contra o que esta dentro, e era assim que a cena estava antes --
+	# o jogador nunca se ordenava contra os inimigos.
+	igual(pais.get("Player", ""), "./Mundo", "o Player mora dentro do Mundo")
+	igual(pais.get("GerenciadorMapa", ""), "./Mundo", "o GerenciadorMapa mora dentro do Mundo")
+
+
+## z_index tem prioridade sobre Y: so irmaos no MESMO z se ordenam por posicao.
+## E isso que mantem chao e parede fora da brincadeira -- e o que faria o chao
+## passar na frente do jogador se alguem os trouxesse para a faixa do mundo.
+func _as_camadas_de_cenario_ficam_fora_do_y_sort() -> void:
+	var sala := _montar(CENA_SALA)
+	for nome in ["Chao", "ParedeTopo", "Decoracao"]:
+		var camada := sala.get_node_or_null(nome) as CanvasItem
+		if camada == null:
+			continue
+		ok(camada.z_index < Sala.Z_MUNDO,
+			"%s fica abaixo da faixa do mundo, entao o Y-sort nao o mistura com os atores" % nome)
+	sala.free()
+
+
 # ------------------------------------------------------------------ ajuda ----
+
+## Le uma propriedade declarada de um no dentro do PackedSceneState. Devolve
+## null quando a propriedade nao foi sobrescrita na cena.
+func _propriedade(estado: SceneState, indice: int, nome: String) -> Variant:
+	for p in estado.get_node_property_count(indice):
+		if estado.get_node_property_name(indice, p) == nome:
+			return estado.get_node_property_value(indice, p)
+	return null
 
 ## `free()` e nao `queue_free()`: a suite roda inteira num frame, entao uma
 ## sala enfileirada continuaria na arvore e no grupo "salas" durante os casos

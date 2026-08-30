@@ -180,6 +180,23 @@ var _dados_visual: DadosSala = null
 
 func _ready() -> void:
 	add_to_group("salas")
+	# O Y-sort do mundo so alcanca os inimigos se a corrente inteira estiver
+	# ligada -- Mundo, GerenciadorMapa, Sala e ContainerInimigos. Uma unica
+	# ligacao solta faz o jogador deixar de se ordenar contra quem esta dentro
+	# da sala, e nao ha erro no console para isso: o jogo continua rodando com
+	# a ordem de desenho vindo da arvore.
+	#
+	# Nao afeta as camadas de chao e parede: elas moram em faixas de z
+	# proprias, e z_index tem prioridade sobre Y -- so irmaos no MESMO z se
+	# ordenam por posicao.
+	y_sort_enabled = true
+	# O container que vem da CENA e ligado aqui, e nao so no getter: o getter e
+	# preguicoso (so roda quando a sala povoa), entao uma sala que ainda nao
+	# lutou -- ou que nunca vai lutar -- ficava com o elo solto. Quem cria o
+	# container em codigo e ligado la, porque aqui ele ainda nao existe.
+	var container_da_cena := get_node_or_null("ContainerInimigos") as Node2D
+	if container_da_cena != null:
+		container_da_cena.y_sort_enabled = true
 	_mapear_portas()
 	_selar_portas_sem_vizinho()
 	_montar_paredes()
@@ -384,6 +401,10 @@ func _container_de_inimigos() -> Node2D:
 		_container = Node2D.new()
 		_container.name = "ContainerInimigos"
 		add_child(_container)
+	# Ligado aqui e nao no .tscn de proposito: metade das salas traz o
+	# container da cena e metade o cria em codigo, e um elo solto num dos dois
+	# caminhos deixaria os inimigos daquelas salas fora do Y-sort em silencio.
+	_container.y_sort_enabled = true
 	return _container
 
 

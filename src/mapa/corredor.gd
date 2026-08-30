@@ -33,10 +33,14 @@ const TEXTURAS_PAREDE: Array[String] = [
 ## Cor de emergencia, usada so quando a textura nao carrega: o chao N1 da
 ## paleta combate (docs/IDENTIDADE_VISUAL.md).
 const COR_CHAO_EMERGENCIA := Color("0b0d16")
-## Mesma faixa que Sala.ESPESSURA_PAREDE, para o corredor parecer construido
-## do mesmo material. Recuada nas duas pontas para nao pintar por cima da
-## parede da sala, que ja cobre esses 24 px.
-const ESPESSURA_PAREDE := 24.0
+## Espelha Sala.ESPESSURA_PAREDE, para o corredor parecer construido do mesmo
+## material. Recuada nas duas pontas para nao pintar por cima da parede da
+## sala, que ja cobre essa faixa.
+##
+## Le da Sala em vez de repetir o numero: eram duas constantes com o mesmo
+## valor por disciplina, e a migracao Low Top-Down mudou o valor de 24 para 64
+## -- exatamente o tipo de mudanca em que uma das duas copias fica para tras.
+const ESPESSURA_PAREDE := Sala.ESPESSURA_PAREDE
 ## Layer 3 ("parede") — barreira nao colide com nada, so e colidida.
 const CAMADA_PAREDE := 4
 ## Folga em pixels antes de considerar que os dois pontos nao estao num eixo.

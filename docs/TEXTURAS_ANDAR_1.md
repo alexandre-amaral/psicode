@@ -507,7 +507,63 @@ saturação de ~0,45 para ~0,80 sem mexer no valor.
 
 Densidade alvo: **10–15%**. É o que já é, e está certo (§2.4).
 
-### 8.2 Parede — `parede_andar1.png`, 128×128
+### 8.2 Parede — a FACE industrial (identidade do andar 1)
+
+A face da parede é **a superfície que carrega a identidade do setor**. A regra
+que governa isso é de legibilidade, não de gosto: o chão é onde o combate é
+lido, então ele fica quase liso e a informação visual desce para as bordas da
+sala.
+
+Medido no style test:
+
+| | densidade | o que é |
+|---|---|---|
+| chão | 20–22% | placas, juntas, quase nada mais |
+| face | **55%** | painéis rebitados, nervuras, escotilha, fileiras de parafuso |
+
+A face é a única superfície do projeto que **excede a faixa de densidade de
+propósito** (18–34% para parede). A faixa foi calibrada quando a parede era
+chapada; com topo e face, a face é justamente onde a densidade deve ir.
+
+**Ela saiu do gerador.** `parede_face.png` era procedural e passava por G1 — o
+portão que cobra pertinência a uma lista de 22 cores. Arte autorada não passa
+por ali: G1 proíbe gradiente, dithering e sombra, que é o que tira a superfície
+do chapado. Ela migrou para o regime AUTORADO, como chão e parede já haviam
+feito. `gerar_parede_face()` continua no gerador, fora de `nomes()`, como
+registro de onde o valor dela veio.
+
+```bash
+python tools/texturas/preparar_textura.py preparar ORIGEM.png     assets/texturas/parede_face.png     --familia parede --tipo andar1 --manter-tamanho --sem-costura     --desvinheta --tingir 232 --saturacao 0.50 --grampear-matiz 195 310
+```
+
+### A ferrugem: por que ela NÃO é matiz no chão nem na parede
+
+Isto custou quatro gerações e vale ficar escrito.
+
+A faixa de matiz do andar 1 é **185–320**. Ferrugem literal fica em ~25–40°, que
+é **exatamente a faixa da sala de arma** (`A1 = #6b4d1e`, matiz 37°). As faixas
+são disjuntas de propósito — é o que faz a sala de recompensa se anunciar de
+longe.
+
+Pedir ferrugem laranja ao gerador e passar pelo funil produz um resultado pior
+que não ter ferrugem: `grampear_matiz` empurra o laranja para dentro da faixa, e
+a corrosão vira **manchinhas ciano** — a família de cor dos projéteis do
+jogador, salpicada pelo chão. Uma das variantes mediu **68 pontos com silhueta
+de projétil** (o gabarito é zero).
+
+Então a regra, que é a do próprio plano de identidade:
+
+> A ferrugem aparece por **padrão, contraste, mancha e valor** — nunca por matiz
+> — em qualquer superfície com faixa de matiz (chão, parede). Matiz de ferrugem
+> só é permitido nos **props**, que são a única família sem faixa
+> (`SEM_FAIXA_DE_MATIZ`).
+
+Na prática, ao gerar arte de chão ou parede: pedir riscos, amassados, placas
+remendadas, manchas escuras de óleo — e escrever `no rust, no orange, no
+corrosion colour, no speckles` no prompt. Prompt negativo não é confiável, então
+**medir depois** com `preparar_textura.py conferir`.
+
+### 8.2.1 Parede — `parede_andar1.png`, 128×128 (receita procedural, SUPERADA)
 
 **Mandamento: 30 painéis em fila. Calma.**
 

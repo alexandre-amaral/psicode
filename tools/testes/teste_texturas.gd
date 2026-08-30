@@ -222,6 +222,11 @@ const AUTORADAS: Dictionary = {
 	# GERADO e trancado pelo determinismo -- sao dois arquivos justamente
 	# para cada um ficar no regime que sabe provar o que ele e.
 	"props_volume.png": {&"familia": &"prop", &"tipo": &"andar1"},
+	# A FACE da parede, autorada na identidade industrial do andar 1. Ela e a
+	# superficie que carrega a identidade do setor: o chao fica quase liso
+	# porque e onde o combate e lido, e a informacao visual desce para as
+	# bordas da sala. O TOPO (`parede_topo.png`) continua gerado.
+	"parede_face.png": {&"familia": &"parede", &"tipo": &"andar1"},
 }
 
 ## A faixa de matiz e do TIPO DE SALA, e e ela que faz a sala do chefe se

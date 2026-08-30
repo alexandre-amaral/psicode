@@ -74,7 +74,20 @@ func _ready() -> void:
 ## CHAO E PAREDE SAIRAM DAQUI. Eles viraram arte autorada em
 ## `assets/texturas/chao_andar1_*.png` e `parede_andar1_*.png`, preparada por
 ## `tools/texturas/preparar_textura.py`. O que sobrou aqui e o que continua
-## nascendo de codigo: as duas metades da porta e o atlas de props.
+## nascendo de codigo: as duas metades da porta, o atlas de props chapados e o
+## TOPO da parede.
+##
+## A FACE saiu daqui na identidade industrial do andar 1. O motivo e o mesmo do
+## chao: ela virou arte autorada, e arte autorada nao passa por G1 -- aquele
+## portao cobra pertinencia a uma LISTA de 22 cores, o que proibe gradiente,
+## dithering e sombra, que e exatamente o que tira a superficie do chapado. Ela
+## passou para o regime AUTORADO de `teste_texturas.gd`, onde o que se cobra e
+## regra medida: gamut, teto de valor, faixa de matiz e costura.
+##
+## `gerar_parede_face()` continua abaixo e continua sem ser chamada por
+## `nomes()`. Ela fica como registro de onde a face veio e como referencia de
+## valor -- foi ela que estabeleceu que a face e mais ESCURA que o topo, que e
+## o que vende a altura e o que `_a_parede_tem_volume()` mede.
 ##
 ## `TIPOS` continua existindo e continua nesta ordem, porque ele ainda alimenta
 ## as linhas 2 e 3 do atlas -- o painel de acento e a marcacao de chao, uma
@@ -86,7 +99,6 @@ static func nomes() -> Array[String]:
 	lista.append("porta_campo.png")
 	lista.append("props_atlas.png")
 	lista.append("parede_topo.png")
-	lista.append("parede_face.png")
 	return lista
 
 

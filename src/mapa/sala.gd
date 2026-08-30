@@ -76,6 +76,14 @@ const PASSO_VARREDURA := 32.0
 ## uma faixa de 24 nao tem onde caber topo E face: a face sozinha ficaria com
 ## 12 px e o volume nao apareceria. 64 e multiplo de 16 e de 32, entao a grade
 ## estrutural do projeto nao muda.
+##
+## DIVIDA que este numero criou, anotada aqui porque e aqui que alguem vai
+## procurar: a camera folga exatamente `ESPESSURA_PAREDE` alem do contorno, e
+## com 64 uma sala do tamanho exato da tela passou a deslizar 64 px por eixo --
+## com o jogador no centro, nenhuma parede aparece. O conserto e geometrico
+## (sala de 832x416), nao por margem, e a Fase 25 do plano de migracao proibe
+## mexer em tamanho de sala enquanto a migracao acontece. A conta inteira esta
+## em `GerenciadorMapa.margem_da_parede()`.
 const ESPESSURA_PAREDE := 64.0
 ## Quanto da faixa, medido do contorno para fora, e FACE em vez de topo.
 ##
@@ -732,6 +740,19 @@ func _montar_visual() -> void:
 	var textura_chao := _textura(&"chao")
 	var textura_parede := _textura(&"parede")
 
+	# O topo usa a textura de parede DO TIPO (`parede_boss.png`,
+	# `parede_andar1_*.png`), e nao a `parede_topo.png` neutra que o gerador
+	# escreve. Nao e engano: hoje a identidade de cada tipo de sala mora no
+	# topo, porque era a unica superficie de parede que existia quando as
+	# variantes por tipo foram autoradas.
+	#
+	# DIVIDA: `parede_topo.png` e gerada e medida por `teste_texturas.gd` -- o
+	# portao de volume compara o valor dela com o da face -- mas NENHUMA cena a
+	# consome. Ela fica de pe ate a LTD 13 (issue #43), que move a identidade
+	# do tipo para a FACE; ai o topo passa a ser a superficie neutra que todo
+	# tipo compartilha, e e esta linha que troca `textura_parede` por ela.
+	# Apagar o PNG antes disso derruba o portao de volume sem ninguem ganhar
+	# nada.
 	var topo := Polygon2D.new()
 	topo.name = "ParedeTopo"
 	topo.polygon = _inflar(contorno, ESPESSURA_PAREDE)
@@ -927,6 +948,25 @@ func _textura(familia: StringName) -> Texture2D:
 ## Props sem colisao na margem entre a parede e a area de spawn. A seed vem
 ## das coordenadas da celula: reentrar na sala mostra a mesma sala, e um teste
 ## consegue reproduzir. Sem dados nao ha props -- e o tipo que diz o que cabe.
+##
+## DIVIDA conhecida, e ela e de PERSPECTIVA: estes props continuam CENTRADOS na
+## propria origem, fora do Y-sort, em `Z_CHAO_DETALHE`. Isso esta certo para o
+## que eles sao HOJE -- decalques chapados, arte de chao, coisa que ninguem
+## contorna -- e por isso a regra de origem na base (LTD 07) foi aplicada a
+## Player e inimigos e nao a eles.
+##
+## Deixa de estar certo na LTD 09 (issue #39), que da VOLUME aos props. Prop com
+## volume e um corpo na sala: ele passa a precisar dos tres, juntos, e nenhum
+## dos tres funciona sozinho --
+##   1. origem na base, como `Direcoes.DESLOCAMENTO_PARA_BASE` faz nos atores;
+##   2. subir de `Z_CHAO_DETALHE` para `Z_MUNDO`, que e a faixa que se ordena
+##      por Y (`Decoracao` teria de perder o z_index proprio, porque z_index
+##      tem prioridade sobre Y e congelaria a ordem);
+##   3. sombra por `Sombra.criar()`, que e o que responde "onde e a base disto".
+##
+## Migrar so o item 2 e o pior dos mundos: o prop entra na disputa de ordem
+## ordenado pelo MEIO do corpo, e passa na frente de quem esta mais abaixo na
+## tela. `teste_camada_visual.gd` mede isso nos atores e nao alcanca props.
 func _montar_decoracao() -> void:
 	var dados := _dados_visual
 	if dados == null or dados.atlas_props == null or dados.regioes_props.is_empty() or dados.quantidade_props <= 0:

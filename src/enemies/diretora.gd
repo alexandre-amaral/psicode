@@ -9,6 +9,39 @@ extends InimigoBase
 ##
 ## Cada ataque tem telegrafo. Um chefe de bullet hell so e justo se o jogador
 ## consegue ler a intencao antes do projetil existir.
+##
+## DIVIDA de perspectiva, anotada aqui porque nao aparece no console e nenhuma
+## suite a alcanca: **a Diretora ficou de fora da regra de origem na base**
+## (LTD 07) e da sombra (LTD 08). A causa e uma so -- a arte dela nao passa
+## pelo `tools/sprites/gerar_sprites.py`. E um `diretora.png` de 192x192
+## autorado a mao, pendurado num no `Visual/SpriteDiretora`, enquanto os outros
+## cinco inimigos com arte tem uma moldura 80x80 num no `Visual/Corpo`.
+##
+## Dessa unica diferenca saem quatro consequencias, todas medidas:
+##
+##  1. O sprite dela esta em (0, 0), e nao no `Direcoes.DESLOCAMENTO_PARA_BASE`
+##     de (0, -36). Os pes desenhados dela caem ~94 px ABAIXO da origem logica,
+##     entao o Y-sort a ordena pelo MEIO do corpo. So se ve quando ela cruza com
+##     outro corpo -- e a arena dela e justamente cheia de invocados.
+##  2. `InimigoBase._corpo` procura `Visual/Corpo` e nao acha nada, entao fica
+##     nulo. O clarao de dano continua funcionando (ele escreve em
+##     `_visual.modulate`), mas o tint de Hack e o de nanite, que escrevem no
+##     canal do CORPO, saem sem efeito nela. Ela aceita o Hack e toma o dano
+##     extra -- `teste_diretora.gd` mede os dois --, so nao MOSTRA que esta
+##     marcada.
+##  3. `Sombra.base_de(null)` devolve 0.0, entao `_montar_sombra()` desenha uma
+##     elipse de 28 px na origem dela. Medido no PNG: os 377 pixels dessa
+##     elipse estao 100% cobertos por sprite opaco. A sombra existe na arvore e
+##     nunca chega ao olho -- ela nao mente, so nao esta la.
+##  4. `teste_camada_visual.gd` varre `Visual/Corpo` para cobrar a origem nos
+##     pes. Como o no dela tem outro nome, ela e PULADA em silencio: o portao
+##     passa verde sem nunca ter olhado o chefe.
+##
+## Consertar isso e a LTD 16 (issue #46), que audita a perspectiva de todos os
+## atores. Ali nao basta mover o sprite para (0, -36): 36 e a base da moldura de
+## 80, e a dela e de 192. O numero certo sai do bbox de alpha do PNG dela, e o
+## conserto so fecha quando a varredura do portao passar a alcancar tambem o no
+## de nome proprio.
 
 signal fase_mudou(fase: int)
 

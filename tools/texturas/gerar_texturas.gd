@@ -205,6 +205,17 @@ static func gerar_chao(tipo: StringName, semente: int) -> Image:
 ##
 ## Placas de 32 dentro do tile de 64: o olho le a sub-grade que o projeto ja
 ## usa, e 32 divide toda dimensao de sala (64 nao divide 544).
+##
+## ATENCAO: o PNG que sai daqui AINDA NAO E DESENHADO em jogo. `Sala` texturiza
+## o no `ParedeTopo` com a parede DO TIPO (`parede_boss.png` e companhia),
+## porque a identidade de cada tipo de sala mora no topo desde antes desta
+## migracao existir. Quem consome `parede_topo.png` hoje e so o portao de
+## volume de `teste_texturas.gd`, que mede o valor dela contra o da face.
+##
+## Isso vira na LTD 13 (issue #43), quando a identidade do tipo desce para a
+## FACE e o topo passa a ser a superficie neutra comum. Ate la a funcao fica --
+## remover o gerador derrubaria o portao de volume, que e o unico lugar do
+## projeto onde "a parede tem altura" e uma afirmacao medida.
 static func gerar_parede_topo(semente: int) -> Image:
 	var img := _nova(TILE_PAREDE, TILE_PAREDE)
 	var n4 := Paleta.neutro(&"N4")

@@ -40,6 +40,7 @@ func executar() -> void:
 	_o_ator_tem_sombra_na_base()
 	_todo_ator_com_arte_tem_origem_nos_pes()
 	_a_face_sorteia_por_lado()
+	_o_corredor_usa_a_mesma_perspectiva_da_sala()
 
 
 ## O contrato em si: as faixas sobem na ordem em que as coisas se empilham.
@@ -420,3 +421,64 @@ func _texturas_de_face(sala: Sala) -> Array[String]:
 				achados.append(poly.texture.resource_path)
 	sala.free()
 	return achados
+
+
+## O corredor usa EXATAMENTE a perspectiva da sala (LTD 12).
+##
+## Ele era a unica parte do jogo que continuava chapada depois da LTD 04:
+## a sala ganhou topo e face, e atravessar de uma para outra trocava de
+## perspectiva no meio do caminho. Nao ha erro no console para isso -- o jogo
+## roda igual e o mundo so deixa de ser coerente.
+##
+## O que este caso cobra e a igualdade das faixas, e nao a existencia dos nos:
+## o corredor desenha nas MESMAS faixas absolutas da `Sala`. Ele ja valeu -1 no
+## no raiz, e ai o mesmo numero significava coisas diferentes nos dois -- o
+## empate entre os dois chaos era desempatado por ordem de arvore, funcionando
+## por acidente.
+func _o_corredor_usa_a_mesma_perspectiva_da_sala() -> void:
+	# HORIZONTAL: a lateral norte fica virada para o sul e mostra face.
+	var deitado := Corredor.new()
+	Engine.get_main_loop().root.add_child(deitado)
+	deitado.configurar(LONGE, LONGE + Vector2(480.0, 0.0), 80.0)
+	igual(deitado.z_index, 0, "o no raiz do corredor nao desloca as faixas dos filhos")
+
+	var face := deitado.get_node_or_null("ParedeFace") as Polygon2D
+	ok(face != null, "o corredor horizontal desenha a face da parede")
+	if face != null:
+		igual(face.z_index, Sala.Z_PAREDE_FACE, "a face do corredor usa a faixa da sala")
+		# A altura da face tem de ser a mesma da sala, senao a parede muda de
+		# altura no meio da travessia.
+		var caixa := _caixa_do_poligono(face.polygon)
+		perto(
+			caixa.size.y, Sala.ALTURA_FACE,
+			"a face do corredor tem a altura da face da sala"
+		)
+	var topo := deitado.get_node_or_null("ParedeTopo") as Polygon2D
+	ok(topo != null, "o corredor desenha o topo da parede")
+	if topo != null:
+		igual(topo.z_index, Sala.Z_PAREDE_TOPO, "o topo do corredor usa a faixa da sala")
+	var chao := deitado.get_node_or_null("Chao") as Polygon2D
+	if chao != null:
+		igual(chao.z_index, Sala.Z_CHAO, "o chao do corredor usa a faixa da sala")
+	deitado.free()
+
+	# VERTICAL: as laterais apontam para leste e oeste, nenhuma se qualifica.
+	# Nao desenhar face aqui e o resultado CERTO, e nao um caso faltando -- e a
+	# mesma geometria que faz a parede de baixo de uma sala mostrar so o topo.
+	var em_pe := Corredor.new()
+	Engine.get_main_loop().root.add_child(em_pe)
+	em_pe.configurar(LONGE, LONGE + Vector2(0.0, 480.0), 80.0)
+	ok(
+		em_pe.get_node_or_null("ParedeFace") == null,
+		"o corredor vertical NAO desenha face: nenhum lado dele esta virado para a camera"
+	)
+	em_pe.free()
+
+
+func _caixa_do_poligono(pontos: PackedVector2Array) -> Rect2:
+	if pontos.is_empty():
+		return Rect2()
+	var caixa := Rect2(pontos[0], Vector2.ZERO)
+	for ponto in pontos:
+		caixa = caixa.expand(ponto)
+	return caixa

@@ -29,6 +29,7 @@ const TEXTURAS_PAREDE: Array[String] = [
 	"res://assets/texturas/parede_andar1_a.png",
 	"res://assets/texturas/parede_andar1_b.png",
 	"res://assets/texturas/parede_andar1_c2.png",
+	"res://assets/texturas/parede_andar1_d.png",
 ]
 ## Cor de emergencia, usada so quando a textura nao carrega: o chao N1 da
 ## paleta combate (docs/IDENTIDADE_VISUAL.md).
@@ -86,6 +87,7 @@ func configurar(de: Vector2, para: Vector2, largura: float = 80.0) -> void:
 
 	_retangulo_local = Rect2(-(meio_comprimento + meia_largura), eixo * comprimento + lado * largura)
 	_montar_parede_corpo(eixo, lado, comprimento, largura)
+	_montar_face(eixo, lado, comprimento, largura, horizontal)
 	_montar_chao()
 	_montar_lateral(-meio_comprimento - meia_largura, meio_comprimento - meia_largura)
 	_montar_lateral(-meio_comprimento + meia_largura, meio_comprimento + meia_largura)
@@ -131,6 +133,57 @@ func _montar_parede_corpo(eixo: Vector2, lado: Vector2, comprimento: float, larg
 	corpo.z_index = Sala.Z_PAREDE_TOPO
 	_texturizar(corpo, _textura(TEXTURAS_PAREDE, 0x2f1b3c5d), _retangulo_local.position)
 	add_child(corpo)
+
+
+## A FACE da parede do corredor -- a superficie vertical que a camera enxerga
+## (LTD 12).
+##
+## Sem ela o corredor era a unica parte do jogo que continuava chapada: a sala
+## ganhou topo e face na LTD 04, e atravessar de uma para a outra trocava de
+## perspectiva no meio do caminho. A issue pede "exatamente a mesma": mesmo
+## chao, mesmo formato de parede, mesma altura de face.
+##
+## Ela segue a MESMA regra da sala, e nao uma parecida: so o lado voltado para o
+## SUL mostra face, e ela ocupa `Sala.ALTURA_FACE` da faixa, colada no contorno.
+## Num corredor VERTICAL nenhum lado se qualifica -- as laterais dele apontam
+## para leste e oeste -- e nao desenhar nada ali e o resultado certo, nao um
+## caso faltando. E a mesma geometria que faz a parede de baixo de uma sala
+## mostrar so o topo.
+##
+## Ela usa a face NEUTRA de propósito. O corredor nao tem tipo, e vestir a face
+## de uma das salas vizinhas anunciaria o que ha do outro lado antes de o
+## jogador chegar -- a mesma razao pela qual ele ja veste o chao da variante
+## base do andar.
+func _montar_face(
+	eixo: Vector2, lado: Vector2, comprimento: float, largura: float, horizontal: bool
+) -> void:
+	if not horizontal:
+		return
+	if comprimento <= ESPESSURA_PAREDE * 2.0:
+		return
+	var textura := load(Sala.FACE_NEUTRA) as Texture2D
+	if textura == null:
+		return
+
+	# O mesmo recuo nas pontas que `_montar_parede_corpo` usa: a parede da sala
+	# ja cobre esses pixels nas bocas, e pintar duas vezes o mesmo lugar com
+	# fase de UV diferente costura.
+	var meio := eixo * (comprimento * 0.5 - ESPESSURA_PAREDE)
+	# A borda EXTERNA do lado norte, de onde a face desce para dentro.
+	var borda := -lado * (largura * 0.5)
+	var recuo := lado * Sala.ALTURA_FACE
+
+	var quad := Polygon2D.new()
+	quad.name = "ParedeFace"
+	quad.z_index = Sala.Z_PAREDE_FACE
+	quad.polygon = PackedVector2Array([
+		-meio + borda,
+		meio + borda,
+		meio + borda + recuo,
+		-meio + borda + recuo,
+	])
+	_texturizar(quad, textura, _retangulo_local.position)
+	add_child(quad)
 
 
 func _montar_chao() -> void:

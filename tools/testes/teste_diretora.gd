@@ -226,6 +226,25 @@ func _o_hack_atravessa_o_chefe(chefe: Node) -> void:
 	var antes: int = chefe.vida
 	chefe.aplicar_hack(4.0)
 	ok(chefe.esta_hackeado(), "a Diretora aceita ser hackeada")
+
+	# E ela MOSTRA que esta marcada (LTD 16). `InimigoBase._corpo` procura
+	# `Visual/Corpo`; o no dela chamava `SpriteDiretora`, entao `_corpo` ficava
+	# nulo e ela era o UNICO inimigo do jogo sem tint de Hack e sem tint de
+	# nanite -- aceitava a marca, tomava o dano extra, e nao dizia nada.
+	#
+	# O portao e o NOME do no, e nao a cor: o tint sai de `_pintar_corpo`, que ja
+	# tem suite propria. O que se perde por engano aqui e o elo, e ele e barato
+	# de quebrar de novo -- basta alguem renomear o no achando que "SpriteX" e
+	# mais descritivo.
+	var corpo := chefe.get_node_or_null("Visual/Corpo")
+	ok(corpo != null, "a Diretora tem Visual/Corpo -- e o que liga o tint de Hack nela")
+	ok(corpo is Sprite2D, "e ele e o sprite dela")
+	if corpo is Sprite2D:
+		var pintado: Color = (corpo as Sprite2D).self_modulate
+		ok(
+			not pintado.is_equal_approx(Color.WHITE),
+			"hackeada, ela sai do branco neutro (achado %s)" % pintado.to_html(false)
+		)
 	chefe.receber_dano(7, Vector2.ZERO)
 	igual(chefe.vida, antes - 7, "o dano chega inteiro nela")
 	ok(chefe.esta_hackeado(), "levar dano nao limpa a marca")

@@ -22,6 +22,7 @@ raio_contato = 96.0
 intervalo_dano_contato = 0.9
 nome_exibicao = "A IA DIRETORA"
 raio_orbita = 40.0
+largura_sombra = 0.0
 
 [node name="Forma" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_dir")
@@ -34,7 +35,7 @@ polygon = PackedVector2Array(192.0, 0.0, 187.2, 42.7, 173.0, 83.3, 150.1, 119.7,
 
 [node name="Visual" type="Node2D" parent="."]
 
-[node name="SpriteDiretora" type="Sprite2D" parent="Visual"]
+[node name="Corpo" type="Sprite2D" parent="Visual"]
 texture = ExtResource("5_skin")
 
 [node name="ArmaPreditiva" type="Node2D" parent="Visual"]

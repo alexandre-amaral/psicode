@@ -253,6 +253,20 @@ func _o_ator_tem_sombra_na_base() -> void:
 ##
 ## Os quatro inimigos que ainda sao Polygon2D ficam de fora de proposito: eles
 ## sao desenhados em volta da propria origem, entao a base deles JA e a origem.
+##
+## E o portao distingue DOIS regimes pela moldura, em vez de exigir -36 de todo
+## mundo (LTD 16):
+##
+## - moldura de `Direcoes.LADO_QUADRO` (80): veio de `gerar_sprites.py`, que
+##   ancora nos pes. Tem de estar em -36, e o numero e o mesmo dos dois lados.
+## - qualquer outra moldura: arte autorada, com ancora propria. O caso vivo e a
+##   Diretora, um orbe flutuante radialmente simetrico de 192x192 -- ela nao tem
+##   pes, e centrada E a ancora certa. Exigir -36 dela seria cobrar uma regra
+##   anatomica de um corpo sem anatomia.
+##
+## O que se cobra do segundo regime e a COERENCIA: quem esta centrado nao pode
+## ter sombra, porque a elipse nasceria dentro do proprio corpo e ficaria
+## invisivel -- foi exatamente o no morto que a Diretora carregava.
 func _todo_ator_com_arte_tem_origem_nos_pes() -> void:
 	var esperado := -Direcoes.BASE_NO_QUADRO
 	var conferidos := 0
@@ -269,10 +283,19 @@ func _todo_ator_com_arte_tem_origem_nos_pes() -> void:
 			var inimigo := cena.instantiate()
 			Engine.get_main_loop().root.add_child(inimigo)
 			var corpo := inimigo.get_node_or_null("Visual/Corpo")
-			if corpo is Sprite2D:
-				conferidos += 1
-				perto((corpo as Sprite2D).position.y, esperado,
-					"%s: o sprite e ancorado nos pes" % arquivo)
+			var sprite := corpo as Sprite2D
+			if sprite != null and sprite.texture != null:
+				var altura := sprite.texture.get_height()
+				if is_equal_approx(float(altura), Direcoes.LADO_QUADRO):
+					conferidos += 1
+					perto(sprite.position.y, esperado,
+						"%s: o sprite da moldura de 80 e ancorado nos pes" % arquivo)
+				else:
+					# Arte autorada, de moldura propria. O caso vivo e a Diretora.
+					perto(sprite.position.y, 0.0,
+						"%s: arte de moldura %d e centrada -- ela nao tem pes" % [arquivo, altura])
+					ok(inimigo.get("largura_sombra") == 0.0,
+						"%s: corpo centrado nao carrega sombra (ela nasceria dentro dele)" % arquivo)
 			inimigo.free()
 
 	# Piso: os cinco inimigos com sprite direcional existem desde a v0.3.

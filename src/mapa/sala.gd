@@ -69,9 +69,29 @@ const FOLGA_SPAWN := 20.0
 ## testes na maior sala, uma vez so por sala.
 const PASSO_VARREDURA := 32.0
 
-## Quanto o corpo da parede avanca para FORA do contorno. Combina com a
-## moldura da porta (96x48 centrada no vao), que cobre exatamente esta faixa.
-const ESPESSURA_PAREDE := 24.0
+## Quanto a parede avanca para FORA do contorno. Combina com a moldura da porta
+## (96x128 centrada no vao), que cobre exatamente esta faixa.
+##
+## Foi 24 ate a migracao Low Top-Down. Virou 64 -- o tile da parede -- porque
+## uma faixa de 24 nao tem onde caber topo E face: a face sozinha ficaria com
+## 12 px e o volume nao apareceria. 64 e multiplo de 16 e de 32, entao a grade
+## estrutural do projeto nao muda.
+const ESPESSURA_PAREDE := 64.0
+## Quanto da faixa, medido do contorno para fora, e FACE em vez de topo.
+##
+## Metade: a razao face:topo fica 1:1, que e a regra operavel da direcao de arte
+## (LOW_TOPDOWN_SQUARED secao 24) -- a forma conferivel de "todos os elementos
+## compartilham a mesma camera imaginaria".
+##
+## A face fica na metade INTERNA, colada no contorno, e o topo na externa. E a
+## ordem que a camera ve: olhando uma parede ao norte, a superficie vertical
+## esta na frente e a espessura dela atras.
+const ALTURA_FACE := 32.0
+## Quao "para cima" a normal de um lado precisa apontar para ele ganhar face.
+## So parede voltada para o SUL mostra face; a de baixo mostra so o topo, que e
+## a Solucao 1 do documento (parede cortada) e o que impede o cenario de cobrir
+## jogador, inimigo, projetil e telegrafo.
+const LIMIAR_LADO_NORTE := -0.5
 ## As faixas de z do mundo, em ordem. Este bloco e o CONTRATO que a migracao
 ## para Low Top-Down Squared usa (docs/LOW_TOPDOWN_SQUARED.md secao 22): quem
 ## desenha no mundo escolhe uma faixa daqui, e nunca um numero solto.
@@ -726,6 +746,7 @@ func _montar_visual() -> void:
 	_texturizar(chao, textura_chao, ancora)
 	add_child(chao)
 
+	_montar_faces(contorno, ancora)
 	_montar_obstaculos_visuais(textura_parede, ancora)
 
 	# O Line2D "Parede" do .tscn nunca aparece em jogo: ele e a fonte da
@@ -737,6 +758,66 @@ func _montar_visual() -> void:
 	var linha_fonte := get_node_or_null("Parede") as Line2D
 	if linha_fonte != null:
 		linha_fonte.visible = false
+
+
+## A FACE vertical da parede: a metade interna da faixa, so nos lados voltados
+## para o sul. E ela que da altura ao cenario, e sem ela a parede volta a ler
+## como faixa chapada.
+##
+## Desenhada para FORA do contorno, nunca para dentro: a linha do contorno
+## continua sendo a base da parede e a colisao (LOW_TOPDOWN_SQUARED secao 21), e
+## nenhum pixel de area jogavel e perdido. Face para dentro comeria espaco de
+## combate e mudaria o balanceamento de todas as salas de uma vez.
+##
+## Um quad por lado, e nao um anel: `offset_polygon` nao sabe inflar um lado so,
+## e sao justamente os lados que tem orientacoes diferentes. O topo continua
+## vindo do contorno inflado, que ja resolve quina e concavidade -- este passo
+## so pinta por cima da metade que a camera ve de frente.
+func _montar_faces(contorno: PackedVector2Array, ancora: Vector2) -> void:
+	if contorno.size() < 3:
+		return
+	var textura := load("res://assets/texturas/parede_face.png") as Texture2D
+	if textura == null:
+		# Sem face o jogo continua jogavel, so volta a parecer chapado. Avisar
+		# importa porque nenhuma suite instancia a sala com textura em disco.
+		push_warning("Sala '%s': parede_face.png nao carregou; parede sem volume." % name)
+		return
+
+	var raiz := Node2D.new()
+	raiz.name = "ParedeFace"
+	raiz.z_index = Z_PAREDE_FACE
+	add_child(raiz)
+
+	for i in contorno.size():
+		var a := contorno[i]
+		var b := contorno[(i + 1) % contorno.size()]
+		var normal := _normal_externa(contorno, a, b)
+		if normal.y > LIMIAR_LADO_NORTE:
+			continue
+		var recuo := normal * ALTURA_FACE
+		var quad := Polygon2D.new()
+		quad.polygon = PackedVector2Array([a, b, b + recuo, a + recuo])
+		_texturizar(quad, textura, ancora)
+		raiz.add_child(quad)
+
+
+## Normal para FORA de um lado do contorno.
+##
+## Testada contra o poligono em vez de deduzida do sentido de giro: o Line2D de
+## cada sala foi desenhado a mao e nada garante que todas girem no mesmo
+## sentido. `_inflar()` ja convive com isso tentando os dois offsets; aqui o
+## equivalente e perguntar de que lado esta o lado de fora.
+func _normal_externa(contorno: PackedVector2Array, a: Vector2, b: Vector2) -> Vector2:
+	var direcao := (b - a).normalized()
+	if direcao == Vector2.ZERO:
+		return Vector2.ZERO
+	var candidata := Vector2(direcao.y, -direcao.x)
+	var meio := (a + b) * 0.5
+	# Um passo curto: perto o bastante da aresta para nao atravessar a sala
+	# inteira num contorno estreito, longo o bastante para sair da linha.
+	if Geometry2D.is_point_in_polygon(meio + candidata * 4.0, contorno):
+		return -candidata
+	return candidata
 
 
 ## Obstaculo solido (o pilar) recebe o mesmo corpo de parede, lido da forma de

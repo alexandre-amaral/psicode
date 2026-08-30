@@ -31,7 +31,11 @@ const PASTA := "res://assets/texturas"
 const TILE := 32
 const TAMANHO_CHAO := 128
 const TAMANHO_PAREDE := 128
-const PORTA_MOLDURA := Vector2i(96, 48)
+## 96 de largura = o vao de 80 mais 8 px de batente de cada lado.
+## 128 de altura porque a faixa de parede passou de 24 para 64 na migracao Low
+## Top-Down: a moldura tem de cobrir a faixa inteira, senao a porta aparece
+## como um retangulo de 24 px no meio de uma parede de 64.
+const PORTA_MOLDURA := Vector2i(96, 128)
 const PORTA_CAMPO := Vector2i(80, 32)
 const PROPS_ATLAS := Vector2i(256, 128)
 ## Lado do tile da parede Low Top-Down (docs/LOW_TOPDOWN_SQUARED.md secao 14).
@@ -348,15 +352,22 @@ static func gerar_porta_moldura() -> Image:
 	var largura := PORTA_MOLDURA.x
 	var altura := PORTA_MOLDURA.y
 	var batente := 8
+	# A soleira fica sobre a linha do contorno, que e o meio do sprite.
+	var soleira := altura / 2 - 4
+	# O batente para na soleira em vez de descer o sprite inteiro. Ele desenha
+	# a lateral do VAO, e o vao acaba onde a parede acaba: continuar para
+	# dentro poe duas barras de metal de pe no meio do chao da sala. Com a
+	# moldura de 48 isso eram 24 px e passava; com 128 sao 64, e aparece.
+	var fundo := soleira + 8
 
 	for lado: int in [0, largura - batente]:
-		for y in altura:
+		for y in fundo:
 			for i in batente:
 				var x := lado + i
 				var interno := i == batente - 1 if lado == 0 else i == 0
 				var externo := i == 0 if lado == 0 else i == batente - 1
 				var cor := n6
-				if externo or y == 0 or y == altura - 1:
+				if externo or y == 0 or y == fundo - 1:
 					cor = n4
 				elif interno:
 					cor = n7
@@ -366,15 +377,16 @@ static func gerar_porta_moldura() -> Image:
 		# Parafusos do batente.
 		var px: int = lado + 3 if lado == 0 else lado + 4
 		_pintar(img, px, 4, n4)
-		_pintar(img, px, altura - 5, n4)
+		_pintar(img, px, fundo - 5, n4)
 
-	_ret(img, batente, 0, largura - 2 * batente, 20, n0)
-	_ret(img, batente, 20, largura - 2 * batente, 8, n5)
-	_ret(img, batente, 20, largura - 2 * batente, 1, n6)
-	_ret(img, batente, 27, largura - 2 * batente, 1, n4)
+	var vao := largura - 2 * batente
+	_ret(img, batente, 0, vao, soleira, n0)
+	_ret(img, batente, soleira, vao, 8, n5)
+	_ret(img, batente, soleira, vao, 1, n6)
+	_ret(img, batente, soleira + 7, vao, 1, n4)
 	# Ranhuras da soleira a cada 16 px.
 	for x in range(batente + 8, largura - batente, 16):
-		_ret(img, x, 21, 1, 6, n4)
+		_ret(img, x, soleira + 1, 1, 6, n4)
 	return img
 
 

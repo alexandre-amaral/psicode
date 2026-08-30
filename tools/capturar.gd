@@ -124,14 +124,42 @@ func _capturar_combate(sala: Sala) -> void:
 		return
 
 	_combates_vistos += 1
-	# A camera nunca AFASTA: numa sala maior que a tela ela segue o jogador e
-	# mostra so um pedaco, e os inimigos podem estar todos fora do quadro. Por
-	# isso a primeira escolha e uma sala que caiba inteira.
-	var tela := Vector2(get_viewport().get_visible_rect().size)
-	var caixa := sala.obter_limites().size
-	var cabe := caixa.x <= tela.x and caixa.y <= tela.y
-	if cabe or _combates_vistos >= 4:
+	# Pergunta o que a FOTO precisa, e nao o que a sala mede.
+	#
+	# Isto media `sala.obter_limites()` contra a tela, e o teste passava por um
+	# fio: a sala retangular tem contorno de exatamente 960x544, igual a tela. So
+	# que a camera nao mostra o contorno -- ela segue o JOGADOR, com o clamp
+	# folgado em `ESPESSURA_PAREDE`. Numa sala do tamanho da tela ela desliza 64
+	# px por eixo, entao "a sala cabe" nunca significou "os inimigos estao no
+	# quadro". A foto 07 saia com hostis fora da moldura e ninguem via, porque a
+	# unica evidencia era a propria foto.
+	#
+	# A pergunta certa e direta: ha inimigo DENTRO do que a camera esta vendo
+	# agora? Se ha, a foto mostra combate; se nao, ela mostra chao.
+	if _inimigos_no_quadro(sala) > 0 or _combates_vistos >= 4:
 		_capturar("07_sala_de_combate")
+
+
+## Quantos inimigos da sala estao dentro do quadro NESTE instante.
+##
+## Usa o retangulo visivel da camera, e nao os limites da sala: o que a foto
+## mostra e o quadro, e e ele que decide se a imagem tem combate ou tem piso.
+func _inimigos_no_quadro(sala: Sala) -> int:
+	var camera := get_viewport().get_camera_2d()
+	if camera == null:
+		return 0
+	var tela := Vector2(get_viewport().get_visible_rect().size) / camera.zoom
+	var quadro := Rect2(camera.get_screen_center_position() - tela * 0.5, tela)
+	var dentro := 0
+	for no in get_tree().get_nodes_in_group("inimigo"):
+		var inimigo := no as Node2D
+		if inimigo == null or not is_instance_valid(inimigo):
+			continue
+		if not sala.obter_limites().has_point(inimigo.global_position):
+			continue
+		if quadro.has_point(inimigo.global_position):
+			dentro += 1
+	return dentro
 
 
 func _achar_mapa() -> bool:

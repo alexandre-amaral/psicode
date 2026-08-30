@@ -41,6 +41,8 @@ func executar() -> void:
 	_todo_ator_com_arte_tem_origem_nos_pes()
 	_a_face_sorteia_por_lado()
 	_o_corredor_usa_a_mesma_perspectiva_da_sala()
+	_a_razao_face_topo_fica_em_um_para_um()
+	_o_topo_cerca_a_sala_e_a_face_so_aparece_ao_norte()
 
 
 ## O contrato em si: as faixas sobem na ordem em que as coisas se empilham.
@@ -482,3 +484,75 @@ func _caixa_do_poligono(pontos: PackedVector2Array) -> Rect2:
 	for ponto in pontos:
 		caixa = caixa.expand(ponto)
 	return caixa
+
+
+## A regra operacional da direcao de arte: face e topo em 1:1 (LTD 15).
+##
+## `LOW_TOPDOWN_SQUARED` secao 24 chama isso de "a forma conferivel de todos os
+## elementos compartilharem a mesma camera imaginaria". E a unica parte daquele
+## documento que vira numero, e por isso ela vira teste.
+##
+## A razao importa porque ela E a perspectiva. Face muito maior que o topo le
+## como parede vista quase de lado -- camera baixa; topo muito maior le como
+## vista quase de cima -- camera alta. Os props sao desenhados supondo uma
+## camera so, e se a parede escorregar para outra, eles deixam de pertencer a
+## mesma cena sem que nada quebre.
+##
+## A folga de 25% e do plano, e nao inventada aqui: ela permite ajuste fino sem
+## permitir mudanca de perspectiva.
+func _a_razao_face_topo_fica_em_um_para_um() -> void:
+	var topo := Sala.ESPESSURA_PAREDE - Sala.ALTURA_FACE
+	ok(topo > 0.0, "sobra faixa de topo depois da face (%.0f de %.0f)" % [topo, Sala.ESPESSURA_PAREDE])
+	if topo <= 0.0:
+		return
+	var razao := Sala.ALTURA_FACE / topo
+	ok(
+		razao >= 0.75 and razao <= 1.25,
+		"a razao face:topo fica em 1:1 +/-25%% (achado %.2f) -- e o que fixa a camera imaginaria" % razao
+	)
+
+
+## `ParedeTopo` cerca a sala inteira; `ParedeFace` so aparece onde a camera ve a
+## superficie vertical (LTD 15).
+##
+## Os dois lados desta asercao importam, e o segundo mais que o primeiro:
+##
+## - o TOPO e um poligono unico, o contorno inflado, entao ele cobre os quatro
+##   lados por construcao. Medir a area dele contra a do contorno prova isso sem
+##   depender de quantos lados a sala tem.
+## - a FACE so pode aparecer nos lados virados para a camera. Face no lado de
+##   BAIXO cobriria jogador, inimigo, projetil e telegrafo -- e a Solucao 1 do
+##   documento (parede cortada) existe exatamente para impedir isso.
+##
+## O teste seria facil de enganar contando nos; ele compara GEOMETRIA: nenhum
+## quad de face pode estar na metade de baixo do contorno.
+func _o_topo_cerca_a_sala_e_a_face_so_aparece_ao_norte() -> void:
+	for cena: PackedScene in [CENA_SALA, CENA_L, CENA_PILAR]:
+		var sala := _montar(cena)
+		var contorno := sala.contorno_local()
+		var caixa := _caixa_do_poligono(contorno)
+
+		var topo := sala.get_node_or_null("ParedeTopo") as Polygon2D
+		ok(topo != null, "%s monta ParedeTopo" % cena.resource_path.get_file())
+		if topo != null:
+			var caixa_topo := _caixa_do_poligono(topo.polygon)
+			ok(
+				caixa_topo.size.x > caixa.size.x and caixa_topo.size.y > caixa.size.y,
+				"%s: o topo cerca a sala pelos quatro lados" % cena.resource_path.get_file()
+			)
+
+		var raiz := sala.get_node_or_null("ParedeFace") as Node2D
+		if raiz != null:
+			for filho in raiz.get_children():
+				var quad := filho as Polygon2D
+				if quad == null:
+					continue
+				var c := _caixa_do_poligono(quad.polygon)
+				# A face fica na METADE DE CIMA do contorno. Uma no lado de baixo
+				# desenharia por cima da area de combate.
+				ok(
+					c.position.y < caixa.get_center().y,
+					"%s: a face fica ao norte, longe de cobrir o combate (y %.0f)"
+						% [cena.resource_path.get_file(), c.position.y]
+				)
+		sala.free()

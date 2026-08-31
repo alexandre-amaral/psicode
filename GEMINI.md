@@ -103,6 +103,7 @@ src/
   arena/       pickup de arma (instanciado so pela cena da sala de arma)
   mapa/        gerenciador_mapa, sala, porta, corredor, sala_*.tscn,
                prop_animado (o prop de cenario que se mexe, com orcamento),
+               reacao_de_arena (a sala do chefe acendendo junto com ele),
                dados_sala.gd + tipo_*.tres (o catalogo de tipos de sala)
   items/       efeito_item.gd + dados_item.gd, implante_*.tres,
                pool_loot.gd, pickup de item
@@ -203,6 +204,8 @@ docs/
 | Forma e parede de uma sala | Line2D `Parede` em `src/mapa/sala_*.tscn` — a colisao nasce dele |
 | **Quanto a porta demora para abrir** | `TEMPO_DE_ABERTURA` em `src/mapa/porta.gd` -- const e nao `@export`, com teto cobrado por `teste_porta.gd` |
 | **O som do motor e da trava da porta** | `som_do_motor` e `som_da_trava` no `src/mapa/porta.tscn` |
+| **Como a arena do chefe reage as fases** | `@export` do no `ReacaoDeArena` em `src/mapa/sala_6_boss.tscn` |
+| **Quanto o chefe demora para acordar na baia** | `tempo_despertar` no `src/enemies/boss_guardiao_01.tscn` |
 | **O trecho de corredor que anuncia o chefe** | `Corredor.pre_chefe`, decidido por `GerenciadorMapa._e_trecho_pre_chefe()`; as texturas em `TEXTURA_*_CHEFE` do `corredor.gd` |
 | Lockdown e abertura de porta | `src/mapa/sala.gd`, `src/mapa/porta.gd` e a barreira fisica de `src/mapa/porta.tscn` |
 | Glitch de alucinacao | `assets/shaders/glitch.gdshader` |
@@ -793,6 +796,21 @@ em qualquer erro de script.
   faixa de vazio na lateral. O unico conserto completo seria geometrico: parede
   de 16 px e salas de 928x512 fecham exatamente 960x544, e ambos caem na grade
   de 32. Isso mexe em todas as cenas de sala e ainda nao foi feito.
+- **O nucleo do chefe fica APAGADO enquanto ele dorme na baia.** A apresentacao
+  dele e o jogador acreditar que o robo e CENARIO, e um chefe que pulsa antes de
+  acordar entrega o truque no primeiro quadro. E a partida FALHA duas vezes
+  antes de pegar -- a falha e a peca, e nao o ruido: uma maquina que liga de
+  primeira e uma maquina nova.
+- **Efeito de arena fica junto da PAREDE, nunca no miolo.** A sala do chefe e a
+  mais densa de projetil do jogo, e a fase 3 e quando os dois riscos se somam --
+  mais efeito e mais projetil na tela, no mesmo instante. `ReacaoDeArena` nasce
+  as luzes no contorno lido de `Sala.contorno_local()` (a mesma fonte da colisao
+  e do minimapa) e `teste_props.gd` mede a distancia: o miolo, onde o jogador
+  esquiva e o telegrafo desenha, fica limpo.
+- **Decalque da sala do chefe nao pode ser amarelo.** A faixa dela e 330-355, e
+  faixa de perigo amarela cai em 25-50 -- a da sala de ARMA. A baia le por FORMA
+  (retangulo com listras e ancoras nos cantos) e nao por matiz, que e a mesma
+  licao que a ferrugem da face ja tinha ensinado.
 - **O corredor pre-chefe e a UNICA excecao a regra da noite base, e ela e
   deliberada.** Corredor comum nao veste a cor da sala vizinha de proposito --
   "pintar cada metade com a cor da vizinha anunciaria o que ha do outro lado

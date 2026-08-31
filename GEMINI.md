@@ -186,6 +186,8 @@ docs/
 | **Quantos props podem se mexer numa sala** | `max_props_animados` no `tipo_*.tres` -- e o orcamento, e ele e baixo de proposito |
 | **Textura de chao, parede e props de um tipo de sala** | grupo `Visual` do `tipo_*.tres`. Chao e parede sao LISTAS: a sala sorteia a variante por `hash(coordenadas_grid)`. Os PNGs sao arte autorada passada por `tools/texturas/preparar_textura.py`; porta e props ainda saem do gerador |
 | **Arte de chao ou parede que nao nasceu na paleta** | o pre-passo de `preparar_textura.py`: `--desvinheta` (chapa a iluminacao), `--tingir GRAUS` + `--limiar-neon` (tinge o metal apagado e deixa o acento aceso intacto), `--grampear-matiz`, `--alvo-v`. Tudo desligado por default |
+| **Prop volumetrico novo** | desenhar na celula do `props_volume.png` ancorado no FUNDO dela, e declarar a regiao em `regioes_props_volume` do `tipo_*.tres` |
+| **Prop que so pode aparecer uma vez por andar (o Robo Desativado)** | `regioes_props_raras` do `tipo_*.tres`; quem escolhe a sala e `GerenciadorMapa._sortear_celula_de_prop_raro()` |
 | **Uma cor nova no cenario** | `tools/texturas/paleta.gd` + a tabela de `docs/IDENTIDADE_VISUAL.md`; `teste_texturas.gd` recusa cor que compete com projetil |
 | Enquadramento e cores do minimapa | `@export` do no `Minimapa` em `src/ui/hud.tscn` |
 | **Volume, buses e quem toca o que** | `src/autoload/audio.gd`; os tres volumes ficam em `Configuracao`, junto das outras preferencias |
@@ -788,6 +790,22 @@ em qualquer erro de script.
   faixa de vazio na lateral. O unico conserto completo seria geometrico: parede
   de 16 px e salas de 928x512 fecham exatamente 960x544, e ambos caem na grade
   de 32. Isso mexe em todas as cenas de sala e ainda nao foi feito.
+- **Atlas de prop CRESCE para baixo; nunca se recompoe.** As regioes ja
+  declaradas nos `tipo_*.tres` sao coordenadas cruas, e a ancora depende delas:
+  a arte encosta no FUNDO da celula e a sala desloca o sprite em `-altura/2`.
+  Recompor centralizando, ou remanejar celulas, faz TODOS os props flutuarem sem
+  erro no console. Ao acrescentar props, copie as linhas antigas byte a byte e
+  confira o hash -- foi assim que o atlas foi de 256x128 para 256x192.
+- **Prop novo passa pelo funil SOZINHO, e nao junto do atlas inteiro.**
+  `preparar_textura.py` processa a imagem toda: rodar no atlas completo mexeria
+  no valor e na saturacao dos doze props ja aprovados. Prepare a tira nova, e so
+  entao cole.
+- **"Uma por ANDAR" nao e pergunta que a `Sala` responda.** Ela so ve a si
+  mesma. Por isso o prop raro tem duas metades: o `GerenciadorMapa` escolhe a
+  celula (antes do `add_child`, como `coordenadas_grid`), e a sala tem um PORTAO
+  -- sala nao autorizada nunca desenha a regiao rara, por mais que sorteie. Sem
+  o portao a regra dependeria de o gerenciador nunca errar, e regra que depende
+  de ninguem errar nao e regra.
 - **`--sem-costura` e para arte que JA NASCE ladrilhavel.** A face base do
   andar 1 usa a bandeira porque foi desenhada assim; arte gerada nao e, e passar
   a bandeira nela reprova o portao de costura (`costura x=1.23, teto 1.10`).

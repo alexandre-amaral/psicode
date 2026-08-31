@@ -44,6 +44,7 @@ func executar() -> void:
 	_o_prop_chapado_continua_chapado()
 	_a_arena_do_chefe_fica_limpa()
 	_o_foreground_nunca_entra_na_area_util()
+	_o_prop_raro_aparece_numa_sala_por_andar()
 
 
 ## Metade 1 do contrato: a arte de cada celula encosta no FUNDO dela.
@@ -190,6 +191,70 @@ func _a_arena_do_chefe_fica_limpa() -> void:
 
 
 # ------------------------------------------------------------------ apoio ----
+
+## O PROP RARO aparece em UMA sala do andar, e so.
+##
+## O caso vivo e o Robo Desativado: ele e o que faz o jogador perceber que o
+## setor usava robos muito antes de encontrar o chefe, e isso funciona uma vez.
+## Repetido em cinco salas ele vira mobilia, e a descoberta que ele existe para
+## plantar deixa de acontecer -- o plano do andar pede "com extrema moderacao"
+## com todas as letras.
+##
+## O que se cobra e o PORTAO da sala, e nao o sorteio: uma sala nao autorizada
+## nunca pode desenhar a regiao rara, por mais vezes que ela sorteie. Sem isso, a
+## regra ficaria dependendo de o gerenciador nunca errar -- e regra que depende
+## de ninguem errar nao e regra.
+func _o_prop_raro_aparece_numa_sala_por_andar() -> void:
+	var combate: DadosSala = load("res://src/mapa/tipo_combate.tres")
+	ok(combate != null and not combate.regioes_props_raras.is_empty(),
+		"a sala de combate declara ao menos um prop raro")
+	if combate == null or combate.regioes_props_raras.is_empty():
+		return
+
+	var raras := {}
+	for r: Rect2i in combate.regioes_props_raras:
+		raras[str(r)] = true
+	# E ele NAO esta no pool comum: estando nos dois, a sala nao autorizada o
+	# desenharia mesmo assim, e o portao seria decorativo.
+	for r: Rect2i in combate.regioes_props_volume:
+		ok(not raras.has(str(r)),
+			"a regiao rara %s nao esta tambem no pool comum" % r)
+
+	# Uma sala NAO autorizada nunca desenha a regiao rara, em varias sementes.
+	var vazou := false
+	var autorizada_desenhou := false
+	for semente in 12:
+		var comum := _montar_com_semente(combate, semente, false)
+		vazou = vazou or _tem_regiao(comum, raras)
+		comum.free()
+		var sorteada := _montar_com_semente(combate, semente, true)
+		autorizada_desenhou = autorizada_desenhou or _tem_regiao(sorteada, raras)
+		sorteada.free()
+	ok(not vazou, "sala nao autorizada NUNCA desenha o prop raro, em 12 sementes")
+	ok(autorizada_desenhou, "e a autorizada chega a desenhar -- senao o portao seria um mute")
+
+
+func _montar_com_semente(dados: DadosSala, semente: int, autorizada: bool) -> Sala:
+	var sala: Sala = CENA_SALA.instantiate()
+	sala.definir_visual(dados)
+	if autorizada:
+		sala.permitir_props_raros()
+	sala.coordenadas_grid = Vector2i(semente, semente * 3)
+	sala.position = LONGE
+	Engine.get_main_loop().root.add_child(sala)
+	return sala
+
+
+func _tem_regiao(sala: Sala, raras: Dictionary) -> bool:
+	for filho in sala.get_children():
+		for neto in filho.get_children():
+			var sprite := neto as Sprite2D
+			if sprite != null and sprite.region_enabled:
+				var r := Rect2i(sprite.region_rect)
+				if raras.has(str(r)):
+					return true
+	return false
+
 
 func _montar(dados: DadosSala) -> Sala:
 	var sala := CENA_SALA.instantiate() as Sala

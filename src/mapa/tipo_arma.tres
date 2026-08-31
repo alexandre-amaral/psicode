@@ -33,5 +33,5 @@ atlas_props = ExtResource("23_atlas")
 regioes_props = Array[Rect2i]([Rect2i(0, 0, 32, 32), Rect2i(32, 0, 32, 32), Rect2i(128, 0, 32, 32), Rect2i(224, 0, 32, 32), Rect2i(0, 32, 32, 32), Rect2i(64, 32, 32, 32), Rect2i(96, 32, 32, 32), Rect2i(64, 64, 32, 32), Rect2i(64, 96, 32, 32)])
 quantidade_props = 6
 atlas_props_volume = ExtResource("24_pvol")
-regioes_props_volume = Array[Rect2i]([Rect2i(32, 0, 32, 64), Rect2i(64, 64, 64, 64), Rect2i(96, 0, 32, 64), Rect2i(64, 0, 32, 64)])
+regioes_props_volume = Array[Rect2i]([Rect2i(32, 0, 32, 64), Rect2i(64, 64, 64, 64), Rect2i(96, 0, 32, 64), Rect2i(64, 0, 32, 64), Rect2i(0, 128, 32, 64), Rect2i(32, 128, 32, 64), Rect2i(64, 128, 32, 64), Rect2i(96, 128, 32, 64), Rect2i(160, 128, 32, 64)])
 quantidade_props_volume = 3

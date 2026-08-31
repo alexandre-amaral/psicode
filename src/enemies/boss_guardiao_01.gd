@@ -101,6 +101,30 @@ const PISAO := &"PISAO"
 const REATOR := &"REATOR"
 const REPERTORIO: Array[StringName] = [SOCO, RAJADA, INVESTIDA, PISAO]
 
+## O gesto de cada ataque: o que ele arma, e o que ele solta.
+##
+## Um par por ataque, e nao um preparo compartilhado, porque a issue existe para
+## o corpo DIZER qual ataque vem. O PISAO nao pode emprestar a pose do SOCO --
+## os dois sao impacto de corpo, mas o pisao gera um ANEL e o soco um leque a
+## frente: a pose emprestada diria "soco" quando vem anel, que e telegrafo
+## mentindo, o proprio defeito que se esta consertando.
+##
+## Os nomes sao contratos com a CENA. Um nome aqui sem clipe correspondente
+## degrada para a pose parada em silencio, e e o portao que faz barulho.
+const GESTO_ARMAR := &"armar"
+const GESTO_SOLTAR := &"soltar"
+const GESTOS := {
+	SOCO: {GESTO_ARMAR: &"armar_soco", GESTO_SOLTAR: &"socar"},
+	RAJADA: {GESTO_ARMAR: &"armar_rajada", GESTO_SOLTAR: &"arremessar"},
+	INVESTIDA: {GESTO_ARMAR: &"armar_investida", GESTO_SOLTAR: &"investir"},
+	PISAO: {GESTO_ARMAR: &"armar_pisao", GESTO_SOLTAR: &"pisar"},
+	REATOR: {GESTO_ARMAR: &"armar_reator", GESTO_SOLTAR: &"sobrecarregar"},
+}
+
+## O gesto do atordoamento e o do despertar. Nao pertencem a ataque nenhum.
+const CLIPE_CAMBALEAR := &"cambalear"
+const CLIPE_DESPERTAR := &"despertar"
+
 const IDLE := &"IDLE"
 ## Ele ACORDA antes de lutar. Ver `_despertar()`.
 const DESPERTAR := &"DESPERTAR"
@@ -405,9 +429,14 @@ func _conferir_batida() -> void:
 func _animar(delta: float) -> void:
 	if _sprite == null:
 		return
-	_sprite.apontar(
-		_direcao_encarada(), velocity.length() > VELOCIDADE_ANDANDO, delta, velocity
-	)
+	var d := _direcao_encarada()
+	var gesto := clipe_do_estado(_maquina.estado, _ataque) if _maquina != null else &""
+	if gesto != &"" and _sprite.encenar(d, gesto, progresso_do_gesto(), delta):
+		return
+	# Sem gesto -- ou sem a arte dele -- ele volta a pose e ao ciclo de
+	# caminhada. Mesma degradacao que `sprites_andando` vazio ja tem, e e por
+	# isso que a cena continua valida com `clipes` vazio.
+	_sprite.apontar(d, velocity.length() > VELOCIDADE_ANDANDO, delta, velocity)
 
 
 ## Para onde o corpo aponta neste estado.
@@ -646,7 +675,7 @@ func _encenar_a_virada() -> void:
 
 func _transicao(delta: float) -> void:
 	Movimento.frear(self, delta, 2000.0)
-	if _maquina.passou(tempo_real(tempo_transicao)):
+	if _maquina.passou(duracao_do_estado()):
 		_maquina.trocar(ESCOLHER_ATAQUE)
 
 
@@ -694,7 +723,7 @@ func _despertar_entrar() -> void:
 
 func _despertar(delta: float) -> void:
 	Movimento.frear(self, delta, 1800.0)
-	if _maquina.passou(tempo_despertar):
+	if _maquina.passou(duracao_do_estado()):
 		_maquina.trocar(ESCOLHER_ATAQUE)
 
 
@@ -708,7 +737,7 @@ func _escolher(delta: float) -> void:
 	if alvo == null or not is_instance_valid(alvo):
 		_maquina.trocar(IDLE)
 		return
-	if _maquina.passou(tempo_real(tempo_escolha)):
+	if _maquina.passou(duracao_do_estado()):
 		_escolher_ataque()
 		_maquina.trocar(PREPARAR)
 
@@ -796,6 +825,110 @@ func _escolher_ataque() -> void:
 ## A direcao e travada AQUI e nao e mais atualizada -- vale para os quatro
 ## ataques, e e o que torna a investida justa. A duracao tambem e fixada aqui:
 ## relida todo frame, ela encolheria enquanto o jogador le o aviso.
+## Que gesto este estado pede. PURA: o portao a interroga sem montar cena.
+##
+## Consultada TODO FRAME, e nao pelo sinal `mudou` da maquina, e a razao e a
+## reentrada: o soco da fase 3 e a investida encadeada voltam de EXECUTAR para
+## PREPARAR, e `MaquinaEstados.trocar()` para o estado ATUAL e no-op deliberado.
+## Um mapa dirigido por sinal tambem teria de saber que `_beats` muda DENTRO de
+## EXECUTAR sem troca de estado nenhuma -- e quem consulta nunca precisa saber
+## quais mutacoes emitem e quais nao.
+##
+## RECUPERAR fica de fora, e isso saiu da medicao e nao do gosto: ela dura 1,33 s
+## na fase 1 e 3,2 s depois do Reator. Um gesto de 4 quadros ali roda a 0,33 s e
+## 0,80 s por quadro -- no teto e muito alem dele. Ficar ABERTO e uma pose
+## sustentada, nao um movimento, e a janela de punicao sempre foi isso.
+func clipe_do_estado(estado: StringName, ataque: StringName) -> StringName:
+	match estado:
+		PREPARAR:
+			return GESTOS.get(ataque, {}).get(GESTO_ARMAR, &"")
+		EXECUTAR:
+			return GESTOS.get(ataque, {}).get(GESTO_SOLTAR, &"")
+		ATORDOADO:
+			return CLIPE_CAMBALEAR
+		DESPERTAR:
+			return CLIPE_DESPERTAR
+	return &""
+
+
+## Onde o gesto atual esta, de 0 a 1.
+##
+## Nos ataques de BEAT o gesto e o BEAT, e nao o estado. Um pisao de fase 3 sao
+## DOIS pisoes dentro de um estado so; esticar um clipe sobre os dois mostraria
+## meio pisao por pisao. E a mesma distincao que ja separa
+## `Balistica.alternancia()` de `alternancia_de_passo()`: a conta e igual, o vao
+## e que nao.
+func progresso_do_gesto() -> float:
+	if _maquina == null:
+		return 0.0
+	if _maquina.estado == EXECUTAR and _ataque in [RAJADA, PISAO, REATOR]:
+		var beat := intervalo_de_beat()
+		if beat <= 0.0:
+			return 0.0
+		return clampf(fposmod(_maquina.tempo_no_estado, beat) / beat, 0.0, 1.0)
+	var d := duracao_do_estado()
+	if d <= 0.0:
+		return 0.0
+	return clampf(_maquina.tempo_no_estado / d, 0.0, 1.0)
+
+
+## Quanto o estado ATUAL dura, ja em tempo real. FONTE UNICA.
+##
+## Quem processa o estado compara contra ISTO, e nunca contra a expressao -- a
+## duracao existia inline em oito lugares, e uma animacao dirigida pelo progresso
+## do estado precisa do mesmo numero. Duas copias divergiriam sem erro nenhum, e
+## o sintoma seria o gesto terminando antes ou depois do golpe.
+##
+## **PREPARAR devolve `_aviso_atual`, e nao `tempo_real(preparo_de(...))`.** A
+## diferenca nao e estilo: a duracao do telegrafo e FIXADA na entrada, para a
+## barra subindo durante a leitura nao encolher o aviso ja em curso.
+## Recalculando aqui, o valor devolvido seria MENOR que aquele contra o qual
+## `_preparar` compara -- invisivel com a barra parada, crescendo com ela.
+##
+## IDLE e MORTE devolvem zero: eles nao terminam por tempo.
+func duracao_do_estado() -> float:
+	if _maquina == null:
+		return 0.0
+	match _maquina.estado:
+		# CRU, sem `tempo_real`: o despertar acontece uma vez por luta e nunca
+		# escalou com a fase nem com a barra. Passa-lo pelo multiplicador aqui
+		# mudaria a apresentacao do chefe sem ninguem ter pedido.
+		DESPERTAR:
+			return tempo_despertar
+		ESCOLHER_ATAQUE:
+			return tempo_real(tempo_escolha)
+		PREPARAR:
+			return _aviso_atual
+		EXECUTAR:
+			return duracao_da_execucao()
+		RECUPERAR:
+			return tempo_real(recuperacao_de(_ataque))
+		TRANSICAO_FASE:
+			return tempo_real(tempo_transicao)
+		ATORDOADO:
+			return tempo_real(tempo_atordoado_parede if _ataque == INVESTIDA else tempo_atordoado)
+	return 0.0
+
+
+## A execucao varia por ataque, e nos de BEAT ela e o beat vezes a contagem --
+## nao um numero proprio. E por isso que ela nao cabia inline.
+func duracao_da_execucao() -> float:
+	match _ataque:
+		INVESTIDA:
+			return tempo_real(duracao_investida)
+		RAJADA, PISAO, REATOR:
+			return intervalo_de_beat() * float(_beats_do_ataque())
+	return tempo_real(tempo_execucao)
+
+
+## Espaco entre dois beats deste ataque.
+##
+## O REATOR usa o intervalo do PISAO, como sempre usou: as duas ondas dele tem
+## de ler como UM ataque, e nao como dois.
+func intervalo_de_beat() -> float:
+	return tempo_real(intervalo_rajada if _ataque == RAJADA else intervalo_pisao)
+
+
 ## Quanto o telegrafo DESTE ataque dura, em tempo de projeto.
 ##
 ## A Falha do Reator tem o mais longo da luta e continua tendo na fase 3: e o
@@ -824,7 +957,7 @@ func _preparar_entrar() -> void:
 
 func _preparar(delta: float) -> void:
 	Movimento.frear(self, delta, 2400.0)
-	if _maquina.passou(_aviso_atual):
+	if _maquina.passou(duracao_do_estado()):
 		_maquina.trocar(EXECUTAR)
 
 
@@ -849,21 +982,21 @@ func _executar(delta: float) -> void:
 	match _ataque:
 		INVESTIDA:
 			Movimento.investir(self, _direcao_travada, velocidade_investida)
-			if _maquina.passou(tempo_real(duracao_investida)):
+			if _maquina.passou(duracao_do_estado()):
 				_fim_da_investida()
 			return
 		RAJADA, PISAO, REATOR:
 			Movimento.frear(self, delta, 1800.0)
-			var intervalo := tempo_real(intervalo_rajada if _ataque == RAJADA else intervalo_pisao)
+			var intervalo := intervalo_de_beat()
 			if _beats < _beats_do_ataque() and _maquina.passou(intervalo * float(_beats)):
 				_disparar_beat()
-			if _maquina.passou(intervalo * float(_beats_do_ataque())):
+			if _maquina.passou(duracao_do_estado()):
 				_maquina.trocar(RECUPERAR)
 			return
 		_:
 			Movimento.frear(self, delta, 1800.0)
 
-	if not _maquina.passou(tempo_real(tempo_execucao)):
+	if not _maquina.passou(duracao_do_estado()):
 		return
 	# O soco da fase 3 sao DOIS golpes, e cada um volta a PREPARAR: a issue pede
 	# telegrafo por golpe, e repetir dentro de EXECUTAR daria o segundo de graca.
@@ -878,7 +1011,7 @@ func _executar(delta: float) -> void:
 ## isso a fase 3 e mais perigosa sem um numero de dano ter mudado.
 func _recuperar(delta: float) -> void:
 	Movimento.frear(self, delta, 900.0)
-	if _maquina.passou(tempo_real(recuperacao_de(_ataque))):
+	if _maquina.passou(duracao_do_estado()):
 		_maquina.trocar(ESCOLHER_ATAQUE)
 
 
@@ -1094,8 +1227,7 @@ func _atordoado_entrar() -> void:
 
 func _atordoado(delta: float) -> void:
 	Movimento.frear(self, delta, 3000.0)
-	var espera := tempo_atordoado_parede if _ataque == INVESTIDA else tempo_atordoado
-	if _maquina.passou(tempo_real(espera)):
+	if _maquina.passou(duracao_do_estado()):
 		_maquina.trocar(ESCOLHER_ATAQUE)
 
 

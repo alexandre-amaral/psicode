@@ -167,6 +167,28 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## estreito (caixa, terminal, mesa) e 64x64 para o que e largo (maquina,
 ## gerador). Quem le a largura para saber se o prop cabe e `Sala._cabe_prop`,
 ## a partir da REGIAO sorteada -- nao ha constante de tamanho aqui.
+## Os props que se MEXEM: ventilador, luz piscando, pistao, ponteiro.
+##
+## Cada regiao aponta o PRIMEIRO quadro de uma fita no mesmo atlas chapado; os
+## outros ficam lado a lado, como nas fitas de ator. Prop animado novo e uma
+## regiao a mais nesta lista, e nada de cena nova -- o modelo de "uma cena por
+## coisa" ja existiu no GerenciadorMapa e saiu de la por nao escalar.
+@export var regioes_props_animados: Array[Rect2i] = []
+@export var quadros_props_animados: int = 4
+@export var fps_props_animados: float = 6.0
+
+## O ORCAMENTO: quantos props podem se mexer ao mesmo tempo nesta sala.
+##
+## E a regra "se tudo se mover, nada parece importante" virada numero. Sem teto
+## ela seria opiniao, e opiniao nao sobrevive a proxima pessoa que achar o
+## ventilador bonito: movimento no cenario compete com movimento de PROJETIL, e
+## o projetil tem de ganhar sempre.
+##
+## Baixo de proposito. Dois pontos de movimento numa sala ja dao vida a ela; o
+## quarto ja e ruido, e ruido perto de um telegrafo e uma morte que o jogador
+## nao consegue explicar.
+@export var max_props_animados: int = 2
+
 @export var atlas_props_volume: Texture2D
 @export var regioes_props_volume: Array[Rect2i] = []
 ## A camada FOREGROUND: o que passa POR CIMA do ator (LTD 10).

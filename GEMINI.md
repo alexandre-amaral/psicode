@@ -102,6 +102,7 @@ src/
   projectiles/ projetil
   arena/       pickup de arma (instanciado so pela cena da sala de arma)
   mapa/        gerenciador_mapa, sala, porta, corredor, sala_*.tscn,
+               prop_animado (o prop de cenario que se mexe, com orcamento),
                dados_sala.gd + tipo_*.tres (o catalogo de tipos de sala)
   items/       efeito_item.gd + dados_item.gd, implante_*.tres,
                pool_loot.gd, pickup de item
@@ -181,6 +182,8 @@ docs/
 | **Arma que pode cair de loot** | listar o `.tres` em `src/items/pool_padrao.tres` |
 | Regras de onde cada sala nasce | `@export` do `tipo_*.tres` (beco, distancia da origem, prioridade) |
 | Cor e icone de uma sala no minimapa | `cor_mapa` e `icone` do `tipo_*.tres` |
+| **Prop de cenario que se MEXE (ventilador, luz, pistao)** | `regioes_props_animados` no `src/mapa/tipo_*.tres`: uma regiao a mais na lista, e nada de cena nova |
+| **Quantos props podem se mexer numa sala** | `max_props_animados` no `tipo_*.tres` -- e o orcamento, e ele e baixo de proposito |
 | **Textura de chao, parede e props de um tipo de sala** | grupo `Visual` do `tipo_*.tres`. Chao e parede sao LISTAS: a sala sorteia a variante por `hash(coordenadas_grid)`. Os PNGs sao arte autorada passada por `tools/texturas/preparar_textura.py`; porta e props ainda saem do gerador |
 | **Arte de chao ou parede que nao nasceu na paleta** | o pre-passo de `preparar_textura.py`: `--desvinheta` (chapa a iluminacao), `--tingir GRAUS` + `--limiar-neon` (tinge o metal apagado e deixa o acento aceso intacto), `--grampear-matiz`, `--alvo-v`. Tudo desligado por default |
 | **Uma cor nova no cenario** | `tools/texturas/paleta.gd` + a tabela de `docs/IDENTIDADE_VISUAL.md`; `teste_texturas.gd` recusa cor que compete com projetil |
@@ -231,6 +234,23 @@ em qualquer erro de script.
   seguidas ele apareceu e ZERO areas foram criadas. Comportamento que demora
   mais que um tick precisa de suite propria (`teste_area_de_perigo.gd`), senao
   a guarda passa verde sem nunca ter olhado nada.
+- **Prop animado e CHAPADO por construcao, e isso nao e escolha de arte.** Ele
+  mora em `Z_CHAO_DETALHE`, abaixo de `Z_MUNDO` -- que e onde ficam telegrafo,
+  projetil e atores. E o que torna "animacao de cenario nao cobre telegrafo"
+  uma garantia GEOMETRICA em vez de uma intencao. Dar volume a um prop animado o
+  levaria para `Z_MUNDO` e reabriria a pergunta, entao isso e uma decisao e nao
+  um ajuste.
+- **"Se tudo se mover, nada parece importante" e um NUMERO, nao uma opiniao.**
+  `max_props_animados` limita quantos props se mexem por sala, e o default e 2.
+  Opiniao nao sobrevive a proxima pessoa que achar o ventilador bonito, e o que
+  ela custa nao aparece no console: movimento no cenario compete com movimento
+  de PROJETIL. `teste_props_animados.gd` cobra que o teto MORDE -- teto que
+  nunca e alcancado e teto que nunca foi testado.
+- **Animacao de cenario fica FORA do `Juice`.** O hitstop congela o combate de
+  proposito, mexendo em `Engine.time_scale`; um ventilador que trava junto
+  denuncia o truque -- o jogador ve o mundo inteiro parar e entende que aquilo e
+  um efeito, e nao um impacto. `PropAnimado` le `Time.get_ticks_msec()`, pela
+  mesma razao que `Juice.INTERVALO_HITSTOP` e `InimigoBase.INTERVALO_FLASH`.
 - **O clarao de dano tem DUAS guardas, e a primeira sozinha nao basta.**
   `_tween_flash.is_valid()` impede EMPILHAR, mas nao impede ENCADEAR: com dano
   continuo o proximo acerto liga um clarao novo no instante em que o anterior

@@ -55,12 +55,36 @@ extends Sprite2D
 ## momento que precisa ser lido. A 3x, ela sai a 36 fps -- galope, nao estrobo.
 @export var aceleracao_maxima_do_ciclo: float = 3.0
 
+## Os GESTOS deste conjunto, alem do parado e do andar.
+##
+## VAZIO e configuracao valida, e tem de continuar sendo: `encenar()` devolve
+## `false` e o dono cai em `apontar()`. E a mesma degradacao que `sprites_andando`
+## vazio ja tem -- arte ausente nunca quebra o jogo, e as outras cinco cenas de
+## inimigo nao precisam ser tocadas para esta API existir.
+@export var clipes: Array[ClipeDirecional] = []
+
 ## Posicao no ciclo, em quadros. Float porque o avanco e continuo; quem indexa a
 ## fita e o int() dele.
 var _t_ciclo: float = 0.0
 
+## nome -> ClipeDirecional. Indexado uma vez, no `_ready`.
+var _clipes: Dictionary = {}
+
+## Posicao no clipe, em quadros. SEPARADA de `_t_ciclo` de proposito: sao dois
+## relogios que nunca se cruzam -- um segue o CHAO (`velocidade_referencia`), o
+## outro segue o GESTO. Somar os dois faria a cadencia de um ataque depender de
+## quao rapido o bicho estava andando quando comecou.
+var _t_clipe: float = 0.0
+
+## Que gesto esta em cena. Vazio quer dizer "nenhum" -- e e o que `apontar()`
+## escreve, para voltar a andar rearmar o relogio do gesto.
+var _clipe_atual: StringName = &""
+
 
 func _ready() -> void:
+	for c in clipes:
+		if c != null and c.nome != &"":
+			_clipes[c.nome] = c
 	# Um quadro ja aqui: sem isto o no nasce sem textura e o inimigo some ate o
 	# primeiro passo de fisica.
 	_trocar_quadro(_parado_para(Vector2.DOWN), 1, 0)
@@ -73,6 +97,10 @@ func _ready() -> void:
 ## encarando o alvo enquanto o knockback o empurra para tras, e rodar o ciclo
 ## para a frente nesse instante e moonwalk.
 func apontar(direcao: Vector2, andando: bool, delta: float, movimento := Vector2.ZERO) -> void:
+	# Voltar a andar rearma o relogio do gesto. Sem esta linha, sair de um clipe
+	# e entrar nele de novo continuaria de onde parou -- e o segundo golpe do
+	# soco da fase 3 comecaria pela metade.
+	_clipe_atual = &""
 	var fita: Texture2D = _andando_para(direcao) if andando else null
 	if fita != null:
 		_avancar_ciclo(delta, direcao, movimento)
@@ -84,6 +112,46 @@ func apontar(direcao: Vector2, andando: bool, delta: float, movimento := Vector2
 
 ## Se este conjunto tem ciclo de caminhada. Existe para quem le nao precisar
 ## saber que o desligamento e "lista vazia".
+## Este conjunto tem este gesto?
+##
+## Existe para quem le nao precisar saber que a ausencia e "nao esta no
+## dicionario", pelo mesmo motivo de `tem_ciclo()`.
+func tem_clipe(nome: StringName) -> bool:
+	return _clipes.has(nome)
+
+
+## Encena `nome` encarando `direcao`. Devolve `false` quando o gesto nao existe.
+##
+## `progresso` (0..1) manda no quadro quando o clipe e de PROGRESSO; nos outros
+## dois modos ele e ignorado e quem manda e o `fps` do clipe.
+##
+## **Nao ha `push_error` aqui, e e deliberado.** Um erro por frame afoga o
+## console e torna a cena inutilizavel no editor, e o dono ja tem para onde cair
+## -- `apontar()`. O barulho fica no PORTAO, que cruza os nomes que o dono pode
+## pedir com os clipes que a cena declara sem rodar a luta: quieto em jogo, alto
+## no CI.
+func encenar(direcao: Vector2, nome: StringName, progresso: float, delta: float) -> bool:
+	if not _clipes.has(nome):
+		_clipe_atual = &""
+		return false
+	var c := _clipes[nome] as ClipeDirecional
+	if c == null or not c.desenhavel():
+		_clipe_atual = &""
+		return false
+
+	# Entrar num gesto NOVO rearma o relogio dele. Por progresso isso ja sairia
+	# de graca -- `tempo_no_estado` zera na troca --, mas nos modos que correm
+	# sozinhos e esta linha que garante que a reentrada comeca do comeco.
+	if _clipe_atual != nome:
+		_clipe_atual = nome
+		_t_clipe = 0.0
+	else:
+		_t_clipe += delta * maxf(c.fps, 0.0)
+
+	_trocar_quadro(c.fitas[Direcoes.indice(direcao)], c.quadros, c.quadro_em(progresso, _t_clipe))
+	return true
+
+
 func tem_ciclo() -> bool:
 	return sprites_andando.size() >= Direcoes.TOTAL and quadros_andando >= 2
 

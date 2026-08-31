@@ -118,12 +118,15 @@ def moldura_de(personagem):
     return MOLDURAS.get(personagem, LADO)
 
 
-def normalizar(img, lado=None):
-    """Poe `img` numa moldura `lado` x `lado` com a ancora descrita no topo."""
-    lado = LADO if lado is None else lado
+def deslocamento_de(img, lado):
+    """O (dx, dy) que poe `img` na moldura com a ancora descrita no topo.
+
+    Separado de `normalizar` porque um CLIPE precisa medir a ancora uma vez e
+    aplica-la a todos os quadros. Ver `montar_fita_de_clipe`.
+    """
     caixa = _bbox(img)
     if caixa is None:
-        return Image.new("RGBA", (lado, lado), (0, 0, 0, 0))
+        return None
 
     largura, _altura = img.size
     centro_origem = largura / 2.0
@@ -131,18 +134,56 @@ def normalizar(img, lado=None):
     dx = int(round(lado / 2.0 - centro_origem))
     # Vertical: leva o pe (base do bbox) para a linha fixa de baixo.
     dy = (lado - FOLGA_PE) - caixa[3]
+    return (dx, dy)
 
+
+def colar_na_moldura(img, lado, deslocamento):
     fundo = Image.new("RGBA", (lado, lado), (0, 0, 0, 0))
-    fundo.paste(img, (dx, dy), img)
+    if deslocamento is not None:
+        fundo.paste(img, deslocamento, img)
     return fundo
 
 
+def normalizar(img, lado=None):
+    """Poe `img` numa moldura `lado` x `lado` com a ancora descrita no topo."""
+    lado = LADO if lado is None else lado
+    return colar_na_moldura(img, lado, deslocamento_de(img, lado))
+
+
 def montar_fita(quadros, lado=None):
-    """Os N quadros lado a lado, para virarem hframes de um Sprite2D."""
+    """Os N quadros lado a lado, para virarem hframes de um Sprite2D.
+
+    Ancora CADA quadro, e isso e o certo para caminhada: os pes voltam ao chao
+    todo passo, entao normalizar quadro a quadro mantem o bicho no lugar.
+    """
     lado = LADO if lado is None else lado
     fita = Image.new("RGBA", (lado * len(quadros), lado), (0, 0, 0, 0))
     for i, q in enumerate(quadros):
         fita.paste(normalizar(q, lado), (i * lado, 0))
+    return fita
+
+
+def montar_fita_de_clipe(quadros, lado):
+    """A fita de um GESTO: ancora UNICA, medida no primeiro quadro com desenho.
+
+    **Esta e a diferenca inteira entre um clipe e a caminhada, e ela nao aparece
+    em erro nenhum.** `montar_fita` ancora cada quadro pela base do proprio bbox
+    de alfa. Num ciclo de caminhada isso passa -- os pes voltam ao chao todo
+    passo. Num GESTO isso CANCELA a animacao: no agachamento de uma investida,
+    subir cada quadro ate a linha dos pes apaga exatamente o agachamento; num
+    pisao, a perna erguida vira o corpo inteiro descendo. O clipe se achata
+    sozinho, sem erro e sem nada em tela que aponte a causa.
+
+    A ancora e do ATOR, e nao da pose. Medida uma vez, aplicada a todos.
+    """
+    ancora = None
+    for q in quadros:
+        ancora = deslocamento_de(q, lado)
+        if ancora is not None:
+            break
+    fita = Image.new("RGBA", (lado * len(quadros), lado), (0, 0, 0, 0))
+    for i, q in enumerate(quadros):
+        fita.paste(colar_na_moldura(q, lado, ancora), (i * lado, 0))
     return fita
 
 
@@ -158,6 +199,63 @@ def _gif_da_direcao(pasta, direcao):
     if not achados:
         return None
     return os.path.join(pasta, achados[0])
+
+
+## O nome de clipe que NAO pode existir: ele sairia como `andar_<direcao>.png` e
+## substituiria o ciclo de caminhada em silencio, com o arquivo saindo do tamanho
+## certo e passando em todos os portoes de runtime.
+NOME_RESERVADO = "andar"
+
+
+def _ordem_de_quadro(nome):
+    """Ordena 0,1,...,10 e nao 0,1,10,2 -- o PixelLab numera os quadros."""
+    raiz = os.path.splitext(nome)[0]
+    return (0, int(raiz)) if raiz.isdigit() else (1, raiz)
+
+
+def quadros_da_pasta(pasta):
+    """Os PNG numerados de uma direcao de clipe, em ordem."""
+    nomes = sorted(
+        (f for f in os.listdir(pasta) if f.lower().endswith(".png")),
+        key=_ordem_de_quadro,
+    )
+    return [Image.open(os.path.join(pasta, n)).convert("RGBA") for n in nomes]
+
+
+def clipes_de(pasta_anim):
+    """Os gestos deste ator: uma SUBPASTA por gesto.
+
+    Subpasta e nao prefixo de arquivo, e a escolha resolve um problema em vez de
+    o policiar. `_gif_da_direcao` casa por SUFIXO com prefixo livre -- foi assim
+    que `Idle_custom-walking_foward_east.gif` e `andar_east.gif` puderam
+    conviver. Com clipes por prefixo, um `abrir_east.gif` ordenaria antes de
+    `andar_east.gif` e seria escrito como `andar_east.png`, comendo o ciclo de
+    caminhada em silencio. Pastas nao colidem.
+    """
+    if not os.path.isdir(pasta_anim):
+        return []
+    nomes = []
+    for f in sorted(os.listdir(pasta_anim)):
+        if not os.path.isdir(os.path.join(pasta_anim, f)):
+            continue
+        if f == NOME_RESERVADO:
+            sys.exit(
+                "clipe chamado '%s' em %s: ele sairia como andar_<direcao>.png e "
+                "comeria o ciclo de caminhada" % (NOME_RESERVADO, pasta_anim)
+            )
+        nomes.append(f)
+    return nomes
+
+
+def quadros_do_clipe(pasta_clipe, direcao):
+    """Os quadros daquela direcao: pasta de PNG numerado, ou um GIF."""
+    por_pasta = os.path.join(pasta_clipe, direcao)
+    if os.path.isdir(por_pasta):
+        return quadros_da_pasta(por_pasta)
+    gif = _gif_da_direcao(pasta_clipe, direcao)
+    if gif is None:
+        return []
+    return quadros_do_gif(gif)
 
 
 def gerar_miniatura(pasta_saida):
@@ -217,6 +315,25 @@ def processar(destino, personagem, quer_miniatura):
         fita.save(os.path.join(pasta_saida, "andar_%s.png" % direcao))
         escritos += 1
         print("  andar_%-11s %d quadros -> %dx%d" % (direcao, len(quadros), fita.width, fita.height))
+
+    for clipe in clipes_de(pasta_anim):
+        pasta_clipe = os.path.join(pasta_anim, clipe)
+        larguras = set()
+        for direcao in DIRECOES:
+            quadros = quadros_do_clipe(pasta_clipe, direcao)
+            if not quadros:
+                faltando.append("%s %s" % (clipe, direcao))
+                continue
+            fita = montar_fita_de_clipe(quadros, lado)
+            fita.save(os.path.join(pasta_saida, "%s_%s.png" % (clipe, direcao)))
+            escritos += 1
+            larguras.add(len(quadros))
+            print("  %s_%-11s %d quadros -> %dx%d" % (clipe, direcao, len(quadros), fita.width, fita.height))
+        # As oito direcoes de um clipe tem de ter a MESMA contagem: `quadros` e
+        # um campo so no `ClipeDirecional`, e `hframes` sai dele. Uma direcao
+        # com um quadro a mais desenharia fatias cortadas so daquele lado.
+        if len(larguras) > 1:
+            faltando.append("%s: contagem de quadros desigual entre direcoes %s" % (clipe, sorted(larguras)))
 
     if quer_miniatura:
         if gerar_miniatura(pasta_saida):

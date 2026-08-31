@@ -151,6 +151,9 @@ docs/
 | **Velocidade do ciclo de caminhada** | `fps_andando` no `src/player/personagem_*.tres` |
 | **Arte de animacao nova** | por o GIF em `animations/<id>/` e rodar `python tools/sprites/gerar_sprites.py` -- vale para personagem E inimigo, o que muda e a pasta de saida |
 | **Ator que nao cabe na moldura de 80 (o chefe)** | `MOLDURAS` em `tools/sprites/gerar_sprites.py` + `Direcoes.MOLDURAS_DE_ATOR`; as duas listas tem de continuar iguais |
+| **Gesto de ataque, morte ou atordoamento de um inimigo** | a lista `clipes` do no `Visual/Corpo` -- um `ClipeDirecional` por gesto |
+| **Se um gesto segue o TEMPO do estado ou o proprio fps** | `modo` no `.tres` do `ClipeDirecional` (`PROGRESSO`, `LACO`, `UMA_VEZ`) |
+| **Arte de gesto nova** | pastas em `animations/<id>/<clipe>/<direcao>/` e rodar `gerar_sprites.py`; do PixelLab, `baixar_pixellab.py` traz os quadros para la |
 | **Sprite e rotacoes de um inimigo** | o no `Visual/Corpo` da `src/enemies/*.tscn`, com `src/enemies/sprite_direcional.gd`: as duas listas de 8 texturas, `quadros_andando`, `fps_andando`, mais `scale` e `position` do proprio no |
 | **Arma inicial, Hack e texto do card de um personagem** | `src/player/personagem_*.tres` |
 | Dispersao que cresce com o gatilho preso | `dispersao_*` em `src/weapons/*.tres` — zero desliga |
@@ -1051,6 +1054,32 @@ em qualquer erro de script.
 - **Os tres campos de dispersao nascem em ZERO e tem de continuar assim.**
   `Arma._emitir()` e o mesmo caminho do jogador e dos inimigos; um default acima
   de zero daria bloom para a salva da Diretora sem ninguem pedir.
+- **A ancora de um CLIPE e do ator, nunca do quadro.** `montar_fita()` ancora
+  cada quadro pela base do proprio bbox de alfa, e para caminhada isso e o
+  certo: os pes voltam ao chao todo passo. Num GESTO isso CANCELA a animacao --
+  subir cada quadro ate a linha dos pes apaga exatamente o agachamento que o
+  quadro tinha; num pisao, a perna erguida vira o corpo inteiro descendo. O
+  clipe se achata sozinho, sem erro e sem nada em tela que aponte a causa. Por
+  isso existe `montar_fita_de_clipe()`, que mede o deslocamento UMA vez, no
+  primeiro quadro com desenho, e o aplica a todos. Medido num par sintetico com
+  o desenho 20 px mais alto no segundo quadro: o clipe preserva 76 -> 56, a
+  caminhada achata para 76 -> 76.
+- **Clipe e SUBPASTA, e nao prefixo de arquivo.** `_gif_da_direcao()` casa por
+  SUFIXO com prefixo livre -- e o que deixa `Idle_custom-walking_foward_east.gif`
+  e `andar_east.gif` conviverem. Com clipe por prefixo, um `abrir_east.gif`
+  ordenaria antes de `andar_east.gif` e sairia escrito como `andar_east.png`,
+  comendo o ciclo de caminhada em silencio, com o arquivo no tamanho certo e
+  passando em todo portao de runtime. Pastas nao colidem. E `andar` e nome
+  RESERVADO de clipe: o gerador sai com erro duro se achar um.
+- **O modo de um clipe e do GESTO, e nao de quem chama.** Ele mora no
+  `ClipeDirecional` e nao num parametro de `encenar()`: com dois chamadores a
+  mesma arte poderia rodar por progresso num lugar e por fps noutro, e o sintoma
+  seria em TELA e nunca no console. Mesma razao que tirou o mapa de angulos de
+  dentro de `DadosPersonagem`.
+- **`encenar()` nao da `push_error` quando o gesto falta.** Um erro por frame
+  afoga o console e torna a cena inutilizavel no editor, e o dono ja tem para
+  onde cair -- `apontar()`. O barulho fica no PORTAO, que cruza os nomes pedidos
+  com os clipes declarados sem rodar a luta: quieto em jogo, alto no CI.
 - **Arte declarada na cena nao prova que alguem a DESENHA.** O
   `boss_guardiao_01.tscn` declarava as 8 poses e as 8 fitas desde a BOSS 10, e
   `boss_guardiao_01.gd` **nunca chamava `apontar()`** -- nao havia sequer um

@@ -257,7 +257,10 @@ func _o_ator_tem_sombra_na_base() -> void:
 ## Tirar um nome daqui e o interruptor de "a arte chegou": no dia em que o
 ## `boss_guardiao_01` ganhar as oito rotacoes (BOSS 10), este teste passa a
 ## exigir dele a moldura e a ancora como de qualquer outro ator.
-const SEM_ARTE_AINDA := ["boss_guardiao_01.tscn"]
+## Vazia desde que o Automato ganhou as oito rotacoes (BOSS 10). Ela continua
+## existindo porque o proximo chefe vai nascer sem arte tambem, e o que nao pode
+## voltar a existir e o SILENCIO.
+const SEM_ARTE_AINDA: Array[String] = []
 
 
 ## O CHEFE nao pode ser pulado em silencio pelo portao de origem.

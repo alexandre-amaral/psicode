@@ -74,6 +74,8 @@ var _visual: Node2D
 ## explodir em runtime no primeiro inimigo com arte.
 var _corpo: CanvasItem
 var _tween_flash: Tween
+## Quando o ultimo clarao TERMINOU, em ms de relogio de parede. Ver `_flash()`.
+var _fim_do_ultimo_flash: int = 0
 
 
 func _ready() -> void:
@@ -271,17 +273,41 @@ func receber_dano(quantidade: int, impulso: Vector2 = Vector2.ZERO) -> bool:
 
 ## Clarao branco ao levar dano.
 ##
-## Nao reinicia um clarao que ja esta em andamento. Parece detalhe, mas com
-## dano continuo (shotgun encostada, chefe sendo metralhado) reiniciar a cada
-## acerto deixa o inimigo branco permanente e some com a silhueta dele.
+## Ele tem DUAS guardas, e a segunda existe porque a primeira nao bastava.
+##
+## `_tween_flash.is_valid()` impede EMPILHAR: dois acertos no mesmo instante nao
+## reiniciam o clarao. Mas ela nao impede ENCADEAR -- o proximo acerto liga um
+## clarao novo no instante em que o anterior acaba. Com dano continuo (shotgun
+## encostada, chefe sendo metralhado) o inimigo fica branco PERMANENTE e some a
+## silhueta dele, que e exatamente o que este comentario dizia estar resolvido e
+## nao estava.
+##
+## Apareceu no chefe do andar 1: nas capturas ele saia lavado de branco em vez
+## de enferrujado, com a arte inteira apagada. Num sprite grande o estrago e
+## maior -- e mais area de silhueta perdida --, mas o defeito nunca foi so dele.
+##
+## A segunda guarda e um INTERVALO minimo, e e a mesma solucao que o
+## `Juice.INTERVALO_HITSTOP` ja usa para o mesmo formato de problema. Medido em
+## relogio de PAREDE pela mesma razao que la: um timer da arvore andaria devagar
+## durante o hitstop que o proprio dano acabou de pedir.
+const DURACAO_FLASH := 0.16
+## Espaco minimo entre dois claroes, em ms. Maior que a duracao de proposito: e
+## a janela em que a cor do inimigo volta a aparecer, e sem ela o "pulso" que
+## comunica o acerto vira um chapado.
+const INTERVALO_FLASH := 280
+
+
 func _flash() -> void:
 	if _visual == null:
 		return
 	if _tween_flash != null and _tween_flash.is_valid():
 		return
+	if Time.get_ticks_msec() - _fim_do_ultimo_flash < INTERVALO_FLASH:
+		return
 	_visual.modulate = Color(5.0, 5.0, 5.0, 1.0)
 	_tween_flash = create_tween()
-	_tween_flash.tween_property(_visual, "modulate", Color.WHITE, 0.16)
+	_tween_flash.tween_property(_visual, "modulate", Color.WHITE, DURACAO_FLASH)
+	_tween_flash.tween_callback(func() -> void: _fim_do_ultimo_flash = Time.get_ticks_msec())
 
 
 func morrer() -> void:

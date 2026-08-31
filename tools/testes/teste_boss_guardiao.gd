@@ -306,21 +306,33 @@ func _da_para_dizer_a_fase_sem_olhar_a_barra() -> void:
 			% [pulsos[0], pulsos[1], pulsos[2]])
 	ok(pulsos[0] > 0.0, "e nunca para: nucleo apagado tiraria o sinal de que ele funciona")
 
-	# O DESGASTE acompanha a VIDA e nao a fase: dentro de um mesmo terco o
-	# jogador continua vendo progresso, e e o que faz bater nele parecer que
-	# esta funcionando antes de a virada acontecer.
-	var placa := chefe.get_node_or_null("Visual/Placa") as CanvasItem
-	ok(placa != null, "a carcaca tem placa para cair")
+	# OS TRES ESTADOS DE DETERIORACAO que a BOSS 10 pede -- 100%, 66%, 33% --,
+	# distinguiveis por nos diferentes e nao por um numero interno.
+	#
+	# Sobre ARTE o sinal e o que se ACRESCENTA, e nao o que se esconde: a
+	# carcaca desenhada ja tem as placas, entao apagar um poligono por cima dela
+	# nao tira nada. O que le e a fumaca aparecendo e o remendo de motor exposto.
+	var remendo := chefe.get_node_or_null("Visual/Placa") as CanvasItem
+	var fumaca := chefe.get_node_or_null("Visual/Fumaca") as CanvasItem
+	ok(remendo != null and fumaca != null, "o corpo tem os nos de desgaste")
 
-	chefe.vida = chefe.vida_maxima
-	chefe._atualizar_leitura_visual(0.016)
-	perto(chefe.desgaste(), 0.0, "com a vida cheia ele esta inteiro")
-	ok(placa == null or placa.visible, "e a placa ainda esta no lugar")
+	var vistos := {}
+	for caso in [
+		{"fracao": 1.00, "estado": 0, "diz": "carcaca inteira"},
+		{"fracao": 0.50, "estado": 1, "diz": "danificado"},
+		{"fracao": 0.20, "estado": 2, "diz": "motor exposto"},
+	]:
+		chefe.vida = maxi(int(float(chefe.vida_maxima) * caso["fracao"]), 1)
+		chefe._atualizar_leitura_visual(0.016)
+		igual(chefe.estado_de_desgaste(), caso["estado"],
+			"com %.0f%% de vida ele esta %s" % [caso["fracao"] * 100.0, caso["diz"]])
+		vistos["%s|%s" % [str(fumaca.visible), str(remendo.visible)]] = true
 
-	chefe.vida = int(float(chefe.vida_maxima) * 0.5)
-	chefe._atualizar_leitura_visual(0.016)
-	ok(chefe.desgaste() > 0.4, "na metade da vida ele ja se desfez (%.2f)" % chefe.desgaste())
-	ok(placa == null or not placa.visible, "e a placa CAIU")
+	igual(vistos.size(), 3,
+		"e os tres estados sao DISTINGUIVEIS em tela, e nao so no numero interno")
+	ok(fumaca.visible and remendo.visible, "no ultimo terco ele fuma E mostra o motor")
+
+	perto(chefe.desgaste(), 0.8, "e o desgaste acompanha a vida (%.2f)" % chefe.desgaste(), 0.01)
 
 	# E nao volta. Placa que se remonta leria como o chefe se recuperando, que e
 	# o oposto da ficcao: aqui o dano e o que o destrava.

@@ -414,6 +414,23 @@ func desgaste() -> float:
 	return _desgaste
 
 
+## Os TRES estados de deterioracao do corpo: 0 inteiro, 1 danificado, 2 motor
+## exposto.
+##
+## Sai da VIDA e nao da fase, e os dois nao sao a mesma coisa por acaso -- eles
+## usam os mesmos limiares de proposito, para o corpo contar a mesma historia
+## que o ritmo. O que muda e a granularidade: a fase troca uma vez por terco, o
+## desgaste acompanha continuamente dentro dele (a fumaca cresce), e e isso que
+## faz bater nele parecer que esta funcionando antes de a virada acontecer.
+func estado_de_desgaste() -> int:
+	var fracao := 1.0 - _desgaste
+	if fracao > desgaste_placas:
+		return 0
+	if fracao > desgaste_motor:
+		return 1
+	return 2
+
+
 ## Quanto o nucleo pulsa por segundo, nesta fase.
 ##
 ## E o sinal que se le de LONGE, e o que responde "em que fase ele esta?" sem a
@@ -435,9 +452,14 @@ func _atualizar_leitura_visual(delta: float) -> void:
 	var fracao := float(vida) / float(maxi(vida_maxima, 1))
 	_desgaste = maxf(_desgaste, clampf(1.0 - fracao, 0.0, 1.0))
 
-	# As placas caem, e nao voltam.
+	# O remendo de MOTOR EXPOSTO. Ele aparece no ultimo terco e nao volta.
+	#
+	# Com o placeholder o sinal era o inverso -- uma placa que sumia --, e isso
+	# deixou de funcionar quando a arte chegou: a carcaca desenhada ja tem as
+	# placas, e esconder um poligono por cima dela nao tira nada. Sobre arte, o
+	# que le e o que se ACRESCENTA.
 	if _placa != null:
-		_placa.visible = fracao > desgaste_placas
+		_placa.visible = estado_de_desgaste() >= 2
 	# O nucleo pulsa mais rapido a cada fase, e nunca apaga: um nucleo que some
 	# tiraria justamente o sinal que diz que ele ainda esta funcionando.
 	if _nucleo != null:
@@ -445,10 +467,13 @@ func _atualizar_leitura_visual(delta: float) -> void:
 		var onda := 0.5 + 0.5 * sin(_t_pulso * TAU)
 		_nucleo.modulate.a = lerpf(0.55, 1.0, onda)
 		_nucleo.scale = Vector2.ONE * lerpf(1.0, 1.0 + 0.25 * _desgaste, onda)
-	# A fumaca cresce com o desgaste, com TETO: ela e o efeito que mais arrisca
-	# cobrir a leitura do combate.
+	# A fumaca so comeca no segundo terco, e cresce dali. No primeiro ela seria
+	# ruido: a carcaca inteira ja diz "velho", e fumaca desde o inicio nao
+	# distinguiria estado nenhum.
 	if _fumaca != null:
-		_fumaca.modulate.a = minf(_desgaste * ALPHA_MAXIMO_EFEITO, ALPHA_MAXIMO_EFEITO)
+		var acesa := estado_de_desgaste() >= 1
+		_fumaca.visible = acesa
+		_fumaca.modulate.a = minf(_desgaste * ALPHA_MAXIMO_EFEITO, ALPHA_MAXIMO_EFEITO) if acesa else 0.0
 		_fumaca.scale = Vector2.ONE * lerpf(0.7, 1.5, _desgaste)
 
 

@@ -22,9 +22,17 @@ extends TesteBase
 
 const PASTA_INIMIGOS := "res://src/enemies/"
 
-## Lado da moldura de todo sprite do projeto, parado ou andando. Uma so para os
-## dois conjuntos: e o alinhamento entre eles que impede o bicho de saltar de
-## lugar ao comecar a andar. Quem gera e tools/sprites/gerar_sprites.py.
+## Lado da moldura de todo sprite do projeto, parado ou andando.
+##
+## Uma so POR CONJUNTO, e nao uma para o projeto inteiro: e o alinhamento entre
+## o parado e a fita do MESMO bicho que impede ele de saltar de lugar ao comecar
+## a andar, e o chefe trouxe uma moldura de 160 (BOSS 10) por nao caber em 80.
+##
+## Por isso a moldura e LIDA do primeiro quadro e cobrada dos outros, em vez de
+## cravada aqui: cravada, ela reprovaria o chefe certo; e sem cobrar dos outros,
+## um conjunto com um arquivo de tamanho trocado passaria. Quem gera as duas
+## molduras e `tools/sprites/gerar_sprites.py`, e `Direcoes.MOLDURAS_DE_ATOR`
+## diz quais existem.
 const LADO_SPRITE := 80.0
 
 ## Longe da origem, pela mesma razao de teste_hack: o grupo "inimigo" e global e
@@ -117,6 +125,13 @@ func _cenas_de_inimigo() -> Array[String]:
 ## contagem declarada nao bater com o arquivo o Sprite mostra fatias cortadas --
 ## sem erro no console, sem nada que aponte para a cena. Multiplicar
 ## `quadros_andando` pelo lado e o que amarra os dois.
+## A moldura DESTE conjunto, lida do primeiro quadro parado.
+func _lado_do_conjunto(s: SpriteDirecional) -> float:
+	if s.sprites_parado.is_empty() or s.sprites_parado[0] == null:
+		return LADO_SPRITE
+	return s.sprites_parado[0].get_size().y
+
+
 func _o_conjunto_de_arquivos(s: SpriteDirecional) -> void:
 	igual(s.sprites_parado.size(), Direcoes.TOTAL, "%s: tem as %d rotacoes paradas" % [_nome_atual, Direcoes.TOTAL])
 	igual(s.sprites_andando.size(), Direcoes.TOTAL, "%s: tem as %d fitas de caminhada" % [_nome_atual, Direcoes.TOTAL])
@@ -124,10 +139,15 @@ func _o_conjunto_de_arquivos(s: SpriteDirecional) -> void:
 	ok(s.fps_andando > 0.0, "%s: o ciclo tem cadencia positiva" % _nome_atual)
 	ok(s.tem_ciclo(), "%s: o conjunto declara ter ciclo de caminhada" % _nome_atual)
 
-	_medir(s.sprites_parado, Vector2(LADO_SPRITE, LADO_SPRITE), "rotacao")
+	# A moldura sai do proprio conjunto, e tem de ser uma que o gerador produz:
+	# arte de ator fora do gerador foi como a Diretora perdeu a ancora de base.
+	var lado := _lado_do_conjunto(s)
+	ok(Direcoes.moldura_de_ator(lado),
+		"%s: a moldura (%d) e uma das que o gerador produz" % [_nome_atual, int(lado)])
+	_medir(s.sprites_parado, Vector2(lado, lado), "rotacao")
 	_medir(
 		s.sprites_andando,
-		Vector2(LADO_SPRITE * float(s.quadros_andando), LADO_SPRITE),
+		Vector2(lado * float(s.quadros_andando), lado),
 		"fita"
 	)
 

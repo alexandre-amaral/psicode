@@ -52,6 +52,78 @@ func executar() -> void:
 	_determinismo()
 	_tipos_apontam_textura()
 	_a_parede_tem_volume()
+	_os_modulos_de_face_ficam_na_faixa_da_base()
+
+
+## Mesmo limiar do `preparar_textura.py`: dois pixels vizinhos contam como
+## detalhe quando a soma das diferencas de canal passa disto.
+const LIMIAR_DETALHE := 24
+
+
+## OS MODULOS DE FACE ficam na mesma faixa de densidade da base (AND1 03).
+##
+## A face e a unica superficie do projeto que EXCEDE a faixa de densidade da
+## parede de proposito: o chao fica quase liso (20%) porque e onde o combate e
+## lido, e a informacao visual desce para as bordas da sala, onde a face mede
+## 55%. Essa razao E a identidade do andar.
+##
+## Os dois limites nao sao chutados, e nenhum dos dois sai da amostra:
+##
+## - **Piso: acima do teto da faixa de parede (34%).** Um modulo menos denso que
+##   isso e uma parede comum, e perde a identidade que a face carrega.
+## - **Teto: 1,4x a base.** Passando disso a borda vira ruido -- e ruido na
+##   borda compete com o que o jogador precisa ler no meio.
+##
+## Sem este portao a regra fica na prosa da issue, e prosa nao sobrevive ao
+## proximo modulo desenhado por outra pessoa.
+func _os_modulos_de_face_ficam_na_faixa_da_base() -> void:
+	var base := _abrir("parede_face.png")
+	ok(base != null, "a face base existe -- e a referencia de densidade")
+	if base == null:
+		return
+	var densidade_base := _densidade(base)
+	entre(densidade_base, 0.40, 0.70,
+		"a base mede o que o style test cravou (%.0f%%)" % (densidade_base * 100.0))
+
+	var teto_parede := 0.34
+	var teto := densidade_base * 1.4
+	var conferidos := 0
+	for arquivo in ["parede_face_combate_tubulacao.png", "parede_face_combate_tecnica.png",
+			"parede_face_combate_deteriorada.png", "parede_face_combate_ventilada.png"]:
+		var imagem := _abrir(arquivo)
+		if imagem == null:
+			ok(false, "%s existe" % arquivo)
+			continue
+		conferidos += 1
+		var d := _densidade(imagem)
+		ok(d > teto_parede,
+			"%s e mais denso que uma parede comum (%.0f%% contra %.0f%%)"
+				% [arquivo, d * 100.0, teto_parede * 100.0])
+		ok(d <= teto,
+			"%s nao vira ruido de borda (%.0f%%, teto %.0f%%)"
+				% [arquivo, d * 100.0, teto * 100.0])
+	igual(conferidos, 4, "os quatro modulos novos foram conferidos")
+
+
+## Quantos pixels tem um vizinho diferente. Mesma conta do
+## `preparar_textura.py`: e a metrica em que o style test mediu 20% no chao e
+## 55% na face, e usar outra aqui daria dois numeros para a mesma pergunta.
+func _densidade(imagem: Image) -> float:
+	var l := imagem.get_width()
+	var a := imagem.get_height()
+	var muda := 0
+	for y in a:
+		for x in l:
+			var c := imagem.get_pixel(x, y)
+			var d := imagem.get_pixel((x + 1) % l, y)
+			var e := imagem.get_pixel(x, (y + 1) % a)
+			if _diferenca(c, d) > LIMIAR_DETALHE or _diferenca(c, e) > LIMIAR_DETALHE:
+				muda += 1
+	return float(muda) / float(maxi(l * a, 1))
+
+
+func _diferenca(a: Color, b: Color) -> int:
+	return int(round((absf(a.r - b.r) + absf(a.g - b.g) + absf(a.b - b.b)) * 255.0))
 
 
 ## O portao da direcao de luz (IDENTIDADE_VISUAL, "Direcao da luz"): a luz vem

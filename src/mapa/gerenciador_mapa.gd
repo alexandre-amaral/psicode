@@ -862,6 +862,26 @@ func _montar_andar() -> void:
 ## jogador entra, os inimigos ja estao distribuidos. Ele tambem e o unico lugar
 ## do projeto onde a dificuldade de uma sala e escolhida, o que torna a curva do
 ## andar ajustavel por .tres em vez de por seis cenas.
+## Este trecho desemboca na sala do chefe?
+##
+## E a pergunta que o corredor nao consegue responder sozinho: ele conhece dois
+## pontos, e nao o andar. Por isso a excecao a regra da noite base -- a unica em
+## que a arquitetura tem permissao de anunciar o que vem -- e decidida aqui.
+##
+## SO o ultimo trecho muda. Um andar que ficasse mais escuro a cada sala
+## anunciaria o chefe desde a terceira porta, e o que se quer e a virada
+## acontecer em um lugar so.
+func _e_trecho_pre_chefe(a: Vector2i, b: Vector2i) -> bool:
+	var chefe := celula_do_chefe()
+	# `celula_do_chefe()` devolve ZERO quando nao ha chefe no andar, e ZERO e uma
+	# celula VALIDA -- a inicial mora nela. Sem esta guarda, um andar sem chefe
+	# vestiria os corredores da ENTRADA com as texturas da sala do chefe, que e o
+	# oposto do que a excecao existe para fazer.
+	if _reservadas.get(chefe) != DadosSala.ID_BOSS:
+		return false
+	return a == chefe or b == chefe
+
+
 ## Qual celula pode receber prop raro. UMA por andar, ou nenhuma.
 ##
 ## O caso vivo e o Robo Desativado: ele e o que faz o jogador perceber que o
@@ -1084,6 +1104,9 @@ func _montar_corredores() -> void:
 			if de == null or para == null:
 				continue
 			var corredor := Corredor.new()
+			# ANTES do `configurar()`: e ele que monta a geometria e veste as
+			# texturas, e depois dele a bandeira nao muda mais nada.
+			corredor.pre_chefe = _e_trecho_pre_chefe(celula, vizinha)
 			add_child(corredor)
 			corredor.configurar(de.boca_da_porta(direcao), para.boca_da_porta(-direcao), largura_corredor)
 			corredor.visible = false

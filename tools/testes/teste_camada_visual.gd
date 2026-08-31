@@ -45,6 +45,7 @@ func executar() -> void:
 	_a_razao_face_topo_fica_em_um_para_um()
 	_o_topo_cerca_a_sala_e_a_face_so_aparece_ao_norte()
 	_a_deterioracao_visual_nunca_decresce()
+	_so_o_trecho_pre_chefe_anuncia_o_chefe()
 
 
 ## O contrato em si: as faixas sobem na ordem em que as coisas se empilham.
@@ -545,6 +546,58 @@ func _texturas_de_face(sala: Sala) -> Array[String]:
 ## no raiz, e ai o mesmo numero significava coisas diferentes nos dois -- o
 ## empate entre os dois chaos era desempatado por ordem de arvore, funcionando
 ## por acidente.
+## SO o ultimo trecho anuncia o chefe (AND1 06).
+##
+## O corredor comum fica na noite base de PROPOSITO: "pintar cada metade com a
+## cor da sala vizinha anunciaria o que ha do outro lado antes de o jogador
+## chegar". O trecho pre-chefe e a excecao deliberada -- ali anunciar E o
+## objetivo --, e por isso ele precisa de portao dos DOIS lados:
+##
+## - o trecho pre-chefe muda mesmo (senao a excecao e so uma bandeira);
+## - o trecho comum NAO muda (senao o andar inteiro anuncia o chefe desde a
+##   terceira porta, e a virada deixa de acontecer em um lugar so).
+func _so_o_trecho_pre_chefe_anuncia_o_chefe() -> void:
+	var comum := _corredor(false)
+	var pre := _corredor(true)
+
+	var chao_comum := comum.get_node_or_null("Chao") as Polygon2D
+	var chao_pre := pre.get_node_or_null("Chao") as Polygon2D
+	ok(chao_comum != null and chao_pre != null, "os dois corredores montam chao")
+	if chao_comum != null and chao_pre != null:
+		ok(chao_comum.texture != chao_pre.texture,
+			"o trecho pre-chefe veste OUTRO chao -- ali anunciar e o objetivo")
+		igual(chao_comum.modulate, Color.WHITE,
+			"e o trecho comum fica na noite base, sem escurecer")
+		ok(chao_pre.modulate.v < 1.0,
+			"enquanto o pre-chefe escurece (%.2f) -- a iluminacao irregular do plano"
+				% chao_pre.modulate.v)
+		# O escurecimento vai no CHAO e nao no corredor inteiro: projetil e
+		# telegrafo tem de manter o contraste deles, e o que muda e so o fundo
+		# contra o qual eles sao lidos.
+		igual(pre.modulate, Color.WHITE,
+			"e o corredor inteiro NAO escurece -- so o chao dele")
+
+	var face_comum := comum.get_node_or_null("ParedeFace") as Polygon2D
+	var face_pre := pre.get_node_or_null("ParedeFace") as Polygon2D
+	if face_comum != null and face_pre != null:
+		ok(face_comum.texture != face_pre.texture,
+			"e a face tambem muda: a parede do trecho final e a do chefe")
+
+	comum.free()
+	pre.free()
+
+
+## Um corredor solto, pre-chefe ou nao.
+func _corredor(pre_chefe: bool) -> Corredor:
+	var c := Corredor.new()
+	c.pre_chefe = pre_chefe
+	Engine.get_main_loop().root.add_child(c)
+	c.global_position = LONGE
+	# ANTES do configurar, como o GerenciadorMapa faz: e ele que veste.
+	c.configurar(Vector2.ZERO, Vector2(320.0, 0.0), 80.0)
+	return c
+
+
 func _o_corredor_usa_a_mesma_perspectiva_da_sala() -> void:
 	# HORIZONTAL: a lateral norte fica virada para o sul e mostra face.
 	var deitado := Corredor.new()

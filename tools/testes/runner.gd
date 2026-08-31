@@ -46,6 +46,7 @@ const SUITES := [
 	"res://tools/testes/teste_cyber_besta.gd",
 	"res://tools/testes/teste_sentinela_orbital.gd",
 	"res://tools/testes/teste_telegrafo.gd",
+	"res://tools/testes/teste_movimento.gd",
 ]
 
 

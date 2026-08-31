@@ -166,17 +166,17 @@ func _disparar(_delta: float) -> void:
 ## A direcao mistura "para longe" com "de lado". Puro para longe o encostaria na
 ## parede e ele ficaria preso ali; o componente lateral o faz contornar.
 func _esquivar_entrar() -> void:
-	var para_longe := -direcao_para_alvo()
-	if para_longe.length_squared() < 0.01:
-		para_longe = Vector2.RIGHT
-	_direcao_esquiva = (para_longe + para_longe.orthogonal() * _lado * 0.6).normalized()
+	_direcao_esquiva = Movimento.rumo_de_esquiva(direcao_para_alvo(), _lado)
 	# A esquiva CUSTA: ela adia o proximo tiro. Sem isso, chegar perto dele seria
 	# de graca para o jogador -- ele esquivaria e atiraria na mesma cadencia.
 	_t_intervalo = maxf(_t_intervalo, tempo_esquiva)
 
 
-func _esquivar(_delta: float) -> void:
-	velocity = direcao_de_locomocao(_direcao_esquiva) * velocidade_atual() * impulso_esquiva
+func _esquivar(delta: float) -> void:
+	# `rumar` e nao `recuar`: a direcao foi CONGELADA na entrada do estado, e
+	# recalcular "para longe" todo frame o faria curvar atras do jogador -- que e
+	# perseguir de costas, e nao fugir.
+	Movimento.rumar(self, delta, _direcao_esquiva, impulso_esquiva)
 	if _maquina.passou(tempo_esquiva):
 		_maquina.trocar(PROCURAR_POSICAO)
 

@@ -107,6 +107,7 @@ src/
                moldura_hud (a moldura chanfrada), barra_atributo
   fx/          explosao, impacto
   util/        balistica (matematica da mira preditiva),
+               movimento (perseguir, recuar, orbitar, investir, fugir),
                direcoes (angulo -> qual dos oito quadros desenhar)
   main/        main.tscn — cena inicial
 assets/shaders/  glitch.gdshader
@@ -147,6 +148,7 @@ docs/
 | Vida e velocidade dos inimigos | `@export` em `src/enemies/*.tscn` |
 | Limiares de 50% e 85% | `src/autoload/deterioracao.gd` |
 | Matematica de mira preditiva | `src/util/balistica.gd` |
+| **Como QUALQUER inimigo se desloca** | `src/util/movimento.gd` -- perseguir, recuar, orbitar, investir, fugir; os numeros continuam nos `@export` de cada inimigo |
 | Chefe | `src/enemies/diretora.gd` |
 | **Como QUALQUER inimigo avisa um ataque** | `src/enemies/telegrafo.gd` -- linha, mancha no chao ou pulso de sprite, sempre nas mesmas quatro fases |
 | **Quanto tempo a brasa do Parasita fica no chao** | `tempo_residual` no `@export` do `src/enemies/hacker_parasita.tscn`; zero desliga |
@@ -209,6 +211,35 @@ em qualquer erro de script.
   seguidas ele apareceu e ZERO areas foram criadas. Comportamento que demora
   mais que um tick precisa de suite propria (`teste_area_de_perigo.gd`), senao
   a guarda passa verde sem nunca ter olhado nada.
+- **Movimentacao nova nao se escreve na mao: usa-se o `Movimento`.** Cinco
+  inimigos tinham a propria copia da tangente mais correcao radial, com nomes
+  diferentes para a mesma coisa. Duas copias divergem, e o sintoma aparece em
+  TELA e nunca no console -- um inimigo passa a orbitar de um jeito e o outro de
+  outro, e a leitura do campo muda sem ninguem ter decidido isso. Mesma historia
+  do mapa de angulo -> quadro antes de virar `src/util/direcoes.gd`.
+- **Nenhum verbo de `Movimento` recebe velocidade pronta.** Todos recebem o
+  INIMIGO e chamam `velocidade_atual()` no frame -- e e essa funcao que le a
+  Deterioracao. Uma assinatura `orbitar(velocidade: float, ...)` convidaria o
+  chamador a calcular uma vez e guardar, e a barra subindo deixaria de afetar
+  quem ja esta em tela. A unica excecao e `investir()`, e ela e declarada: a
+  velocidade de investida e numero proprio do `.tres`, nao deriva de
+  `velocidade_base` e NAO escala com a barra de proposito -- uma investida que
+  acelera junto deixa de ser esquivavel pelo timing que o jogador aprendeu.
+- **`Movimento.investir()` tambem nao passa por `direcao_de_locomocao()`.**
+  Durante a investida o inimigo nao contorna nada, e e isso que torna o ataque
+  legivel e faz a parede virar recurso do jogador -- bater nela e a principal
+  janela de contra-ataque que a Cyber-Besta oferece.
+- **`Movimento.orbitar()` tem DOIS temperamentos, e trocar um pelo outro
+  empilha inimigo.** `banda = 0` corrige proporcionalmente e converge para um
+  raio EXATO (e a Sentinela); `banda > 0` deixa uma faixa morta em que ele so
+  circula (e o Drone, por `orbitar_na_faixa`). Dar raio exato ao Drone faria
+  todos convergirem para a mesma circunferencia -- o empilhamento de novo, so
+  que em anel. E `raio = 0` nao e caso degenerado: e "circula fechando", que e o
+  `OBSERVAR` da Cyber-Besta.
+- **O Rastejante e o Vigia ficam FORA do vocabulario, de proposito.** E a mesma
+  razao que os mantem fora de `direcao_de_locomocao()`: eles sao a base que o
+  playtest da v0.2.0-alpha validou, e mexer neles sem uma segunda rodada
+  invalidaria aquele retorno.
 - **Telegrafo novo nao se escreve na mao: usa-se o `Telegrafo`.** Eram sete
   implementacoes da mesma ideia, e as duas que quebraram quebraram em silencio
   -- a `AreaDePerigo` desenhando abaixo do chao, e aviso aceso que nao apaga. As

@@ -110,10 +110,7 @@ func _comportamento(delta: float) -> void:
 # ------------------------------------------------------------- estados ------
 
 func _aproximar(delta: float) -> void:
-	velocity = velocity.move_toward(
-		direcao_de_locomocao(direcao_para_alvo()) * velocidade_atual(),
-		1200.0 * delta
-	)
+	Movimento.perseguir(self, delta, 1.0, 1200.0)
 	if absf(distancia_do_alvo() - raio_orbita) <= margem:
 		_maquina.trocar(ORBITAR)
 
@@ -187,22 +184,13 @@ func _disparar_sair() -> void:
 ## Tangente mais uma correcao radial. A soma e o que mantem o raio estavel sem
 ## precisar de trigonometria: a tangente faz girar, a correcao devolve para a
 ## casquinha certa.
+##
+## A conta saiu daqui para `src/util/movimento.gd` (INIM 07) sem mudar uma
+## virgula: era a mais madura das cinco copias do projeto, e virou a unica. O
+## que sobra neste arquivo e a ESCOLHA dos numeros, que e o que faz a orbita ser
+## dela e nao do Drone.
 func _circular(delta: float, fator: float) -> void:
-	var para_alvo := direcao_para_alvo()
-	if para_alvo.length_squared() < 0.01:
-		velocity = velocity.move_toward(Vector2.ZERO, 900.0 * delta)
-		return
-
-	var tangente := para_alvo.orthogonal() * _sentido
-	var erro := distancia_do_alvo() - raio_orbita
-	# Positivo = longe demais, entao a correcao aponta para o jogador.
-	var radial := para_alvo * clampf(erro / maxf(raio_orbita, 1.0), -1.0, 1.0)
-	var desejada := (tangente + radial * correcao_radial).normalized()
-
-	velocity = velocity.move_toward(
-		direcao_de_locomocao(desejada) * velocidade_atual() * fator,
-		1300.0 * delta
-	)
+	Movimento.orbitar(self, delta, raio_orbita, _sentido, correcao_radial, fator, 1300.0)
 
 
 ## Duas resolucoes de mira convivendo, e e de proposito -- a mesma divisao que o

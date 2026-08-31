@@ -92,7 +92,7 @@ func _semear_entrar() -> void:
 
 
 func _semear(delta: float) -> void:
-	velocity = velocity.move_toward(Vector2.ZERO, 1400.0 * delta)
+	Movimento.frear(self, delta, 1400.0)
 	if _maquina.passou(tempo_semear):
 		_plantar()
 		_t_intervalo = intervalo
@@ -165,24 +165,15 @@ func _sala_dona() -> Sala:
 
 # ------------------------------------------------------------- movimento ----
 
+## Para tras quando o jogador encosta, de lado quando ha espaco.
+##
+## A conta saiu daqui para `src/util/movimento.gd` (INIM 07). Uma coisa mudou de
+## lugar mas nao de comportamento: a deriva lateral era multiplicada por 0,5 e
+## normalizada na linha seguinte, o que apagava o 0,5 -- ele nunca andou mais
+## devagar de lado. Quem quiser de fato desacelerar a deriva mexe no `fator`,
+## que atua depois da normalizacao.
 func _fugir(delta: float, fator: float) -> void:
-	var para_alvo := direcao_para_alvo()
-	if para_alvo.length_squared() < 0.01:
-		velocity = velocity.move_toward(Vector2.ZERO, 900.0 * delta)
-		return
-
-	var d := distancia_do_alvo()
-	var desejada: Vector2
-	if d < distancia_minima:
-		desejada = -para_alvo
-	else:
-		# Longe o bastante: so deriva de lado, para nao virar um alvo parado.
-		desejada = para_alvo.orthogonal() * 0.5
-
-	velocity = velocity.move_toward(
-		direcao_de_locomocao(desejada.normalized()) * velocidade_atual() * fator,
-		1000.0 * delta
-	)
+	Movimento.fugir(self, delta, distancia_minima, fator, 1000.0)
 
 
 ## As areas dele morrem com ele.

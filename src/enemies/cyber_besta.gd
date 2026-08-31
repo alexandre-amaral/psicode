@@ -42,6 +42,14 @@ const PREPARAR := &"PREPARAR"
 ## preparacao deixaria o ciclo de patas tremendo enquanto ele ja esta travado.
 const VELOCIDADE_ANDANDO := 12.0
 
+## Quanto ela fecha a distancia enquanto contorna, contra a componente lateral.
+##
+## Este numero E o antigo `para_alvo * 0.35 + orthogonal * 0.65`, escrito na
+## forma que `Movimento.rumo_orbital` usa: 0,35/0,65. Mudar para 1,0 faria ela
+## vir direto para cima do jogador em vez de contornar, e o estado perderia o
+## nome.
+const PESO_APROXIMACAO := 0.538
+
 const ENCARAR := &"ENCARAR"
 const INVESTIR := &"INVESTIR"
 const RECUPERAR := &"RECUPERAR"
@@ -105,13 +113,15 @@ func _pos_movimento(delta: float) -> void:
 
 ## Ele nao para: circula devagar, mantendo o jogador no campo de visao. Uma
 ## besta imovel por dois segundos parece bugada.
+## `raio` zero, e nao um raio de orbita: ela CIRCULA FECHANDO.
+##
+## Com raio zero o erro e sempre positivo, entao a correcao radial aponta sempre
+## para o jogador -- ela contorna enquanto se aproxima, que e o que este estado
+## sempre fez. E ele nao e ficar parado: `OBSERVAR` e onde ela passa mais tempo
+## se deslocando, e excluir este estado de "esta andando" congelaria as patas
+## exatamente onde ela mais anda. Ja aconteceu.
 func _observar(delta: float) -> void:
-	var para_alvo := direcao_para_alvo()
-	var desejada := para_alvo * 0.35 + para_alvo.orthogonal() * 0.65
-	velocity = velocity.move_toward(
-		direcao_de_locomocao(desejada.normalized()) * velocidade_atual() * 0.6,
-		900.0 * delta
-	)
+	Movimento.orbitar(self, delta, 0.0, 1.0, PESO_APROXIMACAO, 0.6, 900.0)
 	if _maquina.passou(tempo_observando) and distancia_do_alvo() <= alcance:
 		_maquina.trocar(ENCARAR)
 
@@ -126,7 +136,7 @@ func _observar(delta: float) -> void:
 ## para INVESTIR, e adiantar isso tiraria do jogador a ultima chance de mudar de
 ## lado.
 func _encarar(delta: float) -> void:
-	velocity = velocity.move_toward(Vector2.ZERO, 2400.0 * delta)
+	Movimento.frear(self, delta, 2400.0)
 	_direcao_travada = direcao_para_alvo()
 	if _maquina.passou(tempo_encarando):
 		_maquina.trocar(PREPARAR)
@@ -144,7 +154,7 @@ func _preparar_entrar() -> void:
 
 
 func _preparar(delta: float) -> void:
-	velocity = velocity.move_toward(Vector2.ZERO, 2200.0 * delta)
+	Movimento.frear(self, delta, 2200.0)
 	# Ainda acompanha o jogador -- e a ultima chance dele de reagir ao ANGULO,
 	# e nao so ao momento. A trava so acontece na transicao.
 	_direcao_travada = direcao_para_alvo()
@@ -169,10 +179,10 @@ func _investir_entrar() -> void:
 
 
 func _investir(_delta: float) -> void:
-	# Sem `direcao_de_locomocao` aqui, e de proposito: durante a investida ele
-	# NAO desvia de nada. E o que torna o ataque legivel, e o que faz a parede
-	# ser um recurso do jogador.
-	velocity = _direcao_travada * velocidade_investida
+	# `Movimento.investir` nao passa por `direcao_de_locomocao`, e isso e a
+	# decisao e nao um atalho: durante a investida ela NAO desvia de nada. E o
+	# que torna o ataque legivel, e o que faz a parede ser um recurso do jogador.
+	Movimento.investir(self, _direcao_travada, velocidade_investida)
 	if _maquina.passou(duracao_investida):
 		_maquina.trocar(RECUPERAR)
 
@@ -210,7 +220,7 @@ func _atordoado_entrar() -> void:
 
 
 func _atordoado(delta: float) -> void:
-	velocity = velocity.move_toward(Vector2.ZERO, 4000.0 * delta)
+	Movimento.frear(self, delta, 4000.0)
 	if _maquina.passou(tempo_atordoado):
 		_maquina.trocar(OBSERVAR)
 
@@ -223,7 +233,7 @@ func _recuperar_entrar() -> void:
 
 
 func _recuperar(delta: float) -> void:
-	velocity = velocity.move_toward(Vector2.ZERO, 1100.0 * delta)
+	Movimento.frear(self, delta, 1100.0)
 	if _maquina.passou(tempo_recuperacao):
 		_maquina.trocar(OBSERVAR)
 

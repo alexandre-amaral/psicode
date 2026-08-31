@@ -24,7 +24,15 @@ const CENA_AREA := preload("res://src/enemies/area_de_perigo.tscn")
 @export_group("Semeadura")
 ## Teto de areas vivas ao mesmo tempo. Sem ele, tres Parasitas na mesma sala
 ## cobrem o chao inteiro e nao sobra lugar para o jogador estar.
-@export var max_areas: int = 3
+@export var max_areas: int = 1
+## Para quantas areas o teto SOBE com a barra cheia. Negativo desliga.
+##
+## E o escalonamento por comportamento dele (INIM 09), e o mais direto dos
+## cinco: o Parasita e o inimigo de controle territorial, entao "mais dificil"
+## para ele e literalmente segurar mais chao. O teto continua existindo -- sem
+## ele, tres Parasitas cobrem a sala inteira e nao sobra lugar para o jogador
+## ESTAR, que e um cronometro e nao um inimigo.
+@export var max_areas_avancado: int = 3
 @export var intervalo: float = 2.4
 ## Quanto tempo ele fica exposto ao semear -- a janela para puni-lo.
 @export var tempo_semear: float = 0.55
@@ -76,6 +84,7 @@ func _comportamento(delta: float) -> void:
 ## e o unico inimigo que ataca o ESPACO em vez do jogador.
 func _ler_dados(d: DadosInimigo) -> void:
 	max_areas = d.max_areas
+	max_areas_avancado = d.max_areas_avancado
 	intervalo = d.cooldown_ataque
 	tempo_semear = d.tempo_telegrafo
 	espalhamento = d.espalhamento
@@ -88,7 +97,7 @@ func _ler_dados(d: DadosInimigo) -> void:
 func _reposicionar(delta: float) -> void:
 	_t_intervalo -= delta * Deterioracao.multiplicador_cadencia()
 	_fugir(delta, 1.0)
-	if _t_intervalo <= 0.0 and _vivas() < max_areas:
+	if _t_intervalo <= 0.0 and _vivas() < _max_areas_agora():
 		_maquina.trocar(SEMEAR)
 
 
@@ -105,7 +114,7 @@ func _semear_entrar() -> void:
 
 func _semear(delta: float) -> void:
 	Movimento.frear(self, delta, 1400.0)
-	if _maquina.passou(tempo_semear):
+	if _maquina.passou(duracao_do_telegrafo(tempo_semear)):
 		_plantar()
 		_t_intervalo = intervalo
 		_maquina.trocar(ESPERAR)
@@ -156,6 +165,11 @@ func _plantar() -> void:
 ## Poda e conta numa passada so -- mesmo padrao de `Sala._contar_vivos()`.
 ## Loop explicito porque `Array.filter()` devolve `Array` sem tipo e a
 ## atribuicao de volta num `Array[Node]` tipado estoura em runtime.
+## O teto de areas AGORA. Lido no frame, como tudo que a barra mexe.
+func _max_areas_agora() -> int:
+	return Deterioracao.escalonar_int(max_areas, max_areas_avancado)
+
+
 func _vivas() -> int:
 	var restantes: Array[Node] = []
 	for a in _areas:

@@ -140,7 +140,9 @@ func _mirar_entrar() -> void:
 	_direcao_travada = direcao_para_alvo()
 	if _direcao_travada.length_squared() < 0.01:
 		_direcao_travada = Vector2.RIGHT
-	_telegrafo.acender(tempo_mira)
+	# `duracao_do_telegrafo` encurta com a barra e trava no piso do `Telegrafo`:
+	# a linha dele fica mais curta conforme a run degrada, mas nunca some.
+	_telegrafo.acender(duracao_do_telegrafo(tempo_mira))
 
 
 func _mirar(delta: float) -> void:

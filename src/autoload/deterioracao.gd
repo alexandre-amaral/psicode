@@ -87,6 +87,42 @@ func multiplicador_velocidade_projetil() -> float:
 	return lerpf(1.0, 1.25, normalizado())
 
 
+## O telegrafo ENCURTA com a barra -- mas quem garante que ele nao SOME e o
+## `Telegrafo.duracao_segura()`, aplicado por `InimigoBase.duracao_do_telegrafo()`.
+##
+## A divisao e de proposito. Aqui mora "quanto encurta", que e tuning; o PISO
+## mora no componente de aviso, que e regra. Um piso escrito aqui poderia ser
+## contornado por quem multiplicasse a duracao noutro lugar, e telegrafo que
+## some e a fronteira entre "dificil" e "mente sobre a propria regra".
+func multiplicador_telegrafo() -> float:
+	return lerpf(1.0, 0.65, normalizado())
+
+
+## Interpola do valor INICIAL ao AVANCADO conforme a barra sobe.
+##
+## E o verbo do escalonamento por COMPORTAMENTO: a barra ja multiplicava
+## velocidade, cadencia e velocidade de projetil -- planilha. O que muda o jogo
+## e o padrao mudar de forma: o anel do Drone passa de 8 para 12 bracos, a
+## Sentinela raja mais vezes, o Parasita segura mais chao.
+##
+## Avancado NEGATIVO desliga, e e o default: inimigo que nao declara nada
+## continua exatamente como era.
+##
+## Lido no frame, nunca guardado -- a barra subindo tem de mudar quem ja esta
+## em tela, inclusive no meio de um ciclo de ataque.
+func escalonar(base: float, avancado: float) -> float:
+	if avancado < 0.0:
+		return base
+	return lerpf(base, avancado, normalizado())
+
+
+## `escalonar()` para contagens. Arredonda uma vez so, no fim.
+func escalonar_int(base: int, avancado: int) -> int:
+	if avancado < 0:
+		return base
+	return int(round(lerpf(float(base), float(avancado), normalizado())))
+
+
 ## O DIFERENCIAL DO MVP: acima de 50%, inimigos ranged param de mirar onde voce
 ## esta e passam a mirar onde voce VAI estar. Sua esquiva vira armadilha.
 func usa_mira_preditiva() -> bool:

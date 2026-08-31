@@ -192,6 +192,20 @@ func velocidade_atual() -> float:
 	return velocidade_base * Deterioracao.multiplicador_velocidade()
 
 
+## Quanto o aviso dura AGORA: o numero do `.tres` encurtado pela Deterioracao,
+## com o piso do `Telegrafo` por baixo.
+##
+## Todo inimigo que avisa passa por aqui, e e isso que torna a trava cobravel: o
+## telegrafo encurta com a dificuldade, mas NUNCA some. E a fronteira entre
+## "dificil" e "mente sobre a propria regra", e a Diretora ja a crava em
+## `TELEGRAFO_MINIMO` -- o mesmo numero, pelo mesmo motivo.
+##
+## Lido no frame, nunca guardado: a barra subindo tem de encurtar o aviso do
+## inimigo que ja esta em tela.
+func duracao_do_telegrafo(base: float) -> float:
+	return Telegrafo.duracao_segura(base * Deterioracao.multiplicador_telegrafo())
+
+
 func direcao_para_alvo() -> Vector2:
 	if alvo == null or not is_instance_valid(alvo):
 		return Vector2.ZERO

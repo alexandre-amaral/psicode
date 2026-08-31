@@ -19,3 +19,4 @@ distancia_minima = 180.0
 alcance = 260.0
 projeteis = 8
 peso_lateral = 0.85
+projeteis_avancados = 12

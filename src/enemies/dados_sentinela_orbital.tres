@@ -20,3 +20,4 @@ abertura_graus = 24.0
 tiros_ate_salva = 3
 fator_aviso_salva = 1.6
 correcao_radial = 0.55
+tiros_ate_salva_avancado = 1

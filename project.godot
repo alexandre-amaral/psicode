@@ -25,6 +25,9 @@ Deterioracao="*res://src/autoload/deterioracao.gd"
 Modificadores="*res://src/autoload/modificadores.gd"
 GameState="*res://src/autoload/game_state.gd"
 Juice="*res://src/autoload/juice.gd"
+MCPRuntimeBridge="*res://addons/godot_mcp/services/mcp_runtime_bridge.gd"
+MCPInputBridge="*res://addons/godot_mcp/services/mcp_input_bridge.gd"
+MCPScreenshotBridge="*res://addons/godot_mcp/services/mcp_screenshot_bridge.gd"
 
 [display]
 

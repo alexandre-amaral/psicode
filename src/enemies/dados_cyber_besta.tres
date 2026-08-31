@@ -19,3 +19,5 @@ alcance = 420.0
 velocidade_arranque = 720.0
 duracao_arranque = 0.42
 tempo_atordoado = 1.0
+duracao_arranque_avancada = 0.58
+tempo_recuperacao_avancado = 0.7

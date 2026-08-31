@@ -18,8 +18,16 @@ extends InimigoBase
 @export var tempo_preparo: float = 0.5
 @export var velocidade_investida: float = 720.0
 @export var duracao_investida: float = 0.42
+## Para quanto a investida CRESCE com a barra cheia. Negativo desliga.
+##
+## Ela nao fica mais rapida -- fica mais LONGA. Velocidade maior encurtaria a
+## janela de leitura que o agachamento abriu; distancia maior cobra a mesma
+## leitura de mais longe, e e o escalonamento por comportamento (INIM 09).
+@export var duracao_investida_avancada: float = 0.58
 ## Janela de punicao. Longa de proposito: e o pagamento pelo dano alto.
 @export var tempo_recuperacao: float = 1.1
+## Para quanto a janela de punicao ENCOLHE com a barra cheia. Negativo desliga.
+@export var tempo_recuperacao_avancado: float = 0.7
 ## A pausa encarando, entre circular e agachar.
 ##
 ## Curta de propositio. Ela nao existe para dar tempo de reagir -- o agachamento
@@ -119,6 +127,8 @@ func _ler_dados(d: DadosInimigo) -> void:
 	tempo_encarando = d.tempo_preparo
 	velocidade_investida = d.velocidade_arranque
 	duracao_investida = d.duracao_arranque
+	duracao_investida_avancada = d.duracao_arranque_avancada
+	tempo_recuperacao_avancado = d.tempo_recuperacao_avancado
 	tempo_recuperacao = d.tempo_recuperacao
 	tempo_atordoado = d.tempo_atordoado
 	alcance = d.alcance
@@ -173,7 +183,7 @@ func _preparar(delta: float) -> void:
 	# e nao so ao momento. A trava so acontece na transicao.
 	_direcao_travada = direcao_para_alvo()
 	_desenhar_rastro()
-	if _maquina.passou(tempo_preparo):
+	if _maquina.passou(duracao_do_telegrafo(tempo_preparo)):
 		_maquina.trocar(INVESTIR)
 
 
@@ -197,7 +207,7 @@ func _investir(_delta: float) -> void:
 	# decisao e nao um atalho: durante a investida ela NAO desvia de nada. E o
 	# que torna o ataque legivel, e o que faz a parede ser um recurso do jogador.
 	Movimento.investir(self, _direcao_travada, velocidade_investida)
-	if _maquina.passou(duracao_investida):
+	if _maquina.passou(_duracao_da_investida()):
 		_maquina.trocar(RECUPERAR)
 
 
@@ -243,13 +253,26 @@ func _recuperar_entrar() -> void:
 	if _visual != null:
 		var t := create_tween()
 		t.tween_property(_visual, "scale", _agachar(1.2, 0.8), 0.1)
-		t.tween_property(_visual, "scale", Vector2.ONE, tempo_recuperacao * 0.6)
+		t.tween_property(_visual, "scale", Vector2.ONE, _tempo_de_recuperacao() * 0.6)
 
 
 func _recuperar(delta: float) -> void:
 	Movimento.frear(self, delta, 1100.0)
-	if _maquina.passou(tempo_recuperacao):
+	if _maquina.passou(_tempo_de_recuperacao()):
 		_maquina.trocar(OBSERVAR)
+
+
+## Quanto a investida dura AGORA, e quanto a janela de punicao dura AGORA.
+##
+## Os dois caminham em sentidos OPOSTOS com a barra: a investida cresce, a
+## recuperacao encolhe. E a mesma luta com menos folga, e nao um bicho com mais
+## numeros -- o que ela cobra continua sendo ler o agachamento e sair da linha.
+func _duracao_da_investida() -> float:
+	return Deterioracao.escalonar(duracao_investida, duracao_investida_avancada)
+
+
+func _tempo_de_recuperacao() -> float:
+	return Deterioracao.escalonar(tempo_recuperacao, tempo_recuperacao_avancado)
 
 
 ## Para onde o corpo aponta: para onde ele VAI, nao para onde o jogador esta.

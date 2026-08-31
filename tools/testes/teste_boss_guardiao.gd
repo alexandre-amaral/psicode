@@ -36,6 +36,8 @@ func executar() -> void:
 	_a_transicao_nao_e_interrompida_por_ataque()
 	_ele_persegue_e_a_diretora_continua_intocada()
 	_a_vitoria_da_run_nao_depende_de_quem_e_o_chefe()
+	await _da_para_dizer_a_fase_sem_olhar_a_barra()
+	_nenhum_efeito_de_fase_cobre_telegrafo_ou_projetil()
 	Deterioracao.valor = _barra_original
 
 
@@ -284,6 +286,94 @@ func _codigo_de(caminho: String) -> String:
 		linhas.append(linha)
 	return "
 ".join(linhas)
+
+
+## BOSS 07: da para dizer em que fase ele esta SEM olhar a barra de vida.
+##
+## Se o jogador nao VE a maquina destravar, a mecanica inteira da luta -- dano
+## que acelera -- nao chega, e ele so sente que o chefe ficou injusto de repente.
+## Por isso a leitura e cobrada em numero: o pulso do nucleo e o desgaste da
+## carcaca tem de MUDAR entre as fases, e nao so existir.
+func _da_para_dizer_a_fase_sem_olhar_a_barra() -> void:
+	var chefe := _nascer()
+
+	var pulsos: Array[float] = []
+	for fase in [1, 2, 3]:
+		chefe.fase_chefe = fase
+		pulsos.append(chefe.pulso_da_fase())
+	ok(pulsos[0] < pulsos[1] and pulsos[1] < pulsos[2],
+		"o nucleo pulsa mais rapido a cada fase (%.1f, %.1f, %.1f Hz)"
+			% [pulsos[0], pulsos[1], pulsos[2]])
+	ok(pulsos[0] > 0.0, "e nunca para: nucleo apagado tiraria o sinal de que ele funciona")
+
+	# O DESGASTE acompanha a VIDA e nao a fase: dentro de um mesmo terco o
+	# jogador continua vendo progresso, e e o que faz bater nele parecer que
+	# esta funcionando antes de a virada acontecer.
+	var placa := chefe.get_node_or_null("Visual/Placa") as CanvasItem
+	ok(placa != null, "a carcaca tem placa para cair")
+
+	chefe.vida = chefe.vida_maxima
+	chefe._atualizar_leitura_visual(0.016)
+	perto(chefe.desgaste(), 0.0, "com a vida cheia ele esta inteiro")
+	ok(placa == null or placa.visible, "e a placa ainda esta no lugar")
+
+	chefe.vida = int(float(chefe.vida_maxima) * 0.5)
+	chefe._atualizar_leitura_visual(0.016)
+	ok(chefe.desgaste() > 0.4, "na metade da vida ele ja se desfez (%.2f)" % chefe.desgaste())
+	ok(placa == null or not placa.visible, "e a placa CAIU")
+
+	# E nao volta. Placa que se remonta leria como o chefe se recuperando, que e
+	# o oposto da ficcao: aqui o dano e o que o destrava.
+	var antes: float = chefe.desgaste()
+	chefe.vida = chefe.vida_maxima
+	chefe._atualizar_leitura_visual(0.016)
+	ok(chefe.desgaste() >= antes,
+		"e o desgaste NUNCA decresce (%.2f depois de curar, era %.2f)" % [chefe.desgaste(), antes])
+
+	# A virada emite o gancho de som, mesmo sem camada de audio existir ainda.
+	var avisou := [0]
+	chefe.fase_mudou.connect(func(f: int) -> void: avisou[0] = f)
+	chefe.vida = int(float(chefe.vida_maxima) * 0.2)
+	chefe._checar_fase()
+	igual(avisou[0], 3, "a virada emite `fase_mudou` -- e o gancho que a camada de audio vai usar")
+
+	chefe.free()
+	await Engine.get_main_loop().process_frame
+
+
+## BOSS 07: nenhum efeito de fase cobre telegrafo ou projetil.
+##
+## Efeito que atrapalha a leitura do combate e efeito cortado, por mais bonito
+## que seja -- e fumaca na fase 3 e o risco obvio. A garantia e geometrica e nao
+## de bom senso: os efeitos desenham ABAIXO da faixa do mundo, que e onde ficam
+## o telegrafo, os projeteis e os atores, e tem teto de opacidade.
+func _nenhum_efeito_de_fase_cobre_telegrafo_ou_projetil() -> void:
+	var chefe := _nascer()
+	ok(chefe.Z_EFEITO < 0, "os efeitos de fase desenham atras do corpo (z %d)" % chefe.Z_EFEITO)
+	ok(chefe.Z_EFEITO < Sala.Z_MUNDO,
+		"e abaixo da faixa do mundo, onde estao telegrafo e projetil")
+	ok(chefe.ALPHA_MAXIMO_EFEITO < 0.5,
+		"e o teto de opacidade deles e baixo (%.2f) -- mesma regra do alpha_maximo do glitch"
+			% chefe.ALPHA_MAXIMO_EFEITO)
+
+	var fumaca := chefe.get_node_or_null("Visual/Fumaca") as CanvasItem
+	ok(fumaca != null, "a fumaca existe")
+	if fumaca != null:
+		igual(fumaca.z_index, chefe.Z_EFEITO, "e ela esta na faixa dos efeitos")
+		chefe.vida = 1
+		chefe._atualizar_leitura_visual(0.016)
+		ok(fumaca.modulate.a <= chefe.ALPHA_MAXIMO_EFEITO + 0.0001,
+			"e no pior caso ela nao passa do teto (%.2f)" % fumaca.modulate.a)
+
+	# E o efeito e PROCEDURAL: `SCREEN_TEXTURE` quebra no export web e MSAA 2D
+	# nao existe no Compatibility -- efeito que dependesse deles sairia no PC e
+	# sumiria no navegador, que e para onde vai a build do testador.
+	# So o CODIGO: o cabecalho do metodo visual explica justamente que nada ali
+	# depende de SCREEN_TEXTURE, e citar o nome para explicar isso nao pode
+	# contar como usa-lo. Mesma leitura do caso de `terminar_run`.
+	ok(not _codigo_de("res://src/enemies/boss_guardiao_01.gd").contains("SCREEN_TEXTURE"),
+		"nada no chefe depende de SCREEN_TEXTURE")
+	chefe.free()
 
 
 func _nascer() -> Node:

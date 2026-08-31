@@ -11,6 +11,7 @@
 [ext_resource type="Resource" path="res://src/mapa/tipo_item.tres" id="9_item"]
 [ext_resource type="Resource" path="res://src/mapa/tipo_inicial.tres" id="11_inicial"]
 [ext_resource type="PackedScene" path="res://src/player/player.tscn" id="10_km7bn"]
+[ext_resource type="AudioStream" path="res://assets/audio/ambiente_setor.wav" id="40_amb"]
 
 [node name="Main" type="Node" unique_id=614128192]
 script = ExtResource("1_main")
@@ -27,6 +28,7 @@ y_sort_enabled = true
 [node name="GerenciadorMapa" type="Node2D" parent="Mundo" unique_id=2082792232]
 y_sort_enabled = true
 script = ExtResource("5_jkpqq")
+ambiente_do_andar = ExtResource("40_amb")
 tipos_de_sala = Array[Resource]([ExtResource("6_combate"), ExtResource("7_boss"), ExtResource("8_arma"), ExtResource("9_item"), ExtResource("11_inicial")])
 
 [node name="Player" parent="Mundo" unique_id=220117599 groups=["player"] instance=ExtResource("10_km7bn")]

@@ -86,7 +86,7 @@ func velocidade_atual() -> float:
 ```
 src/
   autoload/    event_bus, configuracao, deterioracao, modificadores,
-               game_state, juice
+               game_state, juice, audio (buses, volume e quem toca o que)
   player/      player, eco de rolamento
   weapons/     arma.gd, dados_arma.gd, *.tres (pistola, shotgun, armas do chefe)
   enemies/     inimigo_base, maquina_estados, area_de_perigo,
@@ -188,6 +188,10 @@ docs/
 | **Arte de chao ou parede que nao nasceu na paleta** | o pre-passo de `preparar_textura.py`: `--desvinheta` (chapa a iluminacao), `--tingir GRAUS` + `--limiar-neon` (tinge o metal apagado e deixa o acento aceso intacto), `--grampear-matiz`, `--alvo-v`. Tudo desligado por default |
 | **Uma cor nova no cenario** | `tools/texturas/paleta.gd` + a tabela de `docs/IDENTIDADE_VISUAL.md`; `teste_texturas.gd` recusa cor que compete com projetil |
 | Enquadramento e cores do minimapa | `@export` do no `Minimapa` em `src/ui/hud.tscn` |
+| **Volume, buses e quem toca o que** | `src/autoload/audio.gd`; os tres volumes ficam em `Configuracao`, junto das outras preferencias |
+| **Os sons do andar 1** | `tools/audio/gerar_sons.gd` -- procedural, como o gerador de texturas. Rode e regrave; nunca edite o `.wav` a mao |
+| **O ambiente que toca num andar** | `ambiente_do_andar` no no `GerenciadorMapa` do `main.tscn` |
+| **O som de cada fase do chefe** | `som_por_fase` no `src/enemies/boss_guardiao_01.tscn` |
 | Preferencias do jogador (tela cheia, acessibilidade, idioma) | `src/autoload/configuracao.gd` — grava em `user://config.cfg` |
 | **Texto de tela, em qualquer idioma** | `tools/i18n/gerar_csv.py` e rodar; nunca editar `locale/textos.csv` a mao |
 | **Idioma novo** | acrescentar em `Configuracao.IDIOMAS` + uma coluna no gerador do CSV |
@@ -207,6 +211,7 @@ for "vou editar um `.gd`", verifique antes se nao deveria ser um `.tres`.
 godot --headless --path . tools/teste_fumaca.tscn      # precisa imprimir PASSOU
 godot --headless --path . tools/combinacoes/combinacoes.tscn  # se mexeu em inimigo
 godot --headless --path . tools/chefe/arena_chefe.tscn        # se mexeu no chefe
+godot --headless --path . tools/audio/gerar_sons.tscn         # se mexeu no gerador de som
 godot --path . tools/capturar.tscn --resolution 960x544   # se mexeu no visual
 ```
 
@@ -234,6 +239,30 @@ em qualquer erro de script.
   seguidas ele apareceu e ZERO areas foram criadas. Comportamento que demora
   mais que um tick precisa de suite propria (`teste_area_de_perigo.gd`), senao
   a guarda passa verde sem nunca ter olhado nada.
+- **O `Audio` PUXA a preferencia, como o `Juice`.** `Configuracao` e registrado
+  ANTES dele no `project.godot`, entao no `_ready` dela este autoload ainda nao
+  existe -- e a mesma armadilha, no mesmo lugar. Quem vem depois puxa no proprio
+  `_ready`; `EventBus.configuracao_mudou` cobre o runtime.
+- **Volume zero tem de MUTAR o bus, e nao ir para -60 dB.** `linear_to_db(0)`
+  devolve -inf, mas qualquer epsilon acima de zero vira -60 dB -- audivel num
+  fone. Um "desligado" que ainda se ouve e pior que nao ter a opcao: o jogador
+  acha que o jogo esta quebrado.
+- **O loop do ambiente e forcado por quem TOCA, nao pelo arquivo.**
+  `AudioStreamWAV.save_to_wav()` grava um RIFF simples, sem o bloco `smpl` de
+  onde o importador leria a marca de loop -- o `.wav` chega com loop DESLIGADO
+  por mais que o gerador tenha pedido. O sintoma seria o setor ficando mudo
+  depois de seis segundos, sem uma linha no console. `Audio.definir_ambiente()`
+  liga o loop na hora de tocar.
+- **Som e `.wav` PCM, e nao OGG.** O import de OGG depende de um decodificador
+  no runtime, e a build que vai para o testador e a WEB. Os sete sons do andar 1
+  somam poucas centenas de KB.
+- **A saida headless avisa "ObjectDB instances were leaked" desde que o audio
+  existe.** Sao os `AudioStreamPlaybackWAV` dos players que tocaram, liberados
+  DEPOIS da varredura de objetos do Godot -- ordem de desligamento do driver de
+  audio headless, e nao um no esquecido na arvore. `Audio._exit_tree()` ja para
+  e libera os players na mao e nao resolve. O codigo de saida continua ZERO e o
+  CI passa; se um dia isso mascarar um aviso de verdade, o caminho e nao tocar
+  som em suite.
 - **Prop animado e CHAPADO por construcao, e isso nao e escolha de arte.** Ele
   mora em `Z_CHAO_DETALHE`, abaixo de `Z_MUNDO` -- que e onde ficam telegrafo,
   projetil e atores. E o que torna "animacao de cenario nao cobre telegrafo"

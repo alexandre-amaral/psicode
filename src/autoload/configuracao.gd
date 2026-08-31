@@ -16,6 +16,7 @@ const CAMINHO := "user://config.cfg"
 const SECAO_VIDEO := "video"
 const SECAO_ACESSIBILIDADE := "acessibilidade"
 const SECAO_IDIOMA := "idioma"
+const SECAO_AUDIO := "audio"
 
 ## Os idiomas que o jogo fala, na ordem em que aparecem no seletor.
 ##
@@ -34,6 +35,19 @@ var glitch: bool = true
 ## Guardar o vazio, e nao ja resolver para pt_BR na primeira execucao, e o que
 ## permite o jogo seguir o SO de quem instala em vez de decidir por ele.
 var idioma: String = ""
+
+## Os tres volumes, de 0 a 1.
+##
+## Volume e PREFERENCIA, e por isso cabe aqui do lado de tela cheia e
+## acessibilidade -- save de run e meta-progressao sao outro assunto e nao devem
+## entrar neste arquivo, senao apagar a config passa a custar caro.
+##
+## Comecam em 0,8 e nao em 1,0: o topo do slider tem de ser um lugar para onde
+## subir. Jogo que nasce no maximo so oferece "abaixar", e quem quer mais alto
+## nao tem para onde ir.
+var volume_master: float = 0.8
+var volume_sfx: float = 0.8
+var volume_ambiente: float = 0.7
 
 ## Onde gravar. Existe para a suite de teste nao sujar a config real de quem
 ## roda o runner na propria maquina.
@@ -62,6 +76,9 @@ func carregar() -> void:
 	shake = bool(cfg.get_value(SECAO_ACESSIBILIDADE, "shake", shake))
 	glitch = bool(cfg.get_value(SECAO_ACESSIBILIDADE, "glitch", glitch))
 	idioma = str(cfg.get_value(SECAO_IDIOMA, "codigo", idioma))
+	volume_master = _volume(cfg.get_value(SECAO_AUDIO, "master", volume_master))
+	volume_sfx = _volume(cfg.get_value(SECAO_AUDIO, "sfx", volume_sfx))
+	volume_ambiente = _volume(cfg.get_value(SECAO_AUDIO, "ambiente", volume_ambiente))
 
 
 func salvar() -> void:
@@ -70,6 +87,9 @@ func salvar() -> void:
 	cfg.set_value(SECAO_ACESSIBILIDADE, "shake", shake)
 	cfg.set_value(SECAO_ACESSIBILIDADE, "glitch", glitch)
 	cfg.set_value(SECAO_IDIOMA, "codigo", idioma)
+	cfg.set_value(SECAO_AUDIO, "master", volume_master)
+	cfg.set_value(SECAO_AUDIO, "sfx", volume_sfx)
+	cfg.set_value(SECAO_AUDIO, "ambiente", volume_ambiente)
 	var erro := cfg.save(_caminho)
 	if erro != OK:
 		push_warning("Configuracao: nao consegui gravar em '%s' (erro %d)." % [_caminho, erro])
@@ -122,6 +142,40 @@ func definir_tela_cheia(valor: bool) -> void:
 	_aplicar_tela_cheia(true)
 	salvar()
 	EventBus.configuracao_mudou.emit()
+
+
+## Um volume vindo do disco, preso na faixa.
+##
+## Arquivo de config e editavel a mao, e um `master = 40` gravado por engano
+## estouraria o audio no boot -- antes de o jogador ter qualquer chance de
+## chegar na tela de opcoes para consertar.
+func _volume(valor: Variant) -> float:
+	return clampf(float(valor), 0.0, 1.0)
+
+
+## Muda um volume e AVISA.
+##
+## O aviso e `EventBus.configuracao_mudou`, e e por ele que o autoload de audio
+## reaplica -- ele nao pode ser chamado direto daqui pelo mesmo motivo que o
+## `Juice` nao e: este autoload e registrado ANTES dele, e no `_ready` daqui ele
+## ainda nao existe.
+func definir_volume(qual: StringName, valor: float) -> void:
+	var novo := clampf(valor, 0.0, 1.0)
+	match qual:
+		&"master": volume_master = novo
+		&"sfx": volume_sfx = novo
+		&"ambiente": volume_ambiente = novo
+		_: return
+	EventBus.configuracao_mudou.emit()
+	salvar()
+
+
+func volume_de(qual: StringName) -> float:
+	match qual:
+		&"master": return volume_master
+		&"sfx": return volume_sfx
+		&"ambiente": return volume_ambiente
+	return 0.0
 
 
 func definir_shake(valor: bool) -> void:

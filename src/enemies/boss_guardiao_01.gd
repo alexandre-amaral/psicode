@@ -117,6 +117,16 @@ const MORTE := &"MORTE"
 ## quatro enquanto ele tem tres -- um numero fixo la reprovaria o chefe certo.
 @export var total_de_fases: int = 3
 
+@export_group("Som")
+## Um som por fase, na ordem 1, 2, 3. Toca na VIRADA.
+##
+## O gancho `fase_mudou` existia desde a BOSS 07 esperando a camada de audio; ela
+## chegou na AND1 08 e isto e o que ele passou a fazer. Os tres sao a MESMA
+## sintese com um parametro diferente (`tools/audio/gerar_sons.gd`), e nao tres
+## timbres: a luta inteira e "o mesmo, mais rapido", e tres motores diferentes
+## diriam que sao tres maquinas.
+@export var som_por_fase: Array[AudioStream] = []
+
 @export_group("Fases")
 ## O multiplicador de cada fase. E o botao central do chefe inteiro: ele alcanca
 ## movimentacao, cadencia, telegrafo, recuperacao e rotacao de uma vez.
@@ -506,6 +516,7 @@ func _transicao_entrar() -> void:
 	EventBus.pedido_shake.emit(6.0, 0.35)
 	fase_mudou.emit(fase_chefe)
 	EventBus.boss_fase_mudou.emit(fase_chefe)
+	_soar_a_virada()
 	_encenar_a_virada()
 
 
@@ -518,6 +529,15 @@ func _transicao_entrar() -> void:
 ##
 ## A leitura narrativa: o dano REMOVE a resistencia mecanica que a corrosao
 ## acumulou. Ele funciona melhor porque esta sendo quebrado.
+## O som da virada. Silencio se ninguem declarou som para esta fase -- a luta nao
+## pode depender de audio para acontecer.
+func _soar_a_virada() -> void:
+	var i := fase_chefe - 1
+	if i < 0 or i >= som_por_fase.size():
+		return
+	Audio.tocar(som_por_fase[i])
+
+
 func _encenar_a_virada() -> void:
 	if _visual == null:
 		return

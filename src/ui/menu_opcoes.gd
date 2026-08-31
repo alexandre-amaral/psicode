@@ -18,6 +18,9 @@ const COR_FOCO := Color(1.0, 0.8, 0.4)
 @onready var _tela_cheia: CheckButton = %TelaCheia
 @onready var _shake: CheckButton = %Shake
 @onready var _glitch: CheckButton = %Glitch
+@onready var _vol_master: HSlider = %VolMaster
+@onready var _vol_sfx: HSlider = %VolSfx
+@onready var _vol_ambiente: HSlider = %VolAmbiente
 @onready var _idioma: OptionButton = %Idioma
 @onready var _btn_voltar: Button = %BtnVoltar
 
@@ -43,14 +46,35 @@ func _ready() -> void:
 	_tela_cheia.toggled.connect(Configuracao.definir_tela_cheia)
 	_shake.toggled.connect(Configuracao.definir_shake)
 	_glitch.toggled.connect(Configuracao.definir_glitch)
+	_ligar_volumes()
 	_montar_idiomas()
 	_ligar_rotulos()
 	_btn_voltar.pressed.connect(fechar)
 
 
+## Cada slider grava no bus dele.
+##
+## `value_changed` e nao `drag_ended`: o jogador tem de OUVIR enquanto arrasta,
+## senao ele ajusta no escuro e so descobre o resultado quando solta. Gravar a
+## cada passo custa uma escrita em `user://` por 0,05 de slider, que e barato --
+## e `definir_volume` ja emite `configuracao_mudou`, que e por onde o autoload de
+## audio reaplica.
+func _ligar_volumes() -> void:
+	for par in [
+		[_vol_master, &"master"], [_vol_sfx, &"sfx"], [_vol_ambiente, &"ambiente"],
+	]:
+		var slider: HSlider = par[0]
+		var qual: StringName = par[1]
+		slider.value_changed.connect(
+			func(v: float) -> void: Configuracao.definir_volume(qual, v)
+		)
+
+
 ## O foco de cada controle acende o rotulo da linha dele.
 func _ligar_rotulos() -> void:
-	for controle: Control in [_tela_cheia, _shake, _glitch, _idioma]:
+	for controle: Control in [
+		_tela_cheia, _shake, _glitch, _vol_master, _vol_sfx, _vol_ambiente, _idioma,
+	]:
 		var rotulo := controle.get_parent().get_node_or_null("Rotulo") as Label
 		if rotulo == null:
 			continue
@@ -114,6 +138,11 @@ func _sincronizar() -> void:
 	_tela_cheia.set_pressed_no_signal(Configuracao.esta_em_tela_cheia())
 	_shake.set_pressed_no_signal(Configuracao.shake)
 	_glitch.set_pressed_no_signal(Configuracao.glitch)
+	# `set_value_no_signal`: sincronizar nao pode disparar o `value_changed` e
+	# regravar o que acabou de ser lido do disco.
+	_vol_master.set_value_no_signal(Configuracao.volume_master)
+	_vol_sfx.set_value_no_signal(Configuracao.volume_sfx)
+	_vol_ambiente.set_value_no_signal(Configuracao.volume_ambiente)
 
 	var atual := Configuracao.idioma_atual()
 	for i in Configuracao.IDIOMAS.size():

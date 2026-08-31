@@ -1,4 +1,4 @@
-[gd_scene load_steps=23 format=3]
+[gd_scene load_steps=26 format=3]
 
 [ext_resource type="Script" path="res://src/enemies/boss_guardiao_01.gd" id="1_s"]
 [ext_resource type="Resource" path="res://src/enemies/dados_boss_guardiao_01.tres" id="2_dados"]
@@ -22,6 +22,9 @@
 [ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/andar_north.png" id="26_a"]
 [ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/andar_north-east.png" id="27_a"]
 [ext_resource type="Script" path="res://src/enemies/sprite_direcional.gd" id="6_sprite"]
+[ext_resource type="AudioStream" path="res://assets/audio/motor_falhando.wav" id="30_m1"]
+[ext_resource type="AudioStream" path="res://assets/audio/motor_firme.wav" id="31_m2"]
+[ext_resource type="AudioStream" path="res://assets/audio/motor_alem.wav" id="32_m3"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_guardiao"]
 radius = 34.0
@@ -31,6 +34,7 @@ collision_layer = 2
 collision_mask = 6
 script = ExtResource("1_s")
 dados = ExtResource("2_dados")
+som_por_fase = Array[AudioStream]([ExtResource("30_m1"), ExtResource("31_m2"), ExtResource("32_m3")])
 cor_base = Color(0.82, 1, 0.15, 1)
 largura_sombra = 96.0
 

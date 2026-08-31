@@ -90,6 +90,7 @@ func executar() -> void:
 		_nome_atual = arquivo.get_basename()
 		_o_conjunto_de_arquivos(sprite)
 		_textura_e_hframes_andam_juntos(sprite, esperado)
+		_os_clipes_declarados_sao_medidos(sprite)
 		_a_arte_declarada_e_exercitada(inimigo, sprite, raiz)
 		_o_tint_alcanca_o_sprite(inimigo, sprite)
 
@@ -100,6 +101,8 @@ func executar() -> void:
 
 	_o_ciclo_segue_o_chao()
 	_andar_em_qualquer_estado_anima()
+	_o_clipe_escolhe_o_quadro()
+	_encenar_degrada_sem_arte()
 
 	# Guarda contra a suite virar decoracao: se a varredura parar de achar
 	# ninguem, todas as verificacoes acima somem e o relatorio fica verde.
@@ -375,6 +378,130 @@ func _e_do_sul(s: SpriteDirecional) -> bool:
 			if lista[sul].resource_path == s.texture.resource_path:
 				return true
 	return false
+
+
+## Os clipes que a cena declara, medidos como as fitas de caminhada.
+##
+## Mesma moldura do conjunto, e nao uma propria: clipe noutra moldura faria o
+## bicho SALTAR de lugar no instante em que agacha, que e o defeito que a
+## normalizacao de 64/88/92 para 80 existe para matar.
+func _os_clipes_declarados_sao_medidos(s: SpriteDirecional) -> void:
+	if s.clipes.is_empty():
+		return
+	var lado := _lado_do_conjunto(s)
+	var nomes := {}
+	for c in s.clipes:
+		if c == null:
+			ok(false, "%s: clipe nulo na lista" % _nome_atual)
+			continue
+		ok(c.nome != &"", "%s: todo clipe tem nome" % _nome_atual)
+		nomes[c.nome] = true
+		igual(c.fitas.size(), Direcoes.TOTAL, "%s: o clipe '%s' tem as 8 direcoes" % [_nome_atual, c.nome])
+		ok(c.quadros >= 2, "%s: o clipe '%s' precisa de ao menos 2 quadros" % [_nome_atual, c.nome])
+		ok(c.fps > 0.0, "%s: o clipe '%s' tem cadencia positiva" % [_nome_atual, c.nome])
+		_medir(c.fitas, Vector2(lado * float(c.quadros), lado), "clipe '%s'" % c.nome)
+
+		# Todo invertido tem de apontar para as MESMAS fitas de um direto. E o
+		# que torna "zero byte" verdade, e o que impede o clipe de volta de
+		# derivar para arte velha quando o de ida for redesenhado.
+		if c.invertido:
+			var tem_par := false
+			for outro in s.clipes:
+				if outro != null and not outro.invertido and outro.fitas == c.fitas:
+					tem_par = true
+			ok(tem_par, "%s: o clipe invertido '%s' reusa as fitas de um direto" % [_nome_atual, c.nome])
+
+	igual(
+		nomes.size(), s.clipes.size(),
+		"%s: dois clipes com o mesmo nome -- o dicionario guardaria um so, em silencio" % _nome_atual
+	)
+
+
+## O quadro que cada modo escolhe. Puro: nao monta cena nenhuma.
+##
+## Os tres modos existem porque a pergunta nao e "progresso ou fps", e sim COM O
+## QUE O ULTIMO QUADRO TEM DE COINCIDIR. Este caso e o que impede alguem
+## "simplificar" para dois.
+func _o_clipe_escolhe_o_quadro() -> void:
+	var c := ClipeDirecional.new()
+	c.nome = &"teste"
+	c.quadros = 4
+
+	# PROGRESSO: o comeco e o quadro 0 e o fim e o ultimo, sempre -- e por isso
+	# ele serve de telegrafo numa faixa de duracao de 2,95x.
+	c.modo = ClipeDirecional.Modo.PROGRESSO
+	igual(c.quadro_em(0.0, 0.0), 0, "PROGRESSO: o inicio e o primeiro quadro")
+	igual(c.quadro_em(0.99, 0.0), 3, "PROGRESSO: o fim e o ultimo quadro")
+	igual(c.quadro_em(1.0, 0.0), 3, "PROGRESSO: passar de 1.0 nao sai da fita")
+	igual(c.quadro_em(0.5, 999.0), 2, "PROGRESSO: o relogio proprio e ignorado")
+
+	# LACO: da a volta. E o modo de quem nao tem fim contratado.
+	c.modo = ClipeDirecional.Modo.LACO
+	igual(c.quadro_em(0.0, 0.0), 0, "LACO: comeca no primeiro")
+	igual(c.quadro_em(0.0, 5.0), 1, "LACO: da a volta em vez de parar")
+	igual(c.quadro_em(0.9, 2.0), 2, "LACO: o progresso e ignorado")
+
+	# UMA_VEZ: segura o ultimo. E o que faz o telegrafo mais longo da luta nao
+	# virar slideshow, e o que deixa a carcaca caida.
+	c.modo = ClipeDirecional.Modo.UMA_VEZ
+	igual(c.quadro_em(0.0, 2.0), 2, "UMA_VEZ: anda pelo relogio proprio")
+	igual(c.quadro_em(0.0, 99.0), 3, "UMA_VEZ: SEGURA o ultimo quadro")
+
+	# Invertido e o espelho, no mesmo instante. Custa zero geracao e zero byte.
+	c.modo = ClipeDirecional.Modo.PROGRESSO
+	c.invertido = true
+	igual(c.quadro_em(0.0, 0.0), 3, "invertido: o inicio e o ULTIMO quadro")
+	igual(c.quadro_em(0.99, 0.0), 0, "invertido: o fim e o primeiro")
+
+	ok(not c.desenhavel(), "sem as 8 fitas o clipe se declara nao desenhavel")
+
+
+## Clipe ausente NAO quebra: `encenar` devolve false e o dono cai em `apontar`.
+##
+## E a mesma degradacao que `sprites_andando` vazio ja tem. Arte ausente nunca
+## quebra o jogo -- e por isso `clipes` vazio continua sendo cena valida, e
+## nenhuma das outras cinco precisou ser tocada para esta API existir.
+func _encenar_degrada_sem_arte() -> void:
+	var s := SpriteDirecional.new()
+	Engine.get_main_loop().root.add_child(s)
+
+	ok(not s.tem_clipe(&"agachar"), "conjunto sem clipes nao anuncia nenhum")
+	ok(not s.encenar(Vector2.DOWN, &"agachar", 0.5, 0.1), "pedir gesto que nao existe devolve false")
+
+	# O duble: as fitas de caminhada do chefe, que ja estao em disco. O que se
+	# prova aqui e a FIACAO, e para isso arte nova seria desperdicio.
+	var c := ClipeDirecional.new()
+	c.nome = &"agachar"
+	c.quadros = 8
+	c.modo = ClipeDirecional.Modo.PROGRESSO
+	# O conjunto e montado INTEIRO -- paradas tambem. Sem elas `_trocar_quadro`
+	# sai cedo na textura nula e o `hframes` do clipe fica para tras, e a volta
+	# ao par parado/andando nao poderia ser afirmada.
+	for d in ["east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east"]:
+		s.sprites_parado.append(load("res://assets/inimigos/boss_guardiao_01/%s.png" % d))
+		c.fitas.append(load("res://assets/inimigos/boss_guardiao_01/andar_%s.png" % d))
+	s.clipes.append(c)
+	s._ready()
+
+	ok(s.tem_clipe(&"agachar"), "depois de declarado, o conjunto anuncia o gesto")
+	ok(s.encenar(Vector2.DOWN, &"agachar", 0.0, 0.1), "encenar um gesto que existe devolve true")
+
+	# hframes anda junto de texture, tambem no verbo novo. Sem isso a fita sai
+	# esticada ou aparece um oitavo do bicho -- e nenhum dos dois da erro.
+	igual(s.hframes, c.quadros, "encenar casa hframes com a contagem do clipe")
+	igual(s.frame, 0, "no progresso zero, o primeiro quadro")
+	s.encenar(Vector2.DOWN, &"agachar", 0.99, 0.1)
+	igual(s.frame, c.quadros - 1, "no fim do progresso, o ultimo quadro")
+
+	# A direcao sai da mesma tabela de sempre.
+	s.encenar(Vector2.LEFT, &"agachar", 0.5, 0.1)
+	igual(s.texture, c.fitas[Direcoes.indice(Vector2.LEFT)], "o gesto respeita a direcao")
+
+	# E voltar a andar devolve o conjunto ao par parado/andando.
+	s.apontar(Vector2.DOWN, false, 0.1)
+	igual(s.hframes, 1, "sair do gesto volta o hframes da pose parada")
+
+	s.free()
 
 
 ## Avanca o relogio do inimigo na mao. O _physics_process nao roda numa suite

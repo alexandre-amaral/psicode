@@ -71,3 +71,7 @@ enemy/
 # Windows -- `> /dev/null` cria o diretorio em vez de descartar. Nao sao do
 # projeto e nao devem voltar.
 dev/
+
+# Cache do Python, gerado ao importar gerar_sprites.py de fora.
+__pycache__/
+*.pyc

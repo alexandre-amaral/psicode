@@ -6,10 +6,17 @@ name: CI
 #                       "a conta esta certa?".
 #   teste-de-fumaca   - sobe o jogo inteiro sem janela, percorre o andar, mata
 #                       o chefe. Diz "a run inteira funciona?".
+#   combinacoes       - poe dois e cinco inimigos na mesma sala e mede se ainda
+#                       ha para onde correr. Diz "isso e justo?".
 #
 # Separados porque quebram por motivos diferentes: quando o unitario falha voce
 # sabe que e logica, sem precisar ler o log de gameplay inteiro. E o unitario
 # termina antes, entao o erro mais barato aparece primeiro.
+#
+# O de combinacoes existe separado porque precisa de TEMPO DE RELOGIO: o Hacker
+# Parasita leva mais de um segundo entre nascer e semear, e o teste de fumaca
+# mata tudo a cada 0,12 s -- em tres runs seguidas ele apareceu e zero areas
+# foram criadas. Ciclo longo nao cabe nem no runner de segundos nem no fumaca.
 
 on:
   push:
@@ -83,3 +90,31 @@ jobs:
 
       - name: Teste de fumaca
         run: godot --headless --path . tools/teste_fumaca.tscn
+
+  combinacoes:
+    runs-on: ubuntu-latest
+    # Cada combinacao roda 8 s de relogio em quatro valores de barra: 20
+    # cenarios, ~3 min. O tempo de relogio e o ponto -- o Parasita leva mais de
+    # um segundo entre nascer e semear, e e justamente o que o teste de fumaca
+    # nao alcanca.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Baixar Godot ${{ env.GODOT_VERSAO }}
+        run: |
+          set -euo pipefail
+          URL="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSAO}/Godot_v${GODOT_VERSAO}_linux.x86_64.zip"
+          curl -fsSL -o godot.zip "$URL"
+          unzip -q godot.zip
+          mv Godot_v${GODOT_VERSAO}_linux.x86_64 /usr/local/bin/godot
+          chmod +x /usr/local/bin/godot
+          godot --headless --version
+
+      - name: Importar o projeto
+        run: godot --headless --path . --import
+
+      - name: Combinacoes de inimigo
+        run: godot --headless --path . tools/combinacoes/combinacoes.tscn

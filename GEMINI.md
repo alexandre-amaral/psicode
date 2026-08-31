@@ -122,6 +122,8 @@ tools/sprites/   gerar_sprites.py (GIF -> fita PNG normalizada)
 assets/texturas/ chao/parede: arte AUTORADA, preparada por tools/texturas/preparar_textura.py
                  porta e props: ainda gerados por tools/texturas/gerar_texturas.tscn
 tools/           teste_fumaca, capturar, testes/ (suites unitarias),
+                 combinacoes/ (medidor_escape.gd + o arnes que poe dois e cinco
+                 inimigos na mesma sala e mede se ainda ha para onde correr),
                  texturas/ (paleta.gd + gerar_texturas: a fonte dos PNGs)
 docs/
 ```
@@ -190,6 +192,7 @@ for "vou editar um `.gd`", verifique antes se nao deveria ser um `.tres`.
 
 ```bash
 godot --headless --path . tools/teste_fumaca.tscn      # precisa imprimir PASSOU
+godot --headless --path . tools/combinacoes/combinacoes.tscn  # se mexeu em inimigo
 godot --path . tools/capturar.tscn --resolution 960x544   # se mexeu no visual
 ```
 
@@ -217,6 +220,24 @@ em qualquer erro de script.
   seguidas ele apareceu e ZERO areas foram criadas. Comportamento que demora
   mais que um tick precisa de suite propria (`teste_area_de_perigo.gd`), senao
   a guarda passa verde sem nunca ter olhado nada.
+- **"Situacao inevitavel" tem numero, e o numero nao e "zero saidas num
+  frame".** O rolamento da i-frames pela duracao inteira (0,22 s mais 0,06 s de
+  graca), entao uma JANELA CURTA sem saida a pe nao e injustica: e o momento em
+  que o jogo cobra o rolamento. O que reprova em
+  `tools/combinacoes/combinacoes.tscn` e a janela ser MAIS LONGA que esses
+  i-frames -- ai nem rolar salva. Contar frame isolado reprovava a Cyber-Besta em
+  toda combinacao: uma vez comprometida com a investida ela e mais rapida que o
+  andar do jogador, e ~0,26 s sem saida a pe e o desenho dela, com o aviso de
+  0,8 s antes sendo onde a decisao acontece.
+- **Na `MedidorEscape`, ameaca PARADA e ameaca em MOVIMENTO sao perguntas
+  diferentes.** O circulo do Hacker fere num instante, entao so o FIM do
+  horizonte importa -- sair de dentro dele antes de estourar e a jogada que o
+  telegrafo existe para permitir. O projetil fere no CONTATO, entao o caminho
+  inteiro conta. A primeira versao da regua tratava as duas igual e reprovava as
+  CINCO combinacoes, inclusive as que nao tem como ser inevitaveis: quem estava
+  dentro de um aviso nunca "escapava". Regua que reprova tudo mede a si mesma, e
+  regua que nao reprova nada e um carimbo -- `teste_combinacoes.gd` guarda os
+  dois lados.
 - **O telegrafo encurta com a barra, mas o PISO nao mora na Deterioracao.**
   `Deterioracao.multiplicador_telegrafo()` responde "quanto encurta", que e
   tuning; quem garante que ele nao SOME e `Telegrafo.duracao_segura()`, aplicado

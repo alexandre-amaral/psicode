@@ -59,6 +59,7 @@ func executar() -> void:
 	_o_gesto_de_beat_recomeca_a_cada_beat()
 	_nenhum_quadro_fica_parado_alem_do_teto()
 	_o_reator_nao_e_dirigido_por_progresso()
+	_a_boca_da_arma_sai_do_lado_que_o_corpo_encara()
 	Deterioracao.valor = _barra_original
 
 
@@ -205,6 +206,51 @@ func _o_reator_nao_e_dirigido_por_progresso() -> void:
 		mais_rapido > chefe.TEMPO_MINIMO,
 		"o preparo comum NAO e cortado pelo piso: para em %.4fs, %.0f ms acima de %.2f -- quem morde o piso e a execucao"
 			% [mais_rapido, (mais_rapido - chefe.TEMPO_MINIMO) * 1000.0, chefe.TEMPO_MINIMO]
+	)
+	chefe.free()
+
+
+## A boca da arma acompanha o corpo, nas oito direcoes.
+##
+## O no `Torre` era um `Marker2D` cravado em (0, -84) que nunca girava, e
+## `Arma._emitir()` usa o `global_position` da arma: todo projetil de RAJADA,
+## PISAO e REATOR nascia 84 px acima do centro do chefe, sem relacao com o lado
+## para onde ele encarava.
+##
+## Duas afirmacoes, e a segunda e a que teria pego o defeito: a primeira mede que
+## a boca esta no lado certo, a segunda que ela SAI DO LUGAR. Uma torre cravada
+## passaria na primeira em uma das oito direcoes por coincidencia.
+func _a_boca_da_arma_sai_do_lado_que_o_corpo_encara() -> void:
+	var chefe := _nascer()
+	Deterioracao.valor = 0.0
+	_forcar_fase(chefe, 1)
+	_entrar_em_preparar(chefe, chefe.RAJADA)
+
+	var torre := chefe.get_node("Torre") as Node2D
+	var arma := chefe.get_node("Torre/ArmaSucata") as Node2D
+	var lugares := {}
+	for i in Direcoes.TOTAL:
+		var d := Vector2.RIGHT.rotated(TAU * float(i) / float(Direcoes.TOTAL))
+		chefe._direcao_travada = d
+		chefe._pos_movimento(PASSO)
+
+		# Medido a partir da TORRE e nao do centro do chefe: a torre carrega o
+		# desvio VERTICAL da altura do peito (-84), que e da carcaca e nao da
+		# mira. Do centro, esse desvio dominaria a conta em todas as direcoes.
+		var desvio := arma.global_position - torre.global_position
+		perto(
+			desvio.normalized().dot(d), 1.0,
+			"a boca sai na direcao %d (%.0f graus)" % [i, rad_to_deg(d.angle())], 0.001
+		)
+		perto(
+			desvio.length(), chefe.RAIO_DA_TORRE,
+			"e a %.0f px do eixo do corpo, na direcao %d" % [chefe.RAIO_DA_TORRE, i], 0.5
+		)
+		lugares[Vector2i(desvio.round())] = true
+
+	igual(
+		lugares.size(), Direcoes.TOTAL,
+		"a boca ocupa um lugar DIFERENTE em cada uma das oito direcoes -- cravada, ela teria um so"
 	)
 	chefe.free()
 

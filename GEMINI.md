@@ -1054,6 +1054,16 @@ em qualquer erro de script.
 - **Os tres campos de dispersao nascem em ZERO e tem de continuar assim.**
   `Arma._emitir()` e o mesmo caminho do jogador e dos inimigos; um default acima
   de zero daria bloom para a salva da Diretora sem ninguem pedir.
+- **A torre do chefe SALTA, a da Sentinela interpola -- e a diferenca tem
+  motivo.** Na Sentinela o giro suave le como "ela esta calculando". No Automato
+  a direcao e TRAVADA na entrada do preparo, e uma torre interpolando ainda
+  estaria a caminho no instante do disparo: a boca apontando para um lado
+  enquanto a salva sai para outro. Isso troca um desalinhamento fixo por um que
+  se MEXE, que e pior de ler. O no `Torre` dele ficou cravado em (0, -84) da
+  BOSS 01 ate a ANIM 08, com as duas armas em cima -- todo projetil de RAJADA,
+  PISAO e REATOR nascia 84 px acima do centro dele, sem relacao com o lado
+  encarado. A DIRECAO dos tiros nunca esteve errada: ela sai do leque, calculado
+  de `_direcao_travada`. Era a boca que nao batia com o corpo.
 - **Forcar a fase do chefe num teste exige DOIS campos.** `fase_chefe` e o que
   os multiplicadores leem, mas quem GUARDA a transicao e `_fase_anunciada`:
   `_checar_fase()` compara `fase_por_vida()` contra ele e, se a vida ja pede uma

@@ -91,6 +91,12 @@ const Z_EFEITO := -1
 ## jeito e os demais de outro, sem nada que apontasse a diferenca.
 const VELOCIDADE_ANDANDO := 12.0
 
+## Quanto a boca da arma se afasta do eixo do corpo, em px.
+##
+## Menor que o `raio_contato` de 46: a boca fica SOBRE a carcaca, e nao
+## flutuando ao lado dela.
+const RAIO_DA_TORRE := 30.0
+
 ## O repertorio. Ele so CRESCE com a fase (a BOSS 08 acrescenta a Falha do
 ## Reator na 3) -- ataque que some faria o jogador desaprender.
 const SOCO := &"SOCO"
@@ -305,7 +311,7 @@ var _ultimo_ataque: StringName = &""
 var _aviso_atual: float = 0.0
 var _arma_onda: Arma
 var _arma_sucata: Arma
-var _braco: Node2D
+var _torre: Node2D
 ## As areas que ele semeou e que ainda vivem. Ver `morrer()`.
 var _areas: Array[Node] = []
 ## O quanto ele ja se desfez, de 0 a 1. Sobe com o dano e NUNCA desce.
@@ -329,11 +335,11 @@ func _ready() -> void:
 	_fumaca = $Visual/Fumaca
 	_fumaca.z_index = Z_EFEITO
 	_fumaca.modulate.a = 0.0
-	_braco = $Braco
+	_torre = $Torre
 	_sprite = get_node_or_null("Visual/Corpo") as SpriteDirecional
-	_arma_onda = $Braco/ArmaOnda
+	_arma_onda = $Torre/ArmaOnda
 	_arma_onda.hostil = true
-	_arma_sucata = $Braco/ArmaSucata
+	_arma_sucata = $Torre/ArmaSucata
 	_arma_sucata.hostil = true
 
 	_maquina = MaquinaEstados.new(name)
@@ -403,6 +409,11 @@ func _pos_movimento(delta: float) -> void:
 	# regra de combate nao pode passar a depender de haver sprite. E a mesma
 	# ordem que `cyber_besta.gd` mantem no `_conferir_batida()` dela.
 	_conferir_batida()
+	# ANTES do `_animar`, e fora dele: onde a boca da arma aponta e leitura de
+	# COMBATE, e nao decoracao. `_animar` volta cedo quando nao ha sprite, e a
+	# torre nao pode passar a depender de haver arte -- mesma ordem que a batida
+	# na parede ja segue.
+	_orientar_a_torre(_direcao_encarada())
 	_animar(delta)
 
 
@@ -411,6 +422,30 @@ func _conferir_batida() -> void:
 		return
 	if is_on_wall():
 		_maquina.trocar(ATORDOADO)
+
+
+## A boca da arma acompanha o lado que o corpo encara.
+##
+## O no NAO girava: era um `Marker2D` cravado em (0, -84) com as duas armas em
+## cima dele, e `Arma._emitir()` usa o `global_position` da arma. Todo projetil
+## de RAJADA, PISAO e REATOR nascia 84 px acima do centro do chefe, sem nenhuma
+## relacao com o lado para onde ele encarava. A DIRECAO dos tiros nunca esteve
+## errada -- ela sai do leque, calculado de `_direcao_travada` --, mas a boca nao
+## batia com o corpo. E a armadilha que o projeto ja registra para a Sentinela e
+## para o Vigia: inimigo com arma no visual precisa de uma TORRE.
+##
+## Ela SALTA em vez de interpolar, ao contrario da Sentinela. La o giro suave le
+## como "ela esta calculando"; aqui a direcao e TRAVADA na entrada do preparo, e
+## uma torre interpolando ainda estaria a caminho no instante do disparo -- a
+## boca apontando para um lado enquanto a salva sai para outro. Isso trocaria um
+## desalinhamento fixo por um que se MEXE, que e pior de ler, nao melhor.
+##
+## O resultado e a resolucao dupla que o projeto ja usa nos outros dois: a boca
+## mostra o angulo exato, o corpo mostra oito passos.
+func _orientar_a_torre(direcao: Vector2) -> void:
+	if _torre == null or direcao.length_squared() < 0.01:
+		return
+	_torre.rotation = direcao.angle()
 
 
 ## O corpo desenha a direcao e o passo.

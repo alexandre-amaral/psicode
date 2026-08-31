@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_da"]
+
+[resource]
+script = ExtResource("1_da")
+nome = "Onda de Choque"
+descricao = "O chao racha na frente do punho. Larga, lenta, e nao vira -- sair de lado resolve; recuar, nao."
+dano = 2
+knockback = 220.0
+perfuracao = 99
+cadencia = 8.0
+automatica = true
+projeteis_por_tiro = 1
+abertura_graus = 0.0
+impressao_graus = 0.0
+velocidade_projetil = 210.0
+alcance = 420.0
+raio_projetil = 16.0
+cor_projetil = Color(0.82, 1, 0.15, 1)
+municao_maxima = -1
+shake_intensidade = 0.0
+shake_duracao = 0.0
+recuo_player = 0.0
+tamanho_pente = 9999
+tempo_recarga = 0.1

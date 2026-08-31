@@ -43,9 +43,13 @@ const PONTOS := [
 	{"hp": 0.05, "diz": "fim de luta"},
 ]
 
-## Quanto tempo cada ponto roda no modo headless. Um ciclo inteiro do chefe na
-## fase mais lenta -- escolha, preparo, execucao, recuperacao -- leva ~2,7 s.
-const SEGUNDOS_POR_PONTO := 4.0
+## Quanto tempo cada ponto roda no modo headless.
+##
+## Um ciclo inteiro do chefe na fase mais lenta -- escolha, preparo, execucao,
+## recuperacao -- leva ~2,7 s, e o repertorio tem quatro ataques em rodizio.
+## Menos que isto mediria sempre o mesmo ataque e diria que os outros tres nao
+## existem.
+const SEGUNDOS_POR_PONTO := 14.0
 
 var _chefe: Node = null
 var _sala: Node = null
@@ -145,11 +149,14 @@ func _medir(ponto: Dictionary) -> String:
 	# Quantos estados diferentes ele visita: um chefe travado num estado so e o
 	# defeito que "ele parece parado" descreve, e ele nao da erro no console.
 	var vistos := {}
+	var ataques := {}
 	var decorrido := 0.0
 	while decorrido < SEGUNDOS_POR_PONTO:
 		await get_tree().physics_frame
 		decorrido += get_physics_process_delta_time()
 		vistos[String(_chefe._maquina.estado)] = true
+		if _chefe._maquina.estado == _chefe.EXECUTAR:
+			ataques[String(_chefe._ataque)] = true
 
 	print("  %3.0f%% de vida -- %s" % [ponto["hp"] * 100.0, ponto["diz"]])
 	print("    fase %d, multiplicador %.2f, %.0f px/s" % [fase, mult, velocidade])
@@ -157,6 +164,7 @@ func _medir(ponto: Dictionary) -> String:
 		preparo, recuperacao, _chefe.TEMPO_MINIMO,
 	])
 	print("    estados visitados em %.0f s: %s" % [SEGUNDOS_POR_PONTO, ", ".join(vistos.keys())])
+	print("    ataques executados: %s" % (", ".join(ataques.keys()) if not ataques.is_empty() else "nenhum"))
 
 	var erro := ""
 	var esperada: int = _chefe.fase_por_vida()

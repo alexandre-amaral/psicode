@@ -67,8 +67,8 @@ var _sentido_lateral: float = 1.0
 ## carga: recalcular faria o aviso encolher enquanto o jogador o le, e o alvo
 ## do telegrafo e justamente ser previsivel.
 var _aviso_atual: float = 0.0
-## Rotacao do proximo anel, em graus. Ver `_proximo_offset()`.
-var _offset_anel: float = 0.0
+## Indice do proximo anel. Ver `_proximo_offset()`.
+var _indice_anel: int = 0
 
 
 func _ready() -> void:
@@ -84,7 +84,7 @@ func _ready() -> void:
 	_sentido_lateral = 1.0 if randf() < 0.5 else -1.0
 	# O primeiro anel de cada drone comeca numa fase propria: quatro drones
 	# alternando em uniso dariam duas paredes alternadas em vez de um padrao.
-	_offset_anel = float(randi() % 2) * (_setor_do_anel() * 0.5)
+	_indice_anel = randi() % 2
 
 	_maquina = MaquinaEstados.new(name)
 	_maquina.adicionar(PERSEGUIR, _perseguir)
@@ -241,20 +241,20 @@ func _disparar_entrar() -> void:
 ## Aleatorio e imprevisivel; alternado e dificil. So o segundo vira habilidade.
 ##
 ## O passo e meio setor: com oito projeteis o setor tem 45 graus e o
-## deslocamento vira 22,5 -- exatamente o meio do vao. `fmod` pelo setor inteiro
-## mantem o numero pequeno e faz o par alternar para sempre.
+## deslocamento vira 22,5 -- exatamente o meio do vao.
+##
+## A CONTA saiu daqui para `Balistica.alternancia()` (BOSS 06): o chefe pede a
+## mesma coisa na rajada e no pisao, e tres copias divergiriam. O que sobra aqui
+## e o indice, que e estado do drone e nao matematica.
 func _proximo_offset() -> float:
-	var atual := _offset_anel
-	var passo := _setor_do_anel()
-	_offset_anel = fmod(_offset_anel + passo * 0.5, passo)
+	var atual := Balistica.alternancia(_projeteis_agora(), _indice_anel)
+	_indice_anel += 1
 	return atual
 
 
-## O setor entre dois bracos do anel, em graus. Sai da CONTAGEM e nao de uma
-## constante: `projeteis` e ajustavel e a Deterioracao pode subi-lo, e um passo
-## fixo de 22,5 deixaria de cair no meio do vao assim que a contagem mudasse.
+## O setor entre dois bracos do anel, em graus.
 func _setor_do_anel() -> float:
-	return 360.0 / float(maxi(_projeteis_agora(), 1))
+	return Balistica.setor(_projeteis_agora())
 
 
 ## Quantos bracos o anel tem AGORA. Lido no frame: com a barra subindo entre dois

@@ -158,6 +158,8 @@ docs/
 | **Quanto o telegrafo encurta com a barra** | `multiplicador_telegrafo()` em `src/autoload/deterioracao.gd`; o PISO fica em `Telegrafo.DURACAO_MINIMA` e nao aqui |
 | **Para onde um botao de inimigo caminha com a barra cheia** | grupo `Escalonamento` do `src/enemies/dados_*.tres`; negativo desliga |
 | Matematica de mira preditiva | `src/util/balistica.gd` |
+| **Alternancia de salva (o anel do Drone, a rajada e o pisao do chefe)** | `Balistica.alternancia()` para anel, `alternancia_de_passo()` para leque -- num lugar so |
+| **Os quatro ataques do chefe do andar 1** | `@export_group` por ataque em `src/enemies/boss_guardiao_01.tscn`; as ARMAS dele em `src/weapons/onda_guardiao.tres` e `sucata_guardiao.tres` |
 | **Como QUALQUER inimigo se desloca** | `src/util/movimento.gd` -- perseguir, recuar, orbitar, investir, fugir; os numeros continuam nos `@export` de cada inimigo |
 | Chefe do andar 1 | `src/enemies/boss_guardiao_01.gd` + `dados_boss_guardiao_01.tres` |
 | **Ajustar o chefe sem jogar a run inteira** | `godot --path . tools/chefe/arena_chefe.tscn -- --hp=0.32` entra na fase 3 direto; sem janela ele varre os quatro pontos e imprime o relatorio |
@@ -225,6 +227,32 @@ em qualquer erro de script.
   seguidas ele apareceu e ZERO areas foram criadas. Comportamento que demora
   mais que um tick precisa de suite propria (`teste_area_de_perigo.gd`), senao
   a guarda passa verde sem nunca ter olhado nada.
+- **LEQUE e ANEL tem passos diferentes, e confundi-los apaga o padrao.** O anel
+  divide 360 pela contagem; o leque divide a ABERTURA por `contagem - 1`.
+  Alternar um leque com o passo do anel gira demais e a segunda salva cai EM
+  CIMA da primeira em vez de nos vaos dela -- o oposto do que a alternancia
+  existe para fazer. Aconteceu na primeira versao da rajada do chefe, e o unico
+  sintoma era o padrao nao aparecer. Por isso ha
+  `Balistica.alternancia_de_passo()` ao lado de `alternancia()`.
+- **A cadencia da ARMA nao pode ser o que limita uma salva por script.** A
+  sucata do chefe tinha `cadencia = 3.0` (0,33 s entre tiros) e o chefe pede
+  beats a cada 0,28 s: a segunda e a terceira rajada eram recusadas por
+  `pode_atirar()` e sumiam em SILENCIO -- sem erro, sem nada na tela, so um
+  ataque que "as vezes sai menor". Quem espaca beat e o inimigo; a arma so
+  precisa nao atrapalhar. `teste_boss_ataques.gd` cobra isso contra o intervalo
+  mais curto que o chefe consegue produzir (fase 3 com a barra cheia).
+- **O aviso do soco e uma `AreaDePerigo` reusada, e a economia nao e de
+  linhas.** Ela ja carrega as tres armadilhas registradas daquele ataque
+  resolvidas: nao estoura no `_ready`, varre com `intersect_shape` em vez de
+  `get_overlapping_bodies()`, e desenha na faixa do mundo pelo `Telegrafo`.
+  Escrever um circulo proprio ali reencenaria os tres bugs de uma vez.
+- **Suite que dispara arma nao pode assumir o proprio
+  `container_projeteis`.** `Arma._container()` resolve por
+  `get_first_node_in_group()` no instante do disparo, e a ORDEM de um grupo no
+  Godot nao e a de insercao -- um container vazado de outra suite vem na frente.
+  Escrevendo `teste_boss_ataques.gd` foi exatamente isso: a rajada "nao
+  disparava", e os projeteis caiam na caixa da suite anterior. Pergunte a arma
+  onde ela vai colocar (`arma._container()`) em vez de adivinhar.
 - **O multiplicador de fase do Automato tem de alcancar TEMPO e MOVIMENTO ao
   mesmo tempo.** So no movimento, o jogador ve um robo andando rapido com
   ataques no mesmo ritmo; so nos tempos, um robo lento com ataques nervosos. Nos

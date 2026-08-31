@@ -1054,6 +1054,34 @@ em qualquer erro de script.
 - **Os tres campos de dispersao nascem em ZERO e tem de continuar assim.**
   `Arma._emitir()` e o mesmo caminho do jogador e dos inimigos; um default acima
   de zero daria bloom para a salva da Diretora sem ninguem pedir.
+- **Forcar a fase do chefe num teste exige DOIS campos.** `fase_chefe` e o que
+  os multiplicadores leem, mas quem GUARDA a transicao e `_fase_anunciada`:
+  `_checar_fase()` compara `fase_por_vida()` contra ele e, se a vida ja pede uma
+  fase acima, joga o chefe em `TRANSICAO_FASE` no primeiro `_physics_process`.
+  Escrevendo `teste_boss_animacao.gd` isso custou tres falhas, e o sintoma
+  mandava para o lugar errado: um `PREPARAR` de 0,0167 s (um passo) e so no
+  PRIMEIRO ataque de cada canto medido, porque a partir do segundo a virada ja
+  tinha acontecido.
+- **Progresso de gesto so vale DENTRO do estado.** `progresso_do_gesto()`
+  responde pelo estado ATUAL. Amostrado depois de um `_physics_process` que ja
+  trocou de estado, ele devolve quase zero -- e num teste que conta reinicios de
+  beat aquela queda vira um beat que nunca existiu. Saia do laco antes de
+  amostrar, e nao depois.
+- **Nos ataques de BEAT o gesto e o BEAT, e nao o estado.** O pisao da fase 3
+  sao DOIS pisoes dentro de um `EXECUTAR` so, e a rajada sao ate tres. Um clipe
+  esticado sobre o estado inteiro mostraria meio pisao por pisao -- a perna
+  subindo no primeiro e descendo no segundo, com o impacto de nenhum dos dois
+  caindo no lugar. Mesma distincao que ja separa `Balistica.alternancia()` de
+  `alternancia_de_passo()`: a conta e igual, o vao e que nao.
+- **O piso de 0,35 s NAO morde no preparo do chefe -- e isso e margem, nao
+  garantia.** `tempo_telegrafo` vale 0,80, e o pior caso e
+  `0.8 / (1.30 x 1.7) = 0,3620 s`: sobram 12 ms. Quem o piso corta e a EXECUCAO
+  (`0.4 / 2.21 = 0,181`). O regime vira se `tempo_telegrafo` cair abaixo de
+  **0,7735** -- uma sessao de tuning que o baixe de 0,80 para 0,77 passa a ter o
+  preparo clampado, e o gesto termina antes do golpe. Por isso
+  `teste_boss_animacao.gd` MEDE a margem em vez de assumi-la. E note que
+  `multiplicador_cadencia()` vai a **1,7**, e nao a 1,55 -- esse e o de
+  velocidade.
 - **A ancora de um CLIPE e do ator, nunca do quadro.** `montar_fita()` ancora
   cada quadro pela base do proprio bbox de alfa, e para caminhada isso e o
   certo: os pes voltam ao chao todo passo. Num GESTO isso CANCELA a animacao --

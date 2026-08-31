@@ -101,6 +101,30 @@ const PISAO := &"PISAO"
 const REATOR := &"REATOR"
 const REPERTORIO: Array[StringName] = [SOCO, RAJADA, INVESTIDA, PISAO]
 
+## O gesto de cada ataque: o que ele arma, e o que ele solta.
+##
+## Um par por ataque, e nao um preparo compartilhado, porque a issue existe para
+## o corpo DIZER qual ataque vem. O PISAO nao pode emprestar a pose do SOCO --
+## os dois sao impacto de corpo, mas o pisao gera um ANEL e o soco um leque a
+## frente: a pose emprestada diria "soco" quando vem anel, que e telegrafo
+## mentindo, o proprio defeito que se esta consertando.
+##
+## Os nomes sao contratos com a CENA. Um nome aqui sem clipe correspondente
+## degrada para a pose parada em silencio, e e o portao que faz barulho.
+const GESTO_ARMAR := &"armar"
+const GESTO_SOLTAR := &"soltar"
+const GESTOS := {
+	SOCO: {GESTO_ARMAR: &"armar_soco", GESTO_SOLTAR: &"socar"},
+	RAJADA: {GESTO_ARMAR: &"armar_rajada", GESTO_SOLTAR: &"arremessar"},
+	INVESTIDA: {GESTO_ARMAR: &"armar_investida", GESTO_SOLTAR: &"investir"},
+	PISAO: {GESTO_ARMAR: &"armar_pisao", GESTO_SOLTAR: &"pisar"},
+	REATOR: {GESTO_ARMAR: &"armar_reator", GESTO_SOLTAR: &"sobrecarregar"},
+}
+
+## O gesto do atordoamento e o do despertar. Nao pertencem a ataque nenhum.
+const CLIPE_CAMBALEAR := &"cambalear"
+const CLIPE_DESPERTAR := &"despertar"
+
 const IDLE := &"IDLE"
 ## Ele ACORDA antes de lutar. Ver `_despertar()`.
 const DESPERTAR := &"DESPERTAR"
@@ -405,9 +429,14 @@ func _conferir_batida() -> void:
 func _animar(delta: float) -> void:
 	if _sprite == null:
 		return
-	_sprite.apontar(
-		_direcao_encarada(), velocity.length() > VELOCIDADE_ANDANDO, delta, velocity
-	)
+	var d := _direcao_encarada()
+	var gesto := clipe_do_estado(_maquina.estado, _ataque) if _maquina != null else &""
+	if gesto != &"" and _sprite.encenar(d, gesto, progresso_do_gesto(), delta):
+		return
+	# Sem gesto -- ou sem a arte dele -- ele volta a pose e ao ciclo de
+	# caminhada. Mesma degradacao que `sprites_andando` vazio ja tem, e e por
+	# isso que a cena continua valida com `clipes` vazio.
+	_sprite.apontar(d, velocity.length() > VELOCIDADE_ANDANDO, delta, velocity)
 
 
 ## Para onde o corpo aponta neste estado.
@@ -796,6 +825,53 @@ func _escolher_ataque() -> void:
 ## A direcao e travada AQUI e nao e mais atualizada -- vale para os quatro
 ## ataques, e e o que torna a investida justa. A duracao tambem e fixada aqui:
 ## relida todo frame, ela encolheria enquanto o jogador le o aviso.
+## Que gesto este estado pede. PURA: o portao a interroga sem montar cena.
+##
+## Consultada TODO FRAME, e nao pelo sinal `mudou` da maquina, e a razao e a
+## reentrada: o soco da fase 3 e a investida encadeada voltam de EXECUTAR para
+## PREPARAR, e `MaquinaEstados.trocar()` para o estado ATUAL e no-op deliberado.
+## Um mapa dirigido por sinal tambem teria de saber que `_beats` muda DENTRO de
+## EXECUTAR sem troca de estado nenhuma -- e quem consulta nunca precisa saber
+## quais mutacoes emitem e quais nao.
+##
+## RECUPERAR fica de fora, e isso saiu da medicao e nao do gosto: ela dura 1,33 s
+## na fase 1 e 3,2 s depois do Reator. Um gesto de 4 quadros ali roda a 0,33 s e
+## 0,80 s por quadro -- no teto e muito alem dele. Ficar ABERTO e uma pose
+## sustentada, nao um movimento, e a janela de punicao sempre foi isso.
+func clipe_do_estado(estado: StringName, ataque: StringName) -> StringName:
+	match estado:
+		PREPARAR:
+			return GESTOS.get(ataque, {}).get(GESTO_ARMAR, &"")
+		EXECUTAR:
+			return GESTOS.get(ataque, {}).get(GESTO_SOLTAR, &"")
+		ATORDOADO:
+			return CLIPE_CAMBALEAR
+		DESPERTAR:
+			return CLIPE_DESPERTAR
+	return &""
+
+
+## Onde o gesto atual esta, de 0 a 1.
+##
+## Nos ataques de BEAT o gesto e o BEAT, e nao o estado. Um pisao de fase 3 sao
+## DOIS pisoes dentro de um estado so; esticar um clipe sobre os dois mostraria
+## meio pisao por pisao. E a mesma distincao que ja separa
+## `Balistica.alternancia()` de `alternancia_de_passo()`: a conta e igual, o vao
+## e que nao.
+func progresso_do_gesto() -> float:
+	if _maquina == null:
+		return 0.0
+	if _maquina.estado == EXECUTAR and _ataque in [RAJADA, PISAO, REATOR]:
+		var beat := intervalo_de_beat()
+		if beat <= 0.0:
+			return 0.0
+		return clampf(fposmod(_maquina.tempo_no_estado, beat) / beat, 0.0, 1.0)
+	var d := duracao_do_estado()
+	if d <= 0.0:
+		return 0.0
+	return clampf(_maquina.tempo_no_estado / d, 0.0, 1.0)
+
+
 ## Quanto o estado ATUAL dura, ja em tempo real. FONTE UNICA.
 ##
 ## Quem processa o estado compara contra ISTO, e nunca contra a expressao -- a

@@ -1,7 +1,10 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://src/enemies/boss_guardiao_01.gd" id="1_s"]
 [ext_resource type="Resource" path="res://src/enemies/dados_boss_guardiao_01.tres" id="2_dados"]
+[ext_resource type="Script" path="res://src/weapons/arma.gd" id="3_arma"]
+[ext_resource type="Resource" path="res://src/weapons/onda_guardiao.tres" id="4_onda"]
+[ext_resource type="Resource" path="res://src/weapons/sucata_guardiao.tres" id="5_sucata"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_guardiao"]
 radius = 26.0
@@ -30,3 +33,16 @@ polygon = PackedVector2Array(-20, -58, 20, -58, 16, -34, -16, -34)
 [node name="Nucleo" type="Polygon2D" parent="Visual"]
 color = Color(1, 0.82, 0.35, 1)
 polygon = PackedVector2Array(-7, -52, 7, -52, 7, -40, -7, -40)
+
+[node name="Braco" type="Marker2D" parent="."]
+position = Vector2(0, -46)
+
+[node name="ArmaOnda" type="Node2D" parent="Braco"]
+script = ExtResource("3_arma")
+dados = ExtResource("4_onda")
+hostil = true
+
+[node name="ArmaSucata" type="Node2D" parent="Braco"]
+script = ExtResource("3_arma")
+dados = ExtResource("5_sucata")
+hostil = true

@@ -93,6 +93,60 @@ static func leque(direcao: Vector2, quantidade: int, abertura_graus: float) -> A
 	return saida
 
 
+## O setor entre dois bracos de um anel ou leque, em GRAUS.
+##
+## Sai da CONTAGEM e nunca de uma constante: com oito projeteis o setor e 45
+## graus, com doze e 30, e um passo fixo de 22,5 deixaria de cair no meio do vao
+## assim que a contagem mudasse -- e ela muda, porque a Deterioracao a escala.
+static func setor(quantidade: int) -> float:
+	return 360.0 / float(maxi(quantidade, 1))
+
+
+## A ALTERNANCIA DETERMINISTICA: de quantos graus a salva de indice `indice`
+## sai girada, em relacao a anterior.
+##
+## Meio setor, alternando para sempre: a salva par sai em zero, a impar sai no
+## MEIO DO VAO da par. E a diferenca entre um padrao e um borrao.
+##
+## Com rotacao aleatoria, duas salvas seguidas as vezes se intercalam e as vezes
+## caem uma sobre a outra -- nao ha nada a deduzir, e o jogador so pode reagir ao
+## que ja esta na tela. Com a alternancia fixa, a segunda cai SEMPRE nos vaos da
+## primeira: o buraco de agora e a parede daqui a pouco, e isso e uma regra que
+## da para dominar. Aleatorio e imprevisivel; alternado e dificil, e so o segundo
+## vira habilidade.
+##
+## Mora aqui, e nao em cada inimigo, porque TRES lugares pedem esta mesma conta
+## -- o anel do Drone Aranha, a rajada do chefe e o pisao dele. O mapa de angulo
+## para quadro ja foi duplicado uma vez neste projeto e teve de virar
+## `src/util/direcoes.gd` por isso; o sintoma de duas copias divergindo aparece
+## em TELA e nunca no console.
+static func alternancia(quantidade: int, indice: int) -> float:
+	return alternancia_de_passo(setor(quantidade), indice)
+
+
+## A mesma alternancia, para quem NAO tem um anel: recebe o passo direto.
+##
+## Existe porque leque e anel tem passos diferentes -- o anel divide 360 pela
+## contagem, o leque divide a ABERTURA por `contagem - 1`. Alternar um leque com
+## o passo do anel gira demais e a segunda salva cai EM CIMA da primeira em vez
+## de nos vaos dela, que e o oposto do que a alternancia existe para fazer. Foi
+## exatamente o que aconteceu na primeira versao da rajada do chefe, e o unico
+## sintoma era o padrao nao aparecer.
+static func alternancia_de_passo(passo_graus: float, indice: int) -> float:
+	var passo := absf(passo_graus)
+	if passo < 0.0001:
+		return 0.0
+	return fmod(float(maxi(indice, 0)) * passo * 0.5, passo)
+
+
+## O passo entre dois projeteis de um LEQUE, em graus. A abertura e TOTAL, e ela
+## se reparte entre `quantidade - 1` intervalos e nao entre `quantidade`.
+static func passo_do_leque(quantidade: int, abertura_graus: float) -> float:
+	if quantidade <= 1:
+		return 0.0
+	return abertura_graus / float(quantidade - 1)
+
+
 ## Anel completo de direcoes. Base dos padroes bullet hell do chefe.
 static func anel(quantidade: int, rotacao_inicial: float = 0.0) -> Array[Vector2]:
 	var saida: Array[Vector2] = []

@@ -58,8 +58,8 @@ enum Forma {
 	NENHUMA,
 	## Do ponto A ao ponto B. O laser do Vigia, a linha do Neon.
 	LINHA,
-	## Disco no chao. A area do Hacker.
-	CIRCULO,
+	## Mancha no chao. O disco do Hacker, a faixa da Rede de Exterminio.
+	AREA,
 }
 
 enum Fase {
@@ -119,7 +119,11 @@ var _fase: int = Fase.FRACO
 var _a: Vector2 = Vector2.ZERO
 var _b: Vector2 = Vector2.ZERO
 var _centro: Vector2 = Vector2.ZERO
-var _raio: float = 0.0
+## Contorno da mancha, em coordenadas LOCAIS em volta de `_centro`. Circulo e
+## faixa passam pelo mesmo campo de proposito: duas primitivas de aviso
+## acabariam divergindo justamente no detalhe que mais importa -- quanto tempo o
+## aviso dura antes de doer.
+var _pontos: PackedVector2Array = PackedVector2Array()
 
 ## Sprite/poligono que pulsa junto. Ver `pulsar()`.
 var _pulsante: CanvasItem = null
@@ -273,11 +277,21 @@ func linha(origem: Vector2, ponta: Vector2) -> void:
 	queue_redraw()
 
 
-## Disco no chao, em coordenadas GLOBAIS.
+## Disco no chao. `centro` e GLOBAL.
 func circulo(centro: Vector2, raio: float) -> void:
-	_forma = Forma.CIRCULO
+	var pontos := PackedVector2Array()
+	for i in LADOS:
+		pontos.append(Vector2.RIGHT.rotated(TAU * float(i) / float(LADOS)) * raio)
+	forma(centro, pontos)
+
+
+## Mancha de contorno qualquer. `centro` e GLOBAL, `pontos_locais` sao relativos
+## a ele. E o que a faixa da Rede de Exterminio precisa: aviso de FAIXA, e nao
+## de disco, na mesma linguagem de fases.
+func forma(centro: Vector2, pontos_locais: PackedVector2Array) -> void:
+	_forma = Forma.AREA
 	_centro = centro
-	_raio = raio
+	_pontos = pontos_locais
 	queue_redraw()
 
 
@@ -309,11 +323,13 @@ func _draw() -> void:
 	match _forma:
 		Forma.LINHA:
 			draw_line(_a, _b, c, largura)
-		Forma.CIRCULO:
-			var r := _raio * crescimento()
+		Forma.AREA:
+			if _pontos.size() < 3:
+				return
+			var f := crescimento()
 			var pontos := PackedVector2Array()
-			for i in LADOS:
-				pontos.append(_centro + Vector2.RIGHT.rotated(TAU * float(i) / float(LADOS)) * r)
+			for ponto in _pontos:
+				pontos.append(_centro + ponto * f)
 			# O miolo e discreto e a borda e o aviso: um disco chapado do
 			# tamanho de meia sala esconderia o proprio chao, e o jogador
 			# precisa ver ONDE esta pisando enquanto sai de cima.

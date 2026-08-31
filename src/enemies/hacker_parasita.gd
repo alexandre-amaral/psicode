@@ -12,6 +12,12 @@ extends InimigoBase
 ##
 ## Ele foge do jogador de proposito. Um semeador que fica ao alcance morre no
 ## primeiro segundo e nunca chega a semear nada.
+##
+## A ZONA RESIDUAL e o que faz a promessa acima ser verdade. Sem ela, o estouro
+## e um instante: quem estava dentro toma, e um segundo depois o chao esta livre
+## outra vez -- o Parasita punia um momento e nao reduzia espaco nenhum. A brasa
+## nao mata; ela impede o jogador de VOLTAR para onde estava, que e a coisa
+## inteira que este inimigo existe para fazer.
 
 const CENA_AREA := preload("res://src/enemies/area_de_perigo.tscn")
 
@@ -26,6 +32,12 @@ const CENA_AREA := preload("res://src/enemies/area_de_perigo.tscn")
 ## dele, o que seria um ataque sem escolha.
 @export var espalhamento: float = 96.0
 @export var raio_area: float = 60.0
+## Quanto tempo a brasa fica no chao depois do estouro.
+##
+## E o botao de controle territorial dele: mais tempo, menos chao util. Ligado
+## AQUI e nao no default da `AreaDePerigo` porque a mesma cena serve os ataques
+## de area da Diretora, e o repertorio dela foi medido sem brasa nenhuma.
+@export var tempo_residual: float = 1.5
 
 @export_group("Fuga")
 ## Abaixo disto ele recua. Acima, ele so se reposiciona devagar.
@@ -121,6 +133,8 @@ func _plantar() -> void:
 		destino = sala.ponto_seguro()
 
 	var area := CENA_AREA.instantiate()
+	# Antes do `configurar()`, que e quem acende o telegrafo e passa a contar.
+	area.tempo_residual = tempo_residual
 	container.add_child(area)
 	area.configurar(destino, raio_area, dano_contato)
 	_areas.append(area)

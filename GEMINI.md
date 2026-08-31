@@ -90,6 +90,7 @@ src/
   player/      player, eco de rolamento
   weapons/     arma.gd, dados_arma.gd, *.tres (pistola, shotgun, armas do chefe)
   enemies/     inimigo_base, maquina_estados, area_de_perigo,
+               telegrafo (o aviso: linha, mancha, pulso e as quatro fases),
                sprite_direcional (o Sprite2D de oito rotacoes),
                rastejante, vigia, drone_aranha, sentinela_orbital,
                atirador_neon, cyber_besta, hacker_parasita, diretora (chefe),
@@ -147,6 +148,8 @@ docs/
 | Limiares de 50% e 85% | `src/autoload/deterioracao.gd` |
 | Matematica de mira preditiva | `src/util/balistica.gd` |
 | Chefe | `src/enemies/diretora.gd` |
+| **Como QUALQUER inimigo avisa um ataque** | `src/enemies/telegrafo.gd` -- linha, mancha no chao ou pulso de sprite, sempre nas mesmas quatro fases |
+| **Quanto tempo a brasa do Parasita fica no chao** | `tempo_residual` no `@export` do `src/enemies/hacker_parasita.tscn`; zero desliga |
 | **O que o chefe le do jogador** | `src/enemies/perfil_jogador.gd` (logica pura, testada) |
 | **As travas de identidade do chefe** | `tools/testes/teste_diretora.gd` + a secao no `docs/GDD.md` |
 | Layout e conexao das salas | `src/mapa/gerenciador_mapa.gd`, `src/mapa/sala_*.tscn` |
@@ -206,6 +209,35 @@ em qualquer erro de script.
   seguidas ele apareceu e ZERO areas foram criadas. Comportamento que demora
   mais que um tick precisa de suite propria (`teste_area_de_perigo.gd`), senao
   a guarda passa verde sem nunca ter olhado nada.
+- **Telegrafo novo nao se escreve na mao: usa-se o `Telegrafo`.** Eram sete
+  implementacoes da mesma ideia, e as duas que quebraram quebraram em silencio
+  -- a `AreaDePerigo` desenhando abaixo do chao, e aviso aceso que nao apaga. As
+  quatro invariantes moram no componente: faixa `z` ABSOLUTA (`z_as_relative`
+  desligado, senao o aviso herda a camada de quem o pendurou), `top_level`
+  sempre (aviso que herda a rotacao de um `Visual` e aviso que mente), `apagar()`
+  amarrado no `sair` da `MaquinaEstados`, e o piso de `DURACAO_MINIMA` aplicado
+  DENTRO de `acender()`.
+- **Quem ESPERA o aviso terminar tem de esperar `Telegrafo.duracao_segura()`.**
+  O piso levanta um `tempo_clarao` de 0,28 s ate 0,35 s. Aplicado so no desenho,
+  o tiro sairia antes de o telegrafo acabar -- o aviso terminando DEPOIS do
+  ataque que ele avisa. Por isso `SentinelaOrbital._duracao_do_aviso()` passa
+  pelo piso, e por isso o Vigia e o Neon disparam por
+  `_telegrafo.avancar(delta) >= 1.0` em vez de um contador paralelo.
+- **`InimigoBase.morrer()` apaga os telegrafos filhos, e isso nao e redundante.**
+  `queue_free()` e diferido: o no ainda desenha no frame em que morreu. A
+  garantia mora na BASE de proposito -- na subclasse, o proximo inimigo com
+  telegrafo que esquecesse de sobrescrever `morrer()` traria o defeito de volta.
+- **A brasa do Parasita nasce DESLIGADA na `AreaDePerigo`.** `tempo_residual` e
+  zero por padrao porque a mesma cena serve a Rede de Exterminio e o Colapso da
+  Diretora, e o repertorio dela foi medido sem brasa. Quem liga e o Parasita,
+  para quem ela e a razao de existir: sem a zona residual o estouro e um
+  instante, e o inimigo de controle territorial nao controla nada.
+- **A brasa ignora `body_entered` de proposito.** Se o sinal valesse nela,
+  atravessar a mancha custaria o mesmo que ficar parado dentro -- e a brasa
+  existe justamente para separar as duas coisas. Quem passa correndo tem de
+  conseguir passar; quem fica paga no tique de `intervalo_residual`, que fica
+  uma ordem de grandeza acima de `Juice.INTERVALO_HITSTOP` para dano continuo
+  nunca encadear hitstop.
 - **`Array[Node].filter()` devolve `Array` sem tipo.** Atribuir de volta a uma
   variavel tipada explode em runtime. Use loop explicito.
 - **Referencia de no exportada nao resolve.** Use `NodePath` explicito e

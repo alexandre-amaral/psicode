@@ -74,6 +74,17 @@ const ATOR: Dictionary = {
 	# com um projetil, do mesmo jeito que o drone_aranha divide o laranja com o
 	# proprio tiro dele.
 	&"nucleo_sobrecarga": Color(1.0, 0.82, 0.25),
+	# O Automato Enferrujado, chefe do andar 1. AMARELO-PERIGO, e a escolha e por
+	# eliminacao: o andar 1 ja gasta o laranja duas vezes -- drone_aranha em 25
+	# graus e cyber_besta em 14 --, e um terceiro laranja no CHEFE seria a peca
+	# mais importante da sala usando a cor mais repetida dela. O 72 fica a 32
+	# graus do hacker_parasita e a 26 do nucleo_sobrecarga, que e a folga que o
+	# drone ja aceita com o proprio tiro.
+	#
+	# E ele diz a coisa certa: amarelo-perigo e a cor de maquinario industrial
+	# que o AND1 pede para o andar, e combina com a ficcao dele -- uma maquina
+	# que usa a propria destruicao para funcionar acima do limite.
+	&"boss_guardiao_01": Color(0.82, 1.0, 0.15),
 	# A torre da fase Absoluta usa o roxo da SALVA dela, e nao uma cor propria:
 	# a torre nao e um inimigo novo, e a Diretora saindo pelo chao. Cor propria
 	# diria ao jogador que apareceu outra coisa na sala.

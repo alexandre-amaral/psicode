@@ -97,6 +97,8 @@ const REATOR := &"REATOR"
 const REPERTORIO: Array[StringName] = [SOCO, RAJADA, INVESTIDA, PISAO]
 
 const IDLE := &"IDLE"
+## Ele ACORDA antes de lutar. Ver `_despertar()`.
+const DESPERTAR := &"DESPERTAR"
 const ESCOLHER_ATAQUE := &"ESCOLHER_ATAQUE"
 const PREPARAR := &"PREPARAR"
 const EXECUTAR := &"EXECUTAR"
@@ -223,6 +225,17 @@ const MORTE := &"MORTE"
 ## A virada de fase. Ele trava, a maquina reassenta, e SO ENTAO volta a atacar.
 @export var tempo_transicao: float = 1.2
 @export var tempo_atordoado: float = 1.2
+## Quanto ele leva para acordar na baia, uma vez por luta.
+##
+## A APRESENTACAO dele e o jogador acreditar que o robo e CENARIO: parado na
+## baia, luzes apagadas, cabeca baixa. Ai a porta fecha, a energia chega, o motor
+## tenta girar, FALHA, tenta de novo, e ele desperta. Isso entrega "velho, pesado
+## e dificil de iniciar" antes do primeiro ataque -- que e exatamente a frase que
+## a luta inteira existe para provar.
+##
+## Longo, e uma vez so: e a unica parte da luta em que o jogador nao esta sendo
+## atacado, e ela paga por si mesma dizendo com o que ele vai lidar.
+@export var tempo_despertar: float = 2.0
 
 ## 1, 2 ou 3. Publico porque a HUD, o tuning e as suites leem daqui.
 var fase_chefe: int = 1
@@ -293,6 +306,7 @@ func _ready() -> void:
 
 	_maquina = MaquinaEstados.new(name)
 	_maquina.adicionar(IDLE, _idle)
+	_maquina.adicionar(DESPERTAR, _despertar, _despertar_entrar)
 	_maquina.adicionar(ESCOLHER_ATAQUE, _escolher)
 	_maquina.adicionar(PREPARAR, _preparar, _preparar_entrar)
 	_maquina.adicionar(EXECUTAR, _executar, _executar_entrar)
@@ -473,10 +487,21 @@ func _atualizar_leitura_visual(delta: float) -> void:
 	# O nucleo pulsa mais rapido a cada fase, e nunca apaga: um nucleo que some
 	# tiraria justamente o sinal que diz que ele ainda esta funcionando.
 	if _nucleo != null:
-		_t_pulso += delta * pulso_da_fase()
-		var onda := 0.5 + 0.5 * sin(_t_pulso * TAU)
-		_nucleo.modulate.a = lerpf(0.55, 1.0, onda)
-		_nucleo.scale = Vector2.ONE * lerpf(1.0, 1.0 + 0.25 * _desgaste, onda)
+		if esta_dormente():
+			# APAGADO na baia: e o que faz o corpo ler como cenario. Um chefe que
+			# pulsa antes de acordar entrega o truque no primeiro quadro.
+			_nucleo.modulate.a = 0.0
+			_t_pulso = 0.0
+		else:
+			_t_pulso += delta * pulso_da_fase()
+			var onda := 0.5 + 0.5 * sin(_t_pulso * TAU)
+			var teto := 1.0
+			if esta_despertando():
+				# A energia CHEGANDO: o nucleo sobe do zero ao longo do despertar,
+				# em vez de acender de uma vez.
+				teto = clampf(_maquina.tempo_no_estado / maxf(tempo_despertar, 0.01), 0.0, 1.0)
+			_nucleo.modulate.a = lerpf(0.55, 1.0, onda) * teto
+			_nucleo.scale = Vector2.ONE * lerpf(1.0, 1.0 + 0.25 * _desgaste, onda)
 	# A fumaca so comeca no segundo terco, e cresce dali. No primeiro ela seria
 	# ruido: a carcaca inteira ja diz "velho", e fumaca desde o inicio nao
 	# distinguiria estado nenhum.
@@ -560,10 +585,49 @@ func _transicao(delta: float) -> void:
 
 # ------------------------------------------------------------- os estados ---
 
-## Espera o jogador aparecer. Sem alvo ele nao tem para onde ir.
+## DORMENTE na baia. Ele nao espera: ele esta desligado.
+##
+## Enquanto esta aqui o nucleo fica APAGADO -- e o que faz o jogador ler o corpo
+## como cenario, e nao como um inimigo parado. Um chefe que pulsa antes de
+## acordar entrega o truque no primeiro quadro.
 func _idle(delta: float) -> void:
 	Movimento.frear(self, delta, 1200.0)
 	if alvo != null and is_instance_valid(alvo):
+		_maquina.trocar(DESPERTAR)
+
+
+func esta_dormente() -> bool:
+	return _maquina != null and _maquina.estado == IDLE
+
+
+func esta_despertando() -> bool:
+	return _maquina != null and _maquina.estado == DESPERTAR
+
+
+## A partida que nao pega.
+##
+## O motor tenta, FALHA, e tenta de novo -- e a falha e a peca, nao o ruido. Uma
+## maquina que liga de primeira e uma maquina nova; esta e velha, e a luta
+## inteira e sobre ela destravar. O som e o mesmo `motor_falhando` da fase 1, e
+## nao um sting proprio: a primeira coisa que o jogador ouve dele ja e o timbre
+## que vai acompanha-lo o primeiro terco.
+func _despertar_entrar() -> void:
+	Audio.tocar(som_por_fase[0] if not som_por_fase.is_empty() else null)
+	EventBus.pedido_shake.emit(2.0, 0.2)
+	if _visual == null:
+		return
+	var t := create_tween()
+	# Tres arranques: dois falham, o terceiro pega. O corpo estremece e volta.
+	for i in 3:
+		var forca := 0.06 + 0.05 * float(i)
+		t.tween_property(_visual, "scale", Vector2(1.0 + forca, 1.0 - forca * 0.6), 0.10)
+		t.tween_property(_visual, "scale", Vector2.ONE, 0.16)
+		t.tween_interval(0.14)
+
+
+func _despertar(delta: float) -> void:
+	Movimento.frear(self, delta, 1800.0)
+	if _maquina.passou(tempo_despertar):
 		_maquina.trocar(ESCOLHER_ATAQUE)
 
 

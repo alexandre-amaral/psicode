@@ -45,6 +45,7 @@ func executar() -> void:
 	_a_arena_do_chefe_fica_limpa()
 	_o_foreground_nunca_entra_na_area_util()
 	_o_prop_raro_aparece_numa_sala_por_andar()
+	_a_arena_reage_sem_cobrir_a_leitura()
 
 
 ## Metade 1 do contrato: a arte de cada celula encosta no FUNDO dela.
@@ -191,6 +192,66 @@ func _a_arena_do_chefe_fica_limpa() -> void:
 
 
 # ------------------------------------------------------------------ apoio ----
+
+## A ARENA REAGE AS FASES sem cobrir a leitura (AND1 07).
+##
+## Esta e a sala mais densa de projetil do jogo, e a fase 3 e exatamente quando
+## os dois riscos se somam: mais efeito na tela e mais projetil na tela, no mesmo
+## instante. O plano crava a regra -- "faiscas ficam principalmente perto das
+## PAREDES; nunca particulas brilhantes atravessando a arena" -- e aqui ela vira
+## geometria em vez de bom senso.
+##
+## Tres coisas se cobram, e nenhuma delas e sobre gosto:
+##
+## 1. Toda luz nasce junto da parede. O miolo -- onde o jogador esquiva e onde o
+##    telegrafo desenha -- fica limpo.
+## 2. Toda luz desenha ABAIXO de `Sala.Z_MUNDO`, a faixa do telegrafo e do
+##    projetil.
+## 3. O brilho tem teto, e ele NAO explode na fase 3.
+func _a_arena_reage_sem_cobrir_a_leitura() -> void:
+	var arena: Sala = preload("res://src/mapa/sala_6_boss.tscn").instantiate()
+	arena.position = LONGE
+	Engine.get_main_loop().root.add_child(arena)
+
+	var baia := arena.get_node_or_null("Baia") as Sprite2D
+	ok(baia != null and baia.texture != null,
+		"a arena tem a BAIA: o lugar de onde o chefe saiu, legivel antes de ele se mexer")
+	if baia != null:
+		ok(baia.z_index < Sala.Z_MUNDO,
+			"e ela e marca de CHAO -- desenha abaixo do mundo, sob o proprio chefe")
+
+	var reacao := arena.get_node_or_null("ReacaoDeArena") as ReacaoDeArena
+	ok(reacao != null, "e a arena reage as fases do chefe")
+	if reacao == null:
+		arena.free()
+		return
+
+	ok(reacao.z_index < Sala.Z_MUNDO,
+		"as luzes desenham abaixo da faixa do telegrafo e do projetil (z %d)" % reacao.z_index)
+	var longe_da_parede := reacao.distancia_maxima_do_contorno()
+	ok(longe_da_parede <= ReacaoDeArena.FAIXA_DA_PAREDE,
+		"nenhuma luz entra na arena (%.0f px da parede, teto %.0f)"
+			% [longe_da_parede, ReacaoDeArena.FAIXA_DA_PAREDE])
+
+	# O brilho SOBE com a fase, mas nao explode: a fase 3 e onde os dois riscos
+	# se somam, e e la que o teto tem de morder.
+	var brilhos: Array[float] = []
+	for fase in [1, 2, 3]:
+		EventBus.boss_fase_mudou.emit(fase)
+		var pico := 0.0
+		for _i in 60:
+			reacao._process(0.05)
+			for luz in reacao.get_children():
+				pico = maxf(pico, (luz as CanvasItem).modulate.a)
+		brilhos.append(pico)
+	ok(brilhos[0] < brilhos[2],
+		"a arena acende com a fase (%.2f na 1, %.2f na 3)" % [brilhos[0], brilhos[2]])
+	ok(brilhos[2] <= ReacaoDeArena.ALPHA_MAXIMO + 0.001,
+		"e a fase 3 nao passa do teto de brilho (%.2f de %.2f)"
+			% [brilhos[2], ReacaoDeArena.ALPHA_MAXIMO])
+
+	arena.free()
+
 
 ## O PROP RARO aparece em UMA sala do andar, e so.
 ##

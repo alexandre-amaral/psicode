@@ -1,7 +1,9 @@
-[gd_scene load_steps=3 format=3 uid="uid://u6i7o8p9q0a1b"]
+[gd_scene load_steps=5 format=3 uid="uid://u6i7o8p9q0a1b"]
 
 [ext_resource type="Script" path="res://src/mapa/sala.gd" id="1_s"]
 [ext_resource type="PackedScene" uid="uid://d1p2q3r4s5t6u" path="res://src/mapa/porta.tscn" id="2_p"]
+[ext_resource type="Texture2D" path="res://assets/texturas/baia_chefe.png" id="60_baia"]
+[ext_resource type="Script" path="res://src/mapa/reacao_de_arena.gd" id="61_reacao"]
 
 [node name="Sala_6_Boss" type="Node2D"]
 script = ExtResource("1_s")
@@ -22,3 +24,9 @@ direcao = 1
 
 [node name="ContainerInimigos" type="Node2D" parent="."]
 
+[node name="Baia" type="Sprite2D" parent="."]
+z_index = -18
+texture = ExtResource("60_baia")
+
+[node name="ReacaoDeArena" type="Node2D" parent="."]
+script = ExtResource("61_reacao")

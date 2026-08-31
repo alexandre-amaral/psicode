@@ -829,6 +829,7 @@ func _montar_andar() -> void:
 	var centros := _centros_das_bandas()
 	# Uma vez so, fora do laco: `_distancias()` roda um BFS no andar inteiro.
 	var distancias_visuais := _distancias()
+	var celula_rara := _sortear_celula_de_prop_raro()
 
 	for celula in _arestas:
 		var cena: PackedScene = _cena_por_celula[celula]
@@ -841,6 +842,8 @@ func _montar_andar() -> void:
 		# sem vizinho, monta a parede em cima delas e veste a sala com as
 		# texturas do tipo -- inclusive escolhendo a variante pela fracao acima.
 		sala.definir_visual(_dados_por_celula.get(celula))
+		if celula == celula_rara:
+			sala.permitir_props_raros()
 		sala.configurar_conexoes(vizinhos_de(celula))
 		add_child(sala)
 		sala.position = centros[celula] - _caixa_da_cena(cena).get_center()
@@ -859,6 +862,30 @@ func _montar_andar() -> void:
 ## jogador entra, os inimigos ja estao distribuidos. Ele tambem e o unico lugar
 ## do projeto onde a dificuldade de uma sala e escolhida, o que torna a curva do
 ## andar ajustavel por .tres em vez de por seis cenas.
+## Qual celula pode receber prop raro. UMA por andar, ou nenhuma.
+##
+## O caso vivo e o Robo Desativado: ele e o que faz o jogador perceber que o
+## setor usava robos muito antes de encontrar o chefe, e isso funciona UMA vez.
+## Repetido, ele vira mobilia.
+##
+## "Uma por andar" nao e uma pergunta que a sala consiga responder olhando so
+## para si mesma -- por isso a escolha mora aqui, onde o andar inteiro ja e
+## conhecido, e nao num contador dentro da `Sala`.
+##
+## So salas de COMBATE entram no sorteio: a inicial, a de arma e a de item sao
+## paradas de proposito e nao devem ganhar um segundo ponto de leitura, e a do
+## chefe tem a propria composicao (AND1 07).
+func _sortear_celula_de_prop_raro() -> Vector2i:
+	var candidatas: Array[Vector2i] = []
+	for celula in _arestas:
+		var dados: DadosSala = _dados_por_celula.get(celula)
+		if dados != null and dados.id == DadosSala.ID_COMBATE and not dados.regioes_props_raras.is_empty():
+			candidatas.append(celula)
+	if candidatas.is_empty():
+		return Vector2i(-9999, -9999)
+	return candidatas[randi() % candidatas.size()]
+
+
 ## Liga o ambiente do andar. Chamado uma vez, na montagem.
 func _ligar_ambiente() -> void:
 	if ambiente_do_andar != null:

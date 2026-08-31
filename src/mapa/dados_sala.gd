@@ -224,6 +224,20 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## sala do chefe quer muitos chapados e quase nenhum corpo no caminho.
 @export var quantidade_props_volume: int = 0
 
+## Props que aparecem em UMA sala do andar, e so.
+##
+## O caso vivo e o Robo Desativado: ele e o que faz o jogador perceber que o
+## setor usava robos muito antes de encontrar o chefe. Isso funciona uma vez.
+## Repetido em cinco salas ele vira mobilia, e a descoberta que ele existe para
+## plantar deixa de acontecer -- e o plano do andar pede "com extrema
+## moderacao" com todas as letras.
+##
+## Sao regioes do MESMO atlas volumetrico, e nao um sistema paralelo: o que muda
+## e quem pode sortea-las. Quem decide a sala sorteada e o `GerenciadorMapa`,
+## porque "uma por ANDAR" e uma pergunta que nenhuma sala consegue responder
+## sozinha.
+@export var regioes_props_raras: Array[Rect2i] = []
+
 
 func eh_pendurada() -> bool:
 	return colocacao == Colocacao.PENDURADA

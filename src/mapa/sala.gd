@@ -228,6 +228,10 @@ var fracao_do_andar: float = 0.0
 
 ## O tipo que veste esta sala. Nulo = variante neutra, sem props.
 var _dados_visual: DadosSala = null
+## Esta sala pode sortear os props raros? Escrito pelo `GerenciadorMapa` ANTES
+## do `add_child`, como `coordenadas_grid` -- e o `_ready` que monta a decoracao,
+## e depois dele o dado ja nao muda nada.
+var _props_raros := false
 
 
 func _ready() -> void:
@@ -284,6 +288,15 @@ func configurar_conexoes(direcoes: Array[Vector2]) -> void:
 ## nao pode explodir.
 func definir_visual(dados: DadosSala) -> void:
 	_dados_visual = dados
+
+
+## Marca esta sala como a UNICA do andar que pode receber prop raro.
+##
+## Antes do `add_child`, pela mesma razao de `definir_visual`. Quem escolhe e o
+## `GerenciadorMapa`: "um por andar" nao e uma pergunta que a sala consiga
+## responder olhando so para si mesma.
+func permitir_props_raros() -> void:
+	_props_raros = true
 
 
 ## O que vai nascer aqui quando o jogador entrar.
@@ -1152,15 +1165,21 @@ func _montar_props_volumetricos(
 	dados: DadosSala, contorno: PackedVector2Array, aberto: PackedVector2Array,
 	bocas: Array[Vector2], colocados: Array[Vector2], rng: RandomNumberGenerator
 ) -> void:
-	if dados.atlas_props_volume == null or dados.regioes_props_volume.is_empty():
+	if dados.atlas_props_volume == null:
+		return
+	# A sala sorteada ganha o raro NO POOL, e nao a mais dele: ele ocupa a vaga
+	# de um prop comum. Somar um a mais faria a sala escolhida ser tambem a mais
+	# cheia, e o jogador leria a mobilia extra antes de reparar no robo.
+	var regioes := dados.regioes_props_volume.duplicate()
+	if _props_raros:
+		regioes.append_array(dados.regioes_props_raras)
+	if regioes.is_empty():
 		return
 	if dados.quantidade_props_volume <= 0:
 		return
 
 	for _i in dados.quantidade_props_volume:
-		var regiao: Rect2i = dados.regioes_props_volume[
-			rng.randi_range(0, dados.regioes_props_volume.size() - 1)
-		]
+		var regiao: Rect2i = regioes[rng.randi_range(0, regioes.size() - 1)]
 		var largura := float(regiao.size.x)
 		for _tentativa in PROP_TENTATIVAS:
 			var ponto := _sortear_ponto_de_prop(rng, contorno, aberto, largura)

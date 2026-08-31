@@ -203,6 +203,7 @@ docs/
 | Forma e parede de uma sala | Line2D `Parede` em `src/mapa/sala_*.tscn` — a colisao nasce dele |
 | **Quanto a porta demora para abrir** | `TEMPO_DE_ABERTURA` em `src/mapa/porta.gd` -- const e nao `@export`, com teto cobrado por `teste_porta.gd` |
 | **O som do motor e da trava da porta** | `som_do_motor` e `som_da_trava` no `src/mapa/porta.tscn` |
+| **O trecho de corredor que anuncia o chefe** | `Corredor.pre_chefe`, decidido por `GerenciadorMapa._e_trecho_pre_chefe()`; as texturas em `TEXTURA_*_CHEFE` do `corredor.gd` |
 | Lockdown e abertura de porta | `src/mapa/sala.gd`, `src/mapa/porta.gd` e a barreira fisica de `src/mapa/porta.tscn` |
 | Glitch de alucinacao | `assets/shaders/glitch.gdshader` |
 
@@ -792,6 +793,21 @@ em qualquer erro de script.
   faixa de vazio na lateral. O unico conserto completo seria geometrico: parede
   de 16 px e salas de 928x512 fecham exatamente 960x544, e ambos caem na grade
   de 32. Isso mexe em todas as cenas de sala e ainda nao foi feito.
+- **O corredor pre-chefe e a UNICA excecao a regra da noite base, e ela e
+  deliberada.** Corredor comum nao veste a cor da sala vizinha de proposito --
+  "pintar cada metade com a cor da vizinha anunciaria o que ha do outro lado
+  antes de o jogador chegar". No ultimo trecho anunciar E o objetivo. So o
+  ultimo: um andar que escurecesse a cada sala anunciaria o chefe desde a
+  terceira porta, e a virada deixaria de acontecer num lugar so.
+- **`celula_do_chefe()` devolve ZERO quando NAO ha chefe, e ZERO e uma celula
+  valida** -- a inicial mora nela. Quem compara com o retorno dela precisa
+  conferir a reserva antes; sem isso, um andar sem chefe veste os corredores da
+  ENTRADA com as texturas dele.
+- **O escurecimento do trecho pre-chefe vai no CHAO, nunca no corredor.**
+  Escurecer o no inteiro levaria junto projetil e telegrafo que passam por ali, e
+  a regra do projeto e que efeito que atrapalha a leitura do combate e efeito
+  cortado. Escurecendo so o chao, o que muda e o FUNDO contra o qual eles sao
+  lidos.
 - **A abertura da porta e LEITURA, e nao pedagio.** A barreira cai no PRIMEIRO
   quadro, antes de a animacao rodar -- quem quer correr atravessa ja, e ve a
   porta terminar de abrir pelas costas. Se a passagem so liberasse no fim, cada

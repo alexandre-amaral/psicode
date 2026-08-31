@@ -34,6 +34,25 @@ const TEXTURAS_PAREDE: Array[String] = [
 ## Cor de emergencia, usada so quando a textura nao carrega: o chao N1 da
 ## paleta combate (docs/IDENTIDADE_VISUAL.md).
 const COR_CHAO_EMERGENCIA := Color("0b0d16")
+
+## O TRECHO PRE-CHEFE veste as texturas da sala do chefe, e nao a noite base.
+##
+## Isto e a EXCECAO deliberada a regra do corredor, e ela vale registrar. O
+## corredor comum fica na noite base de proposito: "pintar cada metade com a cor
+## da sala vizinha anunciaria o que ha do outro lado antes de o jogador chegar".
+## Aqui anunciar E o objetivo -- e o unico trecho do andar em que a arquitetura
+## tem permissao de dizer o que vem.
+const TEXTURA_CHAO_CHEFE := "res://assets/texturas/chao_boss.png"
+const TEXTURA_PAREDE_CHEFE := "res://assets/texturas/parede_boss.png"
+const FACE_CHEFE := "res://assets/texturas/parede_face_boss.png"
+
+## Quanto o chao do trecho pre-chefe escurece.
+##
+## "Iluminacao mais irregular" e o que o plano pede, e escurecer o CHAO -- e nao
+## o corredor inteiro -- e o que sobra depois da regra de leitura: o projetil e o
+## telegrafo continuam com o mesmo contraste, porque nada foi posto na frente
+## deles. O que muda e o fundo contra o qual eles sao lidos.
+const ESCURECER_PRE_CHEFE := 0.72
 ## Espelha Sala.ESPESSURA_PAREDE, para o corredor parecer construido do mesmo
 ## material. Recuada nas duas pontas para nao pintar por cima da parede da
 ## sala, que ja cobre essa faixa.
@@ -49,6 +68,13 @@ const TOLERANCIA_ALINHAMENTO := 1.0
 
 var _retangulo_local: Rect2 = Rect2()
 var _configurado: bool = false
+## Este e o ultimo trecho antes do chefe?
+##
+## Escrito pelo `GerenciadorMapa` ANTES de `configurar()`, porque e ele quem
+## monta a geometria e veste as texturas -- depois dele, mudar a bandeira nao
+## muda nada. E "qual e o ultimo" nao e pergunta que o corredor responda olhando
+## so para si mesmo: ele conhece dois pontos, e nao o andar.
+var pre_chefe := false
 
 
 ## "de" e "para" sao pontos GLOBAIS (as bocas das duas portas).
@@ -101,6 +127,27 @@ func configurar(de: Vector2, para: Vector2, largura: float = 80.0) -> void:
 ## `global_position` ja esta valido aqui: `configurar()` a define antes de
 ## montar as camadas. O deslocamento separa chao de parede pelo mesmo motivo que
 ## em `Sala._textura()` -- para as duas listas nao andarem casadas.
+## A textura de chao ou parede deste corredor.
+##
+## O trecho pre-chefe sai da lista e vai para a textura do chefe: e a excecao
+## deliberada, e ela e resolvida AQUI e nao em quem chama, para nao haver dois
+## caminhos de vestir corredor.
+func _textura_de_chao() -> Texture2D:
+	if pre_chefe:
+		var chefe := load(TEXTURA_CHAO_CHEFE) as Texture2D
+		if chefe != null:
+			return chefe
+	return _textura(TEXTURAS_CHAO, 0)
+
+
+func _textura_de_parede() -> Texture2D:
+	if pre_chefe:
+		var chefe := load(TEXTURA_PAREDE_CHEFE) as Texture2D
+		if chefe != null:
+			return chefe
+	return _textura(TEXTURAS_PAREDE, 0x2f1b3c5d)
+
+
 func _textura(lista: Array[String], deslocamento: int) -> Texture2D:
 	if lista.is_empty():
 		return null
@@ -131,7 +178,7 @@ func _montar_parede_corpo(eixo: Vector2, lado: Vector2, comprimento: float, larg
 	])
 	corpo.name = "ParedeTopo"
 	corpo.z_index = Sala.Z_PAREDE_TOPO
-	_texturizar(corpo, _textura(TEXTURAS_PAREDE, 0x2f1b3c5d), _retangulo_local.position)
+	_texturizar(corpo, _textura_de_parede(), _retangulo_local.position)
 	add_child(corpo)
 
 
@@ -161,7 +208,7 @@ func _montar_face(
 		return
 	if comprimento <= ESPESSURA_PAREDE * 2.0:
 		return
-	var textura := load(Sala.FACE_NEUTRA) as Texture2D
+	var textura := load(FACE_CHEFE if pre_chefe else Sala.FACE_NEUTRA) as Texture2D
 	if textura == null:
 		return
 
@@ -196,7 +243,12 @@ func _montar_chao() -> void:
 		_retangulo_local.end,
 		Vector2(_retangulo_local.position.x, _retangulo_local.end.y),
 	])
-	_texturizar(chao, _textura(TEXTURAS_CHAO, 0), _retangulo_local.position)
+	_texturizar(chao, _textura_de_chao(), _retangulo_local.position)
+	# A iluminacao irregular do trecho pre-chefe. Escurece o CHAO e nada mais:
+	# projetil e telegrafo continuam com o mesmo contraste, porque nada foi posto
+	# na frente deles -- so mudou o fundo contra o qual sao lidos.
+	if pre_chefe:
+		chao.modulate = Color(ESCURECER_PRE_CHEFE, ESCURECER_PRE_CHEFE, ESCURECER_PRE_CHEFE, 1.0)
 	add_child(chao)
 
 

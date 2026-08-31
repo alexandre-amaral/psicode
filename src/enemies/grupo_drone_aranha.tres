@@ -8,4 +8,4 @@ script = ExtResource("1_gi")
 cena = ExtResource("2_cena")
 peso = 2.0
 deterioracao_minima = 0.0
-custo = 2
+custo = 1

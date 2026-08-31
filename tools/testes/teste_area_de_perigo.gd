@@ -341,8 +341,9 @@ func _o_teto_de_areas_continua_valendo() -> void:
 
 	ok(pico >= 1, "o Parasita semeou ao longo da simulacao (pico de %d)" % pico)
 	ok(
-		pico <= parasita.max_areas,
-		"e nunca passou do teto de %d areas vivas (pico de %d)" % [parasita.max_areas, pico]
+		pico <= parasita._max_areas_agora(),
+		"e nunca passou do teto de %d areas vivas (pico de %d)"
+			% [parasita._max_areas_agora(), pico]
 	)
 	ok(parasita.tempo_residual > 0.0,
 		"e a brasa dele esta ligada (%.1f s) -- e ela que faz o teto importar"

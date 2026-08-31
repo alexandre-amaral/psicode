@@ -151,6 +151,8 @@ docs/
 | Vida e velocidade dos que ainda nao migraram | `@export` em `src/enemies/*.tscn` -- Rastejante, Vigia, Diretora e as pecas da arena dela |
 | **Variante de um inimigo que ja existe (um "de elite")** | criar um `dados_*.tres` novo e apontar `dados` na instancia; NAO duplicar o `.tscn` |
 | Limiares de 50% e 85% | `src/autoload/deterioracao.gd` |
+| **Quanto o telegrafo encurta com a barra** | `multiplicador_telegrafo()` em `src/autoload/deterioracao.gd`; o PISO fica em `Telegrafo.DURACAO_MINIMA` e nao aqui |
+| **Para onde um botao de inimigo caminha com a barra cheia** | grupo `Escalonamento` do `src/enemies/dados_*.tres`; negativo desliga |
 | Matematica de mira preditiva | `src/util/balistica.gd` |
 | **Como QUALQUER inimigo se desloca** | `src/util/movimento.gd` -- perseguir, recuar, orbitar, investir, fugir; os numeros continuam nos `@export` de cada inimigo |
 | Chefe | `src/enemies/diretora.gd` |
@@ -215,6 +217,27 @@ em qualquer erro de script.
   seguidas ele apareceu e ZERO areas foram criadas. Comportamento que demora
   mais que um tick precisa de suite propria (`teste_area_de_perigo.gd`), senao
   a guarda passa verde sem nunca ter olhado nada.
+- **O telegrafo encurta com a barra, mas o PISO nao mora na Deterioracao.**
+  `Deterioracao.multiplicador_telegrafo()` responde "quanto encurta", que e
+  tuning; quem garante que ele nao SOME e `Telegrafo.duracao_segura()`, aplicado
+  por `InimigoBase.duracao_do_telegrafo()`. Um piso escrito no autoload poderia
+  ser contornado por quem multiplicasse a duracao noutro lugar -- e telegrafo
+  que some e a fronteira entre "dificil" e "mente sobre a propria regra". Todo
+  inimigo que avisa passa por `duracao_do_telegrafo()`, e e isso que torna a
+  trava cobravel: `teste_escalonamento.gd` varre a barra de 0 a 100 de 5 em 5,
+  porque um piso escrito como `if valor > 90` passaria testando so as pontas.
+- **O sentinela de "nao escalona" e NEGATIVO, nunca zero.** Zero e destino
+  valido em quase todo campo de `Escalonamento` -- uma Sentinela com
+  `tiros_ate_salva_avancado = 0` raja toda vez. Com zero desligando, aquele
+  ajuste viraria silenciosamente "nao faz nada".
+- **A duracao do aviso e fixada na ENTRADA do estado, nao recalculada todo
+  frame.** A barra sobe durante a propria carga: recalcular faria o aviso
+  encolher enquanto o jogador o le, e o telegrafo existe justamente para ser
+  previsivel. O Drone guarda isso em `_aviso_atual`.
+- **A Cyber-Besta escala a investida em DURACAO, nunca em velocidade.**
+  Velocidade maior encurtaria a janela de leitura que o agachamento abriu;
+  duracao maior cobra a mesma leitura de mais longe. E a recuperacao encolhe
+  junto, mas nao some -- acertar a esquiva tem de continuar rendendo.
 - **`DadosInimigo` e aplicado no TOPO do `_ready()`, e a linha seguinte
   congela.** `InimigoBase._ready()` faz `vida = vida_maxima` logo abaixo de
   `_aplicar_dados()`. Invertidas as duas, todo inimigo com `.tres` nasceria com

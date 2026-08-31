@@ -20,6 +20,12 @@ extends InimigoBase
 ## Distancia em que ele decide abrir o anel. Longe demais e o anel nunca chega.
 @export var alcance_anel: float = 260.0
 @export var projeteis: int = 8
+## Para quantos bracos o anel cresce com a barra cheia. Negativo desliga.
+##
+## E o escalonamento por COMPORTAMENTO dele (INIM 09): o anel de 8 tem vao de 45
+## graus e o de 12 tem 30, entao o mesmo ataque passa a exigir uma leitura mais
+## fina em vez de so doer mais.
+@export var projeteis_avancados: int = 12
 
 @export_group("Posicionamento")
 ## Acima disto ele PERSEGUE; entre este e `distancia_de_recuo` ele POSICIONA.
@@ -55,6 +61,12 @@ var _t_intervalo: float = 0.0
 ## da Sentinela: dois drones lado a lado abrindo para o mesmo lado voltariam a
 ## se empilhar, so que mais devagar.
 var _sentido_lateral: float = 1.0
+## Duracao do aviso DESTA carga, fixada na entrada do estado.
+##
+## Fixada e nao recalculada todo frame porque a barra sobe durante a propria
+## carga: recalcular faria o aviso encolher enquanto o jogador o le, e o alvo
+## do telegrafo e justamente ser previsivel.
+var _aviso_atual: float = 0.0
 ## Rotacao do proximo anel, em graus. Ver `_proximo_offset()`.
 var _offset_anel: float = 0.0
 
@@ -129,6 +141,7 @@ func _ler_dados(d: DadosInimigo) -> void:
 	intervalo = d.cooldown_ataque
 	alcance_anel = d.alcance
 	projeteis = d.projeteis
+	projeteis_avancados = d.projeteis_avancados
 	distancia_de_posicionamento = d.distancia_preferida
 	distancia_de_recuo = d.distancia_minima
 	peso_lateral = d.peso_lateral
@@ -183,17 +196,18 @@ func _pronto_para_o_anel() -> bool:
 ## Trava no lugar e acende o aviso. O corpo parado E parte do telegrafo: e o
 ## sinal que se le de longe, antes mesmo de o circulo ficar visivel.
 func _carregar_entrar() -> void:
+	_aviso_atual = duracao_do_telegrafo(tempo_carga)
 	_aviso.visible = true
 	_aviso.scale = Vector2(0.2, 0.2)
 	_aviso.modulate.a = 0.0
 	var t := create_tween()
-	t.tween_property(_aviso, "scale", Vector2.ONE, tempo_carga)
-	t.parallel().tween_property(_aviso, "modulate:a", 0.55, tempo_carga * 0.8)
+	t.tween_property(_aviso, "scale", Vector2.ONE, _aviso_atual)
+	t.parallel().tween_property(_aviso, "modulate:a", 0.55, _aviso_atual * 0.8)
 
 
 func _carregar(delta: float) -> void:
 	Movimento.frear(self, delta, 1600.0)
-	if _maquina.passou(tempo_carga):
+	if _maquina.passou(_aviso_atual):
 		_maquina.trocar(DISPARAR)
 
 
@@ -209,7 +223,7 @@ func _carregar_sair() -> void:
 ## este mesmo defeito que fez o anel da Diretora sair com um projetil.
 func _disparar_entrar() -> void:
 	velocity = Vector2.ZERO
-	_arma.atirar_varias(Balistica.anel(projeteis, deg_to_rad(_proximo_offset())))
+	_arma.atirar_varias(Balistica.anel(_projeteis_agora(), deg_to_rad(_proximo_offset())))
 	EventBus.pedido_shake.emit(2.0, 0.12)
 
 
@@ -240,7 +254,13 @@ func _proximo_offset() -> float:
 ## constante: `projeteis` e ajustavel e a Deterioracao pode subi-lo, e um passo
 ## fixo de 22,5 deixaria de cair no meio do vao assim que a contagem mudasse.
 func _setor_do_anel() -> float:
-	return 360.0 / float(maxi(projeteis, 1))
+	return 360.0 / float(maxi(_projeteis_agora(), 1))
+
+
+## Quantos bracos o anel tem AGORA. Lido no frame: com a barra subindo entre dois
+## disparos, o segundo anel ja sai mais fechado.
+func _projeteis_agora() -> int:
+	return Deterioracao.escalonar_int(projeteis, projeteis_avancados)
 
 
 func _disparar(_delta: float) -> void:

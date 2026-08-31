@@ -64,7 +64,7 @@ const ANTES := {
 	"hacker_parasita": {
 		"vida_maxima": 6, "velocidade_base": 110.0, "dano_contato": 1, "creditos": 10,
 		"raio_contato": 26.0,
-		"max_areas": 3, "intervalo": 2.4, "tempo_semear": 0.55,
+		"max_areas": 1, "intervalo": 2.4, "tempo_semear": 0.55,
 		"espalhamento": 96.0, "raio_area": 60.0, "tempo_residual": 1.5,
 		"distancia_minima": 240.0,
 	},

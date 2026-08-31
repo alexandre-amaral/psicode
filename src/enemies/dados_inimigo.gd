@@ -114,6 +114,27 @@ extends Resource
 ## Quanto ele fica aberto depois de bater numa parede. Zero desliga.
 @export var tempo_atordoado: float = 0.0
 
+@export_group("Escalonamento")
+## Os valores AVANCADOS: para onde cada botao caminha com a barra cheia.
+##
+## A Deterioracao ja multiplicava velocidade, cadencia e velocidade de projetil
+## -- planilha. O que muda o jogo e o PADRAO mudar de forma, e e o que estes
+## campos descrevem. Quem interpola e `Deterioracao.escalonar()`, no frame.
+##
+## NEGATIVO desliga, e e o default: inimigo que nao declara nada continua
+## exatamente como era. Note que zero e um valor VALIDO em varios deles -- uma
+## Sentinela com `tiros_ate_salva_avancado = 0` raja toda vez --, e por isso o
+## sentinela e -1 e nao 0.
+##
+## O tempo de telegrafo NAO esta aqui: ele encurta para todo mundo pelo mesmo
+## `Deterioracao.multiplicador_telegrafo()`, com o piso do `Telegrafo` por
+## baixo. Deixa-lo por inimigo abriria a porta para alguem zera-lo num `.tres`.
+@export var projeteis_avancados: int = -1
+@export var tiros_ate_salva_avancado: int = -1
+@export var max_areas_avancado: int = -1
+@export var duracao_arranque_avancada: float = -1.0
+@export var tempo_recuperacao_avancado: float = -1.0
+
 @export_group("Territorio")
 ## Teto de areas vivas ao mesmo tempo. Sem ele, tres semeadores cobrem o chao
 ## inteiro e nao sobra lugar para o jogador ESTAR.

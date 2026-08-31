@@ -36,6 +36,11 @@ extends InimigoBase
 ## encontra uma cadencia de orbita e fica nela; a rajada obriga a mudar a
 ## movimentacao no meio do circulo, que e a pergunta que esta inimiga faz.
 @export var tiros_ate_rajada: int = 3
+## Para quantos tiros unicos a conta cai com a barra cheia. Negativo desliga.
+##
+## Menos tiros entre rajadas = rajada mais frequente. Zero e valido e quer dizer
+## "raja sempre" -- por isso o sentinela de desligado e -1 e nao 0.
+@export var tiros_ate_rajada_avancado: int = 1
 @export var projeteis_rajada: int = 3
 ## Abertura TOTAL do leque, em graus. 24 da -12 / 0 / +12.
 @export var abertura_rajada: float = 24.0
@@ -117,6 +122,7 @@ func _ler_dados(d: DadosInimigo) -> void:
 	intervalo = d.cooldown_ataque
 	tempo_clarao = d.tempo_telegrafo
 	tiros_ate_rajada = d.tiros_ate_salva
+	tiros_ate_rajada_avancado = d.tiros_ate_salva_avancado
 	projeteis_rajada = d.projeteis
 	abertura_rajada = d.abertura_graus
 	fator_aviso_rajada = d.fator_aviso_salva
@@ -162,7 +168,7 @@ func _disparar(delta: float) -> void:
 		_arma.atirar_varias(
 			Balistica.leque(direcao_para_alvo(), projeteis_rajada, abertura_rajada)
 		)
-		_ate_rajada = maxi(tiros_ate_rajada, 0)
+		_ate_rajada = maxi(_tiros_ate_rajada_agora(), 0)
 	else:
 		_arma.atirar(direcao_para_alvo())
 		_ate_rajada -= 1
@@ -177,7 +183,13 @@ func _disparar(delta: float) -> void:
 ## tiro relesse um contador ja alterado, o clarao grande sairia antes do tiro
 ## unico: o telegrafo mentiria, que e o pior defeito possivel neste projeto.
 func _vai_rajar() -> bool:
-	return tiros_ate_rajada > 0 and _ate_rajada <= 0
+	return _tiros_ate_rajada_agora() > 0 and _ate_rajada <= 0
+
+
+## Quantos tiros unicos vem antes da proxima rajada, AGORA. Cai com a barra: a
+## rajada fica mais frequente sem deixar de ser a excecao que quebra o ritmo.
+func _tiros_ate_rajada_agora() -> int:
+	return Deterioracao.escalonar_int(tiros_ate_rajada, tiros_ate_rajada_avancado)
 
 
 ## Quanto o aviso dura nesta salva.
@@ -186,7 +198,7 @@ func _vai_rajar() -> bool:
 ## num lado so, o tiro sairia em `tempo_clarao` cru enquanto o clarao ainda
 ## estivesse crescendo -- o telegrafo terminando DEPOIS do ataque que ele avisa.
 func _duracao_do_aviso() -> float:
-	return Telegrafo.duracao_segura(tempo_clarao * (fator_aviso_rajada if _vai_rajar() else 1.0))
+	return duracao_do_telegrafo(tempo_clarao * (fator_aviso_rajada if _vai_rajar() else 1.0))
 
 
 func _disparar_sair() -> void:

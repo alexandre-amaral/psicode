@@ -1044,6 +1044,7 @@ func _montar_decoracao() -> void:
 	var colocados: Array[Vector2] = []
 
 	_montar_props_chapados(dados, contorno, aberto, bocas, colocados, rng)
+	_montar_props_animados(dados, contorno, aberto, bocas, colocados, rng)
 	_montar_props_volumetricos(dados, contorno, aberto, bocas, colocados, rng)
 	_montar_props_frente(dados, contorno, aberto, bocas, colocados, rng)
 
@@ -1075,6 +1076,60 @@ func _montar_props_chapados(
 			sprite.flip_h = rng.randf() < 0.5
 			sprite.position = ponto
 			raiz.add_child(sprite)
+			colocados.append(ponto)
+			break
+
+
+## A familia que se MEXE, e ela e a menor das quatro de proposito (AND1 02).
+##
+## Duas coisas aqui nao sao ajuste de sala, e sim garantia:
+##
+## 1. **O TETO.** `max_props_animados` limita quantos se mexem ao mesmo tempo, e
+##    e a regra "se tudo se mover, nada parece importante" virada numero. Sem
+##    ele ela seria opiniao, e opiniao nao sobrevive a proxima pessoa que achar
+##    o ventilador bonito.
+## 2. **A FAIXA.** Eles moram em `Z_CHAO_DETALHE`, junto dos chapados e ABAIXO
+##    de `Z_MUNDO`. Zero e onde ficam telegrafo, projetil e atores: um prop
+##    animado ali poderia cair na frente do aviso que torna um ataque justo. A
+##    consequencia e que prop animado e CHAPADO por construcao -- dar volume a
+##    um deles o levaria para `Z_MUNDO` e reabriria a pergunta.
+##
+## Eles dividem `colocados` com as outras familias pelo mesmo motivo que elas se
+## dividem entre si: nao se conhecem, mas disputam o mesmo chao.
+func _montar_props_animados(
+	dados: DadosSala, contorno: PackedVector2Array, aberto: PackedVector2Array,
+	bocas: Array[Vector2], colocados: Array[Vector2], rng: RandomNumberGenerator
+) -> void:
+	if dados.atlas_props == null or dados.regioes_props_animados.is_empty():
+		return
+	var teto := mini(dados.max_props_animados, dados.regioes_props_animados.size() * 4)
+	if teto <= 0:
+		return
+
+	var raiz := Node2D.new()
+	raiz.name = "DecoracaoAnimada"
+	raiz.z_index = Z_CHAO_DETALHE
+	add_child(raiz)
+
+	for _i in teto:
+		for _tentativa in PROP_TENTATIVAS:
+			var ponto := _sortear_ponto_de_prop(rng, contorno, aberto, PROP_LADO)
+			if ponto == Vector2.INF:
+				continue
+			if not _cabe_prop(ponto, aberto, bocas, colocados, PROP_LADO):
+				continue
+			var prop := PropAnimado.new()
+			prop.position = ponto
+			raiz.add_child(prop)
+			# A fase e sorteada: dois ventiladores em fase batem juntos e leem
+			# como um efeito ligado por script, e nao como duas maquinas.
+			prop.configurar(
+				dados.atlas_props,
+				dados.regioes_props_animados[rng.randi_range(0, dados.regioes_props_animados.size() - 1)],
+				dados.quadros_props_animados,
+				dados.fps_props_animados,
+				rng.randi_range(0, maxi(dados.quadros_props_animados - 1, 0))
+			)
 			colocados.append(ponto)
 			break
 

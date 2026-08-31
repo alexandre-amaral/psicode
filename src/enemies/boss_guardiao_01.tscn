@@ -1,13 +1,30 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://src/enemies/boss_guardiao_01.gd" id="1_s"]
 [ext_resource type="Resource" path="res://src/enemies/dados_boss_guardiao_01.tres" id="2_dados"]
 [ext_resource type="Script" path="res://src/weapons/arma.gd" id="3_arma"]
 [ext_resource type="Resource" path="res://src/weapons/onda_guardiao.tres" id="4_onda"]
 [ext_resource type="Resource" path="res://src/weapons/sucata_guardiao.tres" id="5_sucata"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/east.png" id="10_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/south-east.png" id="11_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/south.png" id="12_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/south-west.png" id="13_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/west.png" id="14_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/north-west.png" id="15_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/north.png" id="16_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/north-east.png" id="17_p"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/andar_east.png" id="20_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/andar_south-east.png" id="21_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/andar_south.png" id="22_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/andar_south-west.png" id="23_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/andar_west.png" id="24_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/andar_north-west.png" id="25_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/andar_north.png" id="26_a"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/andar_north-east.png" id="27_a"]
+[ext_resource type="Script" path="res://src/enemies/sprite_direcional.gd" id="6_sprite"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_guardiao"]
-radius = 26.0
+radius = 34.0
 
 [node name="BossGuardiao01" type="CharacterBody2D"]
 collision_layer = 2
@@ -15,36 +32,39 @@ collision_mask = 6
 script = ExtResource("1_s")
 dados = ExtResource("2_dados")
 cor_base = Color(0.82, 1, 0.15, 1)
-largura_sombra = 62.0
+largura_sombra = 96.0
 
 [node name="Forma" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_guardiao")
 
 [node name="Visual" type="Node2D" parent="."]
 
-[node name="Corpo" type="Polygon2D" parent="Visual"]
-color = Color(0.82, 1, 0.15, 1)
-polygon = PackedVector2Array(-30, -18, -22, -62, -10, -78, 10, -78, 22, -62, 30, -18, 18, 0, -18, 0)
+[node name="Corpo" type="Sprite2D" parent="Visual"]
+position = Vector2(0, -76)
+texture = ExtResource("12_p")
+script = ExtResource("6_sprite")
+sprites_parado = Array[Texture2D]([ExtResource("10_p"), ExtResource("11_p"), ExtResource("12_p"), ExtResource("13_p"), ExtResource("14_p"), ExtResource("15_p"), ExtResource("16_p"), ExtResource("17_p")])
+sprites_andando = Array[Texture2D]([ExtResource("20_a"), ExtResource("21_a"), ExtResource("22_a"), ExtResource("23_a"), ExtResource("24_a"), ExtResource("25_a"), ExtResource("26_a"), ExtResource("27_a")])
+quadros_andando = 8
+fps_andando = 9.0
+velocidade_referencia = 132.0
 
 [node name="Placa" type="Polygon2D" parent="Visual"]
-color = Color(0.28, 0.34, 0.06, 1)
-polygon = PackedVector2Array(-20, -58, 20, -58, 16, -34, -16, -34)
-
-[node name="Cabos" type="Polygon2D" parent="Visual"]
-color = Color(0.22, 0.18, 0.1, 1)
-polygon = PackedVector2Array(-16, -34, -8, -30, -2, -36, 6, -30, 16, -34, 16, -28, -16, -28)
+visible = false
+color = Color(0.12, 0.08, 0.05, 1)
+polygon = PackedVector2Array(-22, -108, 22, -108, 18, -74, -18, -74)
 
 [node name="Fumaca" type="Polygon2D" parent="Visual"]
 z_index = -1
 color = Color(0.42, 0.45, 0.3, 1)
-polygon = PackedVector2Array(-34, -86, -14, -104, 12, -100, 32, -80, 22, -66, -22, -68)
+polygon = PackedVector2Array(-46, -128, -18, -152, 16, -148, 44, -120, 30, -100, -30, -102)
 
 [node name="Nucleo" type="Polygon2D" parent="Visual"]
-color = Color(1, 0.82, 0.35, 1)
-polygon = PackedVector2Array(-7, -52, 7, -52, 7, -40, -7, -40)
+color = Color(1, 0.86, 0.32, 1)
+polygon = PackedVector2Array(-9, -118, 9, -118, 9, -102, -9, -102)
 
 [node name="Braco" type="Marker2D" parent="."]
-position = Vector2(0, -46)
+position = Vector2(0, -84)
 
 [node name="ArmaOnda" type="Node2D" parent="Braco"]
 script = ExtResource("3_arma")

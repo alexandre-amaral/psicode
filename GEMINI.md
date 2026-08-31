@@ -231,6 +231,21 @@ em qualquer erro de script.
   seguidas ele apareceu e ZERO areas foram criadas. Comportamento que demora
   mais que um tick precisa de suite propria (`teste_area_de_perigo.gd`), senao
   a guarda passa verde sem nunca ter olhado nada.
+- **O clarao de dano tem DUAS guardas, e a primeira sozinha nao basta.**
+  `_tween_flash.is_valid()` impede EMPILHAR, mas nao impede ENCADEAR: com dano
+  continuo o proximo acerto liga um clarao novo no instante em que o anterior
+  acaba, e o inimigo fica branco PERMANENTE. O comentario antigo dizia que isso
+  estava resolvido e nao estava -- apareceu no chefe do andar 1, que saia lavado
+  de branco nas capturas em vez de enferrujado. A segunda guarda e
+  `INTERVALO_FLASH`, em relogio de PAREDE pela mesma razao do
+  `Juice.INTERVALO_HITSTOP`: um timer da arvore andaria devagar durante o
+  hitstop que o proprio dano acabou de pedir.
+- **Sobre ARTE, o sinal de desgaste e o que se ACRESCENTA.** Com placeholder de
+  poligono, "a placa caiu" era esconder um no; com a carcaca desenhada, esconder
+  um poligono por cima dela nao tira nada, porque as placas ja estao pintadas.
+  O que le e a fumaca aparecendo e o remendo de motor exposto -- e
+  `estado_de_desgaste()` devolve os tres estados que a BOSS 10 pede, cobrados
+  por nos diferentes e nao por um numero interno.
 - **Ator grande passa pelo GERADOR, com moldura propria -- nao vira arte
   autorada.** A Diretora e o contra-exemplo inteiro: sprite de 192x192 num no
   `Visual/SpriteDiretora`, entao `InimigoBase._corpo` procura `Visual/Corpo`,

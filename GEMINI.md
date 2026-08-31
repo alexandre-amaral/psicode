@@ -90,9 +90,12 @@ src/
   player/      player, eco de rolamento
   weapons/     arma.gd, dados_arma.gd, *.tres (pistola, shotgun, armas do chefe)
   enemies/     inimigo_base, maquina_estados, area_de_perigo,
+               telegrafo (o aviso: linha, mancha, pulso e as quatro fases),
                sprite_direcional (o Sprite2D de oito rotacoes),
                rastejante, vigia, drone_aranha, sentinela_orbital,
                atirador_neon, cyber_besta, hacker_parasita, diretora (chefe),
+               dados_inimigo.gd + dados_*.tres (os NUMEROS de cada inimigo,
+               fora da cena),
                grupo_inimigo.gd + grupo_*.tres (quem nasce, a que custo, e a
                partir de que Deterioracao)
   projectiles/ projetil
@@ -106,6 +109,7 @@ src/
                moldura_hud (a moldura chanfrada), barra_atributo
   fx/          explosao, impacto
   util/        balistica (matematica da mira preditiva),
+               movimento (perseguir, recuar, orbitar, investir, fugir),
                direcoes (angulo -> qual dos oito quadros desenhar)
   main/        main.tscn — cena inicial
 assets/shaders/  glitch.gdshader
@@ -143,10 +147,15 @@ docs/
 | **Sprite e rotacoes de um inimigo** | o no `Visual/Corpo` da `src/enemies/*.tscn`, com `src/enemies/sprite_direcional.gd`: as duas listas de 8 texturas, `quadros_andando`, `fps_andando`, mais `scale` e `position` do proprio no |
 | **Arma inicial, Hack e texto do card de um personagem** | `src/player/personagem_*.tres` |
 | Dispersao que cresce com o gatilho preso | `dispersao_*` em `src/weapons/*.tres` — zero desliga |
-| Vida e velocidade dos inimigos | `@export` em `src/enemies/*.tscn` |
+| **Vida, velocidade, dano e todo botao de combate dos cinco inimigos refinados** | `src/enemies/dados_*.tres` (Drone Aranha, Atirador Neon, Cyber-Besta, Sentinela Orbital, Hacker Parasita) |
+| Vida e velocidade dos que ainda nao migraram | `@export` em `src/enemies/*.tscn` -- Rastejante, Vigia, Diretora e as pecas da arena dela |
+| **Variante de um inimigo que ja existe (um "de elite")** | criar um `dados_*.tres` novo e apontar `dados` na instancia; NAO duplicar o `.tscn` |
 | Limiares de 50% e 85% | `src/autoload/deterioracao.gd` |
 | Matematica de mira preditiva | `src/util/balistica.gd` |
+| **Como QUALQUER inimigo se desloca** | `src/util/movimento.gd` -- perseguir, recuar, orbitar, investir, fugir; os numeros continuam nos `@export` de cada inimigo |
 | Chefe | `src/enemies/diretora.gd` |
+| **Como QUALQUER inimigo avisa um ataque** | `src/enemies/telegrafo.gd` -- linha, mancha no chao ou pulso de sprite, sempre nas mesmas quatro fases |
+| **Quanto tempo a brasa do Parasita fica no chao** | `tempo_residual` no `@export` do `src/enemies/hacker_parasita.tscn`; zero desliga |
 | **O que o chefe le do jogador** | `src/enemies/perfil_jogador.gd` (logica pura, testada) |
 | **As travas de identidade do chefe** | `tools/testes/teste_diretora.gd` + a secao no `docs/GDD.md` |
 | Layout e conexao das salas | `src/mapa/gerenciador_mapa.gd`, `src/mapa/sala_*.tscn` |
@@ -206,6 +215,87 @@ em qualquer erro de script.
   seguidas ele apareceu e ZERO areas foram criadas. Comportamento que demora
   mais que um tick precisa de suite propria (`teste_area_de_perigo.gd`), senao
   a guarda passa verde sem nunca ter olhado nada.
+- **`DadosInimigo` e aplicado no TOPO do `_ready()`, e a linha seguinte
+  congela.** `InimigoBase._ready()` faz `vida = vida_maxima` logo abaixo de
+  `_aplicar_dados()`. Invertidas as duas, todo inimigo com `.tres` nasceria com
+  a vida do DEFAULT do script -- 5 para todo mundo -- e a Cyber-Besta, que tem
+  8, viraria de vidro sem uma linha no console. E o mesmo padrao que o Player ja
+  paga com `_vida_maxima_base`.
+- **`dados` e OPCIONAL, e tem de continuar sendo.** Sem recurso valem os
+  `@export` da cena, e e por isso que o Rastejante, o Vigia, a Diretora e as
+  pecas da arena dela seguem funcionando sem `.tres` nenhum. Torna-lo
+  obrigatorio quebraria quem ainda nao migrou.
+- **Numero que foi para o `.tres` tem de SAIR do `.tscn`.** Deixado nos dois, o
+  da cena e simplesmente sobrescrito em runtime: nenhum teste de comportamento
+  acusa nada, e o proximo a girar aquele botao no Inspetor da cena passa uma
+  tarde sem entender por que nao muda nada. `teste_dados_inimigo.gd` le o fonte
+  do `.tscn` justamente porque isso nao da para cobrar de outro jeito.
+- **A traducao de nome mora em `_ler_dados()`, um por inimigo.** O recurso fala
+  generico (`distancia_preferida`, `tempo_telegrafo`) e cada inimigo fala o
+  proprio dominio (`raio_orbita`, `tempo_clarao`). Espalhar o `dados.` pelo
+  comportamento acabaria com um `if dados != null` em cada estado.
+- **Se entrar enum em `DadosInimigo`, valor novo entra NO FIM.** Enum e gravado
+  como INT no `.tres`; inserir no meio reescreve em silencio o significado de
+  todo inimigo ja salvo. Mesma armadilha de `DadosArma.Comportamento` e
+  `DadosItem`.
+- **Movimentacao nova nao se escreve na mao: usa-se o `Movimento`.** Cinco
+  inimigos tinham a propria copia da tangente mais correcao radial, com nomes
+  diferentes para a mesma coisa. Duas copias divergem, e o sintoma aparece em
+  TELA e nunca no console -- um inimigo passa a orbitar de um jeito e o outro de
+  outro, e a leitura do campo muda sem ninguem ter decidido isso. Mesma historia
+  do mapa de angulo -> quadro antes de virar `src/util/direcoes.gd`.
+- **Nenhum verbo de `Movimento` recebe velocidade pronta.** Todos recebem o
+  INIMIGO e chamam `velocidade_atual()` no frame -- e e essa funcao que le a
+  Deterioracao. Uma assinatura `orbitar(velocidade: float, ...)` convidaria o
+  chamador a calcular uma vez e guardar, e a barra subindo deixaria de afetar
+  quem ja esta em tela. A unica excecao e `investir()`, e ela e declarada: a
+  velocidade de investida e numero proprio do `.tres`, nao deriva de
+  `velocidade_base` e NAO escala com a barra de proposito -- uma investida que
+  acelera junto deixa de ser esquivavel pelo timing que o jogador aprendeu.
+- **`Movimento.investir()` tambem nao passa por `direcao_de_locomocao()`.**
+  Durante a investida o inimigo nao contorna nada, e e isso que torna o ataque
+  legivel e faz a parede virar recurso do jogador -- bater nela e a principal
+  janela de contra-ataque que a Cyber-Besta oferece.
+- **`Movimento.orbitar()` tem DOIS temperamentos, e trocar um pelo outro
+  empilha inimigo.** `banda = 0` corrige proporcionalmente e converge para um
+  raio EXATO (e a Sentinela); `banda > 0` deixa uma faixa morta em que ele so
+  circula (e o Drone, por `orbitar_na_faixa`). Dar raio exato ao Drone faria
+  todos convergirem para a mesma circunferencia -- o empilhamento de novo, so
+  que em anel. E `raio = 0` nao e caso degenerado: e "circula fechando", que e o
+  `OBSERVAR` da Cyber-Besta.
+- **O Rastejante e o Vigia ficam FORA do vocabulario, de proposito.** E a mesma
+  razao que os mantem fora de `direcao_de_locomocao()`: eles sao a base que o
+  playtest da v0.2.0-alpha validou, e mexer neles sem uma segunda rodada
+  invalidaria aquele retorno.
+- **Telegrafo novo nao se escreve na mao: usa-se o `Telegrafo`.** Eram sete
+  implementacoes da mesma ideia, e as duas que quebraram quebraram em silencio
+  -- a `AreaDePerigo` desenhando abaixo do chao, e aviso aceso que nao apaga. As
+  quatro invariantes moram no componente: faixa `z` ABSOLUTA (`z_as_relative`
+  desligado, senao o aviso herda a camada de quem o pendurou), `top_level`
+  sempre (aviso que herda a rotacao de um `Visual` e aviso que mente), `apagar()`
+  amarrado no `sair` da `MaquinaEstados`, e o piso de `DURACAO_MINIMA` aplicado
+  DENTRO de `acender()`.
+- **Quem ESPERA o aviso terminar tem de esperar `Telegrafo.duracao_segura()`.**
+  O piso levanta um `tempo_clarao` de 0,28 s ate 0,35 s. Aplicado so no desenho,
+  o tiro sairia antes de o telegrafo acabar -- o aviso terminando DEPOIS do
+  ataque que ele avisa. Por isso `SentinelaOrbital._duracao_do_aviso()` passa
+  pelo piso, e por isso o Vigia e o Neon disparam por
+  `_telegrafo.avancar(delta) >= 1.0` em vez de um contador paralelo.
+- **`InimigoBase.morrer()` apaga os telegrafos filhos, e isso nao e redundante.**
+  `queue_free()` e diferido: o no ainda desenha no frame em que morreu. A
+  garantia mora na BASE de proposito -- na subclasse, o proximo inimigo com
+  telegrafo que esquecesse de sobrescrever `morrer()` traria o defeito de volta.
+- **A brasa do Parasita nasce DESLIGADA na `AreaDePerigo`.** `tempo_residual` e
+  zero por padrao porque a mesma cena serve a Rede de Exterminio e o Colapso da
+  Diretora, e o repertorio dela foi medido sem brasa. Quem liga e o Parasita,
+  para quem ela e a razao de existir: sem a zona residual o estouro e um
+  instante, e o inimigo de controle territorial nao controla nada.
+- **A brasa ignora `body_entered` de proposito.** Se o sinal valesse nela,
+  atravessar a mancha custaria o mesmo que ficar parado dentro -- e a brasa
+  existe justamente para separar as duas coisas. Quem passa correndo tem de
+  conseguir passar; quem fica paga no tique de `intervalo_residual`, que fica
+  uma ordem de grandeza acima de `Juice.INTERVALO_HITSTOP` para dano continuo
+  nunca encadear hitstop.
 - **`Array[Node].filter()` devolve `Array` sem tipo.** Atribuir de volta a uma
   variavel tipada explode em runtime. Use loop explicito.
 - **Referencia de no exportada nao resolve.** Use `NodePath` explicito e

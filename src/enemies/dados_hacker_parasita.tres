@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="DadosInimigo" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/enemies/dados_inimigo.gd" id="1_dados"]
+
+[resource]
+script = ExtResource("1_dados")
+nome = "Hacker Parasita"
+vida = 6
+velocidade = 110.0
+dano_contato = 1
+creditos = 10
+raio_contato = 26.0
+intervalo_dano_contato = 0.7
+cooldown_ataque = 2.4
+tempo_telegrafo = 0.55
+distancia_minima = 240.0
+max_areas = 3
+raio_area = 60.0
+espalhamento = 96.0
+tempo_residual = 1.5

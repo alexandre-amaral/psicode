@@ -54,7 +54,7 @@ const ESQUIVAR := &"ESQUIVAR"
 
 var _maquina: MaquinaEstados
 var _arma: Arma
-var _linha: Line2D
+var _telegrafo: Telegrafo
 ## Travada em `_mirar_entrar`. Nao e recalculada durante a mira.
 var _direcao_travada: Vector2 = Vector2.RIGHT
 var _t_intervalo: float = 0.0
@@ -68,9 +68,14 @@ func _ready() -> void:
 	super._ready()
 	_arma = $Visual/Arma
 	_arma.hostil = true
-	_linha = $Linha
-	_linha.top_level = true
-	_linha.visible = false
+	_telegrafo = Telegrafo.anexar(self)
+	# Ciano-esverdeado, distinto do ambar/vermelho do Vigia: a cor e a primeira
+	# coisa que o jogador usa para saber qual regra de esquiva aplicar.
+	_telegrafo.cor = Color(0.35, 1.0, 0.85)
+	_telegrafo.largura_min = 1.0
+	_telegrafo.largura_max = 3.5
+	_telegrafo.alfa_min = 0.1
+	_telegrafo.alfa_max = 0.8
 	_t_intervalo = randf_range(0.5, intervalo)
 	_lado = 1.0 if randf() < 0.5 else -1.0
 
@@ -100,12 +105,26 @@ func _comportamento(delta: float) -> void:
 ##
 ## Trocar de estado aqui cancela a mira de graca: quem apaga a linha e o `sair`
 ## de MIRAR, que a MaquinaEstados roda mesmo quando a troca vem de fora. E o
-## motivo pelo qual a esquiva e um ESTADO e nao um `if` dentro de `_mirar`.
+## motivo pelo qual a esquiva e um ESTADO e nao um `if` dentro de `_mirar` -- e
+## e a invariante 3 do `Telegrafo`, "apaga sempre", amarrada onde ela funciona.
 func _deve_esquivar() -> bool:
 	if _maquina.estado == ESQUIVAR:
 		return false
 	return distancia_do_alvo() < distancia_de_esquiva
 
+
+
+## Ver `DadosInimigo`. A esquiva dele e um ARRANQUE do vocabulario do recurso:
+## sem velocidade propria, so um multiplicador da normal.
+func _ler_dados(d: DadosInimigo) -> void:
+	distancia_ideal = d.distancia_preferida
+	margem = d.margem_de_distancia
+	distancia_de_esquiva = d.distancia_minima
+	intervalo = d.cooldown_ataque
+	tempo_mira = d.tempo_telegrafo
+	tempo_cooldown = d.tempo_recuperacao
+	tempo_esquiva = d.duracao_arranque
+	impulso_esquiva = d.impulso_arranque
 
 # ------------------------------------------------------------- estados ------
 
@@ -121,7 +140,7 @@ func _mirar_entrar() -> void:
 	_direcao_travada = direcao_para_alvo()
 	if _direcao_travada.length_squared() < 0.01:
 		_direcao_travada = Vector2.RIGHT
-	_linha.visible = true
+	_telegrafo.acender(tempo_mira)
 
 
 func _mirar(delta: float) -> void:
@@ -129,12 +148,14 @@ func _mirar(delta: float) -> void:
 	# e a linha travada perde sentido se a ORIGEM dela anda.
 	_mover(delta, 0.15)
 	_desenhar_linha()
-	if _maquina.passou(tempo_mira):
+	# O telegrafo e quem conta: `tempo_mira` abaixo do piso de duracao viraria
+	# um tiro saindo antes de o aviso terminar.
+	if _telegrafo.avancar(delta) >= 1.0:
 		_maquina.trocar(DISPARAR)
 
 
 func _mirar_sair() -> void:
-	_linha.visible = false
+	_telegrafo.apagar()
 
 
 func _disparar_entrar() -> void:
@@ -158,17 +179,17 @@ func _disparar(_delta: float) -> void:
 ## A direcao mistura "para longe" com "de lado". Puro para longe o encostaria na
 ## parede e ele ficaria preso ali; o componente lateral o faz contornar.
 func _esquivar_entrar() -> void:
-	var para_longe := -direcao_para_alvo()
-	if para_longe.length_squared() < 0.01:
-		para_longe = Vector2.RIGHT
-	_direcao_esquiva = (para_longe + para_longe.orthogonal() * _lado * 0.6).normalized()
+	_direcao_esquiva = Movimento.rumo_de_esquiva(direcao_para_alvo(), _lado)
 	# A esquiva CUSTA: ela adia o proximo tiro. Sem isso, chegar perto dele seria
 	# de graca para o jogador -- ele esquivaria e atiraria na mesma cadencia.
 	_t_intervalo = maxf(_t_intervalo, tempo_esquiva)
 
 
-func _esquivar(_delta: float) -> void:
-	velocity = direcao_de_locomocao(_direcao_esquiva) * velocidade_atual() * impulso_esquiva
+func _esquivar(delta: float) -> void:
+	# `rumar` e nao `recuar`: a direcao foi CONGELADA na entrada do estado, e
+	# recalcular "para longe" todo frame o faria curvar atras do jogador -- que e
+	# perseguir de costas, e nao fugir.
+	Movimento.rumar(self, delta, _direcao_esquiva, impulso_esquiva)
 	if _maquina.passou(tempo_esquiva):
 		_maquina.trocar(PROCURAR_POSICAO)
 
@@ -205,14 +226,7 @@ func _mover(delta: float, fator: float) -> void:
 ## lado resolve e recuar nao.
 func _desenhar_linha() -> void:
 	var origem := _arma.global_position
-	_linha.clear_points()
-	_linha.add_point(origem)
-	_linha.add_point(origem + _direcao_travada * _arma.dados.alcance)
-	var progresso := clampf(_maquina.tempo_no_estado / maxf(tempo_mira, 0.01), 0.0, 1.0)
-	# Ciano-esverdeado, distinto do ambar/vermelho do Vigia: a cor e a primeira
-	# coisa que o jogador usa para saber qual regra de esquiva aplicar.
-	_linha.default_color = Color(0.35, 1.0, 0.85, lerpf(0.1, 0.8, progresso))
-	_linha.width = lerpf(1.0, 3.5, progresso)
+	_telegrafo.linha(origem, origem + _direcao_travada * _arma.dados.alcance)
 
 
 func _orientar(delta: float) -> void:
@@ -221,9 +235,3 @@ func _orientar(delta: float) -> void:
 	var d := _direcao_travada if _maquina.estado == MIRAR else direcao_para_alvo()
 	if d.length_squared() > 0.01:
 		_visual.rotation = lerp_angle(_visual.rotation, d.angle(), 10.0 * delta)
-
-
-func morrer() -> void:
-	if _linha != null:
-		_linha.visible = false
-	super.morrer()

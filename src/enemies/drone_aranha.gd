@@ -119,11 +119,25 @@ func _pos_movimento(delta: float) -> void:
 	_sprite.apontar(direcao_para_alvo(), andando, delta, velocity)
 
 
+
+## Ver `DadosInimigo`. Os nomes locais sao os do DOMINIO dele -- "anel",
+## "posicionamento" -- e os do recurso sao os genericos; a traducao mora aqui,
+## num lugar so.
+func _ler_dados(d: DadosInimigo) -> void:
+	tempo_carga = d.tempo_telegrafo
+	tempo_recuperacao = d.tempo_recuperacao
+	intervalo = d.cooldown_ataque
+	alcance_anel = d.alcance
+	projeteis = d.projeteis
+	distancia_de_posicionamento = d.distancia_preferida
+	distancia_de_recuo = d.distancia_minima
+	peso_lateral = d.peso_lateral
+
 # ------------------------------------------------------------- estados ------
 
 func _perseguir(delta: float) -> void:
 	_t_intervalo -= delta * Deterioracao.multiplicador_cadencia()
-	velocity = direcao_de_locomocao(direcao_para_alvo()) * velocidade_atual()
+	Movimento.perseguir(self, delta)
 	if _pronto_para_o_anel():
 		_maquina.trocar(CARREGAR)
 		return
@@ -152,15 +166,12 @@ func _posicionar(delta: float) -> void:
 		_maquina.trocar(PERSEGUIR)
 		return
 
-	var para_alvo := direcao_para_alvo()
-	var tangente := para_alvo.orthogonal() * _sentido_lateral
-	var radial := Vector2.ZERO
-	if distancia < distancia_de_recuo:
-		radial = -para_alvo
-	elif distancia > distancia_de_posicionamento:
-		radial = para_alvo
-	var rumo := (tangente * peso_lateral + radial * (1.0 - peso_lateral)).normalized()
-	velocity = direcao_de_locomocao(rumo) * velocidade_atual()
+	# `orbitar_na_faixa` e a forma de FAIXA do vocabulario (INIM 07), e e ela e
+	# nao a de raio exato que este estado precisa -- ver o paragrafo acima.
+	Movimento.orbitar_na_faixa(
+		self, delta, distancia_de_recuo, distancia_de_posicionamento,
+		_sentido_lateral, peso_lateral
+	)
 
 
 ## O anel so sai com o intervalo vencido E dentro do alcance. Os dois estados de
@@ -181,7 +192,7 @@ func _carregar_entrar() -> void:
 
 
 func _carregar(delta: float) -> void:
-	velocity = velocity.move_toward(Vector2.ZERO, 1600.0 * delta)
+	Movimento.frear(self, delta, 1600.0)
 	if _maquina.passou(tempo_carga):
 		_maquina.trocar(DISPARAR)
 
@@ -238,7 +249,7 @@ func _disparar(_delta: float) -> void:
 
 
 func _recuperar(delta: float) -> void:
-	velocity = velocity.move_toward(Vector2.ZERO, 900.0 * delta)
+	Movimento.frear(self, delta, 900.0)
 	if _maquina.passou(tempo_recuperacao):
 		_t_intervalo = intervalo
 		_maquina.trocar(PERSEGUIR)

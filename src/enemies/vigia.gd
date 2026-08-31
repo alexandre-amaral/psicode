@@ -7,7 +7,10 @@ extends InimigoBase
 ## em que sua velocidade e mais alta e mais previsivel.
 ##
 ## O laser de telegrafo existe justamente para ensinar isso sem tutorial:
-## o jogador ve a linha parar em um ponto vazio a frente dele e entende.
+## o jogador ve a linha parar em um ponto vazio a frente dele e entende. Ele e
+## um `Telegrafo` (INIM 06) e nao mais uma `Line2D` propria -- mas continua
+## saindo da BOCA da arma, e isso e o unico detalhe dele que nao pode mudar: a
+## linha nascendo do lugar errado faz a mecanica central do jogo mentir.
 
 @export_group("Posicionamento")
 @export var distancia_ideal: float = 180.0
@@ -18,19 +21,19 @@ extends InimigoBase
 @export_group("Disparo")
 @export var intervalo_disparo: float = 2.1
 ## Tempo com o laser aceso antes do tiro sair. E a janela de reacao do jogador.
+## Quem aplica o piso de `Telegrafo.DURACAO_MINIMA` e o proprio telegrafo.
 @export var tempo_mira: float = 0.55
 
 enum Fase { REPOSICIONANDO, MIRANDO }
 
 var _fase: int = Fase.REPOSICIONANDO
 var _t_ciclo: float = 0.0
-var _t_mira: float = 0.0
 var _dir_strafe: float = 1.0
 var _t_troca_strafe: float = 0.0
 var _ponto_previsto: Vector2 = Vector2.ZERO
 
 var _arma: Arma
-var _laser: Line2D
+var _telegrafo: Telegrafo
 var _sprite: SpriteDirecional = null
 ## O que gira: a boca da arma, de onde o laser sai. NAO e o `_visual`.
 var _torre: Node2D = null
@@ -46,9 +49,13 @@ func _ready() -> void:
 	_sprite = $Visual/Corpo
 	_arma = $Torre/Arma
 	_arma.hostil = true
-	_laser = $Laser
-	_laser.top_level = true
-	_laser.visible = false
+	_telegrafo = Telegrafo.anexar(self)
+	# O mesmo desenho de antes: fino e quase transparente no comeco, grosso e
+	# aceso no fim. Quem varia a COR e `_desenhar_laser`, todo frame.
+	_telegrafo.largura_min = 1.0
+	_telegrafo.largura_max = 3.0
+	_telegrafo.alfa_min = 0.12
+	_telegrafo.alfa_max = 0.75
 	_t_ciclo = randf_range(0.4, intervalo_disparo)
 	_dir_strafe = 1.0 if randf() < 0.5 else -1.0
 
@@ -67,13 +74,14 @@ func _comportamento(delta: float) -> void:
 			_t_ciclo -= delta * Deterioracao.multiplicador_cadencia()
 			if _t_ciclo <= 0.0:
 				_fase = Fase.MIRANDO
-				_t_mira = tempo_mira
-				_laser.visible = true
+				_telegrafo.acender(tempo_mira)
 		Fase.MIRANDO:
-			_t_mira -= delta
 			_atualizar_previsao()
 			_desenhar_laser()
-			if _t_mira <= 0.0:
+			# Quem conta o tempo da mira e o telegrafo, e nao um `_t_mira`
+			# paralelo: com dois relogios, aplicar o piso de duracao num deles
+			# faria o tiro sair antes de o aviso terminar.
+			if _telegrafo.avancar(delta) >= 1.0:
 				_disparar()
 
 
@@ -111,19 +119,19 @@ func _atualizar_previsao() -> void:
 	)
 
 
+## A linha sai da BOCA da arma e para no ponto previsto. As duas pontas
+## importam: a origem porque a boca e a resolucao exata da mira, e a ponta
+## porque e ela que ensina a mira preditiva sem tutorial -- o jogador ve a linha
+## parar num ponto vazio a frente dele.
+##
+## O que sobrou aqui e so a COR. Intensidade, espessura e as quatro fases sao do
+## telegrafo agora.
 func _desenhar_laser() -> void:
-	var origem := _arma.global_position
-	_laser.clear_points()
-	_laser.add_point(origem)
-	_laser.add_point(_ponto_previsto)
+	_telegrafo.linha(_arma.global_position, _ponto_previsto)
 	# Vermelho quando esta prevendo, ambar quando so aponta. O jogador aprende
 	# a ler a cor antes de entender a matematica.
 	var prevendo := Deterioracao.usa_mira_preditiva()
-	var cor := Color(1.0, 0.22, 0.35) if prevendo else Color(1.0, 0.7, 0.25)
-	var progresso := 1.0 - clampf(_t_mira / maxf(tempo_mira, 0.01), 0.0, 1.0)
-	cor.a = lerpf(0.12, 0.75, progresso)
-	_laser.default_color = cor
-	_laser.width = lerpf(1.0, 3.0, progresso)
+	_telegrafo.cor = Color(1.0, 0.22, 0.35) if prevendo else Color(1.0, 0.7, 0.25)
 
 
 func _disparar() -> void:
@@ -131,7 +139,7 @@ func _disparar() -> void:
 	if direcao == Vector2.ZERO:
 		direcao = direcao_para_alvo()
 	_arma.atirar(direcao)
-	_laser.visible = false
+	_telegrafo.apagar()
 	_fase = Fase.REPOSICIONANDO
 	_t_ciclo = intervalo_disparo
 
@@ -160,9 +168,3 @@ func _pos_movimento(delta: float) -> void:
 		return
 	var andando := velocity.length() > VELOCIDADE_ANDANDO
 	_sprite.apontar(direcao_para_alvo(), andando, delta, velocity)
-
-
-func morrer() -> void:
-	if _laser != null:
-		_laser.visible = false
-	super.morrer()

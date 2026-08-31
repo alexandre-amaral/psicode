@@ -661,7 +661,9 @@ func _semear_rede() -> void:
 
 func _plantar_faixa(centro: Vector2, tamanho: Vector2, aviso: float) -> void:
 	var area := CENA_AREA.instantiate()
-	# tempo_aviso e lido no _ready, entao tem de ser escrito ANTES do add_child.
+	# tempo_aviso e lido em `configurar()`, que e quem acende o telegrafo -- entao
+	# basta escrever antes DELE. A Rede nao usa zona residual: o repertorio da
+	# Diretora foi medido sem brasa, e a `AreaDePerigo` nasce com ela desligada.
 	# Escrito depois, a faixa avisaria pelo tempo padrao e explodiria fora de
 	# sincronia com o resto da grade -- e uma grade que nao fecha junto nao e
 	# uma grade.

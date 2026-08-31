@@ -12,6 +12,12 @@ extends InimigoBase
 ##
 ## Ele foge do jogador de proposito. Um semeador que fica ao alcance morre no
 ## primeiro segundo e nunca chega a semear nada.
+##
+## A ZONA RESIDUAL e o que faz a promessa acima ser verdade. Sem ela, o estouro
+## e um instante: quem estava dentro toma, e um segundo depois o chao esta livre
+## outra vez -- o Parasita punia um momento e nao reduzia espaco nenhum. A brasa
+## nao mata; ela impede o jogador de VOLTAR para onde estava, que e a coisa
+## inteira que este inimigo existe para fazer.
 
 const CENA_AREA := preload("res://src/enemies/area_de_perigo.tscn")
 
@@ -26,6 +32,12 @@ const CENA_AREA := preload("res://src/enemies/area_de_perigo.tscn")
 ## dele, o que seria um ataque sem escolha.
 @export var espalhamento: float = 96.0
 @export var raio_area: float = 60.0
+## Quanto tempo a brasa fica no chao depois do estouro.
+##
+## E o botao de controle territorial dele: mais tempo, menos chao util. Ligado
+## AQUI e nao no default da `AreaDePerigo` porque a mesma cena serve os ataques
+## de area da Diretora, e o repertorio dela foi medido sem brasa nenhuma.
+@export var tempo_residual: float = 1.5
 
 @export_group("Fuga")
 ## Abaixo disto ele recua. Acima, ele so se reposiciona devagar.
@@ -59,6 +71,18 @@ func _comportamento(delta: float) -> void:
 	_maquina.processar(delta)
 
 
+
+## Ver `DadosInimigo`. O grupo "Territorio" do recurso existe por causa dele:
+## e o unico inimigo que ataca o ESPACO em vez do jogador.
+func _ler_dados(d: DadosInimigo) -> void:
+	max_areas = d.max_areas
+	intervalo = d.cooldown_ataque
+	tempo_semear = d.tempo_telegrafo
+	espalhamento = d.espalhamento
+	raio_area = d.raio_area
+	tempo_residual = d.tempo_residual
+	distancia_minima = d.distancia_minima
+
 # ------------------------------------------------------------- estados ------
 
 func _reposicionar(delta: float) -> void:
@@ -80,7 +104,7 @@ func _semear_entrar() -> void:
 
 
 func _semear(delta: float) -> void:
-	velocity = velocity.move_toward(Vector2.ZERO, 1400.0 * delta)
+	Movimento.frear(self, delta, 1400.0)
 	if _maquina.passou(tempo_semear):
 		_plantar()
 		_t_intervalo = intervalo
@@ -121,6 +145,8 @@ func _plantar() -> void:
 		destino = sala.ponto_seguro()
 
 	var area := CENA_AREA.instantiate()
+	# Antes do `configurar()`, que e quem acende o telegrafo e passa a contar.
+	area.tempo_residual = tempo_residual
 	container.add_child(area)
 	area.configurar(destino, raio_area, dano_contato)
 	_areas.append(area)
@@ -151,24 +177,15 @@ func _sala_dona() -> Sala:
 
 # ------------------------------------------------------------- movimento ----
 
+## Para tras quando o jogador encosta, de lado quando ha espaco.
+##
+## A conta saiu daqui para `src/util/movimento.gd` (INIM 07). Uma coisa mudou de
+## lugar mas nao de comportamento: a deriva lateral era multiplicada por 0,5 e
+## normalizada na linha seguinte, o que apagava o 0,5 -- ele nunca andou mais
+## devagar de lado. Quem quiser de fato desacelerar a deriva mexe no `fator`,
+## que atua depois da normalizacao.
 func _fugir(delta: float, fator: float) -> void:
-	var para_alvo := direcao_para_alvo()
-	if para_alvo.length_squared() < 0.01:
-		velocity = velocity.move_toward(Vector2.ZERO, 900.0 * delta)
-		return
-
-	var d := distancia_do_alvo()
-	var desejada: Vector2
-	if d < distancia_minima:
-		desejada = -para_alvo
-	else:
-		# Longe o bastante: so deriva de lado, para nao virar um alvo parado.
-		desejada = para_alvo.orthogonal() * 0.5
-
-	velocity = velocity.move_toward(
-		direcao_de_locomocao(desejada.normalized()) * velocidade_atual() * fator,
-		1000.0 * delta
-	)
+	Movimento.fugir(self, delta, distancia_minima, fator, 1000.0)
 
 
 ## As areas dele morrem com ele.

@@ -235,6 +235,7 @@ func morrer() -> void:
 	set_physics_process(false)
 	set_deferred("collision_layer", 0)
 	set_deferred("collision_mask", 0)
+	_apagar_telegrafos()
 
 	var fx := preload("res://src/fx/explosao.tscn").instantiate()
 	fx.global_position = global_position
@@ -256,6 +257,20 @@ func morrer() -> void:
 	morreu.emit(global_position)
 	EventBus.inimigo_morreu.emit(global_position, creditos)
 	queue_free()
+
+
+## Todo aviso deste inimigo apaga AGORA, e nao no proximo frame.
+##
+## `queue_free()` e diferido: um Vigia que morre no meio da mira ainda desenha
+## o laser no frame em que explodiu, e "o laser ficou na tela" e o bug classico
+## deste tipo de inimigo. Ficar aqui, na base, e o que faz a garantia valer para
+## todo inimigo que ganhar telegrafo depois -- inclusive o que ninguem lembrar
+## de sobrescrever `morrer()`.
+func _apagar_telegrafos() -> void:
+	for filho in get_children():
+		var t := filho as Telegrafo
+		if t != null:
+			t.apagar()
 
 
 ## Marca este inimigo por `duracao` segundos. Chamado pelo projetil.

@@ -39,13 +39,13 @@ func _a_esquiva_e_um_estado_e_nao_um_desvio() -> void:
 	# troca para ele de qualquer outro estado.
 	atirador._maquina.trocar(atirador.MIRAR)
 	igual(String(atirador._maquina.estado), "MIRAR", "ele entra em MIRAR")
-	var linha := atirador.get_node_or_null("Linha") as Line2D
-	ok(linha != null and linha.visible, "mirando, a linha de telegrafo acende")
+	var telegrafo: Telegrafo = atirador._telegrafo
+	ok(telegrafo != null and telegrafo.aceso(), "mirando, a linha de telegrafo acende")
 
 	atirador._maquina.trocar(atirador.ESQUIVAR)
 	igual(String(atirador._maquina.estado), "ESQUIVAR", "e sai para ESQUIVAR")
 	ok(
-		linha == null or not linha.visible,
+		telegrafo == null or not telegrafo.aceso(),
 		"ao esquivar a linha APAGA -- telegrafo aceso que sobrevive e o bug classico"
 	)
 	atirador.free()

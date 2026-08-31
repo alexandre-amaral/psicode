@@ -25,7 +25,8 @@ extends InimigoBase
 @export_group("Disparo")
 @export var intervalo: float = 1.5
 ## Clarao no cano antes do tiro. Curto, porque o tiro e fraco -- telegrafo longo
-## para dano pequeno vira ruido, nao leitura.
+## para dano pequeno vira ruido, nao leitura. O piso de `Telegrafo` levanta este
+## numero ate 0,35 s: curto e uma escolha, invisivel nao e.
 @export var tempo_clarao: float = 0.28
 
 @export_group("Rajada")
@@ -53,6 +54,7 @@ const DISPARAR := &"DISPARAR"
 var _maquina: MaquinaEstados
 var _arma: Arma
 var _clarao: Polygon2D
+var _telegrafo: Telegrafo
 var _t_intervalo: float = 0.0
 ## Quantos tiros unicos ainda faltam para a proxima rajada. Comeca sorteado para
 ## duas sentinelas na mesma sala nao rajarem no mesmo momento -- duas rajadas
@@ -82,6 +84,12 @@ func _ready() -> void:
 	_arma.hostil = true
 	_clarao = $Torre/Clarao
 	_clarao.visible = false
+	# O telegrafo dela nao e uma forma no chao: e o proprio cano brilhando. Quem
+	# faz o clarao crescer e piscar e o `pulsar`, entao as quatro fases valem
+	# aqui igual valem na linha do Vigia.
+	_telegrafo = Telegrafo.anexar(self)
+	_telegrafo.alfa_min = 0.35
+	_telegrafo.alfa_max = 1.0
 	_sentido = 1.0 if randf() < 0.5 else -1.0
 	_ate_rajada = randi_range(0, maxi(tiros_ate_rajada, 0))
 	_t_intervalo = randf_range(0.3, intervalo)
@@ -124,18 +132,15 @@ func _orbitar(delta: float) -> void:
 ## Continua circulando enquanto avisa. Parar para atirar transformaria a
 ## sentinela num alvo facil e mataria a pressao que ela existe para fazer.
 func _disparar_entrar() -> void:
-	_clarao.visible = true
-	_clarao.scale = Vector2(0.4, 0.4)
 	# O aviso da rajada e MAIOR e mais longo. Sem isso os dois ataques ficam
 	# indistinguiveis ate o projetil existir, e o jogador so pode reagir.
-	var alvo := 1.3 * (ESCALA_CLARAO_RAJADA if _vai_rajar() else 1.0)
-	var t := create_tween()
-	t.tween_property(_clarao, "scale", Vector2(alvo, alvo), _duracao_do_aviso())
+	_telegrafo.pulsar(_clarao, 1.3 * (ESCALA_CLARAO_RAJADA if _vai_rajar() else 1.0))
+	_telegrafo.acender(_duracao_do_aviso())
 
 
 func _disparar(delta: float) -> void:
 	_circular(delta, 0.7)
-	if not _maquina.passou(_duracao_do_aviso()):
+	if _telegrafo.avancar(delta) < 1.0:
 		return
 	if _vai_rajar():
 		# `atirar_varias` e obrigatorio aqui, e nao preferencia: um `for` com
@@ -165,12 +170,16 @@ func _vai_rajar() -> bool:
 
 
 ## Quanto o aviso dura nesta salva.
+##
+## Passa pelo piso do `Telegrafo` AQUI, e nao so no desenho: com o piso valendo
+## num lado so, o tiro sairia em `tempo_clarao` cru enquanto o clarao ainda
+## estivesse crescendo -- o telegrafo terminando DEPOIS do ataque que ele avisa.
 func _duracao_do_aviso() -> float:
-	return tempo_clarao * (fator_aviso_rajada if _vai_rajar() else 1.0)
+	return Telegrafo.duracao_segura(tempo_clarao * (fator_aviso_rajada if _vai_rajar() else 1.0))
 
 
 func _disparar_sair() -> void:
-	_clarao.visible = false
+	_telegrafo.apagar()
 
 
 # ------------------------------------------------------------ movimento -----

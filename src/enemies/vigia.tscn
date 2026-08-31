@@ -60,9 +60,3 @@ position = Vector2(20, 0)
 script = ExtResource("4_arma")
 dados = ExtResource("3_tiro")
 hostil = true
-
-[node name="Laser" type="Line2D" parent="."]
-z_index = -2
-points = PackedVector2Array(0, 0, 1, 0)
-width = 2.0
-default_color = Color(1, 0.25, 0.35, 0.5)

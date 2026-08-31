@@ -40,9 +40,3 @@ position = Vector2(30, 0)
 script = ExtResource("2_arma")
 dados = ExtResource("3_tiro")
 hostil = true
-
-[node name="Linha" type="Line2D" parent="."]
-z_index = -2
-points = PackedVector2Array(0, 0, 1, 0)
-width = 2.0
-default_color = Color(0.35, 1, 0.85, 0.5)

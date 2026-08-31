@@ -59,6 +59,20 @@ DESTINOS = [
 ## impede o bicho de saltar de lugar ao comecar a andar.
 LADO = 80
 
+## Conjuntos que NAO cabem na moldura padrao, e a moldura de cada um.
+##
+## O chefe do andar 1 e duas a tres vezes o tamanho do jogador: em 80 ele sairia
+## cortado, e a saida errada seria dar a ele arte autorada fora do gerador --
+## foi assim que a Diretora acabou fora da ancora de base, com o tint de Hack
+## nao pintando nela e o portao de origem a pulando em silencio.
+##
+## 160 e 2x 80 de proposito: a proporcao entre chefe e jogador fica a mesma em
+## pixels e em moldura, e a escala continua INTEIRA. Espelha
+## `Direcoes.MOLDURAS_DE_ATOR`, e as duas listas precisam continuar iguais.
+MOLDURAS = {
+    "boss_guardiao_01": 160,
+}
+
 ## Folga entre o pe e o fundo da moldura. Nao e estetica: sem ela um quadro em
 ## que a personagem pisa um pixel mais baixo seria cortado.
 FOLGA_PE = 4
@@ -99,29 +113,36 @@ def _bbox(img):
     return img.getchannel("A").getbbox()
 
 
-def normalizar(img):
-    """Poe `img` numa moldura LADO x LADO com a ancora descrita no topo."""
+def moldura_de(personagem):
+    """A moldura deste conjunto. LADO para todo mundo, menos quem declarar."""
+    return MOLDURAS.get(personagem, LADO)
+
+
+def normalizar(img, lado=None):
+    """Poe `img` numa moldura `lado` x `lado` com a ancora descrita no topo."""
+    lado = LADO if lado is None else lado
     caixa = _bbox(img)
     if caixa is None:
-        return Image.new("RGBA", (LADO, LADO), (0, 0, 0, 0))
+        return Image.new("RGBA", (lado, lado), (0, 0, 0, 0))
 
     largura, _altura = img.size
     centro_origem = largura / 2.0
     # Horizontal: preserva a distancia do desenho ate o centro da moldura antiga.
-    dx = int(round(LADO / 2.0 - centro_origem))
+    dx = int(round(lado / 2.0 - centro_origem))
     # Vertical: leva o pe (base do bbox) para a linha fixa de baixo.
-    dy = (LADO - FOLGA_PE) - caixa[3]
+    dy = (lado - FOLGA_PE) - caixa[3]
 
-    fundo = Image.new("RGBA", (LADO, LADO), (0, 0, 0, 0))
+    fundo = Image.new("RGBA", (lado, lado), (0, 0, 0, 0))
     fundo.paste(img, (dx, dy), img)
     return fundo
 
 
-def montar_fita(quadros):
+def montar_fita(quadros, lado=None):
     """Os N quadros lado a lado, para virarem hframes de um Sprite2D."""
-    fita = Image.new("RGBA", (LADO * len(quadros), LADO), (0, 0, 0, 0))
+    lado = LADO if lado is None else lado
+    fita = Image.new("RGBA", (lado * len(quadros), lado), (0, 0, 0, 0))
     for i, q in enumerate(quadros):
-        fita.paste(normalizar(q), (i * LADO, 0))
+        fita.paste(normalizar(q, lado), (i * lado, 0))
     return fita
 
 
@@ -170,6 +191,7 @@ def processar(destino, personagem, quer_miniatura):
     if not os.path.isdir(pasta_saida):
         sys.exit("nao achei %s" % pasta_saida)
 
+    lado = moldura_de(personagem)
     escritos = 0
     faltando = []
 
@@ -179,7 +201,7 @@ def processar(destino, personagem, quer_miniatura):
         # que este script existe para matar.
         alvo_idle = os.path.join(pasta_saida, "%s.png" % direcao)
         if os.path.exists(alvo_idle):
-            normalizar(Image.open(alvo_idle).convert("RGBA")).save(alvo_idle)
+            normalizar(Image.open(alvo_idle).convert("RGBA"), lado).save(alvo_idle)
             escritos += 1
         else:
             faltando.append("idle %s" % direcao)
@@ -191,7 +213,7 @@ def processar(destino, personagem, quer_miniatura):
             faltando.append("andar %s" % direcao)
             continue
         quadros = quadros_do_gif(gif)
-        fita = montar_fita(quadros)
+        fita = montar_fita(quadros, lado)
         fita.save(os.path.join(pasta_saida, "andar_%s.png" % direcao))
         escritos += 1
         print("  andar_%-11s %d quadros -> %dx%d" % (direcao, len(quadros), fita.width, fita.height))
@@ -207,7 +229,10 @@ def processar(destino, personagem, quer_miniatura):
 
 
 def main():
-    print("moldura %dx%d, pe a %dpx do fundo\n" % (LADO, LADO, FOLGA_PE))
+    print("moldura padrao %dx%d, pe a %dpx do fundo" % (LADO, LADO, FOLGA_PE))
+    for nome, lado in sorted(MOLDURAS.items()):
+        print("  %s usa moldura %dx%d" % (nome, lado, lado))
+    print("")
     problemas = []
     for destino, quer_miniatura in DESTINOS:
         if not os.path.isdir(destino):
@@ -223,7 +248,7 @@ def main():
             if not os.path.isdir(os.path.join(ORIGEM_ANIM, personagem)):
                 print("%s: sem fitas em animations/, ignorado" % personagem)
                 continue
-            print("%s:" % personagem)
+            print("%s: (moldura %d)" % (personagem, moldura_de(personagem)))
             escritos, faltando = processar(destino, personagem, quer_miniatura)
             print("  %d arquivos" % escritos)
             problemas += ["%s: %s" % (personagem, f) for f in faltando]

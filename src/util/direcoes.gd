@@ -24,7 +24,46 @@ const TOTAL := 8
 ## passam pelo MESMO gerador, e duas copias deste numero divergiriam com o
 ## sintoma aparecendo em tela e nao no console.
 const LADO_QUADRO := 80.0
+## Folga entre o pe e o fundo da moldura, espelhando `FOLGA_PE` do gerador.
+const FOLGA_PE := 4.0
 const BASE_NO_QUADRO := 36.0
+
+## As molduras que o gerador produz, e portanto as unicas em que os pes caem no
+## lugar previsto.
+##
+## 80 cobre personagem e inimigo comum. 160 existe para o CHEFE: o Automato e
+## duas a tres vezes o tamanho do jogador e nao cabe em 80, e enfiar arte de
+## chefe numa moldura pequena demais foi como a Diretora acabou fora da ancora.
+##
+## Sao multiplos um do outro de proposito: 160 e exatamente 2x 80, entao a
+## proporcao entre o chefe e o jogador e a mesma em pixels e em moldura, e a
+## escala continua INTEIRA -- 64 para 96 borra mesmo com filtro Nearest.
+const MOLDURAS_DE_ATOR: Array[float] = [80.0, 160.0]
+
+
+## Onde os pes caem numa moldura de lado `lado`, contado da ORIGEM do Sprite2D.
+##
+## Um `Sprite2D` e centrado, entao a linha do pe (`lado - FOLGA_PE`) vira
+## `lado/2 - FOLGA_PE` abaixo do centro. Com 80 isso da os 36 de sempre.
+##
+## Existe como funcao e nao como segunda constante porque o chefe trouxe uma
+## moldura nova: com duas constantes soltas, a proxima moldura entraria com o
+## numero calculado a mao -- e um erro de 4 px na ancora e exatamente o tipo de
+## coisa que so aparece quando dois corpos se cruzam em movimento.
+static func base_de_quadro(lado: float) -> float:
+	return lado * 0.5 - FOLGA_PE
+
+
+## A moldura e uma das que o gerador produz?
+##
+## Quem responde `false` e arte AUTORADA, de ancora propria -- o caso vivo e a
+## Diretora, um orbe de 192x192 sem pes. O portao de origem trata os dois
+## regimes de forma diferente, e precisa saber qual e qual.
+static func moldura_de_ator(lado: float) -> bool:
+	for m in MOLDURAS_DE_ATOR:
+		if is_equal_approx(lado, m):
+			return true
+	return false
 
 ## Onde o sprite tem de ficar para os PES coincidirem com a origem do ator.
 ##

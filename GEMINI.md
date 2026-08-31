@@ -148,6 +148,7 @@ docs/
 | **A regua das barras do cartao de selecao** | as consts `*_CHEIO`/`*_CHEIA` em `src/weapons/dados_arma.gd` |
 | **Velocidade do ciclo de caminhada** | `fps_andando` no `src/player/personagem_*.tres` |
 | **Arte de animacao nova** | por o GIF em `animations/<id>/` e rodar `python tools/sprites/gerar_sprites.py` -- vale para personagem E inimigo, o que muda e a pasta de saida |
+| **Ator que nao cabe na moldura de 80 (o chefe)** | `MOLDURAS` em `tools/sprites/gerar_sprites.py` + `Direcoes.MOLDURAS_DE_ATOR`; as duas listas tem de continuar iguais |
 | **Sprite e rotacoes de um inimigo** | o no `Visual/Corpo` da `src/enemies/*.tscn`, com `src/enemies/sprite_direcional.gd`: as duas listas de 8 texturas, `quadros_andando`, `fps_andando`, mais `scale` e `position` do proprio no |
 | **Arma inicial, Hack e texto do card de um personagem** | `src/player/personagem_*.tres` |
 | Dispersao que cresce com o gatilho preso | `dispersao_*` em `src/weapons/*.tres` — zero desliga |
@@ -230,6 +231,24 @@ em qualquer erro de script.
   seguidas ele apareceu e ZERO areas foram criadas. Comportamento que demora
   mais que um tick precisa de suite propria (`teste_area_de_perigo.gd`), senao
   a guarda passa verde sem nunca ter olhado nada.
+- **Ator grande passa pelo GERADOR, com moldura propria -- nao vira arte
+  autorada.** A Diretora e o contra-exemplo inteiro: sprite de 192x192 num no
+  `Visual/SpriteDiretora`, entao `InimigoBase._corpo` procura `Visual/Corpo`,
+  nao acha, e o tint de Hack e de nanite nao pintam nela; e o portao de origem
+  a pula em silencio. O chefe do andar 1 tem moldura 160 declarada em
+  `MOLDURAS`, que e 2x a de 80 -- a proporcao entre chefe e jogador fica a mesma
+  em pixels e em moldura, e a escala continua INTEIRA.
+- **A base de uma moldura sai de `Direcoes.base_de_quadro()`, nao de uma
+  constante por tamanho.** Com 80 da os 36 de sempre; com 160 da 76. Duas
+  constantes soltas fariam a proxima moldura entrar com o numero calculado a
+  mao, e um erro de 4 px na ancora so aparece quando dois corpos se cruzam em
+  movimento.
+- **Chefe sem arte tem de estar DECLARADO em `SEM_ARTE_AINDA`.** O portao de
+  origem pula `Visual/Corpo` que e `Polygon2D` -- certo para os inimigos
+  desenhados em volta da propria origem, e foi tambem como a Diretora passou
+  anos fora da ancora. Um chefe nao pode cair nessa categoria por acidente:
+  sprite grande fora da ancora e o caso em que o Y-sort mais erra. Tirar o nome
+  da lista e o interruptor de "a arte chegou".
 - **A Diretora esta ENGAVETADA, e `teste_diretora.gd` e o que a segura.** Ela
   saiu do andar 1 (BOSS 11) mas continua intocada em disco, sem sala que a
   chame. Codigo que ninguem roda apodrece: um refactor em `InimigoBase`, na

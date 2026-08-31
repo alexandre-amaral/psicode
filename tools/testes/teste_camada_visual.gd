@@ -39,6 +39,7 @@ func executar() -> void:
 	_as_camadas_de_cenario_ficam_fora_do_y_sort()
 	_o_ator_tem_sombra_na_base()
 	_todo_ator_com_arte_tem_origem_nos_pes()
+	_o_chefe_do_andar_e_alcancado_pelo_portao_de_origem()
 	_a_face_sorteia_por_lado()
 	_o_corredor_usa_a_mesma_perspectiva_da_sala()
 	_a_razao_face_topo_fica_em_um_para_um()
@@ -244,6 +245,69 @@ func _o_ator_tem_sombra_na_base() -> void:
 		torre.free()
 
 
+## Quem AINDA nao tem arte direcional, e por isso o portao de origem nao alcanca.
+##
+## A lista existe para o silencio virar declaracao. `Visual/Corpo` que e
+## `Polygon2D` e pulado pelo portao acima -- e o certo para os quatro inimigos
+## desenhados em volta da propria origem, mas foi tambem como a Diretora passou
+## anos fora da ancora sem ninguem ver. Um CHEFE nao pode entrar nessa categoria
+## por acidente: ele e grande, e sprite grande fora da ancora e o caso em que o
+## Y-sort erra mais.
+##
+## Tirar um nome daqui e o interruptor de "a arte chegou": no dia em que o
+## `boss_guardiao_01` ganhar as oito rotacoes (BOSS 10), este teste passa a
+## exigir dele a moldura e a ancora como de qualquer outro ator.
+const SEM_ARTE_AINDA := ["boss_guardiao_01.tscn"]
+
+
+## O CHEFE nao pode ser pulado em silencio pelo portao de origem.
+##
+## A Diretora e o precedente inteiro: o sprite dela e 192x192 num no
+## `Visual/SpriteDiretora`, entao `InimigoBase._corpo` procura `Visual/Corpo`,
+## nao acha, e o tint de Hack e de nanite nao pintam nela -- e o portao acima a
+## pula sem dizer nada. A BOSS 10 pede que a decisao seja tomada ANTES de
+## desenhar, e este caso e a decisao virada portao.
+func _o_chefe_do_andar_e_alcancado_pelo_portao_de_origem() -> void:
+	var tipo: DadosSala = load("res://src/mapa/tipo_boss.tres")
+	ok(tipo != null and not tipo.inimigos.is_empty(), "o tipo de sala do chefe declara um inimigo")
+	if tipo == null or tipo.inimigos.is_empty():
+		return
+
+	var grupo: GrupoInimigo = tipo.inimigos[0]
+	ok(grupo != null and grupo.cena != null, "e o grupo dele aponta para uma cena")
+	if grupo == null or grupo.cena == null:
+		return
+
+	var arquivo := grupo.cena.resource_path.get_file()
+	var chefe := grupo.cena.instantiate()
+	Engine.get_main_loop().root.add_child(chefe)
+
+	# 1. O corpo tem de estar onde `InimigoBase` procura. Sem isso o tint de
+	#    Hack e o de nanite nao pintam nele, em silencio.
+	var corpo := chefe.get_node_or_null("Visual/Corpo")
+	ok(corpo != null,
+		"%s tem `Visual/Corpo` -- e onde InimigoBase procura para pintar Hack e nanite" % arquivo)
+
+	# 2. Ou ele tem arte ancorada, ou esta DECLARADO como ainda sem arte. O que
+	#    o portao proibe e a terceira opcao: ser pulado sem ninguem saber.
+	var sprite := corpo as Sprite2D
+	var tem_arte := sprite != null and sprite.texture != null
+	if tem_arte:
+		var altura := sprite.texture.get_height()
+		ok(Direcoes.moldura_de_ator(float(altura)),
+			"%s usa uma moldura de ator (%d) -- arte de chefe fora do gerador foi como a Diretora perdeu a ancora"
+				% [arquivo, altura])
+		perto(sprite.position.y, -Direcoes.base_de_quadro(float(altura)),
+			"%s: o chefe e ancorado nos PES" % arquivo)
+	else:
+		ok(SEM_ARTE_AINDA.has(arquivo),
+			"%s ainda nao tem arte, e isso esta DECLARADO em SEM_ARTE_AINDA" % arquivo)
+		ok(chefe.get("largura_sombra") != null and float(chefe.get("largura_sombra")) > 0.0,
+			"%s ja nasce com sombra: a ancora nos pes vale desde o placeholder" % arquivo)
+
+	chefe.free()
+
+
 ## A regra de origem do Low Top-Down: a posicao logica do ator e o ponto em que
 ## ele encosta no CHAO, e o desenho sobe a partir dali.
 ##
@@ -258,8 +322,11 @@ func _o_ator_tem_sombra_na_base() -> void:
 ## E o portao distingue DOIS regimes pela moldura, em vez de exigir -36 de todo
 ## mundo (LTD 16):
 ##
-## - moldura de `Direcoes.LADO_QUADRO` (80): veio de `gerar_sprites.py`, que
-##   ancora nos pes. Tem de estar em -36, e o numero e o mesmo dos dois lados.
+## - moldura de ATOR (`Direcoes.MOLDURAS_DE_ATOR`): veio de `gerar_sprites.py`,
+##   que ancora nos pes. A base sai de `Direcoes.base_de_quadro()`, entao a
+##   moldura de 160 do chefe e cobrada com o numero DELA -- 76 -- e nao com o
+##   36 da moldura de 80. Foi o chefe que trouxe o segundo tamanho (BOSS 10):
+##   ele e duas a tres vezes o jogador e nao cabe em 80.
 ## - qualquer outra moldura: arte autorada, com ancora propria. O caso vivo e a
 ##   Diretora, um orbe flutuante radialmente simetrico de 192x192 -- ela nao tem
 ##   pes, e centrada E a ancora certa. Exigir -36 dela seria cobrar uma regra
@@ -269,7 +336,6 @@ func _o_ator_tem_sombra_na_base() -> void:
 ## ter sombra, porque a elipse nasceria dentro do proprio corpo e ficaria
 ## invisivel -- foi exatamente o no morto que a Diretora carregava.
 func _todo_ator_com_arte_tem_origem_nos_pes() -> void:
-	var esperado := -Direcoes.BASE_NO_QUADRO
 	var conferidos := 0
 
 	var dir := DirAccess.open("res://src/enemies/")
@@ -287,10 +353,10 @@ func _todo_ator_com_arte_tem_origem_nos_pes() -> void:
 			var sprite := corpo as Sprite2D
 			if sprite != null and sprite.texture != null:
 				var altura := sprite.texture.get_height()
-				if is_equal_approx(float(altura), Direcoes.LADO_QUADRO):
+				if Direcoes.moldura_de_ator(float(altura)):
 					conferidos += 1
-					perto(sprite.position.y, esperado,
-						"%s: o sprite da moldura de 80 e ancorado nos pes" % arquivo)
+					perto(sprite.position.y, -Direcoes.base_de_quadro(float(altura)),
+						"%s: o sprite da moldura de %d e ancorado nos pes" % [arquivo, altura])
 				else:
 					# Arte autorada, de moldura propria. O caso vivo e a Diretora.
 					perto(sprite.position.y, 0.0,
@@ -312,7 +378,8 @@ func _todo_ator_com_arte_tem_origem_nos_pes() -> void:
 				continue
 			var pos: Variant = _propriedade(estado, i, "position")
 			if pos != null:
-				perto((pos as Vector2).y, esperado, "player.tscn: o Sprite e ancorado nos pes")
+				perto((pos as Vector2).y, -Direcoes.BASE_NO_QUADRO,
+					"player.tscn: o Sprite e ancorado nos pes")
 
 	var operadores := 0
 	var dir_p := DirAccess.open("res://src/player/")
@@ -324,7 +391,7 @@ func _todo_ator_com_arte_tem_origem_nos_pes() -> void:
 			if dados == null or not "deslocamento_sprite" in dados:
 				continue
 			operadores += 1
-			perto(dados.deslocamento_sprite.y, esperado,
+			perto(dados.deslocamento_sprite.y, -Direcoes.BASE_NO_QUADRO,
 				"%s: o deslocamento poe os pes na origem" % arquivo)
 	ok(operadores >= 2, "os dois operadores foram conferidos (%d)" % operadores)
 

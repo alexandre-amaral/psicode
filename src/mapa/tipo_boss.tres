@@ -7,7 +7,7 @@
 [ext_resource type="Texture2D" path="res://assets/texturas/props_atlas.png" id="23_atlas"]
 [ext_resource type="Texture2D" path="res://assets/texturas/props_volume.png" id="24_pvol"]
 [ext_resource type="PackedScene" uid="uid://u6i7o8p9q0a1b" path="res://src/mapa/sala_6_boss.tscn" id="2_boss"]
-[ext_resource type="Resource" path="res://src/enemies/grupo_diretora.tres" id="3_dir"]
+[ext_resource type="Resource" path="res://src/enemies/grupo_boss_guardiao_01.tres" id="3_dir"]
 
 [resource]
 script = ExtResource("1_ds")

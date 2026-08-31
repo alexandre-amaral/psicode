@@ -106,6 +106,60 @@ text = "Distorção visual"
 unique_name_in_owner = true
 layout_mode = 2
 
+[node name="LinhaVolMaster" type="HBoxContainer" parent="Painel/Conteudo"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Rotulo" type="Label" parent="Painel/Conteudo/LinhaVolMaster"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+text = "Volume geral"
+
+[node name="VolMaster" type="HSlider" parent="Painel/Conteudo/LinhaVolMaster"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+size_flags_vertical = 4
+max_value = 1.0
+step = 0.05
+
+[node name="LinhaVolSfx" type="HBoxContainer" parent="Painel/Conteudo"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Rotulo" type="Label" parent="Painel/Conteudo/LinhaVolSfx"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+text = "Efeitos"
+
+[node name="VolSfx" type="HSlider" parent="Painel/Conteudo/LinhaVolSfx"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+size_flags_vertical = 4
+max_value = 1.0
+step = 0.05
+
+[node name="LinhaVolAmbiente" type="HBoxContainer" parent="Painel/Conteudo"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Rotulo" type="Label" parent="Painel/Conteudo/LinhaVolAmbiente"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+text = "Ambiente"
+
+[node name="VolAmbiente" type="HSlider" parent="Painel/Conteudo/LinhaVolAmbiente"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+size_flags_vertical = 4
+max_value = 1.0
+step = 0.05
+
 [node name="LinhaIdioma" type="HBoxContainer" parent="Painel/Conteudo"]
 layout_mode = 2
 theme_override_constants/separation = 12

@@ -54,6 +54,13 @@ const MAX_TENTATIVAS := 24
 ## Substituiu os tres exports separados (cenas_salas/cena_boss/cena_tesouro) e
 ## as duas funcoes `_pendurar_X` copiadas uma da outra: tipo novo agora e um
 ## .tres a mais nesta lista, sem uma linha de GDScript.
+## O loop de ambiente deste andar.
+##
+## Fica no gerenciador e nao na `Sala` porque o ambiente responde "onde eu
+## estou" no nivel do ANDAR: trocar de sala nao pode trocar o som, senao cada
+## porta vira um corte de audio e o setor deixa de soar como um lugar so.
+@export var ambiente_do_andar: AudioStream
+
 @export var tipos_de_sala: Array[DadosSala] = []
 ## Distancia livre entre duas bandas vizinhas: e o comprimento do corredor.
 @export var vao_corredor: float = 256.0
@@ -843,6 +850,7 @@ func _montar_andar() -> void:
 	_montar_corredores()
 	_cachear_geometria()
 	_sortear_composicoes()
+	_ligar_ambiente()
 
 
 ## Decide, de uma vez para o andar inteiro, o que nasce em cada sala.
@@ -851,6 +859,12 @@ func _montar_andar() -> void:
 ## jogador entra, os inimigos ja estao distribuidos. Ele tambem e o unico lugar
 ## do projeto onde a dificuldade de uma sala e escolhida, o que torna a curva do
 ## andar ajustavel por .tres em vez de por seis cenas.
+## Liga o ambiente do andar. Chamado uma vez, na montagem.
+func _ligar_ambiente() -> void:
+	if ambiente_do_andar != null:
+		Audio.definir_ambiente(ambiente_do_andar)
+
+
 func _sortear_composicoes() -> void:
 	_composicao_por_celula.clear()
 	# Uma vez para o andar todo: a distancia de cada celula ate a entrada e o

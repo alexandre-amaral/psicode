@@ -788,6 +788,22 @@ em qualquer erro de script.
   faixa de vazio na lateral. O unico conserto completo seria geometrico: parede
   de 16 px e salas de 928x512 fecham exatamente 960x544, e ambos caem na grade
   de 32. Isso mexe em todas as cenas de sala e ainda nao foi feito.
+- **`--sem-costura` e para arte que JA NASCE ladrilhavel.** A face base do
+  andar 1 usa a bandeira porque foi desenhada assim; arte gerada nao e, e passar
+  a bandeira nela reprova o portao de costura (`costura x=1.23, teto 1.10`).
+  Sem a bandeira o funil costura, e o preco e um borrao na juncao -- visivel no
+  modulo `ventilada`, cuja grade e horizontal.
+- **Densidade de face e o unico numero que a issue pede e o funil NAO cobra.**
+  `preparar_textura.py` marca densidade como informativa, e com razao: a face
+  excede a faixa de parede de proposito. Mas "os cinco modulos caem na mesma
+  faixa" precisava virar portao, senao vira prosa -- `teste_texturas.gd` cobra
+  piso (acima do teto de parede, 34%) e teto (1,4x a base). Os dois limites saem
+  de decisoes que ja existiam, e nao da amostra medida.
+- **Uma sala desenha UMA face, entao cinco modulos nunca aparecem juntos em
+  jogo.** `LIMIAR_LADO_NORTE` so veste o lado virado para a camera; a biblioteca
+  produz variedade ao longo do ANDAR, com salas vizinhas vestindo modulos
+  diferentes. Por isso `sala_prototipo.tscn` tem um MOSTRUARIO: sem ele, ver o
+  terceiro modulo exigiria gerar andares ate um cair na sala fotografada.
 - **A faixa de matiz de um tipo de sala mora em DOIS arquivos.**
   `MATIZ_POR_TIPO` existe igual em `tools/texturas/preparar_textura.py` (quem
   escreve) e em `tools/testes/teste_texturas.gd` (quem confere). Mudar num so

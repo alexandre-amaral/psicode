@@ -71,6 +71,22 @@ const PROPS_EM_QUADRO := [
 	{"nome": "maquina", "regiao": Rect2i(0, 64, 64, 64), "em": Vector2(340, -190)},
 ]
 
+## O MOSTRUARIO de face: onde a fileira de modulos e plantada, e quanto ela
+## amplia.
+##
+## Ele existe porque uma sala desenha exatamente UMA face -- `LIMIAR_LADO_NORTE`
+## so veste o lado cuja normal aponta para o norte. Uma biblioteca de cinco
+## modulos, entao, nunca aparece junta em jogo: ela produz variedade ao longo do
+## ANDAR, com salas vizinhas vestindo modulos diferentes.
+##
+## Comparar os cinco lado a lado e justamente o que esta ferramenta existe para
+## permitir ("comparar duas versoes da arte sem o ruido de uma run diferente"),
+## e sem o mostruario a unica forma de ver o terceiro modulo seria gerar andares
+## ate um cair na sala fotografada.
+const MOSTRUARIO_EM := Vector2(-300, 150)
+const MOSTRUARIO_ESCALA := 2
+const MOSTRUARIO_ESPACO := 12
+
 ## Onde a composicao inteira se planta: colada na parede NORTE.
 ##
 ## Nao e enquadramento bonito, e o unico que responde a pergunta 8 ("as paredes
@@ -98,6 +114,7 @@ func _ready() -> void:
 	# decoracao, e ele so ve os dados se ja estiverem la.
 	_sala.definir_visual(DADOS_COMBATE)
 	add_child(_sala)
+	_montar_mostruario_de_face()
 
 	_montar_props_fixos()
 	_montar_atores()
@@ -211,6 +228,35 @@ func _montar_camera() -> void:
 ## ela continua produzindo captura, alguem olha, aprova, e o elemento que
 ## faltava era justamente o que quebraria. Imprime e nao trava -- ela e
 ## ferramenta, nao portao.
+## Poe os modulos de face declarados numa fileira, ampliados.
+##
+## Le de `texturas_face` do tipo, e nao de uma lista propria: modulo novo entra
+## no `.tres` e aparece aqui sem ninguem lembrar de duplicar -- e uma segunda
+## lista seria a primeira coisa a divergir.
+func _montar_mostruario_de_face() -> void:
+	var faces: Array[Texture2D] = DADOS_COMBATE.texturas_face
+	if faces.is_empty():
+		return
+	var raiz := Node2D.new()
+	raiz.name = "MostruarioDeFace"
+	# Acima do mundo: e um cartao de comparacao e nao cenario, entao ele nao
+	# participa do Y-sort nem se esconde atras de nada.
+	raiz.z_index = Sala.Z_FRENTE
+	_sala.add_child(raiz)
+
+	var x := MOSTRUARIO_EM.x
+	for face in faces:
+		if face == null:
+			continue
+		var sprite := Sprite2D.new()
+		sprite.texture = face
+		sprite.centered = false
+		sprite.scale = Vector2.ONE * MOSTRUARIO_ESCALA
+		sprite.position = Vector2(x, MOSTRUARIO_EM.y)
+		raiz.add_child(sprite)
+		x += face.get_width() * MOSTRUARIO_ESCALA + MOSTRUARIO_ESPACO
+
+
 func _conferir_conteudo() -> void:
 	var faltando: Array[String] = []
 	var props := 0
@@ -228,6 +274,18 @@ func _conferir_conteudo() -> void:
 		faltando.append("camera da cena")
 	if _sala.get_node_or_null("ParedeFace") == null:
 		faltando.append("face da parede")
+	# AO MENOS TRES modulos de face em quadro (AND1 03). A sala desenha um so, e
+	# o mostruario e o unico jeito de ver os outros sem gerar andares ate um
+	# deles calhar de sair.
+	var mostruario := _sala.get_node_or_null("MostruarioDeFace")
+	var modulos := {}
+	if mostruario != null:
+		for filho in mostruario.get_children():
+			var sprite := filho as Sprite2D
+			if sprite != null and sprite.texture != null:
+				modulos[sprite.texture.resource_path] = true
+	if modulos.size() < 3:
+		faltando.append("modulos de face em quadro (%d de 3)" % modulos.size())
 	if _sala.get_node_or_null("ParedeTopo") == null:
 		faltando.append("topo da parede")
 	var tem_telegrafo := false

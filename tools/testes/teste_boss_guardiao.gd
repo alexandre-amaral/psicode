@@ -38,6 +38,7 @@ func executar() -> void:
 	_a_vitoria_da_run_nao_depende_de_quem_e_o_chefe()
 	await _da_para_dizer_a_fase_sem_olhar_a_barra()
 	_nenhum_efeito_de_fase_cobre_telegrafo_ou_projetil()
+	_a_duracao_de_cada_estado_vive_num_lugar_so()
 	Deterioracao.valor = _barra_original
 
 
@@ -274,6 +275,54 @@ func _a_vitoria_da_run_nao_depende_de_quem_e_o_chefe() -> void:
 	# contar como chama-la.
 	ok(not _codigo_de("res://src/enemies/boss_guardiao_01.gd").contains("terminar_run"),
 		"o Automato NAO chama terminar_run: duas fontes de vitoria divergiriam na primeira mudanca")
+
+
+## A duracao de um estado nao pode existir em dois lugares.
+##
+## Ela existia inline em oito: cada `_estado()` montava a propria expressao. Isso
+## bastava enquanto ninguem mais precisava do numero -- mas uma animacao dirigida
+## pelo PROGRESSO do estado precisa exatamente do mesmo, e uma segunda copia
+## divergiria sem erro nenhum. O sintoma seria o gesto terminando antes ou depois
+## do golpe, que e o unico instante da luta que o telegrafo existe para prever.
+##
+## E leitura de FONTE porque nao ha outro jeito: uma copia passaria em todo teste
+## de comportamento no dia em que fosse escrita, e so quebraria quando alguem
+## mexesse num dos dois lados. Mesmo precedente do `terminar_run` acima.
+##
+## `passou(_aviso_atual)` entra na lista junto com as outras: o preparo e o unico
+## cuja duracao mora num CAMPO, fixado na entrada para a barra subindo nao
+## encolher o aviso ja em curso -- e e justamente por ser especial que ele nao
+## pode ficar de fora da regra.
+func _a_duracao_de_cada_estado_vive_num_lugar_so() -> void:
+	var fonte := _codigo_de("res://src/enemies/boss_guardiao_01.gd")
+	ok(
+		not fonte.contains("passou(tempo_real("),
+		"nenhum estado recalcula a propria duracao -- todos leem duracao_do_estado()"
+	)
+	ok(
+		not fonte.contains("passou(_aviso_atual)"),
+		"nem o preparo, que e o unico com a duracao fixada num campo"
+	)
+
+	# E ela tem de responder por TODOS os estados que terminam por tempo. Um
+	# `match` sem um deles devolveria zero calado, e o estado acabaria no
+	# primeiro frame.
+	var chefe := _nascer()
+	for estado in [
+		chefe.DESPERTAR, chefe.ESCOLHER_ATAQUE, chefe.PREPARAR, chefe.EXECUTAR,
+		chefe.RECUPERAR, chefe.TRANSICAO_FASE, chefe.ATORDOADO,
+	]:
+		chefe._maquina.trocar(estado)
+		ok(
+			chefe.duracao_do_estado() > 0.0,
+			"%s tem duracao declarada (%.3fs)" % [estado, chefe.duracao_do_estado()]
+		)
+	# E os dois que NAO terminam por tempo dizem isso com zero, em vez de
+	# devolverem um numero inventado.
+	for estado in [chefe.IDLE, chefe.MORTE]:
+		chefe._maquina.trocar(estado)
+		igual(chefe.duracao_do_estado(), 0.0, "%s nao termina por tempo" % estado)
+	chefe.free()
 
 
 ## O fonte sem as linhas de comentario.

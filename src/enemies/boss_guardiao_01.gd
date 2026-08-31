@@ -86,6 +86,11 @@ const ALPHA_MAXIMO_EFEITO := 0.42
 ## nunca cobre nada que importe.
 const Z_EFEITO := -1
 
+## Acima disto o corpo esta ANDANDO, para efeito de desenho. O mesmo numero dos
+## outros cinco inimigos com arte -- um chefe com limiar proprio andaria de um
+## jeito e os demais de outro, sem nada que apontasse a diferenca.
+const VELOCIDADE_ANDANDO := 12.0
+
 ## O repertorio. Ele so CRESCE com a fase (a BOSS 08 acrescenta a Falha do
 ## Reator na 3) -- ataque que some faria o jogador desaprender.
 const SOCO := &"SOCO"
@@ -263,6 +268,8 @@ var _golpes_restantes: int = 1
 ## a investida justa, e a mesma que a Cyber-Besta ja segue: investida que
 ## persegue durante a execucao nao da para esquivar, so para sobreviver.
 var _direcao_travada: Vector2 = Vector2.RIGHT
+## O corpo de oito rotacoes. Ver `_animar()`.
+var _sprite: SpriteDirecional
 ## O ataque anterior. E a MEMORIA da selecao: sem ela, dois socos seguidos por
 ## azar leem como bug e tres leem como injustica.
 var _ultimo_ataque: StringName = &""
@@ -299,6 +306,7 @@ func _ready() -> void:
 	_fumaca.z_index = Z_EFEITO
 	_fumaca.modulate.a = 0.0
 	_braco = $Braco
+	_sprite = get_node_or_null("Visual/Corpo") as SpriteDirecional
 	_arma_onda = $Braco/ArmaOnda
 	_arma_onda.hostil = true
 	_arma_sucata = $Braco/ArmaSucata
@@ -366,11 +374,70 @@ func _comportamento(delta: float) -> void:
 ## mover ninguem. Parede e detectada por LAYER e nao por grupo: as paredes
 ## geradas por `sala.gd` e `corredor.gd` nao entram em grupo nenhum, e o teste
 ## antigo por grupo foi o que deixava projetil atravessar parede.
-func _pos_movimento(_delta: float) -> void:
+func _pos_movimento(delta: float) -> void:
+	# A batida vem PRIMEIRO, e antes de qualquer retorno por causa de arte:
+	# regra de combate nao pode passar a depender de haver sprite. E a mesma
+	# ordem que `cyber_besta.gd` mantem no `_conferir_batida()` dela.
+	_conferir_batida()
+	_animar(delta)
+
+
+func _conferir_batida() -> void:
 	if _maquina == null or _maquina.estado != EXECUTAR or _ataque != INVESTIDA:
 		return
 	if is_on_wall():
 		_maquina.trocar(ATORDOADO)
+
+
+## O corpo desenha a direcao e o passo.
+##
+## ISTO NAO EXISTIA, e o chefe passou da BOSS 10 ate aqui congelado. A cena
+## declarava as 8 poses e as 8 fitas desde que ele ganhou arte, e nada nas 1060
+## linhas deste script chamava `apontar()` -- nao havia sequer um campo
+## `_sprite`. O corpo ficava no quadro que o `_ready()` do `SpriteDirecional`
+## escreve, `south.png` quadro 0, a luta inteira: ele deslizava para o norte
+## encarando o sul.
+##
+## Nada acusava. Os arquivos estavam certos, casados e medidos, e a suite
+## conferia tudo isso -- ninguem conferia se alguem os USAVA. O portao que fecha
+## esse silencio ja existia em `teste_sprite_direcional.gd`, cravado na
+## Cyber-Besta; hoje ele varre o elenco inteiro.
+func _animar(delta: float) -> void:
+	if _sprite == null:
+		return
+	_sprite.apontar(
+		_direcao_encarada(), velocity.length() > VELOCIDADE_ANDANDO, delta, velocity
+	)
+
+
+## Para onde o corpo aponta neste estado.
+##
+## `_direcao_travada` so significa alguma coisa DEPOIS do primeiro PREPARAR: ela
+## nasce em `Vector2.RIGHT` e tem UM escritor (`_preparar_entrar`). Usa-la nos
+## estados que acontecem antes disso faria ele encarar o leste sem motivo.
+##
+## Dormente ele encara o SUL e nao o jogador, e isso e a apresentacao inteira: na
+## baia ele tem de ler como CENARIO, e cenario nao vira para te olhar. O sul e
+## exatamente o que o `_ready()` do sprite ja desenha, entao a pose dormente e a
+## pose de fabrica -- de graca.
+##
+## A TRANSICAO encara o alvo pelo mesmo motivo que o DESPERTAR: ela pode disparar
+## durante o PRIMEIRO `ESCOLHER_ATAQUE`, antes de existir trava nenhuma. Travar a
+## direcao tambem la resolveria, mas custaria a propriedade de o campo ter um
+## escritor so.
+func _direcao_encarada() -> Vector2:
+	if _maquina == null:
+		return Vector2.DOWN
+	match _maquina.estado:
+		IDLE:
+			return Vector2.DOWN
+		DESPERTAR, ESCOLHER_ATAQUE, TRANSICAO_FASE:
+			var d := direcao_para_alvo()
+			return d if d.length_squared() > 0.01 else Vector2.DOWN
+		_:
+			# PREPARAR, EXECUTAR, RECUPERAR, ATORDOADO, MORTE. O corpo travado E
+			# metade do aviso, e e o que torna a investida justa.
+			return _direcao_travada
 
 
 # --------------------------------------------------------- o multiplicador --

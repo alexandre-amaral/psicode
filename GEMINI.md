@@ -1051,6 +1051,27 @@ em qualquer erro de script.
 - **Os tres campos de dispersao nascem em ZERO e tem de continuar assim.**
   `Arma._emitir()` e o mesmo caminho do jogador e dos inimigos; um default acima
   de zero daria bloom para a salva da Diretora sem ninguem pedir.
+- **Arte declarada na cena nao prova que alguem a DESENHA.** O
+  `boss_guardiao_01.tscn` declarava as 8 poses e as 8 fitas desde a BOSS 10, e
+  `boss_guardiao_01.gd` **nunca chamava `apontar()`** -- nao havia sequer um
+  campo `_sprite` nas 1060 linhas dele. O chefe passou a luta inteira no quadro
+  que o `_ready()` do `SpriteDirecional` escreve, `south.png` quadro 0:
+  deslizando para o norte encarando o sul. Nada acusou, porque os arquivos
+  estavam certos, casados e medidos -- e era exatamente isso que a suite
+  conferia. **Faltava o CHAMADOR, e chamador ausente nao aparece em teste de
+  arquivo.** Hoje quem fecha isso e
+  `teste_sprite_direcional.gd:_a_arte_declarada_e_exercitada`, que monta cada
+  inimigo, poe um alvo A OESTE e exige duas coisas em 4 s: que o par (textura,
+  quadro) mude, e que o corpo DEIXE o sul. O alvo e a oeste de proposito -- ao
+  sul, "virou" ficaria indistinguivel de "nunca se mexeu", porque o sul e o que
+  o `_ready` ja escreveu. Os 4 s saem do chefe, que nasce dormente e leva 2,0 s
+  so para acordar.
+- **O portao que existe cravado num inimigo so cobre um inimigo so.** O caso
+  acima ja existia em espirito: `_andar_em_qualquer_estado_anima` nasceu de uma
+  regressao da Cyber-Besta, com o docstring certo ("a trava e sobre o inimigo
+  montado, e nao sobre o sprite solto") e apontado para ela sozinha. O chefe
+  quebrou ao lado dele por seis issues. Portao de classe tem de VARRER, como o
+  cabecalho da propria suite ja mandava.
 - **Suite que cria inimigo tem de afastar o cenario da origem.** A propagacao do
   Hack busca no grupo `inimigo`, que e global: inimigos de OUTRAS suites que
   ainda nao foram coletados aparecem na busca, e quase todos ficam perto de

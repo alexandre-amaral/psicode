@@ -90,6 +90,7 @@ func executar() -> void:
 		_nome_atual = arquivo.get_basename()
 		_o_conjunto_de_arquivos(sprite)
 		_textura_e_hframes_andam_juntos(sprite, esperado)
+		_a_arte_declarada_e_exercitada(inimigo, sprite, raiz)
 		_o_tint_alcanca_o_sprite(inimigo, sprite)
 
 		# free() e nao queue_free(): a suite roda inteira num frame, entao um
@@ -288,6 +289,92 @@ func _o_tint_alcanca_o_sprite(drone: InimigoBase, sprite: SpriteDirecional) -> v
 	_avancar(drone, 4.2)
 	ok(not drone.esta_hackeado(), "%s: a marca expira sozinha" % _nome_atual)
 	igual(sprite.self_modulate, Color.WHITE, "%s: sair do Hack devolve o sprite ao neutro" % _nome_atual)
+
+
+## Quanto tempo simulado o inimigo ganha para provar que desenha.
+##
+## Quatro segundos, e o numero sai do CHEFE: ele nasce DORMENTE e leva
+## `tempo_despertar` = 2,0 s so para acordar, antes de andar pela primeira vez.
+## Um segundo de folga reprovaria o chefe certo, que e o mesmo erro que a moldura
+## cravada teria cometido.
+const SEGUNDOS_DE_PROVA := 4.0
+
+
+## A arte declarada na cena tem de ser EXERCITADA em runtime.
+##
+## Este caso generaliza `_andar_em_qualquer_estado_anima`, que nasceu de uma
+## regressao da Cyber-Besta e ficou cravado nela. O docstring de la ja dizia a
+## coisa certa -- "a trava e sobre o inimigo montado, e nao sobre o sprite solto:
+## o defeito morava em quem CHAMA `apontar()`, nao nele" --, so que apontada para
+## um bicho so ela nao cobria os outros seis.
+##
+## E havia o que cobrir. O `boss_guardiao_01` declarava as 8 poses e as 8 fitas
+## desde a BOSS 10 e **nunca chamava `apontar()`**: nao existia sequer um campo
+## `_sprite` nas 1060 linhas dele. O corpo ficava no quadro que o `_ready()` do
+## `SpriteDirecional` escreve -- `south.png`, quadro 0 -- a luta inteira, e ele
+## deslizava para o norte encarando o sul. Nada avisava: os arquivos estavam
+## certos, casados e medidos, e a suite conferia tudo isso. Ninguem conferia se
+## alguem os usava.
+##
+## A afirmacao e a MINIMA que separa "tem arte" de "toca arte": em algum momento
+## dos `SEGUNDOS_DE_PROVA` o par (textura, quadro) mudou. Nao afirma qual quadro
+## nem em que ordem -- isso e desenho de cada inimigo, e cravar aqui engessaria
+## quem legitimamente congela o corpo para telegrafar, como o Drone Aranha faz.
+func _a_arte_declarada_e_exercitada(inimigo: InimigoBase, sprite: SpriteDirecional, raiz: Node2D) -> void:
+	if sprite == null:
+		return
+
+	# Alvo explicito, e nao o grupo "player": o grupo e global, e um jogador de
+	# outra suite ainda nao coletado seria achado a milhares de px daqui. Foi
+	# assim que o vies de distancia do chefe "sumiu" uma vez.
+	var alvo := Node2D.new()
+	raiz.add_child(alvo)
+	# A OESTE, e a escolha sustenta o portao: `SpriteDirecional._ready()` ja
+	# escreve o quadro SUL (indice 2), entao um alvo ao sul tornaria "virou"
+	# indistinguivel de "nunca se mexeu". Oeste e o indice 4, o oposto.
+	alvo.global_position = inimigo.global_position + Vector2(-400.0, 0.0)
+	inimigo.alvo = alvo
+
+	var vistos: Array[String] = []
+	var saiu_do_sul := false
+	for i in int(ceil(SEGUNDOS_DE_PROVA / PASSO)):
+		inimigo._physics_process(PASSO)
+		var caminho := "?" if sprite.texture == null else sprite.texture.resource_path
+		var chave := "%s#%d" % [caminho, sprite.frame]
+		if not chave in vistos:
+			vistos.append(chave)
+		if not _e_do_sul(sprite):
+			saiu_do_sul = true
+
+	# Duas afirmacoes, e elas pegam defeitos diferentes. Sem a primeira, um
+	# inimigo que encara certo mas nunca anima passaria; sem a segunda, um que
+	# anima mas nunca vira.
+	ok(
+		vistos.size() >= 2,
+		"%s: a arte declarada na cena e desenhada em runtime (%d quadros distintos em %.0fs)"
+			% [_nome_atual, vistos.size(), SEGUNDOS_DE_PROVA]
+	)
+	ok(
+		saiu_do_sul,
+		"%s: o corpo VIRA -- ele deixou o sul que o _ready escreveu, com o alvo a oeste"
+			% _nome_atual
+	)
+
+
+## O sprite esta desenhando alguma das duas texturas do SUL?
+##
+## O sul e o indice 2, e e o que `SpriteDirecional._ready()` escreve antes de
+## qualquer um chamar `apontar()`. Comparar por `resource_path` e nao por
+## referencia porque a fita e a pose sao recursos distintos do mesmo lado.
+func _e_do_sul(s: SpriteDirecional) -> bool:
+	if s.texture == null:
+		return true
+	var sul := Direcoes.indice(Vector2.DOWN)
+	for lista in [s.sprites_parado, s.sprites_andando]:
+		if lista.size() > sul and lista[sul] != null:
+			if lista[sul].resource_path == s.texture.resource_path:
+				return true
+	return false
 
 
 ## Avanca o relogio do inimigo na mao. O _physics_process nao roda numa suite

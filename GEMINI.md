@@ -159,6 +159,8 @@ docs/
 | **Para onde um botao de inimigo caminha com a barra cheia** | grupo `Escalonamento` do `src/enemies/dados_*.tres`; negativo desliga |
 | Matematica de mira preditiva | `src/util/balistica.gd` |
 | **Alternancia de salva (o anel do Drone, a rajada e o pisao do chefe)** | `Balistica.alternancia()` para anel, `alternancia_de_passo()` para leque -- num lugar so |
+| **Pesos, memoria e vies de distancia da selecao de ataque do chefe** | grupo `Selecao de ataque` do `src/enemies/boss_guardiao_01.tscn` |
+| **A Falha do Reator (cerco, vaos, telegrafo)** | grupo `Falha do Reator` do mesmo `.tscn`; o vao entre areas e conferido por `vao_do_cerco()` |
 | **Os quatro ataques do chefe do andar 1** | `@export_group` por ataque em `src/enemies/boss_guardiao_01.tscn`; as ARMAS dele em `src/weapons/onda_guardiao.tres` e `sucata_guardiao.tres` |
 | **Como QUALQUER inimigo se desloca** | `src/util/movimento.gd` -- perseguir, recuar, orbitar, investir, fugir; os numeros continuam nos `@export` de cada inimigo |
 | Chefe do andar 1 | `src/enemies/boss_guardiao_01.gd` + `dados_boss_guardiao_01.tres` |
@@ -227,6 +229,27 @@ em qualquer erro de script.
   seguidas ele apareceu e ZERO areas foram criadas. Comportamento que demora
   mais que um tick precisa de suite propria (`teste_area_de_perigo.gd`), senao
   a guarda passa verde sem nunca ter olhado nada.
+- **O vies de distancia do chefe NAO vale na fase 1.** E a licao do
+  `PerfilJogador` aplicada a selecao de ataque: ele so corrige com CONFIANCA,
+  depois de ver o jogador se mexer. A fase 1 existe para ENSINAR, e um chefe que
+  ja escolhe bem no primeiro terco pune um habito que o jogador nao teve chance
+  de formar -- ele parece burro porque precisa parecer. A MEMORIA, essa sim,
+  vale desde a fase 1: nao repetir e legibilidade e nao esperteza.
+- **O desgaste visual do chefe NUNCA decresce.** Placa que caiu nao volta. Se
+  ele seguisse a vida para cima, curar o chefe remontaria a carcaca e o jogador
+  leria isso como o chefe se recuperando -- o oposto da ficcao, em que o dano e
+  o que o destrava. Mesmo padrao da deterioracao visual das salas.
+- **Efeito de fase do chefe desenha ABAIXO de `Z_MUNDO`, com teto de alpha.**
+  Zero e a faixa do telegrafo, dos projeteis e dos atores; um efeito ali poderia
+  cair na frente de um projetil e o jogador perderia justamente o que precisa
+  ler. A garantia e geometrica e nao de bom senso: `Z_EFEITO = -1` e
+  `ALPHA_MAXIMO_EFEITO`, na mesma ideia do `alpha_maximo` do shader de glitch.
+- **Suite que monta inimigo tem de APONTAR o alvo a mao.** O grupo "player" e
+  global e outras suites deixam bonecos nele enquanto o coletor nao passa;
+  `_procurar_alvo()` devolve qualquer um. Escrevendo `teste_boss_selecao.gd` o
+  chefe media a distancia ate o jogador de OUTRO teste, a 91 mil px -- tudo era
+  "longe" e o vies de distancia parecia nao existir. Mesma loteria que o
+  `container_projeteis` ja cobrou.
 - **LEQUE e ANEL tem passos diferentes, e confundi-los apaga o padrao.** O anel
   divide 360 pela contagem; o leque divide a ABERTURA por `contagem - 1`.
   Alternar um leque com o passo do anel gira demais e a segunda salva cai EM

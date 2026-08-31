@@ -30,6 +30,15 @@ polygon = PackedVector2Array(-30, -18, -22, -62, -10, -78, 10, -78, 22, -62, 30,
 color = Color(0.28, 0.34, 0.06, 1)
 polygon = PackedVector2Array(-20, -58, 20, -58, 16, -34, -16, -34)
 
+[node name="Cabos" type="Polygon2D" parent="Visual"]
+color = Color(0.22, 0.18, 0.1, 1)
+polygon = PackedVector2Array(-16, -34, -8, -30, -2, -36, 6, -30, 16, -34, 16, -28, -16, -28)
+
+[node name="Fumaca" type="Polygon2D" parent="Visual"]
+z_index = -1
+color = Color(0.42, 0.45, 0.3, 1)
+polygon = PackedVector2Array(-34, -86, -14, -104, 12, -100, 32, -80, 22, -66, -22, -68)
+
 [node name="Nucleo" type="Polygon2D" parent="Visual"]
 color = Color(1, 0.82, 0.35, 1)
 polygon = PackedVector2Array(-7, -52, 7, -52, 7, -40, -7, -40)

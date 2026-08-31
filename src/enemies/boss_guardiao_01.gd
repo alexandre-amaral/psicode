@@ -34,11 +34,25 @@ extends InimigoBase
 ## | RAJADA   | um leque de 5     | dois, o segundo nos vaos| tres, cada um nos vaos do anterior |
 ## | INVESTIDA| uma               | ate duas                | ate tres, e recuperacao grande |
 ## | PISAO    | anel de 8         | anel girado meio setor  | dois aneis intercalados   |
+##
+## A UNICA excecao e a FALHA DO REATOR (BOSS 08), exclusiva da fase 3: o ultimo
+## terco precisa de assinatura propria, e ela e o unico ataque NOVO da luta. Ela
+## nao substitui nada -- o repertorio so cresce, porque ataque que some faria o
+## jogador desaprender.
 
 ## As tres fases, por FRACAO de vida.
 ##
 ## Os limiares sao fracao e nao valor absoluto de proposito: mexer na vida do
 ## chefe na sessao de tuning nao pode reescrever onde as viradas acontecem.
+## A virada aconteceu. E o GANCHO DE SOM da luta: quem quiser o rangido de metal,
+## o motor estabilizando ou o alarme interno liga aqui e nao precisa saber nada
+## sobre a maquina de estados do chefe.
+##
+## Fica como sinal e nao como chamada direta porque o projeto ainda nao tem
+## camada de audio -- ela e a AND1 08. O gancho existe agora para o dia em que
+## ela existir nao ter de mexer no chefe.
+signal fase_mudou(fase: int)
+
 const LIMIAR_DESTRAVADO := 0.67
 const LIMIAR_SOBRECARGA := 0.34
 
@@ -56,12 +70,30 @@ const TEMPO_MINIMO := Telegrafo.DURACAO_MINIMA
 
 const CENA_AREA := preload("res://src/enemies/area_de_perigo.tscn")
 
+## Teto de opacidade de todo efeito de fase (fumaca, faisca, brilho).
+##
+## E a mesma regra do `alpha_maximo` do shader de glitch, e ela nao e estetica:
+## efeito que atrapalha a leitura do combate e efeito cortado, por mais bonito
+## que seja. Fumaca e faisca na fase 3 sao o risco obvio -- eles nao podem cobrir
+## telegrafo nem projetil.
+const ALPHA_MAXIMO_EFEITO := 0.42
+
+## Onde os efeitos de fase desenham: ATRAS do corpo dele.
+##
+## `Sala.Z_MUNDO` e zero, e e onde ficam o telegrafo, os projeteis e os atores.
+## Um efeito em zero disputaria a mesma faixa e poderia cair na frente de um
+## projetil -- e o jogador perderia justamente o que precisa ler. Negativo, ele
+## nunca cobre nada que importe.
+const Z_EFEITO := -1
+
 ## O repertorio. Ele so CRESCE com a fase (a BOSS 08 acrescenta a Falha do
 ## Reator na 3) -- ataque que some faria o jogador desaprender.
 const SOCO := &"SOCO"
 const RAJADA := &"RAJADA"
 const INVESTIDA := &"INVESTIDA"
 const PISAO := &"PISAO"
+## O ataque exclusivo da fase 3. Ver `_falha_do_reator()`.
+const REATOR := &"REATOR"
 const REPERTORIO: Array[StringName] = [SOCO, RAJADA, INVESTIDA, PISAO]
 
 const IDLE := &"IDLE"
@@ -110,6 +142,54 @@ const MORTE := &"MORTE"
 ## Espaco entre as duas ondas da fase 3. Curto: elas tem de ler como UM ataque.
 @export var intervalo_pisao: float = 0.25
 
+@export_group("Falha do Reator")
+## Quantas areas cercam ele. Os VAOS entre elas sao as aberturas do ataque, e e
+## por isso que a contagem importa: mais areas fecham o cerco.
+@export var areas_do_reator: int = 6
+@export var raio_do_cerco: float = 200.0
+@export var raio_da_area_do_reator: float = 76.0
+## O estouro central. Ele cobre o miolo do cerco, entao ficar colado nele deixa
+## de ser abrigo -- as saidas sao os vaos e o lado de fora.
+@export var raio_do_estouro: float = 150.0
+@export var projeteis_do_reator: int = 12
+## O TELEGRAFO MAIS LONGO DA LUTA, e ele tem de continuar sendo na fase 3.
+##
+## Regra do projeto, e ela e dura: quanto mais forte o ataque, maior o
+## telegrafo. Ataque capaz de tirar grande parte da vida precisa ser facilmente
+## reconhecivel. Este e o mais perigoso da luta, entao ele avisa mais que
+## qualquer outro -- inclusive com o multiplicador em 1,30 e a barra cheia.
+@export var tempo_preparo_reator: float = 2.2
+## A recuperacao nao e sobra: ela REPRESENTA a ficcao. Acelerar esta destruindo o
+## proprio sistema, e o preco de usar a arma mais forte e ficar aberto. E uma das
+## melhores janelas de dano da luta.
+@export var tempo_recuperacao_reator: float = 2.4
+
+@export_group("Desgaste visual")
+## Onde a carcaca comeca a cair, em fracao de vida. Espelha as fases: o jogador
+## tem de conseguir dizer em que fase ele esta SEM olhar a barra.
+@export var desgaste_placas: float = 0.67
+@export var desgaste_motor: float = 0.34
+## Quanto o nucleo pulsa por segundo em cada fase. E o sinal que se le de longe.
+@export var pulso_fase_1: float = 1.2
+@export var pulso_fase_2: float = 3.0
+@export var pulso_fase_3: float = 7.5
+
+@export_group("Selecao de ataque")
+@export var peso_soco: float = 3.0
+@export var peso_rajada: float = 3.0
+@export var peso_investida: float = 2.0
+@export var peso_pisao: float = 2.0
+@export var peso_reator: float = 3.0
+## Quanto sobra do peso do ataque que ACABOU de sair. Zero = nunca repete.
+##
+## Sem memoria, dois socos seguidos por azar leem como bug e tres leem como
+## injustica -- o jogador nao tem como saber que foi sorteio.
+@export var peso_da_repeticao: float = 0.0
+## A fronteira entre perto e longe, em px.
+@export var distancia_de_perto: float = 220.0
+## Quanto a distancia mexe no peso. 1,0 desliga o vies.
+@export var vies_de_distancia: float = 2.2
+
 @export_group("Ritmo")
 ## Quanto ele leva escolhendo o proximo ataque. E a respiracao entre golpes.
 @export var tempo_escolha: float = 0.5
@@ -148,6 +228,9 @@ var _golpes_restantes: int = 1
 ## a investida justa, e a mesma que a Cyber-Besta ja segue: investida que
 ## persegue durante a execucao nao da para esquivar, so para sobreviver.
 var _direcao_travada: Vector2 = Vector2.RIGHT
+## O ataque anterior. E a MEMORIA da selecao: sem ela, dois socos seguidos por
+## azar leem como bug e tres leem como injustica.
+var _ultimo_ataque: StringName = &""
 ## A duracao do telegrafo DESTE ataque, fixada na entrada.
 ##
 ## Fixada e nao relida todo frame porque a barra sobe durante o proprio
@@ -159,11 +242,27 @@ var _arma_sucata: Arma
 var _braco: Node2D
 ## As areas que ele semeou e que ainda vivem. Ver `morrer()`.
 var _areas: Array[Node] = []
+## O quanto ele ja se desfez, de 0 a 1. Sobe com o dano e NUNCA desce.
+##
+## Nao desce porque o desgaste e FISICO: placas que cairam nao voltam. Deixa-lo
+## seguir a vida para cima faria a carcaca se remontar sozinha se alguem curasse
+## o chefe, e o jogador leria isso como o chefe se recuperando -- o oposto da
+## ficcao, em que o dano e o que o destrava.
+var _desgaste: float = 0.0
+var _placa: CanvasItem
+var _nucleo: CanvasItem
+var _fumaca: CanvasItem
+var _t_pulso: float = 0.0
 
 
 func _ready() -> void:
 	super._ready()
 
+	_placa = $Visual/Placa
+	_nucleo = $Visual/Nucleo
+	_fumaca = $Visual/Fumaca
+	_fumaca.z_index = Z_EFEITO
+	_fumaca.modulate.a = 0.0
 	_braco = $Braco
 	_arma_onda = $Braco/ArmaOnda
 	_arma_onda.hostil = true
@@ -193,6 +292,7 @@ func _ler_dados(d: DadosInimigo) -> void:
 
 func _comportamento(delta: float) -> void:
 	_checar_fase()
+	_atualizar_leitura_visual(delta)
 	# A velocidade de projetil le a Deterioracao no frame, como em todo inimigo.
 	_arma_onda.multiplicador_velocidade = Deterioracao.multiplicador_velocidade_projetil()
 	_arma_sucata.multiplicador_velocidade = Deterioracao.multiplicador_velocidade_projetil()
@@ -267,6 +367,55 @@ func em_transicao() -> bool:
 	return _maquina.estado == TRANSICAO_FASE
 
 
+# -------------------------------------------------------- leitura visual ----
+
+## O DESGASTE: 0 na carcaca inteira, 1 no motor exposto.
+##
+## Ele acompanha a VIDA e nao a fase, e a diferenca importa: dentro de um mesmo
+## terco o jogador continua vendo progresso, e e isso que faz bater nele parecer
+## que esta funcionando antes de a virada acontecer.
+func desgaste() -> float:
+	return _desgaste
+
+
+## Quanto o nucleo pulsa por segundo, nesta fase.
+##
+## E o sinal que se le de LONGE, e o que responde "em que fase ele esta?" sem a
+## barra de vida. Fraco e travado na 1, constante na 2, rapido e instavel na 3.
+func pulso_da_fase() -> float:
+	match fase_chefe:
+		1: return pulso_fase_1
+		2: return pulso_fase_2
+	return pulso_fase_3
+
+
+## Roda todo frame: a carcaca cai, o nucleo pulsa, a fumaca cresce.
+##
+## Tudo aqui e procedural. `SCREEN_TEXTURE` quebra no export web e MSAA 2D nao
+## existe no renderer Compatibility, entao efeito de chefe que dependesse de
+## qualquer um dos dois sairia no PC e sumiria no navegador -- e a build que vai
+## para o testador e a web.
+func _atualizar_leitura_visual(delta: float) -> void:
+	var fracao := float(vida) / float(maxi(vida_maxima, 1))
+	_desgaste = maxf(_desgaste, clampf(1.0 - fracao, 0.0, 1.0))
+
+	# As placas caem, e nao voltam.
+	if _placa != null:
+		_placa.visible = fracao > desgaste_placas
+	# O nucleo pulsa mais rapido a cada fase, e nunca apaga: um nucleo que some
+	# tiraria justamente o sinal que diz que ele ainda esta funcionando.
+	if _nucleo != null:
+		_t_pulso += delta * pulso_da_fase()
+		var onda := 0.5 + 0.5 * sin(_t_pulso * TAU)
+		_nucleo.modulate.a = lerpf(0.55, 1.0, onda)
+		_nucleo.scale = Vector2.ONE * lerpf(1.0, 1.0 + 0.25 * _desgaste, onda)
+	# A fumaca cresce com o desgaste, com TETO: ela e o efeito que mais arrisca
+	# cobrir a leitura do combate.
+	if _fumaca != null:
+		_fumaca.modulate.a = minf(_desgaste * ALPHA_MAXIMO_EFEITO, ALPHA_MAXIMO_EFEITO)
+		_fumaca.scale = Vector2.ONE * lerpf(0.7, 1.5, _desgaste)
+
+
 # ------------------------------------------------------------ as viradas ----
 
 ## Entra em TRANSICAO_FASE quando a vida cruza um limiar, uma vez por virada.
@@ -294,6 +443,31 @@ func _checar_fase() -> void:
 func _transicao_entrar() -> void:
 	fase_chefe = _fase_anunciada
 	EventBus.pedido_shake.emit(6.0, 0.35)
+	fase_mudou.emit(fase_chefe)
+	_encenar_a_virada()
+
+
+## A VIRADA, encenada.
+##
+## Se o jogador nao VE a maquina destravar, a mecanica inteira da luta -- dano
+## que acelera -- nao chega, e ele so sente que o chefe ficou injusto de repente.
+## Entao o momento e explicito: ele trava, o corpo estala, o nucleo dispara e a
+## fumaca sai.
+##
+## A leitura narrativa: o dano REMOVE a resistencia mecanica que a corrosao
+## acumulou. Ele funciona melhor porque esta sendo quebrado.
+func _encenar_a_virada() -> void:
+	if _visual == null:
+		return
+	var t := create_tween()
+	# O estalo: comprime e volta. Anisotropico, como o agachamento da Cyber-Besta.
+	t.tween_property(_visual, "scale", Vector2(1.18, 0.82), 0.09)
+	t.tween_property(_visual, "scale", Vector2(0.92, 1.12), 0.09)
+	t.tween_property(_visual, "scale", Vector2.ONE, 0.14)
+	if _nucleo != null:
+		# O nucleo dispara junto: e o que diz "isto e uma mudanca de estado", e
+		# nao "ele levou um tiro forte".
+		_t_pulso = 0.0
 
 
 func _transicao(delta: float) -> void:
@@ -326,17 +500,81 @@ func _escolher(delta: float) -> void:
 		_maquina.trocar(PREPARAR)
 
 
-## Qual ataque vem agora.
+## O repertorio DESTA fase. Ele so cresce: a Falha do Reator entra na 3 e nada
+## sai, porque ataque que some faria o jogador desaprender.
+func repertorio_da_fase(fase: int) -> Array[StringName]:
+	var lista: Array[StringName] = REPERTORIO.duplicate()
+	if fase >= 3:
+		lista.append(REATOR)
+	return lista
+
+
+## O peso base de cada ataque, antes da distancia e da memoria.
+func peso_base_de(ataque: StringName) -> float:
+	match ataque:
+		SOCO: return peso_soco
+		RAJADA: return peso_rajada
+		INVESTIDA: return peso_investida
+		PISAO: return peso_pisao
+		REATOR: return peso_reator
+	return 1.0
+
+
+## O peso de um ataque AGORA: base, mais o vies de distancia, menos a memoria.
 ##
-## PROVISORIO, e declarado como tal: a BOSS 09 troca isto por selecao com peso,
-## distancia e memoria. Ate la, o rodizio -- e nao o sorteio -- porque um
-## repertorio sorteado pode repetir o mesmo ataque quatro vezes e esconder que os
-## outros tres nunca foram exercitados. O rodizio garante que TODO ataque roda
-## em toda luta, que e o que as suites e a arena precisam enquanto o resto do
-## chefe nao existe.
+## O VIES DE DISTANCIA e o que faz o chefe parecer reativo sem trapacear -- ele
+## nao le a intencao do jogador, so onde ele esta. De perto sobem o soco e o
+## pisao e desce a rajada; de longe sobem a investida e a rajada e desce o soco.
+##
+## E ele NAO VALE NA FASE 1, e isso e a licao do `PerfilJogador` aplicada aqui: a
+## fase 1 existe para ENSINAR, e um chefe que ja escolhe bem no primeiro terco
+## pune um habito que o jogador nao teve chance de formar. Ele parece burro
+## porque precisa parecer -- selecao esperta cedo demais vira selecao cruel.
+func peso_de(ataque: StringName, distancia: float, ultimo: StringName) -> float:
+	var peso := peso_base_de(ataque)
+	if ataque == ultimo:
+		peso *= peso_da_repeticao
+	if fase_chefe <= 1 or peso <= 0.0:
+		return peso
+	var perto := distancia <= distancia_de_perto
+	match ataque:
+		SOCO, PISAO:
+			peso *= vies_de_distancia if perto else 1.0 / vies_de_distancia
+		INVESTIDA:
+			peso *= 1.0 / vies_de_distancia if perto else vies_de_distancia
+		RAJADA:
+			# Ela sobe LONGE e desce perto: e a unica que perde para os dois lados
+			# do cerco, e e o que impede "chegue perto" de ser sempre a resposta.
+			peso *= 1.0 / vies_de_distancia if perto else vies_de_distancia
+	return peso
+
+
+## Sorteia o proximo ataque por peso, distancia e memoria (BOSS 09).
 func _escolher_ataque() -> void:
-	_ataque = REPERTORIO[_indice_salva % REPERTORIO.size()]
+	var lista := repertorio_da_fase(fase_chefe)
+	var distancia := distancia_do_alvo()
+	var soma := 0.0
+	var pesos: Array[float] = []
+	for a in lista:
+		var peso := peso_de(a, distancia, _ultimo_ataque)
+		pesos.append(peso)
+		soma += peso
+
 	_indice_salva += 1
+	if soma <= 0.0:
+		# So acontece se alguem zerar todos os pesos no Inspetor. Cair no
+		# primeiro do repertorio e melhor que um chefe que para de atacar.
+		_ataque = lista[0]
+	else:
+		var sorteio := randf() * soma
+		_ataque = lista[lista.size() - 1]
+		for i in lista.size():
+			sorteio -= pesos[i]
+			if sorteio <= 0.0:
+				_ataque = lista[i]
+				break
+
+	_ultimo_ataque = _ataque
 	_golpes_restantes = _golpes_do_soco() if _ataque == SOCO else 1
 
 
@@ -345,14 +583,30 @@ func _escolher_ataque() -> void:
 ## A direcao e travada AQUI e nao e mais atualizada -- vale para os quatro
 ## ataques, e e o que torna a investida justa. A duracao tambem e fixada aqui:
 ## relida todo frame, ela encolheria enquanto o jogador le o aviso.
+## Quanto o telegrafo DESTE ataque dura, em tempo de projeto.
+##
+## A Falha do Reator tem o mais longo da luta e continua tendo na fase 3: e o
+## ataque mais perigoso, e a regra do projeto e que ataque capaz de tirar grande
+## parte da vida precisa ser facilmente reconhecivel.
+func preparo_de(ataque: StringName) -> float:
+	return tempo_preparo_reator if ataque == REATOR else tempo_preparo
+
+
+func recuperacao_de(ataque: StringName) -> float:
+	return tempo_recuperacao_reator if ataque == REATOR else tempo_recuperacao
+
+
 func _preparar_entrar() -> void:
-	_aviso_atual = tempo_real(tempo_preparo)
+	_aviso_atual = tempo_real(preparo_de(_ataque))
 	_beats = 0
 	var d := direcao_para_alvo()
 	if d.length_squared() > 0.01:
 		_direcao_travada = d
-	if _ataque == SOCO:
-		_semear_aviso_do_soco()
+	match _ataque:
+		SOCO:
+			_semear_aviso_do_soco()
+		REATOR:
+			_semear_cerco_do_reator()
 
 
 func _preparar(delta: float) -> void:
@@ -368,6 +622,8 @@ func _executar_entrar() -> void:
 			_bater()
 		RAJADA, PISAO:
 			_disparar_beat()
+		REATOR:
+			_estourar_o_reator()
 		INVESTIDA:
 			EventBus.pedido_shake.emit(4.0, 0.18)
 
@@ -383,7 +639,7 @@ func _executar(delta: float) -> void:
 			if _maquina.passou(tempo_real(duracao_investida)):
 				_fim_da_investida()
 			return
-		RAJADA, PISAO:
+		RAJADA, PISAO, REATOR:
 			Movimento.frear(self, delta, 1800.0)
 			var intervalo := tempo_real(intervalo_rajada if _ataque == RAJADA else intervalo_pisao)
 			if _beats < _beats_do_ataque() and _maquina.passou(intervalo * float(_beats)):
@@ -409,7 +665,7 @@ func _executar(delta: float) -> void:
 ## isso a fase 3 e mais perigosa sem um numero de dano ter mudado.
 func _recuperar(delta: float) -> void:
 	Movimento.frear(self, delta, 900.0)
-	if _maquina.passou(tempo_real(tempo_recuperacao)):
+	if _maquina.passou(tempo_real(recuperacao_de(_ataque))):
 		_maquina.trocar(ESCOLHER_ATAQUE)
 
 
@@ -479,6 +735,9 @@ func _beats_do_ataque() -> int:
 			return mini(fase_chefe, 3)
 		PISAO:
 			return 2 if fase_chefe >= 3 else 1
+		REATOR:
+			# Duas ondas: a segunda cai nos vaos da primeira, como o pisao.
+			return 2
 	return 1
 
 
@@ -491,7 +750,9 @@ func _beats_do_ataque() -> int:
 ## projetil.
 func _disparar_beat() -> void:
 	var giro := deg_to_rad(_giro_do_beat())
-	if _ataque == PISAO:
+	if _ataque == REATOR:
+		_arma_sucata.atirar_varias(Balistica.anel(projeteis_do_reator, giro))
+	elif _ataque == PISAO:
 		_arma_sucata.atirar_varias(Balistica.anel(projeteis_pisao, giro))
 	else:
 		_arma_sucata.atirar_varias(
@@ -510,11 +771,84 @@ func _disparar_beat() -> void:
 ## unico sintoma era o padrao nao aparecer.
 func _giro_do_beat() -> float:
 	var indice := _indice_salva + _beats
+	if _ataque == REATOR:
+		return Balistica.alternancia(projeteis_do_reator, indice)
 	if _ataque == PISAO:
 		return Balistica.alternancia(projeteis_pisao, indice)
 	return Balistica.alternancia_de_passo(
 		Balistica.passo_do_leque(projeteis_rajada, abertura_rajada), indice
 	)
+
+
+# --------------------------------------------------- FALHA DO REATOR -------
+
+## O cerco: um anel de areas em volta dele, com VAOS entre elas.
+##
+## Os vaos sao as aberturas do ataque, e sao a diferenca entre "esquive" e "tome
+## dano". A trava vale para todo ataque de area de qualquer chefe deste jogo, e a
+## Diretora ja a carrega em `aberturas_de()` -- aqui o metodo e o mesmo.
+##
+## As areas sao `AreaDePerigo` e nao um circulo proprio pelo mesmo motivo do
+## soco: ela ja nasce no container da SALA e nao como filha de quem semeou (filha
+## dele, ela andaria junto -- e aviso no chao que se move e aviso que mente), ja
+## varre com `intersect_shape`, e ja avisa na faixa do mundo.
+func _semear_cerco_do_reator() -> void:
+	var container := get_parent()
+	if container == null:
+		return
+	for i in maxi(areas_do_reator, 1):
+		var direcao := Vector2.RIGHT.rotated(TAU * float(i) / float(maxi(areas_do_reator, 1)))
+		_semear_area(container, global_position + direcao * raio_do_cerco, raio_da_area_do_reator)
+	# O estouro central cobre o MIOLO do cerco: colar nele deixa de ser abrigo, e
+	# as saidas passam a ser os vaos e o lado de fora. Sem ele, o lugar mais
+	# seguro da sala seria encostado no chefe, que e o oposto do que o ataque diz.
+	_semear_area(container, global_position, raio_do_estouro)
+
+
+func _semear_area(container: Node, onde: Vector2, raio: float) -> void:
+	var area: AreaDePerigo = CENA_AREA.instantiate()
+	area.tempo_aviso = _aviso_atual
+	area.tempo_dano = tempo_real(tempo_execucao)
+	area.cor = cor_base
+	container.add_child(area)
+	area.configurar(onde, raio, dano_contato)
+	_areas.append(area)
+
+
+## O estouro, e as ondas que saem dele.
+func _estourar_o_reator() -> void:
+	EventBus.pedido_shake.emit(12.0, 0.5)
+	_disparar_beat()
+
+
+## Quantas aberturas este ataque deixa. Mesma API da Diretora, e pelo mesmo
+## motivo: dano inevitavel COM telegrafo e pior que sem, porque ler a intencao e
+## nao poder agir sobre ela e a definicao de mentir sobre a propria regra.
+##
+## Devolve -1 para ataque que nao e de area: disparo nao fecha espaco, e cobrar
+## abertura dele seria cobrar o numero errado.
+func aberturas_de(ataque: StringName) -> int:
+	match ataque:
+		REATOR:
+			# Um vao entre cada par de areas vizinhas do cerco.
+			return maxi(areas_do_reator, 1)
+		SOCO:
+			# O punho cai num ponto: a sala inteira menos aquele circulo.
+			return 1
+		PISAO:
+			return projeteis_pisao
+	return -1
+
+
+## O vao LINEAR entre duas areas vizinhas do cerco, em px.
+##
+## E o numero que diz se a abertura cabe o jogador. Medido e nao estimado: com o
+## raio do cerco e a contagem no Inspetor, alguem pode fechar o cerco sem
+## perceber, e o sintoma seria um ataque que nao da para esquivar.
+func vao_do_cerco() -> float:
+	var passo := TAU / float(maxi(areas_do_reator, 1))
+	var corda := 2.0 * raio_do_cerco * sin(passo * 0.5)
+	return corda - raio_da_area_do_reator * 2.0
 
 
 # ------------------------------------------------------- INVESTIDA PESADA ---

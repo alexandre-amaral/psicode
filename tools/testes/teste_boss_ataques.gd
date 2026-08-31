@@ -89,13 +89,13 @@ func _o_repertorio_so_cresce() -> void:
 			achou = achou or String(nome_ataque) == esperado
 		ok(achou, "%s esta no repertorio" % esperado)
 
-	# O rodizio exercita TODOS. Um sorteio poderia repetir um e esconder que os
-	# outros tres nunca rodaram -- e a arena e as suites dependem de que rodem.
+	# O sorteio exercita TODOS: um ataque com peso que nunca sai seria um ataque
+	# que existe so no Inspetor.
 	var vistos := {}
-	for _i in 8:
+	for _i in 200:
 		chefe._escolher_ataque()
 		vistos[String(chefe._ataque)] = true
-	igual(vistos.size(), 4, "oito escolhas exercitam os quatro ataques")
+	igual(vistos.size(), 4, "o sorteio exercita os quatro ataques da fase 1")
 	chefe.free()
 
 
@@ -144,15 +144,23 @@ func _o_soco_avisa_no_chao_e_cada_golpe_tem_o_seu() -> void:
 
 	# Cada golpe da fase 3 tem TELEGRAFO PROPRIO: o segundo volta a PREPARAR em
 	# vez de repetir dentro de EXECUTAR, que daria o segundo golpe de graca.
+	# Sai de PREPARAR antes de reentrar: `MaquinaEstados.trocar()` para o estado
+	# ATUAL nao faz nada de proposito -- sem essa guarda, um `trocar` chamado
+	# dentro do proprio estado reiniciaria o telegrafo a cada quadro. Aqui isso
+	# quer dizer que reentrar exige passar por outro estado primeiro.
 	_limpar_areas(container)
+	chefe._maquina.trocar(chefe.EXECUTAR)
 	chefe._golpes_restantes = 2
 	chefe._maquina.trocar(chefe.PREPARAR)
-	var primeiro: Vector2 = _primeira_area(container).global_position
+	var area_1 := _primeira_area(container)
+	ok(area_1 != null, "o primeiro golpe da sequencia semeia o aviso dele")
+	var primeiro: Vector2 = area_1.global_position if area_1 != null else Vector2.ZERO
 	chefe._maquina.trocar(chefe.EXECUTAR)
 	chefe._golpes_restantes -= 1
 	chefe._maquina.trocar(chefe.PREPARAR)
 	igual(_areas(container), 2, "o segundo golpe semeia o proprio aviso")
-	var segundo: Vector2 = _ultima_area(container).global_position
+	var area_2 := _ultima_area(container)
+	var segundo: Vector2 = area_2.global_position if area_2 != null else Vector2.ZERO
 	ok(primeiro.distance_to(segundo) > 40.0,
 		"e ele cai do OUTRO lado (%.0f px de distancia): e esquerdo e direito, nao o mesmo golpe duas vezes"
 			% primeiro.distance_to(segundo))
@@ -360,6 +368,14 @@ func _montar() -> Dictionary:
 	var chefe := CENA.instantiate()
 	container.add_child(chefe)
 	chefe.global_position = LONGE
+	# O alvo e apontado A MAO, e nao deixado para `_procurar_alvo()`.
+	#
+	# O grupo "player" e GLOBAL, e outras suites deixam bonecos nele enquanto o
+	# coletor nao passa -- `get_first_node_in_group` devolve qualquer um deles.
+	# Escrevendo esta suite foi isso: o chefe media a distancia ate o jogador de
+	# OUTRO teste, a 91 mil px, entao tudo era "longe" e o vies de distancia
+	# parecia nao existir. Mesma loteria que o `container_projeteis` ja cobrou.
+	chefe.alvo = jogador
 
 	return {
 		"raiz": raiz, "chefe": chefe, "container": container,

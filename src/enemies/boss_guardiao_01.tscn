@@ -67,15 +67,17 @@ polygon = PackedVector2Array(-46, -128, -18, -152, 16, -148, 44, -120, 30, -100,
 color = Color(1, 0.86, 0.32, 1)
 polygon = PackedVector2Array(-9, -118, 9, -118, 9, -102, -9, -102)
 
-[node name="Braco" type="Marker2D" parent="."]
+[node name="Torre" type="Marker2D" parent="."]
 position = Vector2(0, -84)
 
-[node name="ArmaOnda" type="Node2D" parent="Braco"]
+[node name="ArmaOnda" type="Node2D" parent="Torre"]
+position = Vector2(30, 0)
 script = ExtResource("3_arma")
 dados = ExtResource("4_onda")
 hostil = true
 
-[node name="ArmaSucata" type="Node2D" parent="Braco"]
+[node name="ArmaSucata" type="Node2D" parent="Torre"]
+position = Vector2(30, 0)
 script = ExtResource("3_arma")
 dados = ExtResource("5_sucata")
 hostil = true

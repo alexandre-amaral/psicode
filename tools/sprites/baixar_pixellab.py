@@ -12,7 +12,17 @@ Dai `gerar_sprites.py` faz o resto -- moldura, ancora unica de clipe, fita
 horizontal --, e ha **um** lugar que decide moldura e ancora, que e o ponto.
 
 USO
-    python tools/sprites/baixar_pixellab.py <id> <clipe> <manifesto.json>
+    python tools/sprites/baixar_pixellab.py <id> <clipe> <manifesto.json> [a-b]
+
+O intervalo opcional `a-b` (inclusivo, base zero) recorta os quadros. Ele existe
+porque um GESTO de ataque e uma coisa so na geracao e DUAS no jogo: um template
+de 8 quadros do PixelLab tem o wind-up nos primeiros e o golpe nos ultimos, e
+fatiar a MESMA geracao mantem as duas metades coerentes por construcao -- o
+punho que sobe no preparo e o mesmo que desce no golpe, sem risco de duas
+geracoes discordarem. E como um animador trabalha.
+
+    ... soco.json 0-3   -> o preparo
+    ... soco.json 4-7   -> o golpe
 
 O manifesto e `{"<direcao>": ["url", ...], ...}`, que e o formato em que o
 `get_character` do MCP devolve os quadros. As URLs sao publicas e assinadas no
@@ -55,9 +65,16 @@ def baixar(url, caminho):
 
 
 def main():
-    if len(sys.argv) != 4:
+    if len(sys.argv) not in (4, 5):
         sys.exit(__doc__)
     ator, clipe, manifesto = sys.argv[1], sys.argv[2], sys.argv[3]
+    corte = None
+    if len(sys.argv) == 5:
+        try:
+            a, b = sys.argv[4].split("-")
+            corte = (int(a), int(b) + 1)
+        except ValueError:
+            sys.exit("intervalo tem de ser a-b, ex.: 0-3")
     if clipe == NOME_RESERVADO:
         sys.exit("'%s' e nome reservado: ele comeria o ciclo de caminhada" % NOME_RESERVADO)
 
@@ -71,6 +88,14 @@ def main():
         # um campo so. Sete direcoes viram sete arquivos que passam em tudo e
         # deixam um lado do bicho congelado.
         sys.exit("faltam direcoes no manifesto: %s" % ", ".join(faltando))
+
+    if corte is not None:
+        for d in DIRECOES:
+            mapa[d] = mapa[d][corte[0]:corte[1]]
+        vazias = [d for d in DIRECOES if not mapa[d]]
+        if vazias:
+            sys.exit("o intervalo %d-%d nao pegou quadro nenhum em: %s"
+                     % (corte[0], corte[1] - 1, ", ".join(vazias)))
 
     contagens = set(len(mapa[d]) for d in DIRECOES)
     if len(contagens) > 1:

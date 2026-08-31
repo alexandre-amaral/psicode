@@ -1,0 +1,32 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/enemies/boss_guardiao_01.gd" id="1_s"]
+[ext_resource type="Resource" path="res://src/enemies/dados_boss_guardiao_01.tres" id="2_dados"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_guardiao"]
+radius = 26.0
+
+[node name="BossGuardiao01" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 6
+script = ExtResource("1_s")
+dados = ExtResource("2_dados")
+cor_base = Color(0.82, 1, 0.15, 1)
+largura_sombra = 62.0
+
+[node name="Forma" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_guardiao")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Corpo" type="Polygon2D" parent="Visual"]
+color = Color(0.82, 1, 0.15, 1)
+polygon = PackedVector2Array(-30, -18, -22, -62, -10, -78, 10, -78, 22, -62, 30, -18, 18, 0, -18, 0)
+
+[node name="Placa" type="Polygon2D" parent="Visual"]
+color = Color(0.28, 0.34, 0.06, 1)
+polygon = PackedVector2Array(-20, -58, 20, -58, 16, -34, -16, -34)
+
+[node name="Nucleo" type="Polygon2D" parent="Visual"]
+color = Color(1, 0.82, 0.35, 1)
+polygon = PackedVector2Array(-7, -52, 7, -52, 7, -40, -7, -40)

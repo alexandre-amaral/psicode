@@ -94,6 +94,7 @@ src/
                sprite_direcional (o Sprite2D de oito rotacoes),
                rastejante, vigia, drone_aranha, sentinela_orbital,
                atirador_neon, cyber_besta, hacker_parasita, diretora (chefe),
+               boss_guardiao_01 (o Automato Enferrujado, chefe do andar 1),
                dados_inimigo.gd + dados_*.tres (os NUMEROS de cada inimigo,
                fora da cena),
                grupo_inimigo.gd + grupo_*.tres (quem nasce, a que custo, e a
@@ -124,6 +125,7 @@ assets/texturas/ chao/parede: arte AUTORADA, preparada por tools/texturas/prepar
 tools/           teste_fumaca, capturar, testes/ (suites unitarias),
                  combinacoes/ (medidor_escape.gd + o arnes que poe dois e cinco
                  inimigos na mesma sala e mede se ainda ha para onde correr),
+                 chefe/ (arena_chefe: a luta isolada, com HP ajustavel),
                  texturas/ (paleta.gd + gerar_texturas: a fonte dos PNGs)
 docs/
 ```
@@ -157,7 +159,9 @@ docs/
 | **Para onde um botao de inimigo caminha com a barra cheia** | grupo `Escalonamento` do `src/enemies/dados_*.tres`; negativo desliga |
 | Matematica de mira preditiva | `src/util/balistica.gd` |
 | **Como QUALQUER inimigo se desloca** | `src/util/movimento.gd` -- perseguir, recuar, orbitar, investir, fugir; os numeros continuam nos `@export` de cada inimigo |
-| Chefe | `src/enemies/diretora.gd` |
+| Chefe do andar 1 | `src/enemies/boss_guardiao_01.gd` + `dados_boss_guardiao_01.tres` |
+| **Ajustar o chefe sem jogar a run inteira** | `godot --path . tools/chefe/arena_chefe.tscn -- --hp=0.32` entra na fase 3 direto; sem janela ele varre os quatro pontos e imprime o relatorio |
+| Chefe antigo, hoje fora do andar 1 | `src/enemies/diretora.gd` |
 | **Como QUALQUER inimigo avisa um ataque** | `src/enemies/telegrafo.gd` -- linha, mancha no chao ou pulso de sprite, sempre nas mesmas quatro fases |
 | **Quanto tempo a brasa do Parasita fica no chao** | `tempo_residual` no `@export` do `src/enemies/hacker_parasita.tscn`; zero desliga |
 | **O que o chefe le do jogador** | `src/enemies/perfil_jogador.gd` (logica pura, testada) |
@@ -193,6 +197,7 @@ for "vou editar um `.gd`", verifique antes se nao deveria ser um `.tres`.
 ```bash
 godot --headless --path . tools/teste_fumaca.tscn      # precisa imprimir PASSOU
 godot --headless --path . tools/combinacoes/combinacoes.tscn  # se mexeu em inimigo
+godot --headless --path . tools/chefe/arena_chefe.tscn        # se mexeu no chefe
 godot --path . tools/capturar.tscn --resolution 960x544   # se mexeu no visual
 ```
 
@@ -220,6 +225,38 @@ em qualquer erro de script.
   seguidas ele apareceu e ZERO areas foram criadas. Comportamento que demora
   mais que um tick precisa de suite propria (`teste_area_de_perigo.gd`), senao
   a guarda passa verde sem nunca ter olhado nada.
+- **O multiplicador de fase do Automato tem de alcancar TEMPO e MOVIMENTO ao
+  mesmo tempo.** So no movimento, o jogador ve um robo andando rapido com
+  ataques no mesmo ritmo; so nos tempos, um robo lento com ataques nervosos. Nos
+  dois, ele ve a frase que o chefe existe para produzir: "eu ja conheco esse
+  ataque, mas agora ele esta acontecendo mais rapido". Todo tempo dele passa por
+  `tempo_real()`, e e isso que faz o moveset ficar reconhecivel e mais rapido em
+  vez de virar outro moveset.
+- **O pior caso do chefe NAO e o multiplicador de fase 3.** A Deterioracao
+  multiplica dificuldade por cima dele e chega a 1,7x em cadencia, entao o pior
+  caso e 1,30 combinado com a barra cheia. `tempo_real()` divide pelos DOIS e so
+  entao aplica o piso -- um piso conferido so contra 1,30 passa no teste e fura
+  em jogo.
+- **A fase do chefe muda na ENTRADA da transicao, e nao quando o HP cruza o
+  limiar.** Subindo `fase_chefe` no `_checar_fase`, o ataque em curso terminaria
+  com o timing da fase NOVA no meio do proprio gesto: o jogador leria o
+  telegrafo de uma fase e levaria o golpe de outra. E a bandeira
+  `_fase_anunciada` faz cada virada acontecer UMA vez -- sem ela, o HP oscilando
+  em volta do limiar reentraria na transicao a cada frame e o chefe nunca mais
+  atacaria.
+- **A vitoria da run NAO sai da morte do chefe.** Quem chama
+  `GameState.terminar_run(true)` e o `GerenciadorMapa`, quando a sala do tipo
+  `boss` fica LIMPA. Trocar quem e o chefe do andar nao mexe nesse caminho, e e
+  bom que seja assim -- mas a chamada ja se perdeu uma vez ao trocar quem
+  hospeda a run, com sintoma silencioso, e por isso `teste_boss_guardiao.gd`
+  cobra os dois lados: que o GerenciadorMapa ainda chama, e que o chefe NAO
+  chama.
+- **Cor de ator nova entra em `Paleta.ATOR`, senao `teste_texturas.gd`
+  reprova.** O espelho existe para provar que ambiente e ator nao se cruzam, e
+  ele pegou o Automato no primeiro `--import`. A escolha de matiz e por
+  eliminacao e vai comentada junto: o andar 1 ja gasta o laranja duas vezes
+  (drone 25 graus, besta 14), e um terceiro laranja no CHEFE seria a peca mais
+  importante da sala usando a cor mais repetida dela.
 - **"Situacao inevitavel" tem numero, e o numero nao e "zero saidas num
   frame".** O rolamento da i-frames pela duracao inteira (0,22 s mais 0,06 s de
   graca), entao uma JANELA CURTA sem saida a pe nao e injustica: e o momento em

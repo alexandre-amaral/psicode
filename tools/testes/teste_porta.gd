@@ -34,6 +34,54 @@ func nome() -> String:
 func executar() -> void:
 	await _cada_estado_e_seu_solido()
 	await _sala_sem_vizinho_nao_deixa_solido_sobrando()
+	await _a_abertura_nao_cobra_pedagio()
+
+
+## A ANIMACAO DE ABERTURA e leitura, e nao pedagio (AND1 05).
+##
+## Duas coisas se cobram, e as duas sao sobre o mesmo risco: o jogador atravessa
+## dez salas por andar, num jogo cujo sistema-assinatura e uma barra que sobe com
+## o TEMPO.
+##
+## 1. **A BARREIRA CAI NO PRIMEIRO QUADRO**, e nao no fim da animacao. Se a
+##    passagem so liberasse ao terminar, cada porta cobraria a propria duracao em
+##    toda travessia -- meio segundo por porta sao cinco segundos parados por
+##    run. Quem quer correr atravessa ja; quem olha, ve a maquina velha pegando.
+## 2. **A duracao tem TETO, e ele e const e nao `@export`.** E limite de design e
+##    nao botao de tuning: um numero ajustavel aqui seria ajustado para cima na
+##    primeira vez que alguem achasse a animacao bonita.
+func _a_abertura_nao_cobra_pedagio() -> void:
+	var raiz := Node2D.new()
+	Engine.get_main_loop().root.add_child(raiz)
+	var porta := _porta_solta(raiz)
+	ok(porta.TEMPO_DE_ABERTURA <= porta.TEMPO_MAXIMO_DE_ABERTURA,
+		"a abertura cabe no teto (%.2f s de %.2f)"
+			% [porta.TEMPO_DE_ABERTURA, porta.TEMPO_MAXIMO_DE_ABERTURA])
+	ok(porta.TEMPO_MAXIMO_DE_ABERTURA <= 0.6,
+		"e o teto e curto: dez portas por andar transformam meio segundo em cinco")
+
+	# A barreira cai ANTES de a animacao terminar -- de fato, no mesmo frame.
+	porta.trancar()
+	var colisao := porta.get_node_or_null("Barreira/Colisao") as CollisionShape2D
+	ok(colisao != null, "a porta tem barreira")
+	await Engine.get_main_loop().physics_frame
+	ok(not colisao.disabled, "trancada, ela bloqueia (pre-condicao)")
+
+	porta.abrir()
+	await Engine.get_main_loop().physics_frame
+	ok(colisao.disabled,
+		"aberta, a passagem libera no MESMO frame -- a animacao nao e pedagio")
+	igual(porta.estado, porta.Estado.ABERTA, "e o estado ja e ABERTA desde o inicio dela")
+
+	# O campo de forca -- o unico elemento que o jogador le num quadro so -- some
+	# ao fim da encenacao, e nao antes: e a unica chance de mostrar a tranca
+	# soltando.
+	var campo := porta.get_node_or_null("Campo") as Sprite2D
+	ok(campo != null, "a porta tem campo de forca")
+	if campo != null:
+		ok(campo.visible, "e ele ainda esta em tela enquanto a porta abre")
+
+	raiz.free()
 
 
 ## ABERTA deixa passar, TRANCADA bloqueia, SELADA nao poe nada.

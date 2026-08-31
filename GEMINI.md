@@ -201,6 +201,8 @@ docs/
 | Tamanho de uma sala | os `points` do Line2D `Parede` — multiplos de 16, dimensao multipla de 32 |
 | Resolucao base | `[display]` do `project.godot` — 960x544, camera em zoom 1.0 |
 | Forma e parede de uma sala | Line2D `Parede` em `src/mapa/sala_*.tscn` — a colisao nasce dele |
+| **Quanto a porta demora para abrir** | `TEMPO_DE_ABERTURA` em `src/mapa/porta.gd` -- const e nao `@export`, com teto cobrado por `teste_porta.gd` |
+| **O som do motor e da trava da porta** | `som_do_motor` e `som_da_trava` no `src/mapa/porta.tscn` |
 | Lockdown e abertura de porta | `src/mapa/sala.gd`, `src/mapa/porta.gd` e a barreira fisica de `src/mapa/porta.tscn` |
 | Glitch de alucinacao | `assets/shaders/glitch.gdshader` |
 
@@ -790,6 +792,14 @@ em qualquer erro de script.
   faixa de vazio na lateral. O unico conserto completo seria geometrico: parede
   de 16 px e salas de 928x512 fecham exatamente 960x544, e ambos caem na grade
   de 32. Isso mexe em todas as cenas de sala e ainda nao foi feito.
+- **A abertura da porta e LEITURA, e nao pedagio.** A barreira cai no PRIMEIRO
+  quadro, antes de a animacao rodar -- quem quer correr atravessa ja, e ve a
+  porta terminar de abrir pelas costas. Se a passagem so liberasse no fim, cada
+  porta cobraria a propria duracao em toda travessia: dez salas por andar
+  transformam meio segundo em cinco segundos parados, num jogo cuja dificuldade
+  sobe com o TEMPO. E o teto e `const` e nao `@export` de proposito -- limite de
+  design nao e botao de tuning, e um numero ajustavel seria ajustado para cima na
+  primeira vez que alguem achasse a animacao bonita.
 - **Atlas de prop CRESCE para baixo; nunca se recompoe.** As regioes ja
   declaradas nos `tipo_*.tres` sao coordenadas cruas, e a ancora depende delas:
   a arte encosta no FUNDO da celula e a sala desloca o sprite em `-altura/2`.

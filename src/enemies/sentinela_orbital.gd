@@ -107,6 +107,20 @@ func _comportamento(delta: float) -> void:
 	_orientar(delta)
 
 
+
+## Ver `DadosInimigo`. A traducao dos nomes genericos do recurso para os do
+## dominio dela mora aqui, num lugar so.
+func _ler_dados(d: DadosInimigo) -> void:
+	raio_orbita = d.distancia_preferida
+	margem = d.margem_de_distancia
+	correcao_radial = d.correcao_radial
+	intervalo = d.cooldown_ataque
+	tempo_clarao = d.tempo_telegrafo
+	tiros_ate_rajada = d.tiros_ate_salva
+	projeteis_rajada = d.projeteis
+	abertura_rajada = d.abertura_graus
+	fator_aviso_rajada = d.fator_aviso_salva
+
 # ------------------------------------------------------------- estados ------
 
 func _aproximar(delta: float) -> void:

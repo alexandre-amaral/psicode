@@ -109,6 +109,20 @@ func _pos_movimento(delta: float) -> void:
 	_sprite.apontar(_direcao_encarada(), andando, delta, velocity)
 
 
+
+## Ver `DadosInimigo`. A investida dela tem velocidade PROPRIA, e nao um
+## multiplicador: e o que a separa da esquiva do Atirador Neon no mesmo campo do
+## recurso, e e o que a faz nao acelerar com a Deterioracao.
+func _ler_dados(d: DadosInimigo) -> void:
+	tempo_observando = d.cooldown_ataque
+	tempo_preparo = d.tempo_telegrafo
+	tempo_encarando = d.tempo_preparo
+	velocidade_investida = d.velocidade_arranque
+	duracao_investida = d.duracao_arranque
+	tempo_recuperacao = d.tempo_recuperacao
+	tempo_atordoado = d.tempo_atordoado
+	alcance = d.alcance
+
 # ------------------------------------------------------------- estados ------
 
 ## Ele nao para: circula devagar, mantendo o jogador no campo de visao. Uma

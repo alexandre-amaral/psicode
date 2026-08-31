@@ -1,4 +1,4 @@
-[gd_scene load_steps=21 format=3]
+[gd_scene load_steps=22 format=3]
 
 [ext_resource type="Script" path="res://src/enemies/sentinela_orbital.gd" id="1_s"]
 [ext_resource type="Script" path="res://src/enemies/sprite_direcional.gd" id="2_sprite"]
@@ -19,6 +19,7 @@
 [ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/andar_north.png" id="26_a"]
 [ext_resource type="Texture2D" path="res://assets/inimigos/sentinela_orbital/andar_north-east.png" id="27_a"][ext_resource type="Resource" path="res://src/weapons/tiro_sentinela.tres" id="3_tiro"]
 [ext_resource type="Script" path="res://src/weapons/arma.gd" id="4_arma"]
+[ext_resource type="Resource" path="res://src/enemies/dados_sentinela_orbital.tres" id="99_dados"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_sent"]
 radius = 14.0
@@ -27,12 +28,8 @@ radius = 14.0
 collision_layer = 2
 collision_mask = 6
 script = ExtResource("1_s")
-vida_maxima = 6
-velocidade_base = 132.0
-dano_contato = 1
-creditos = 7
+dados = ExtResource("99_dados")
 cor_base = Color(0.6, 0.8, 1, 1)
-raio_contato = 28.0
 
 [node name="Forma" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_sent")

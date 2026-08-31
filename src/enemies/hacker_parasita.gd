@@ -71,6 +71,18 @@ func _comportamento(delta: float) -> void:
 	_maquina.processar(delta)
 
 
+
+## Ver `DadosInimigo`. O grupo "Territorio" do recurso existe por causa dele:
+## e o unico inimigo que ataca o ESPACO em vez do jogador.
+func _ler_dados(d: DadosInimigo) -> void:
+	max_areas = d.max_areas
+	intervalo = d.cooldown_ataque
+	tempo_semear = d.tempo_telegrafo
+	espalhamento = d.espalhamento
+	raio_area = d.raio_area
+	tempo_residual = d.tempo_residual
+	distancia_minima = d.distancia_minima
+
 # ------------------------------------------------------------- estados ------
 
 func _reposicionar(delta: float) -> void:

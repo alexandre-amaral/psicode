@@ -94,6 +94,8 @@ src/
                sprite_direcional (o Sprite2D de oito rotacoes),
                rastejante, vigia, drone_aranha, sentinela_orbital,
                atirador_neon, cyber_besta, hacker_parasita, diretora (chefe),
+               dados_inimigo.gd + dados_*.tres (os NUMEROS de cada inimigo,
+               fora da cena),
                grupo_inimigo.gd + grupo_*.tres (quem nasce, a que custo, e a
                partir de que Deterioracao)
   projectiles/ projetil
@@ -145,7 +147,9 @@ docs/
 | **Sprite e rotacoes de um inimigo** | o no `Visual/Corpo` da `src/enemies/*.tscn`, com `src/enemies/sprite_direcional.gd`: as duas listas de 8 texturas, `quadros_andando`, `fps_andando`, mais `scale` e `position` do proprio no |
 | **Arma inicial, Hack e texto do card de um personagem** | `src/player/personagem_*.tres` |
 | Dispersao que cresce com o gatilho preso | `dispersao_*` em `src/weapons/*.tres` — zero desliga |
-| Vida e velocidade dos inimigos | `@export` em `src/enemies/*.tscn` |
+| **Vida, velocidade, dano e todo botao de combate dos cinco inimigos refinados** | `src/enemies/dados_*.tres` (Drone Aranha, Atirador Neon, Cyber-Besta, Sentinela Orbital, Hacker Parasita) |
+| Vida e velocidade dos que ainda nao migraram | `@export` em `src/enemies/*.tscn` -- Rastejante, Vigia, Diretora e as pecas da arena dela |
+| **Variante de um inimigo que ja existe (um "de elite")** | criar um `dados_*.tres` novo e apontar `dados` na instancia; NAO duplicar o `.tscn` |
 | Limiares de 50% e 85% | `src/autoload/deterioracao.gd` |
 | Matematica de mira preditiva | `src/util/balistica.gd` |
 | **Como QUALQUER inimigo se desloca** | `src/util/movimento.gd` -- perseguir, recuar, orbitar, investir, fugir; os numeros continuam nos `@export` de cada inimigo |
@@ -211,6 +215,29 @@ em qualquer erro de script.
   seguidas ele apareceu e ZERO areas foram criadas. Comportamento que demora
   mais que um tick precisa de suite propria (`teste_area_de_perigo.gd`), senao
   a guarda passa verde sem nunca ter olhado nada.
+- **`DadosInimigo` e aplicado no TOPO do `_ready()`, e a linha seguinte
+  congela.** `InimigoBase._ready()` faz `vida = vida_maxima` logo abaixo de
+  `_aplicar_dados()`. Invertidas as duas, todo inimigo com `.tres` nasceria com
+  a vida do DEFAULT do script -- 5 para todo mundo -- e a Cyber-Besta, que tem
+  8, viraria de vidro sem uma linha no console. E o mesmo padrao que o Player ja
+  paga com `_vida_maxima_base`.
+- **`dados` e OPCIONAL, e tem de continuar sendo.** Sem recurso valem os
+  `@export` da cena, e e por isso que o Rastejante, o Vigia, a Diretora e as
+  pecas da arena dela seguem funcionando sem `.tres` nenhum. Torna-lo
+  obrigatorio quebraria quem ainda nao migrou.
+- **Numero que foi para o `.tres` tem de SAIR do `.tscn`.** Deixado nos dois, o
+  da cena e simplesmente sobrescrito em runtime: nenhum teste de comportamento
+  acusa nada, e o proximo a girar aquele botao no Inspetor da cena passa uma
+  tarde sem entender por que nao muda nada. `teste_dados_inimigo.gd` le o fonte
+  do `.tscn` justamente porque isso nao da para cobrar de outro jeito.
+- **A traducao de nome mora em `_ler_dados()`, um por inimigo.** O recurso fala
+  generico (`distancia_preferida`, `tempo_telegrafo`) e cada inimigo fala o
+  proprio dominio (`raio_orbita`, `tempo_clarao`). Espalhar o `dados.` pelo
+  comportamento acabaria com um `if dados != null` em cada estado.
+- **Se entrar enum em `DadosInimigo`, valor novo entra NO FIM.** Enum e gravado
+  como INT no `.tres`; inserir no meio reescreve em silencio o significado de
+  todo inimigo ja salvo. Mesma armadilha de `DadosArma.Comportamento` e
+  `DadosItem`.
 - **Movimentacao nova nao se escreve na mao: usa-se o `Movimento`.** Cinco
   inimigos tinham a propria copia da tangente mais correcao radial, com nomes
   diferentes para a mesma coisa. Duas copias divergem, e o sintoma aparece em

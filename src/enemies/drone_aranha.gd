@@ -119,6 +119,20 @@ func _pos_movimento(delta: float) -> void:
 	_sprite.apontar(direcao_para_alvo(), andando, delta, velocity)
 
 
+
+## Ver `DadosInimigo`. Os nomes locais sao os do DOMINIO dele -- "anel",
+## "posicionamento" -- e os do recurso sao os genericos; a traducao mora aqui,
+## num lugar so.
+func _ler_dados(d: DadosInimigo) -> void:
+	tempo_carga = d.tempo_telegrafo
+	tempo_recuperacao = d.tempo_recuperacao
+	intervalo = d.cooldown_ataque
+	alcance_anel = d.alcance
+	projeteis = d.projeteis
+	distancia_de_posicionamento = d.distancia_preferida
+	distancia_de_recuo = d.distancia_minima
+	peso_lateral = d.peso_lateral
+
 # ------------------------------------------------------------- estados ------
 
 func _perseguir(delta: float) -> void:

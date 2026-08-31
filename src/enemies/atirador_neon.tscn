@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://src/enemies/atirador_neon.gd" id="1_s"]
 [ext_resource type="Script" path="res://src/weapons/arma.gd" id="2_arma"]
 [ext_resource type="Resource" path="res://src/weapons/tiro_neon.tres" id="3_tiro"]
+[ext_resource type="Resource" path="res://src/enemies/dados_atirador_neon.tres" id="99_dados"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_neon"]
 radius = 13.0
@@ -11,12 +12,8 @@ radius = 13.0
 collision_layer = 2
 collision_mask = 6
 script = ExtResource("1_s")
-vida_maxima = 5
-velocidade_base = 104.0
-dano_contato = 1
-creditos = 6
+dados = ExtResource("99_dados")
 cor_base = Color(0.35, 1, 0.85, 1)
-raio_contato = 26.0
 
 [node name="Forma" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_neon")

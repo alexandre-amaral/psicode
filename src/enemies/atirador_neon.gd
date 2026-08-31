@@ -113,6 +113,19 @@ func _deve_esquivar() -> bool:
 	return distancia_do_alvo() < distancia_de_esquiva
 
 
+
+## Ver `DadosInimigo`. A esquiva dele e um ARRANQUE do vocabulario do recurso:
+## sem velocidade propria, so um multiplicador da normal.
+func _ler_dados(d: DadosInimigo) -> void:
+	distancia_ideal = d.distancia_preferida
+	margem = d.margem_de_distancia
+	distancia_de_esquiva = d.distancia_minima
+	intervalo = d.cooldown_ataque
+	tempo_mira = d.tempo_telegrafo
+	tempo_cooldown = d.tempo_recuperacao
+	tempo_esquiva = d.duracao_arranque
+	impulso_esquiva = d.impulso_arranque
+
 # ------------------------------------------------------------- estados ------
 
 func _procurar(delta: float) -> void:

@@ -15,6 +15,15 @@ const GRUPO := "inimigo"
 ## Cipher: quem hackeou tem de ser reconhecivel no alvo, nao so no cano.
 const COR_HACK := Color(0.45, 1.0, 0.3)
 
+## Os numeros dele, fora da cena. OPCIONAL: sem recurso, valem os `@export`
+## abaixo -- e por isso o Rastejante, o Vigia e as pecas da arena da Diretora
+## continuam funcionando sem `.tres` nenhum. Com recurso, ele VENCE.
+##
+## Os `@export` que sobraram nao sao duplicata: eles sao o default de quem nao
+## tem recurso, e sao a documentacao do que cada campo significa para ESTE
+## inimigo. Quem tem `.tres` nao guarda numero de balanceamento na cena.
+@export var dados: DadosInimigo
+
 @export_group("Atributos")
 @export var vida_maxima: int = 5
 @export var velocidade_base: float = 120.0
@@ -68,6 +77,11 @@ var _tween_flash: Tween
 
 
 func _ready() -> void:
+	# PRIMEIRA linha do `_ready`, e nao uma qualquer: a proxima ja congela
+	# `vida = vida_maxima`, e o Player ensinou o preco de aplicar atributo depois
+	# de um congelamento -- todo recalculo de modificador passa a somar em cima
+	# do numero errado, sem erro no console.
+	_aplicar_dados()
 	add_to_group(GRUPO)
 	vida = vida_maxima
 	_visual = get_node_or_null("Visual")
@@ -110,6 +124,34 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 	_pos_movimento(delta)
+
+
+## Copia o `.tres` para os campos, se houver um.
+##
+## Escreve nos MESMOS `@export` em vez de o resto do codigo consultar
+## `dados.vida` direto, e isso e a decisao: assim um inimigo sem recurso e um
+## com recurso seguem o mesmo caminho depois desta funcao, e nenhuma linha de
+## comportamento precisa de um `if dados != null`.
+func _aplicar_dados() -> void:
+	if dados == null:
+		return
+	vida_maxima = dados.vida
+	velocidade_base = dados.velocidade
+	dano_contato = dados.dano_contato
+	creditos = dados.creditos
+	deterioracao_ao_morrer = dados.deterioracao_ao_morrer
+	raio_contato = dados.raio_contato
+	intervalo_dano_contato = dados.intervalo_dano_contato
+	_ler_dados(dados)
+
+
+## Ponto de extensao do RECURSO: cada inimigo copia os campos que so ele usa.
+##
+## Roda dentro do `_ready` da base, entao ja aconteceu quando o `_ready` da
+## subclasse comeca -- e e por isso que um `_t_intervalo = randf_range(0, intervalo)`
+## la embaixo ja sorteia sobre o numero do `.tres`, e nao sobre o default.
+func _ler_dados(_d: DadosInimigo) -> void:
+	pass
 
 
 ## Ponto de extensao principal: cada inimigo escreve so isto.

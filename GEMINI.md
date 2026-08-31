@@ -164,6 +164,7 @@ docs/
 | **Os quatro ataques do chefe do andar 1** | `@export_group` por ataque em `src/enemies/boss_guardiao_01.tscn`; as ARMAS dele em `src/weapons/onda_guardiao.tres` e `sucata_guardiao.tres` |
 | **Como QUALQUER inimigo se desloca** | `src/util/movimento.gd` -- perseguir, recuar, orbitar, investir, fugir; os numeros continuam nos `@export` de cada inimigo |
 | Chefe do andar 1 | `src/enemies/boss_guardiao_01.gd` + `dados_boss_guardiao_01.tres` |
+| **Trocar QUEM e o chefe do andar** | o grupo apontado por `inimigos` em `src/mapa/tipo_boss.tres` |
 | **Ajustar o chefe sem jogar a run inteira** | `godot --path . tools/chefe/arena_chefe.tscn -- --hp=0.32` entra na fase 3 direto; sem janela ele varre os quatro pontos e imprime o relatorio |
 | Chefe antigo, hoje fora do andar 1 | `src/enemies/diretora.gd` |
 | **Como QUALQUER inimigo avisa um ataque** | `src/enemies/telegrafo.gd` -- linha, mancha no chao ou pulso de sprite, sempre nas mesmas quatro fases |
@@ -229,6 +230,22 @@ em qualquer erro de script.
   seguidas ele apareceu e ZERO areas foram criadas. Comportamento que demora
   mais que um tick precisa de suite propria (`teste_area_de_perigo.gd`), senao
   a guarda passa verde sem nunca ter olhado nada.
+- **A Diretora esta ENGAVETADA, e `teste_diretora.gd` e o que a segura.** Ela
+  saiu do andar 1 (BOSS 11) mas continua intocada em disco, sem sala que a
+  chame. Codigo que ninguem roda apodrece: um refactor em `InimigoBase`, na
+  `Arma` ou na `Balistica` a quebraria e ninguem descobriria, porque nenhuma run
+  passa por ela. NAO tire aquela suite do runner "porque ela nao e usada" -- e
+  justamente por nao ser usada que ela precisa continuar rodando.
+- **O chefe do andar e reconhecido por `nome_exibicao`, e as fases dele sao
+  DECLARADAS.** `teste_fumaca.gd` acha o chefe por
+  `inimigo.get("nome_exibicao") != null` e exige que todas as viradas tenham
+  acontecido -- com o numero cravado, trocar de chefe reprovava o chefe certo,
+  porque a Diretora tem quatro fases e o Automato tem tres. Quem declara e
+  `total_de_fases`, no proprio chefe.
+- **Chefe novo tem de emitir os tres sinais da HUD.** `boss_revelado` acende a
+  barra dele, `boss_vida_mudou` a move e `boss_fase_mudou` marca a virada. A HUD
+  nao sabe qual chefe esta na sala e nao precisa saber -- mas um chefe que nao
+  emite entra na luta sem barra nenhuma, sem erro no console.
 - **O vies de distancia do chefe NAO vale na fase 1.** E a licao do
   `PerfilJogador` aplicada a selecao de ataque: ele so corrige com CONFIANCA,
   depois de ver o jogador se mexer. A fase 1 existe para ENSINAR, e um chefe que

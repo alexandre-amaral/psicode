@@ -105,6 +105,18 @@ const TRANSICAO_FASE := &"TRANSICAO_FASE"
 const ATORDOADO := &"ATORDOADO"
 const MORTE := &"MORTE"
 
+@export_group("Identidade")
+## O nome que a HUD mostra e o que o teste de fumaca usa para RECONHECER o chefe.
+##
+## Nao e cosmetico: `teste_fumaca.gd` acha o chefe por
+## `inimigo.get("nome_exibicao") != null`, e sem ele o Automato seria conferido
+## como um inimigo comum -- ninguem checaria que ele nasceu na sala do chefe.
+@export var nome_exibicao: String = "AUTOMATO ENFERRUJADO"
+## Quantas fases ele tem. Declarado e nao cravado no teste porque o teste de
+## fumaca exige que TODAS as transicoes tenham acontecido, e a Diretora tem
+## quatro enquanto ele tem tres -- um numero fixo la reprovaria o chefe certo.
+@export var total_de_fases: int = 3
+
 @export_group("Fases")
 ## O multiplicador de cada fase. E o botao central do chefe inteiro: ele alcanca
 ## movimentacao, cadencia, telegrafo, recuperacao e rotacao de uma vez.
@@ -290,6 +302,30 @@ func _ler_dados(d: DadosInimigo) -> void:
 	tempo_recuperacao = d.tempo_recuperacao
 
 
+## A HUD do chefe so existe se alguem a acender.
+##
+## `boss_revelado` e o que faz a barra dele aparecer, e `boss_vida_mudou` e o que
+## a move. Sao os mesmos sinais que a Diretora emite -- a HUD nao sabe qual chefe
+## esta na sala, e nao precisa saber.
+func _ao_nascer() -> void:
+	super._ao_nascer()
+	EventBus.boss_revelado.emit(nome_exibicao, vida_maxima)
+	EventBus.boss_vida_mudou.emit(vida, vida_maxima)
+
+
+## Chama `super` e SO ENTAO avisa a HUD.
+##
+## A Diretora reimplementa `receber_dano` sem chamar `super`, e o GEMINI.md
+## registra o preco: ela e o unico inimigo do jogo imune ao bonus de Hack, em
+## silencio. Aqui o caminho comum roda inteiro e este metodo so acrescenta o
+## aviso -- o Automato apanha de Hack como qualquer outro.
+func receber_dano(quantidade: int, impulso: Vector2 = Vector2.ZERO) -> bool:
+	var doeu := super.receber_dano(quantidade, impulso)
+	if doeu:
+		EventBus.boss_vida_mudou.emit(maxi(vida, 0), vida_maxima)
+	return doeu
+
+
 func _comportamento(delta: float) -> void:
 	_checar_fase()
 	_atualizar_leitura_visual(delta)
@@ -444,6 +480,7 @@ func _transicao_entrar() -> void:
 	fase_chefe = _fase_anunciada
 	EventBus.pedido_shake.emit(6.0, 0.35)
 	fase_mudou.emit(fase_chefe)
+	EventBus.boss_fase_mudou.emit(fase_chefe)
 	_encenar_a_virada()
 
 
@@ -910,4 +947,5 @@ func morrer() -> void:
 	if _maquina != null:
 		_maquina.trocar(MORTE)
 	EventBus.pedido_shake.emit(10.0, 0.6)
+	EventBus.boss_morreu.emit()
 	super.morrer()

@@ -78,7 +78,15 @@ var _salas_sem_combate_conferidas: Dictionary = {}
 ## frame em que aparece no grupo.
 var _spawns_conferidos: Dictionary = {}
 var _spawns_fora: int = 0
-var _diretora_conferida: bool = false
+var _chefe_conferido: bool = false
+## Como o chefe DESTE andar se chama, e quantas fases ele declara.
+##
+## Lidos do proprio chefe quando ele aparece, e nao cravados aqui: a Diretora tem
+## quatro fases e o Automato tem tres, e um numero fixo reprovaria o chefe certo
+## no dia em que o andar trocasse de chefe -- que e exatamente o que a BOSS 11
+## faz. O default cobre quem nao declara.
+var _nome_do_chefe: String = "o chefe"
+var _fases_declaradas: int = 4
 ## As fases que o chefe de fato executou. O log ja imprimia isso; aqui ele vira
 ## assert -- um repertorio que nunca roda e um repertorio que ninguem testou.
 var _fases_do_chefe: Array[int] = []
@@ -180,7 +188,11 @@ func _conferir_spawns() -> void:
 func _conferir_um_spawn(inimigo: Node2D) -> void:
 	var eh_chefe: bool = inimigo.get("nome_exibicao") != null
 	if eh_chefe:
-		_diretora_conferida = true
+		_chefe_conferido = true
+		_nome_do_chefe = String(inimigo.get("nome_exibicao"))
+		var fases: Variant = inimigo.get("total_de_fases")
+		if fases != null:
+			_fases_declaradas = int(fases)
 
 	var pos := inimigo.global_position
 	var dona := _sala_hospedeira(inimigo)
@@ -196,7 +208,8 @@ func _conferir_um_spawn(inimigo: Node2D) -> void:
 		# Estar dentro de UMA sala nao basta para o chefe: a Diretora tem de
 		# nascer na sala do chefe.
 		if eh_chefe and dona.tipo != DadosSala.ID_BOSS:
-			_relatar_spawn_fora("a Diretora nasceu em %s, dentro da sala %s tipo=%s -- deveria nascer na sala do chefe" % [
+			_relatar_spawn_fora("%s nasceu em %s, dentro da sala %s tipo=%s -- deveria nascer na sala do chefe" % [
+				_nome_do_chefe,
 				_ponto(pos),
 				dona.coordenadas_grid,
 				dona.tipo,
@@ -267,7 +280,7 @@ func _relatar_spawn_fora(texto: String) -> void:
 
 func _apelido(inimigo: Node2D, eh_chefe: bool) -> String:
 	if eh_chefe:
-		return "a Diretora"
+		return _nome_do_chefe
 	return "o inimigo '%s'" % inimigo.name
 
 
@@ -567,16 +580,18 @@ func _ao_terminar(venceu: bool, dados: Dictionary) -> void:
 	# decoracao sem alguem perceber.
 	if _spawns_conferidos.is_empty():
 		_falhar("nenhum inimigo apareceu no grupo 'inimigo' durante a run inteira -- a conferencia de spawn nao chegou a rodar")
-	# As quatro fases tem de ter acontecido. A 2, 3 e 4 sao viradas de vida; a 1
-	# e o estado inicial e nao emite sinal, entao o que se cobra sao as tres
-	# transicoes.
+	# Todas as viradas tem de ter acontecido. A fase 1 e o estado inicial e nao
+	# emite sinal, entao o que se cobra sao as transicoes -- e quantas sao vem do
+	# CHEFE e nao daqui: a Diretora tem quatro fases e o Automato tem tres.
 	if venceu:
-		for f in [2, 3, 4]:
+		for f in range(2, _fases_declaradas + 1):
 			if not _fases_do_chefe.has(f):
-				_falhar("a luta terminou sem a fase %d do chefe -- fases vistas: %s" % [f, _fases_do_chefe])
+				_falhar("a luta terminou sem a fase %d de %s -- fases vistas: %s" % [
+					f, _nome_do_chefe, _fases_do_chefe,
+				])
 
-	if venceu and not _diretora_conferida:
-		_falhar("a run venceu sem que o teste visse a Diretora viva -- a posicao de nascimento dela nao foi conferida")
+	if venceu and not _chefe_conferido:
+		_falhar("a run venceu sem que o teste visse o chefe vivo -- a posicao de nascimento dele nao foi conferida")
 
 	# Os tipos de recompensa sao opcionais no andar, entao nao da para exigir os
 	# dois. Mas se NENHUM apareceu em nenhuma run, algo esta errado na colocacao

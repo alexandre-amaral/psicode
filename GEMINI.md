@@ -922,6 +922,17 @@ em qualquer erro de script.
   suite, depois de a arte ja estar em disco. A do `andar1` e larga de proposito
   (185-320): ela separa TIPO DE SALA, e quem separa mapa de ATOR e o teto de
   valor (chao em 0,30 contra o piso de 0,55 do portao G2), que nao muda.
+- **So a METADE DE BAIXO de cada modulo de face chega a tela.** Medido no motor:
+  o quad de face tem `Sala.ALTURA_FACE` = 32 px e a UV, que e em PIXELS ancorada
+  no canto do contorno, vai de -32 a 0 -- numa textura de 64, com repeticao,
+  isso amostra as linhas 32..63. A metade de cima nunca aparece, e nada avisa:
+  o arquivo continua valido e o portao media o arquivo INTEIRO. Hoje o portao
+  de densidade e o mostruario do `sala_prototipo` medem e mostram a faixa
+  desenhada. Nao mude `ALTURA_FACE` para 64 para "consertar": o
+  `LOW_TOPDOWN_SQUARED.md` secao 24 exige face ~= topo na razao 1:1, e hoje isso
+  ESTA satisfeito (a face cobre os 32 px internos da faixa de 64 e o topo os 32
+  externos). Subir a face zera o topo visivel; o conserto certo, se um dia
+  valer, e a faixa inteira de 128 px, que e outro epico.
 - **O TOPO da parede e neutro e compartilhado; quem carrega a identidade do tipo
   e a FACE.** Isso foi decidido na LTD 13 (#43), que entregou os cinco modulos de
   face -- e a segunda metade, trocar o topo, ficou por pagar por seis issues. Ate

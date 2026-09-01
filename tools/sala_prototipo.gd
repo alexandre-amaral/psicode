@@ -237,6 +237,13 @@ func _montar_mostruario_de_face() -> void:
 	var faces: Array[Texture2D] = DADOS_COMBATE.texturas_face
 	if faces.is_empty():
 		return
+	# A FAIXA DESENHADA, e nao o arquivo inteiro.
+	#
+	# O quad de face tem `Sala.ALTURA_FACE` de altura e a textura tem o dobro,
+	# entao o jogo amostra so a metade de BAIXO de cada modulo (medido em
+	# `teste_camada_visual`). Um mostruario com o arquivo inteiro mostraria
+	# metade de coisa que nao existe em tela -- e esta ferramenta existe
+	# justamente para comparar o que o jogador ve.
 	var raiz := Node2D.new()
 	raiz.name = "MostruarioDeFace"
 	# Acima do mundo: e um cartao de comparacao e nao cenario, entao ele nao
@@ -251,6 +258,12 @@ func _montar_mostruario_de_face() -> void:
 		var sprite := Sprite2D.new()
 		sprite.texture = face
 		sprite.centered = false
+		# So a faixa que o jogo amostra: as ultimas `ALTURA_FACE` linhas.
+		var faixa := mini(int(Sala.ALTURA_FACE), face.get_height())
+		sprite.region_enabled = true
+		sprite.region_rect = Rect2(
+			0.0, float(face.get_height() - faixa), float(face.get_width()), float(faixa)
+		)
 		sprite.scale = Vector2.ONE * MOSTRUARIO_ESCALA
 		sprite.position = Vector2(x, MOSTRUARIO_EM.y)
 		raiz.add_child(sprite)

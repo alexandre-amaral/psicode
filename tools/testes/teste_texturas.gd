@@ -82,7 +82,7 @@ func _os_modulos_de_face_ficam_na_faixa_da_base() -> void:
 	ok(base != null, "a face base existe -- e a referencia de densidade")
 	if base == null:
 		return
-	var densidade_base := _densidade(base)
+	var densidade_base := _densidade(_faixa_desenhada(base))
 	entre(densidade_base, 0.40, 0.70,
 		"a base mede o que o style test cravou (%.0f%%)" % (densidade_base * 100.0))
 
@@ -96,7 +96,7 @@ func _os_modulos_de_face_ficam_na_faixa_da_base() -> void:
 			ok(false, "%s existe" % arquivo)
 			continue
 		conferidos += 1
-		var d := _densidade(imagem)
+		var d := _densidade(_faixa_desenhada(imagem))
 		ok(d > teto_parede,
 			"%s e mais denso que uma parede comum (%.0f%% contra %.0f%%)"
 				% [arquivo, d * 100.0, teto_parede * 100.0])
@@ -109,6 +109,26 @@ func _os_modulos_de_face_ficam_na_faixa_da_base() -> void:
 ## Quantos pixels tem um vizinho diferente. Mesma conta do
 ## `preparar_textura.py`: e a metrica em que o style test mediu 20% no chao e
 ## 55% na face, e usar outra aqui daria dois numeros para a mesma pergunta.
+## A parte do modulo de face que CHEGA A TELA.
+##
+## Medido no motor (`teste_camada_visual._a_faixa_de_uv_da_face_e_declarada`): o
+## quad de face tem `Sala.ALTURA_FACE` = 32 px e a UV vai de -32 a 0, numa
+## textura de 64. Com repeticao, isso amostra as linhas 32..63 -- **a metade de
+## BAIXO**. A metade de cima nunca aparece.
+##
+## Medir aqui a faixa desenhada, e nao o arquivo, muda pouco hoje: os modulos sao
+## uniformemente densos, entao inteiro e faixa dao quase o mesmo numero (55,3%
+## contra 54,6% na base). O motivo de mudar mesmo assim e o proximo modulo: quem
+## concentrar o desenho na metade de CIMA passa no portao e desenha nada em
+## tela, e o teste diria que esta tudo certo.
+func _faixa_desenhada(imagem: Image) -> Image:
+	var altura := imagem.get_height()
+	var faixa := mini(int(Sala.ALTURA_FACE), altura)
+	if faixa >= altura:
+		return imagem
+	return imagem.get_region(Rect2i(0, altura - faixa, imagem.get_width(), faixa))
+
+
 func _densidade(imagem: Image) -> float:
 	var l := imagem.get_width()
 	var a := imagem.get_height()

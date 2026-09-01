@@ -605,7 +605,34 @@ permitindo enxergar as faces verticais dos elementos.
 
 ---
 
-## 28. A porta tem três vistas, e nenhuma delas é girada
+## 28. A porta: a decisão de três vistas foi revertida
+
+> **Esta seção descreve uma decisão que foi tomada, implementada e depois
+> REVERTIDA pelo dono do projeto.** Ela fica aqui inteira, e não apagada, porque
+> o argumento continua correto e a próxima pessoa que propuser a mesma coisa
+> merece saber o que aconteceu quando ela foi tentada.
+>
+> **O que vale hoje:** a porta usa `porta_moldura.png` — a moldura autorada — nos
+> quatro lados, **girada** para a direção de cada um, como era antes da PORTA 03.
+>
+> **Por que a reversão.** O argumento abaixo é sobre perspectiva e está certo:
+> girar uma face deita a face. O que ele não previu é que o substituto teria de
+> ser tão bom quanto a arte desenhada. Em três rodadas de correção as vistas de
+> cima geradas passaram por chapadas demais, mais claras que a parede, e sem
+> cercar o vão — e em nenhuma delas chegaram perto da moldura autorada. Entre
+> uma perspectiva correta com arte pobre e uma perspectiva torta com arte boa, o
+> dono do projeto escolheu olhando as quatro portas no jogo.
+>
+> **O que se paga, declarado:** ao leste e ao oeste a face fica deitada; ao sul,
+> de cabeça para baixo. O preço é menor do que o argumento sugere porque a
+> moldura é quase simétrica nos dois eixos e o que ela mostra — batente, verga e
+> soleira — são as peças menos direcionais do desenho.
+>
+> **O que continua proibido**, e `teste_porta.gd` cobra: giro que não seja um dos
+> quatro ângulos retos, giro que discorde de `Porta.direcao`, e `flip_v` — que
+> poria a soleira acima da verga, coisa que nenhum giro faz.
+
+### O argumento original, preservado
 
 > **Decisão tomada na PORTA 03 (#101).** Ela estava em aberto e a issue pedia
 > que fosse registrada antes de qualquer desenho.

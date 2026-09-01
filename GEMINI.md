@@ -606,7 +606,27 @@ em qualquer erro de script.
   Nenhuma medicao de COR pega isso; `teste_porta.gd:_toda_moldura_CERCA_o_vao`
   pega, contando pixel cercado nos quatro sentidos: antes das travessas as vistas
   de cima tinham ZERO.
-- **A porta era a MESMA arte girada nos quatro lados, e isso e destruir a
+- **A porta VOLTOU a ser a mesma arte girada, e isso e uma reversao consciente.**
+  A PORTA 03 tinha trocado a moldura girada por tres vistas -- face autorada no
+  norte, vistas de cima geradas nos outros --, com o argumento de que girar uma
+  FACE destroi a perspectiva. O argumento esta certo e continua escrito no
+  `LOW_TOPDOWN_SQUARED.md` secao 28. O que ele nao previu e que o substituto teria
+  de ser tao bom quanto a arte desenhada: em TRES rodadas as vistas de cima
+  passaram por chapadas demais, mais claras que a parede e sem cercar o vao, e em
+  nenhuma chegaram perto. O dono do projeto olhou as quatro portas no jogo e
+  reverteu. **Nao proponha as tres vistas de novo sem arte autorada pronta na
+  mao** -- o que falhou nao foi a ideia, foi o substituto.
+- **O que continua proibido na porta e giro ERRADO, e nao giro.**
+  `teste_porta.gd:_o_giro_da_porta_concorda_com_a_direcao` cobra tres coisas: o
+  angulo e um dos quatro retos, ele CONCORDA com `Porta.direcao`, e `flip_v` e
+  proibido. Espelhar na vertical troca o que esta em cima pelo que esta embaixo --
+  poe a soleira acima da verga --, e isso nenhum giro faz.
+- **Teste que le pixel de sprite GIRADO tem de usar o transform.** O portao que
+  confere se a moldura e vazada sob a folha subtraia posicoes em coordenada de
+  mundo, e isso acertava o norte e errava o leste e o oeste: ele apontava para um
+  pixel que nao era o que esta sob a chapa. `to_local(to_global(...))` resolve, e
+  o sintoma so apareceu quando a moldura voltou a girar.
+- **A parede era a MESMA arte girada nos quatro lados, e isso e destruir a
   perspectiva.** 180 graus no sul, 90 no leste, -90 no oeste -- e
   `porta_moldura.png` e arte de FACE, 96x128, com batente e verga desenhados para
   serem vistos de frente. Girada 90 graus, os 128 px de ALTURA viravam 128 px de

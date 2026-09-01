@@ -12,25 +12,28 @@ extends Area2D
 ## e definitiva, entao a porta nunca reabre, nunca aparece e NAO POE BARREIRA --
 ## quem fecha aquele lado e a parede da sala, que passa reta por cima dela.
 ##
-## ARTE POR LADO, E NUNCA ARTE GIRADA (PORTA 03). A porta era a MESMA imagem
-## rotacionada nas quatro direcoes -- 180 graus no sul, 90 no leste, -90 no
-## oeste. Numa perspectiva em que parede tem topo e face, girar uma face e
-## exatamente destruir a perspectiva, e e a mesma razao pela qual o sprite
-## direcional tem oito desenhos em vez de um girado.
+## UMA ARTE, GIRADA POR DIRECAO -- e esta e uma decisao REVERTIDA, de propósito.
 ##
-## O numero de vistas nao foi escolhido: ele sai do que a PAREDE ja faz.
-## `Sala._montar_faces()` so desenha face nos lados virados para a camera, entao
-## o norte mostra FACE e o sul, o leste e o oeste mostram TOPO. A porta precisa
-## concordar com a parede em que ela esta:
+## A PORTA 03 tinha trocado isto por tres vistas: a face autorada no norte e duas
+## vistas de cima geradas para os outros lados, com o argumento de que girar uma
+## FACE destroi a perspectiva Low Top-Down. O argumento continua correto no papel.
+## O que ele nao previu e que o substituto teria de ser tao bom quanto a arte
+## autorada, e ele nao foi: em tres rodadas de correcao as vistas de cima
+## passaram por chapadas demais, claras demais e sem cercar o vao, e em nenhuma
+## delas chegaram perto do que a moldura desenhada entrega.
 ##
-##   NORTE  `porta_moldura` + `porta_folha` -- a vista de frente, autorada.
-##   SUL    `porta_topo`    + `porta_folha_topo`  -- a vista de cima.
-##   LESTE  `porta_lado`    + `porta_folha_lado`  -- a vista de cima, outro eixo.
-##   OESTE  as texturas do leste ESPELHADAS em x. Espelhar nao gira nada.
+## O dono do projeto olhou as quatro portas no jogo e decidiu: **a moldura
+## autorada, girada, vale mais que tres vistas medianas.** Fica registrado o que
+## se paga por isso -- ao leste e ao oeste a face fica deitada, ao sul de cabeca
+## para baixo -- e fica registrado tambem por que o preco e menor do que parecia:
+## a moldura e quase simetrica nos dois eixos, e o que ela mostra e batente,
+## verga e soleira, que sao as pecas menos direcionais do desenho.
 ##
-## Sao tres artes para quatro lados, e a quarta e um espelho. `direcao` continua
-## sendo a fonte de verdade da orientacao logica (`vetor()`); o figurino so
-## escolhe o que se desenha.
+## Quem gira e o VISUAL, e nao o no. A colisao continua nascendo em codigo com a
+## medida certa por eixo, e `direcao` continua sendo a fonte de verdade da
+## orientacao logica (`vetor()`). O que o portao ainda recusa e giro que nao seja
+## um dos quatro angulos retos, e espelhamento VERTICAL -- que poria a soleira em
+## cima da verga.
 ##
 ## Visual em quatro pecas: a "Moldura" e o batente e nunca some; o "Vao" e o
 ## recesso escuro atras dela, pintado de escuridao porque corredor nao revelado
@@ -78,23 +81,14 @@ const CAMINHO_TRAVA := ^"Trava"
 const CAMINHO_VAO := ^"Vao"
 
 const TEXTURA_MOLDURA := preload("res://assets/texturas/porta_moldura.png")
-const TEXTURA_TOPO := preload("res://assets/texturas/porta_topo.png")
-const TEXTURA_LADO := preload("res://assets/texturas/porta_lado.png")
 const TEXTURA_FOLHA := preload("res://assets/texturas/porta_folha.png")
-const TEXTURA_FOLHA_TOPO := preload("res://assets/texturas/porta_folha_topo.png")
-const TEXTURA_FOLHA_LADO := preload("res://assets/texturas/porta_folha_lado.png")
 const TEXTURA_TRAVA := preload("res://assets/texturas/porta_trava.png")
-const TEXTURA_TRAVA_LADO := preload("res://assets/texturas/porta_trava_lado.png")
 const TEXTURA_VAO := preload("res://assets/texturas/porta_vao.png")
-const TEXTURA_VAO_TOPO := preload("res://assets/texturas/porta_vao_topo.png")
-const TEXTURA_VAO_LADO := preload("res://assets/texturas/porta_vao_lado.png")
 
-## Quanto o recesso e a folha frontal se afastam da linha do contorno, para
-## dentro da faixa de parede. Sai de onde a abertura da moldura autorada cai:
-## linhas 29..62 de 128, cujo centro fica 18 px acima do meio do sprite.
+## Quanto o recesso e a folha se afastam da linha do contorno, para dentro da
+## faixa de parede. Sai de onde a abertura da moldura autorada cai: linhas 29..62
+## de 128, cujo centro fica 18 px acima do meio do sprite.
 const RECUO_FRONTAL := 18.0
-## O mesmo para as vistas de cima: a chapa mora no meio da espessura da parede.
-const RECUO_DE_CIMA := 32.0
 
 @export var direcao: Direcao = Direcao.NORTE
 
@@ -176,70 +170,50 @@ func eixo_da_folha() -> Vector2:
 	return Vector2(absf(vetor().y), absf(vetor().x))
 
 
-## VESTIR e escolher a arte do lado, e nunca girar a de outro.
+## VESTIR e girar a MESMA arte para o lado certo.
 ##
-## Este e o coracao da PORTA 03. A cena traz UMA porta; o que muda por lado sao
-## as texturas e onde elas caem. Nada aqui mexe em `rotation` -- nem no da porta,
-## nem no dos sprites --, e o unico espelhamento e `flip_h` no oeste, que reflete
-## sem girar.
+## A cena traz UMA porta e UMA moldura; o que muda por lado e o angulo do visual
+## e onde as pecas caem. Quem gira e o sprite e nao o no: a colisao continua
+## nascendo em codigo com a medida certa por eixo, e `direcao` continua sendo a
+## fonte de verdade da orientacao logica.
 func _vestir() -> void:
-	var de_frente := direcao == Direcao.NORTE
-	var no_eixo_x := direcao == Direcao.LESTE or direcao == Direcao.OESTE
-	var espelha := direcao == Direcao.OESTE
 	var fora := vetor()
+	# O angulo que leva o -y da textura para o lado de FORA da sala. E o mesmo
+	# que os `.tscn` carregavam antes da PORTA 03, so que aplicado ao VISUAL e
+	# nao ao no -- assim a colisao continua nascendo com a medida certa por eixo.
+	var giro := fora.angle() + PI * 0.5
 
 	if _moldura != null:
-		if de_frente:
-			_moldura.texture = TEXTURA_MOLDURA
-		elif no_eixo_x:
-			_moldura.texture = TEXTURA_LADO
-		else:
-			_moldura.texture = TEXTURA_TOPO
-		_moldura.flip_h = espelha
+		_moldura.texture = TEXTURA_MOLDURA
 		_moldura.position = Vector2.ZERO
+		_moldura.rotation = giro
 
-	var recuo := RECUO_FRONTAL if de_frente else RECUO_DE_CIMA
-	var centro := fora * recuo
-
-	# O RECESSO fica ATRAS da folha nos quatro lados, e nao dentro da moldura.
-	#
-	# A primeira versao das vistas de cima pintava o poco na propria textura de
-	# moldura, e a moldura desenha ACIMA da folha: a chapa existia, era carregada
-	# e era posicionada certo -- e um retangulo opaco caia em cima dela. A porta
-	# trancada voltava a ser um buraco com a barra de sinal na frente, que e o
-	# defeito inteiro da PORTA 01. Nenhum portao de arquivo pega isso: as duas
-	# texturas estavam certas, era a ORDEM que nao estava.
 	if _vao != null:
-		if de_frente:
-			_vao.texture = TEXTURA_VAO
-		else:
-			_vao.texture = TEXTURA_VAO_LADO if no_eixo_x else TEXTURA_VAO_TOPO
-		_vao.flip_h = espelha
-		_vao.position = centro
-	var lado := eixo_da_folha() * (RECUO_DA_FOLHA * 0.5)
-	var textura_folha := TEXTURA_FOLHA
-	if not de_frente:
-		textura_folha = TEXTURA_FOLHA_LADO if no_eixo_x else TEXTURA_FOLHA_TOPO
+		_vao.texture = TEXTURA_VAO
+		_vao.position = fora * RECUO_FRONTAL
+		_vao.rotation = giro
 
+	var centro := fora * RECUO_FRONTAL
+	var eixo := eixo_da_folha()
 	# As duas metades sao REGIOES da mesma textura, cortadas no eixo em que elas
 	# partem. Duas texturas separadas convidariam a esquecer de cortar uma delas
 	# no dia em que a arte mudasse.
-	var tamanho := textura_folha.get_size()
-	var meia := tamanho * (Vector2(0.5, 1.0) if not no_eixo_x else Vector2(1.0, 0.5))
-	var passo := Vector2(meia.x, 0.0) if not no_eixo_x else Vector2(0.0, meia.y)
+	var tamanho := TEXTURA_FOLHA.get_size()
+	var meia := Vector2(tamanho.x * 0.5, tamanho.y)
 	for i in 2:
 		var folha := _folha_a if i == 0 else _folha_b
 		if folha == null:
 			continue
-		folha.texture = textura_folha
+		folha.texture = TEXTURA_FOLHA
 		folha.region_enabled = true
-		folha.region_rect = Rect2(passo * i, meia)
-		folha.flip_h = espelha
-		folha.position = centro + lado * (1.0 if i == 1 else -1.0)
+		folha.region_rect = Rect2(Vector2(meia.x * i, 0.0), meia)
+		folha.rotation = giro
+		folha.position = centro + eixo * (RECUO_DA_FOLHA * 0.5) * (1.0 if i == 1 else -1.0)
 
 	if _trava != null:
-		_trava.texture = TEXTURA_TRAVA_LADO if no_eixo_x else TEXTURA_TRAVA
+		_trava.texture = TEXTURA_TRAVA
 		_trava.position = centro
+		_trava.rotation = giro
 
 
 ## As formas de colisao nascem AQUI, e nao no .tscn.

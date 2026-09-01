@@ -46,7 +46,29 @@ enum Direcao { NORTE, SUL, LESTE, OESTE }
 enum Estado { ABERTA, TRANCADA, SELADA }
 
 ## Vao que a parede da sala precisa abrir para caber esta porta.
-const LARGURA := 80.0
+##
+## **64, e nao 80, e o motivo e aritmetico.** Para um vao cobrir celulas inteiras
+## da grade de 32, as duas bordas dele tem de cair em multiplos de 32 -- e as
+## bordas sao `centro +/- largura/2`, entao a diferenca entre elas e a propria
+## largura. Com 80, `80 mod 32 = 16`: **nao existe centro que resolva**. A porta
+## ocupava 2,5 celulas, e a reserva na fita de modulos saia 96 px numa sala e 128
+## noutra, conforme a paridade da meia dimensao daquela sala.
+##
+## 96 tambem fecharia a conta e foi descartado por medicao: o desenho da
+## `porta_moldura.png` ocupa 95 px dos 96 do arquivo, entao sobre um vao de 96 a
+## moldura fica MENOR que a passagem e o batente nao alcanca a borda dela. Com 64
+## ela cobre o vao e ainda avanca 15 px sobre a parede de cada lado, que e o que
+## uma moldura faz.
+##
+## O que se paga: o corredor passa de 80 para 64 de largura. O jogador tem raio
+## 11, entao sobram 21 px de cada lado -- a passagem continua quase tres vezes o
+## diametro dele, e inimigo nao nasce em corredor.
+##
+## **PARA REVERTER, mude so este numero de volta para 80 e rode `--import`.**
+## Nada mais no projeto carrega essa medida por copia: a colisao, o vao que a
+## parede abre, a reserva de celulas da fita e a largura do corredor derivam
+## todos daqui.
+const LARGURA := 64.0
 
 ## A ABERTURA, em segundos, e o TETO dela.
 ##

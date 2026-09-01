@@ -731,9 +731,20 @@ em qualquer erro de script.
   a dimensao inteira for multipla de 32. Sala nova fora disso nao quebra nada em
   runtime; so o tileset e que nao encaixa, meses depois. A suite
   `tools/testes/teste_grade.gd` recusa.
-- **`Porta.LARGURA` e `largura_corredor` tem de ser iguais.** A porta e o vao que
-  a parede abre; o corredor encaixa nessa boca. Mudar um sem o outro deixa
-  parede no meio da passagem.
+- **`Porta.LARGURA` e o UNICO botao do vao, e o corredor deriva dele.** Os dois
+  tinham de ser iguais e eram escritos duas vezes; hoje
+  `GerenciadorMapa.largura_corredor` nasce de `Porta.LARGURA` e a duplicata
+  sumiu. Continua `@export` porque ainda e botao de tuning -- o que mudou e o
+  default deixar de ser um literal.
+- **O vao e 64 porque 80 nao cabe na grade, e isso e aritmetica.** Para um vao
+  cobrir celulas inteiras de 32, as duas bordas tem de cair em multiplos de 32 --
+  e a diferenca entre elas e a propria largura. Com 80, `80 mod 32 = 16`: **nao
+  existe centro que resolva**. A porta ocupava 2,5 celulas e a reserva na fita
+  saia 96 px numa sala e 128 noutra, conforme a paridade da meia dimensao
+  daquela sala. 96 tambem fecharia a conta e foi descartado por MEDICAO: o
+  desenho da `porta_moldura.png` ocupa 95 px dos 96 do arquivo, entao sobre um
+  vao de 96 a moldura fica MENOR que a passagem. Com 64 ela cobre o vao e ainda
+  avanca 15 px sobre a parede de cada lado.
 - **A sala de arma e a de item sao obrigatorias** (`opcional = false` nos
   `.tres`), como o chefe: se uma delas nao couber no grafo sorteado, o andar
   inteiro e sorteado de novo. Sem isso a run podia acontecer inteira so com a

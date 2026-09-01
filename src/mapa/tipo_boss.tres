@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="DadosSala" load_steps=10 format=3]
+[gd_resource type="Resource" script_class="DadosSala" load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
 [ext_resource type="Texture2D" path="res://assets/texturas/chao_boss.png" id="30_c0"]
@@ -8,6 +8,10 @@
 [ext_resource type="PackedScene" uid="uid://u6i7o8p9q0a1b" path="res://src/mapa/sala_6_boss.tscn" id="2_boss"]
 [ext_resource type="Resource" path="res://src/enemies/grupo_boss_guardiao_01.tres" id="3_dir"]
 [ext_resource type="Resource" path="res://src/mapa/estilo_industrial_velho.tres" id="41_estilo"]
+[ext_resource type="Texture2D" path="res://assets/texturas/parede_face_boss_tubulacao.png" id="42_fm0"]
+[ext_resource type="Texture2D" path="res://assets/texturas/parede_face_boss_tecnica.png" id="42_fm1"]
+[ext_resource type="Texture2D" path="res://assets/texturas/parede_face_boss_deteriorada.png" id="42_fm2"]
+[ext_resource type="Texture2D" path="res://assets/texturas/parede_face_boss_ventilada.png" id="42_fm3"]
 
 [resource]
 script = ExtResource("1_ds")
@@ -28,7 +32,7 @@ deterioracao_minima_ao_entrar = 88.0
 cor_mapa = Color(1, 0.2, 0.4, 1)
 icone = "!"
 texturas_chao = Array[Texture2D]([ExtResource("30_c0")])
-texturas_face = Array[Texture2D]([ExtResource("40_fb")])
+texturas_face = Array[Texture2D]([ExtResource("40_fb"), ExtResource("42_fm0"), ExtResource("42_fm1"), ExtResource("42_fm2"), ExtResource("42_fm3")])
 estilo_de_parede = ExtResource("41_estilo")
 atlas_props = ExtResource("23_atlas")
 regioes_props = Array[Rect2i]([Rect2i(0, 0, 32, 32), Rect2i(64, 0, 32, 32), Rect2i(96, 0, 32, 32), Rect2i(160, 0, 32, 32), Rect2i(192, 0, 32, 32), Rect2i(32, 32, 32, 32), Rect2i(96, 32, 32, 32), Rect2i(128, 32, 32, 32), Rect2i(160, 32, 32, 32), Rect2i(224, 32, 32, 32), Rect2i(32, 64, 32, 32), Rect2i(32, 96, 32, 32)])

@@ -254,6 +254,24 @@ em qualquer erro de script.
   ANTES dele no `project.godot`, entao no `_ready` dela este autoload ainda nao
   existe -- e a mesma armadilha, no mesmo lugar. Quem vem depois puxa no proprio
   `_ready`; `EventBus.configuracao_mudou` cobre o runtime.
+- **O slider de volume e LINEAR e passa por `linear_to_db()`, entao 0,8 nao
+  quer dizer 80%.** Da -1,94 dB, que e 97% do fundo de escala -- o padrao antigo
+  parecia moderado no menu e entregava praticamente o maximo. Junte a isso que
+  `gerar_sons.gd` normaliza TODO som para -3 dBFS e que ate 12 vozes tocam
+  juntas sem limitador: dois tiros no mesmo frame estouravam o fundo de escala.
+  Nao era "um pouco alto", era clipping. Os padroes de hoje (0,70 / 0,45 / 0,30)
+  saem de uma conta e nao de gosto: um SFX sozinho fica em -13,0 dBFS e QUATRO
+  simultaneos chegam a -1,0 dBFS, logo abaixo do teto. `teste_audio.gd` refaz a
+  conta a partir dos padroes, entao mexer neles sem refazer a conta reprova.
+- **`definir_ambiente()` tem de ter par, e o par nao mora nos botoes de sair.**
+  Os `AudioStreamPlayer` moram no AUTOLOAD e nao na cena, entao
+  `change_scene_to_file()` libera o `GerenciadorMapa` e o ambiente segue tocando
+  -- com o loop LIGADO, que e justamente o que `definir_ambiente()` forca. O som
+  do setor ficava em laco por cima do menu inicial, para sempre. Quem liga
+  desliga: `GerenciadorMapa._exit_tree()` chama `Audio.silenciar()`, e vale para
+  toda saida (menu, tela de fim, reinicio) sem depender de ninguem lembrar.
+  Espalhar isso pelos dois botoes de "voltar ao menu" e o desenho que ja perdeu
+  o `terminar_run` uma vez, com sintoma silencioso.
 - **Volume zero tem de MUTAR o bus, e nao ir para -60 dB.** `linear_to_db(0)`
   devolve -inf, mas qualquer epsilon acima de zero vira -60 dB -- audivel num
   fone. Um "desligado" que ainda se ouve e pior que nao ter a opcao: o jogador

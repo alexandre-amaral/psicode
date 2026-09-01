@@ -45,9 +45,27 @@ var idioma: String = ""
 ## Comecam em 0,8 e nao em 1,0: o topo do slider tem de ser um lugar para onde
 ## subir. Jogo que nasce no maximo so oferece "abaixar", e quem quer mais alto
 ## nao tem para onde ir.
-var volume_master: float = 0.8
-var volume_sfx: float = 0.8
-var volume_ambiente: float = 0.7
+## Os tres padroes, e eles NAO sao gosto -- saem de uma conta.
+##
+## O slider e linear e passa por `linear_to_db()`, entao **0,8 nao quer dizer
+## 80%**: da -1,94 dB, que e 97% do fundo de escala. O padrao antigo parecia
+## moderado no menu e entregava praticamente o maximo.
+##
+## Some-se a isso duas coisas ja decididas noutro lugar: `gerar_sons.gd`
+## normaliza TODO som para -3 dBFS (de proposito, para mexer numa formula nao
+## mudar o volume), e ate 12 vozes tocam ao mesmo tempo sem limitador em bus
+## nenhum. Dois sons simultaneos somam +6 dB -- com o padrao antigo, dois tiros
+## no mesmo frame ja estouravam o fundo de escala. Nao era "um pouco alto": era
+## clipping.
+##
+## A regua: **o padrao tem de aguentar um frame de combate movimentado sem
+## clipar**, e movimentado sao ~4 sons juntos (tiro, impacto, morte, porta).
+## Com -3,10 de master e -6,94 de sfx, um som sozinho fica em -13,0 dBFS e
+## quatro somados chegam a -1,0 dBFS, logo abaixo do teto.
+var volume_master: float = 0.7
+var volume_sfx: float = 0.45
+## O ambiente e uma CAMA: ele fica em -16,6 dBFS, claramente abaixo da acao.
+var volume_ambiente: float = 0.3
 
 ## Onde gravar. Existe para a suite de teste nao sujar a config real de quem
 ## roda o runner na propria maquina.

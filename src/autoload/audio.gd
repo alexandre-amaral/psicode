@@ -150,6 +150,27 @@ func definir_ambiente(fluxo: AudioStream) -> void:
 	_ambiente.play()
 
 
+## Cala TUDO: o ambiente e as vozes.
+##
+## Existe porque `definir_ambiente()` nao tinha par, e o defeito que isso
+## produzia era permanente. Os `AudioStreamPlayer` moram NESTE autoload, e nao na
+## cena: `change_scene_to_file()` libera o `GerenciadorMapa` mas o player
+## sobrevive com o `stream` tocando -- e com o loop LIGADO, que e justamente o
+## que `definir_ambiente()` forca. O som do setor seguia em laco por cima do menu
+## inicial, para sempre.
+##
+## O `stream` e zerado junto, e nao so parado: um player parado com stream ainda
+## responde `ambiente_tocando()` de um jeito ambiguo, e o proximo andar atribui
+## um stream novo de qualquer forma.
+func silenciar() -> void:
+	if _ambiente != null:
+		_ambiente.stop()
+		_ambiente.stream = null
+	for voz in _vozes:
+		if is_instance_valid(voz):
+			voz.stop()
+
+
 func ambiente_tocando() -> bool:
 	return _ambiente != null and _ambiente.playing
 

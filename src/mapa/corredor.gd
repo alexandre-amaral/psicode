@@ -203,6 +203,26 @@ func _montar_fita(eixo: Vector2, lado: Vector2, comprimento: float, largura: flo
 		contorno, vazias, hash(_retangulo_local.position), topos, faces,
 		sem_canto, 0.65, 2, abertos))
 
+	# A SOMBRA vale para o corredor tambem, e nao por simetria de codigo.
+	#
+	# Atravessar de uma sala com sombra para um corredor sem ela troca a
+	# perspectiva no meio da passagem -- a parede assenta no chao de um lado da
+	# porta e flutua do outro. E o mesmo defeito que a LTD 12 existiu para
+	# consertar quando o corredor nao desenhava face.
+	#
+	# So os LADOS entram: as bocas (`abertos`) nao sao parede, e sombra numa boca
+	# seria uma faixa escura atravessando exatamente onde o jogador passa.
+	var laterais: Array[PackedVector2Array] = []
+	var total := contorno.size()
+	for i in total:
+		var a := contorno[i]
+		var b := contorno[(i + 1) % total]
+		if RenderizadorParedes.normal_externa(contorno, a, b).dot(eixo) != 0.0:
+			continue
+		laterais.append(PackedVector2Array([a, b]))
+	if not laterais.is_empty():
+		add_child(SombraDeParede.construir(laterais, contorno))
+
 
 func _montar_chao() -> void:
 	var chao := Polygon2D.new()

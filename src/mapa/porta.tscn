@@ -1,17 +1,9 @@
-[gd_scene load_steps=8 format=3 uid="uid://d1p2q3r4s5t6u"]
+[gd_scene load_steps=5 format=3 uid="uid://d1p2q3r4s5t6u"]
 
 [ext_resource type="Script" path="res://src/mapa/porta.gd" id="1_p"]
 [ext_resource type="Texture2D" path="res://assets/texturas/porta_moldura.png" id="2_moldura"]
-[ext_resource type="Texture2D" path="res://assets/texturas/porta_campo.png" id="3_campo"]
-[ext_resource type="Texture2D" path="res://assets/texturas/porta_vao.png" id="4_vao"]
 [ext_resource type="AudioStream" path="res://assets/audio/valvula.wav" id="50_motor"]
 [ext_resource type="AudioStream" path="res://assets/audio/estalo.wav" id="51_trava"]
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
-size = Vector2(80, 32)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_2"]
-size = Vector2(80, 32)
 
 [node name="Porta" type="Area2D"]
 collision_layer = 0
@@ -21,27 +13,27 @@ som_do_motor = ExtResource("50_motor")
 som_da_trava = ExtResource("51_trava")
 
 [node name="Collision" type="CollisionShape2D" parent="."]
-shape = SubResource("RectangleShape2D_1")
 
 [node name="Barreira" type="StaticBody2D" parent="."]
 collision_layer = 4
 collision_mask = 0
 
 [node name="Colisao" type="CollisionShape2D" parent="Barreira"]
-shape = SubResource("RectangleShape2D_2")
 disabled = true
 
 [node name="Vao" type="Sprite2D" parent="."]
-position = Vector2(0, -18)
-z_index = -2
-texture = ExtResource("4_vao")
+z_index = -4
+
+[node name="FolhaA" type="Sprite2D" parent="."]
+z_index = -3
+
+[node name="FolhaB" type="Sprite2D" parent="."]
+z_index = -3
 
 [node name="Moldura" type="Sprite2D" parent="."]
-z_index = -1
+z_index = -2
 texture = ExtResource("2_moldura")
 
-[node name="Campo" type="Sprite2D" parent="."]
+[node name="Trava" type="Sprite2D" parent="."]
 visible = false
-modulate = Color(1, 1, 1, 0.75)
-z_index = 1
-texture = ExtResource("3_campo")
+z_index = -1

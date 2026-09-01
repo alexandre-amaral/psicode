@@ -174,7 +174,7 @@ Esses 17,8% **não têm para onde ir** dentro da arquitetura atual:
 | saída | por que não serve |
 |---|---|
 | AMBIENTE | G2 reprova, por definição |
-| SINAL | `nomes_de_ambiente()` tem exceção **hard-coded a um único arquivo** (`porta_campo.png`), e `IDENTIDADE_VISUAL.md` fixa o piso: *"o menor sinal do jogo é o campo de porta, 80×32"*. Um painel de 32×32 seria o menor SINAL do jogo e quebraria a regra escrita |
+| SINAL | `nomes_de_ambiente()` exclui as texturas de `GeradorTexturas.SINALIZADORAS`, e `IDENTIDADE_VISUAL.md` fixa o piso. **O piso mudou na PORTA 01**: era *"o menor sinal do jogo é o campo de porta, 80×32"* e passou a ser *"nenhum sinal cabe num quadrado"*, porque a barra de trancada tem 32×6. Um painel de 32×32 continua barrado — ele CABE num quadrado, que é a silhueta de um tiro |
 | shader | G1 lê PNG, não pixel de shader — a família inteira sairia do alcance dos portões. O único shader do projeto sobrevive por ter `alpha_maximo` como teto duro |
 
 **Duas famílias que eu tinha imaginado morrem aqui, e é melhor dizer agora:**

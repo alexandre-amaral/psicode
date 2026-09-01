@@ -55,6 +55,7 @@ func executar() -> void:
 	_a_parede_tem_volume()
 	_o_modulo_norte_separa_topo_de_face()
 	_os_modulos_de_face_ficam_na_faixa_da_base()
+	_a_familia_parede_tem_faixa_dinamica()
 	_nenhum_png_fica_fora_de_regime()
 
 
@@ -81,40 +82,136 @@ const LIMIAR_DETALHE := 24
 ## proximo modulo desenhado por outra pessoa.
 func _os_modulos_de_face_ficam_na_faixa_da_base() -> void:
 	var base := _abrir("parede_face.png")
-	ok(base != null, "a face base existe -- e a referencia de densidade")
+	ok(base != null, "a face base existe -- e a referencia")
 	if base == null:
 		return
-	var densidade_base := _densidade(_faixa_desenhada(base))
-	entre(densidade_base, 0.40, 0.70,
-		"a base mede o que o style test cravou (%.0f%%)" % (densidade_base * 100.0))
 
-	var teto_parede := 0.34
-	var teto := densidade_base * 1.4
-	var conferidos := 0
-	# VARRE o disco, e nao uma lista de quatro nomes.
+	# A DENSIDADE VIROU INFORMATIVA, e a medicao que a derrubou esta no commit.
 	#
-	# A lista fixa tinha o mesmo defeito que a `AUTORADAS` ja teve: os modulos dos
-	# outros quatro tipos de sala nasceram e nao seriam conferidos por nada. E
-	# eles sao doze -- tres vezes o que a lista cobria --, entao o portao mediria
-	# um quarto da superficie de parede do andar achando que media tudo.
+	# Ela era portao com numeros ABSOLUTOS: piso 0,34 e envelope 0,40-0,70 para a
+	# base. Escurecer a familia inteira na TOPO 04 -- sem tirar um traco de
+	# desenho nenhum -- levou a base de 0,546 para 0,320 e derrubou DEZENOVE
+	# asercoes de uma vez.
+	#
+	# O funil ja dizia isso em tres paragrafos e a medicao aqui e mais forte que
+	# a dele: a mesma mudanca de exposicao moveu a base **-41%** e moveu a
+	# `ventilada` para CIMA. Nao e so nao-invariante -- nao e nem monotonica,
+	# porque o limiar de 24 em unidades de canal e cruzado por texturas
+	# diferentes a taxas diferentes.
+	#
+	# Ela continua sendo IMPRESSA porque a rodada de arte se orienta por ela.
+	# O que ela nao pode mais e reprovar.
+	var densidade_base := _densidade(base)
+	ok(densidade_base > 0.0,
+		"a densidade da base e medida e IMPRESSA, nao cobrada (%.0f%%)"
+			% (densidade_base * 100.0))
+
+	var conferidos := 0
 	for arquivo in _modulos_de_face():
 		var imagem := _abrir(arquivo)
 		if imagem == null:
 			ok(false, "%s existe" % arquivo)
 			continue
 		conferidos += 1
-		var d := _densidade(_faixa_desenhada(imagem))
-		ok(d > teto_parede,
-			"%s e mais denso que uma parede comum (%.0f%% contra %.0f%%)"
-				% [arquivo, d * 100.0, teto_parede * 100.0])
-		ok(d <= teto,
-			"%s nao vira ruido de borda (%.0f%%, teto %.0f%%)"
-				% [arquivo, d * 100.0, teto * 100.0])
-	ok(conferidos >= 16, "os modulos de face de todos os tipos foram conferidos (%d)"
+	ok(conferidos >= 16, "os modulos de face de todos os tipos foram vistos (%d)"
 		% conferidos)
 
 
-## Os modulos de face em disco: `parede_face_<tipo>_<modulo>.png`.
+## TODA superficie de parede tem FAIXA DINAMICA, e a regua e a propria familia.
+##
+## A metrica: `(p90 - p10) / mediana` do valor, sobre os pixels opacos.
+##
+## **Ela e invariante a exposicao POR CONSTRUCAO**, que e exatamente o que a
+## densidade nao e: multiplicar V por um fator escala o numerador e o
+## denominador juntos e o numero nao se mexe. Nao ha limiar absoluto, nao ha
+## parametro livre.
+##
+## E isso nao e argumento teorico -- foi MEDIDO nos arquivos deste projeto,
+## escurecendo a familia inteira sem tirar um traco:
+##
+## | arquivo | densidade | amplitude |
+## |---|---|---|
+## | `parede_face.png` | 0,546 -> 0,320 (**-41%**) | 1,09 -> 1,08 (**-0,6%**) |
+## | `..._tecnica` | reprovou | 0,58 -> 0,58 (+0,6%) |
+## | `..._ventilada` | reprovou, e SUBIU | 1,21 -> 1,19 (-1,3%) |
+## | `..._deteriorada` | reprovou | 1,20 -> 1,19 (-0,5%) |
+##
+## **O piso sai da propria familia e nao de um numero escolhido: 0,58, a
+## amplitude do modulo de face mais calmo que ja esta no jogo e ja foi
+## aprovado** (`parede_face_*_tecnica.png`). Nada que hoje funciona reprova.
+##
+## Ele bate, por dois caminhos independentes, com a parede da referencia:
+## `docs/objetivo/isaac.png` mede **0,56**. Quando a regua derivada do que ja
+## funciona e a regua medida no alvo caem no mesmo numero, e uma boa razao para
+## confiar nele.
+##
+## **Sem TETO**, e isso e decisao. A preocupacao com "ruido de borda" e sobre
+## frequencia ESPACIAL, nao sobre faixa dinamica -- e frequencia espacial e a
+## densidade, que acabou de perder o direito de reprovar. Um teto reprovaria a
+## `deteriorada` (1,19), que e arte aprovada e boa.
+func _a_familia_parede_tem_faixa_dinamica() -> void:
+	var conferidos := 0
+	var faltando := 0
+	for arquivo in _superficies_de_parede():
+		var imagem := _abrir(arquivo)
+		if imagem == null:
+			ok(false, "%s existe" % arquivo)
+			continue
+		var a := _amplitude(imagem)
+		if SEM_AMPLITUDE_AINDA.has(arquivo):
+			# A lista MORDE DOS DOIS LADOS, como `SEM_ARTE_AINDA` ja faz: nome
+			# fora dela tem de passar, nome DENTRO tem de continuar reprovando.
+			# Sem a segunda metade a TOPO 05 entregaria a arte e a linha ficaria
+			# ali para sempre, cobrindo em silencio o dia em que ela se perdesse.
+			faltando += 1
+			ok(a < PISO_AMPLITUDE,
+				"%s esta declarado em SEM_AMPLITUDE_AINDA e continua chapado (%.2f)"
+					% [arquivo, a])
+			continue
+		conferidos += 1
+		ok(a >= PISO_AMPLITUDE,
+			"%s tem faixa dinamica (%.2f, piso %.2f)" % [arquivo, a, PISO_AMPLITUDE])
+	ok(conferidos >= 20, "a varredura mediu a familia parede (%d)" % conferidos)
+	igual(faltando, SEM_AMPLITUDE_AINDA.size(),
+		"todo nome de SEM_AMPLITUDE_AINDA existe em disco (%d de %d)"
+			% [faltando, SEM_AMPLITUDE_AINDA.size()])
+
+
+## Toda superficie de parede em disco: topo, face lisa, modulo de face e canto.
+func _superficies_de_parede() -> Array[String]:
+	var lista: Array[String] = []
+	var pasta := DirAccess.open(PASTA)
+	if pasta == null:
+		return lista
+	for arquivo in pasta.get_files():
+		if not arquivo.ends_with(".png"):
+			continue
+		if arquivo.begins_with("parede_face") or arquivo.begins_with("parede_topo") 				or arquivo.begins_with("modulo_canto"):
+			lista.append(arquivo)
+	lista.sort()
+	return lista
+
+
+## `(p90 - p10) / mediana` do valor, sobre os pixels opacos.
+func _amplitude(imagem: Image) -> float:
+	var valores: Array[float] = []
+	for y in imagem.get_height():
+		for x in imagem.get_width():
+			var cor := imagem.get_pixel(x, y)
+			if cor.a < 0.5:
+				continue
+			valores.append(cor.v)
+	if valores.size() < 10:
+		return 0.0
+	valores.sort()
+	var n := valores.size()
+	var mediana := valores[n / 2]
+	if mediana <= 0.0:
+		return 0.0
+	return (valores[n * 9 / 10] - valores[n / 10]) / mediana
+
+
+## Os modulos de face em disco: `parede_face_<tipo>_<modulo>.png`.## Os modulos de face em disco: `parede_face_<tipo>_<modulo>.png`.
 ##
 ## O que os separa das faces LISAS (`parede_face_<tipo>.png`) e o segundo
 ## sublinhado -- a lisa e o modulo COMUM daquele tipo, e ela ja e medida como
@@ -637,6 +734,39 @@ const PISO_MATIZ_LEGIVEL := 0.06
 ## 0,14 a 0,42, arte costurada mede ate 0,95, e arte crua que nao ladrilha
 ## passa de 1,4.
 const TETO_COSTURA := 1.10
+
+## O piso de faixa dinamica da familia `parede`.
+##
+## 0,58 e a amplitude do modulo de face mais calmo que ja esta no jogo e ja foi
+## aprovado (`parede_face_*_tecnica.png`) -- derivado do que funciona, e nao
+## escolhido. E ele bate por um segundo caminho: a parede da referencia
+## (`docs/objetivo/isaac.png`) mede 0,56.
+const PISO_AMPLITUDE := 0.58
+
+## As superficies que AINDA nao tem faixa dinamica, declaradas.
+##
+## Mesmo desenho de `SEM_ARTE_AINDA` e `SEM_CLIPE_AINDA`, e pela mesma razao: a
+## lista morde dos DOIS lados. Nome fora dela tem de passar; nome dentro tem de
+## continuar reprovando, senao a linha fica aqui para sempre depois que a arte
+## chegar, cobrindo em silencio o dia em que ela se perder.
+##
+## Os tres topos, e UM canto.
+##
+## Os quatro cantos entraram na lista e TRES sairam na mesma issue: rebaixar a
+## rampa deles na TOPO 04 levou a amplitude de 0,54 para 0,68, porque a distancia
+## entre os degraus foi preservada enquanto a mediana caiu. O que a lista revelou
+## e que **o `ne` nao acompanhou: 0,39 contra 0,68 dos outros tres.** As quatro
+## pecas deviam ser a mesma peca em quatro orientacoes e nao sao -- ha assimetria
+## no gerador, e nenhum portao perguntava isso antes. E a TOPO 06.
+##
+## Os topos medem 0,20-0,27 contra 0,58 do piso, e sao exatamente a superficie
+## que o dono do projeto apontou como "nao parece parede". E a TOPO 05.
+const SEM_AMPLITUDE_AINDA: Array[String] = [
+	"modulo_canto_ne.png",
+	"parede_topo_a.png",
+	"parede_topo_b.png",
+	"parede_topo_c.png",
+]
 
 
 func _arquivos() -> void:

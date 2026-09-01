@@ -787,10 +787,21 @@ static func _modulo_lateral(semente: int, leste: bool) -> Image:
 static func gerar_modulo_canto(fora: Vector2i) -> Image:
 	var img := _nova(MODULO_CANTO.x, MODULO_CANTO.y)
 	var semente: int = SEEDS[&"modulo"] + 5 + fora.x * 3 + fora.y * 7
+	# A RAMPA DESCEU DOIS DEGRAUS na TOPO 04, e o canto tem de descer junto.
+	#
+	# Ele e a unica peca GERADA num kit que e todo autorado, entao ele nao passa
+	# pelo funil e nao acompanha `--alvo-v` sozinho. Deixado onde estava, os
+	# quatro cantos ficariam ~2,4x mais claros que a faixa que eles fecham -- os
+	# unicos blocos claros de uma sala que acabou de escurecer, exatamente nas
+	# quinas, que e onde o olho vai.
+	#
+	# A DISTANCIA entre os degraus e que carrega o desenho, e ela nao muda: laje
+	# um degrau abaixo do pilar, aresta acesa um acima, aresta na sombra um
+	# abaixo, contato dois abaixo. O que mudou foi so onde a escada comeca.
+	var n0 := Paleta.neutro(&"N0")
+	var n1 := Paleta.neutro(&"N1")
 	var n2 := Paleta.neutro(&"N2")
 	var n4 := Paleta.neutro(&"N4")
-	var n5 := Paleta.neutro(&"N5")
-	var n7 := Paleta.neutro(&"N7")
 	var lado := MODULO_CANTO.x
 
 	# A laje em volta nasce mais ESCURA que o pilar, e nao igual.
@@ -799,29 +810,38 @@ static func gerar_modulo_canto(fora: Vector2i) -> Image:
 	# desenhado a lapis: so a linha de 1 px o separava do fundo, e a 1x ela some.
 	# Um pilar e um volume que SOBE acima do topo da parede -- entao ele fica no
 	# valor do topo e quem baixa e a laje.
-	_chapa(img, 0, 0, lado, lado, &"N5", semente)
+	_chapa(img, 0, 0, lado, lado, &"N2", semente)
 
 	var pilar := 44
 	var px := 0 if fora.x > 0 else lado - pilar
 	var py := 0 if fora.y > 0 else lado - pilar
-	_chapa(img, px, py, pilar, pilar, &"N6", semente + 10)
+	_chapa(img, px, py, pilar, pilar, &"N3", semente + 10)
 	# A luz vem de cima e da esquerda, e isto NAO se espelha entre as quatro
 	# pecas: acender a aresta de baixo num canto do sul faria aquele pilar parecer
 	# iluminado por outra fonte, no mesmo quadro que os outros tres.
-	_ret(img, px, py, pilar, 1, n7)
-	_ret(img, px, py, 1, pilar, n7)
-	_ret(img, px, py + pilar - 1, pilar, 1, n4)
-	_ret(img, px + pilar - 1, py, 1, pilar, n4)
+	_ret(img, px, py, pilar, 1, n4)
+	_ret(img, px, py, 1, pilar, n4)
+	_ret(img, px, py + pilar - 1, pilar, 1, n1)
+	_ret(img, px + pilar - 1, py, 1, pilar, n1)
 	# Uma cinta no meio da altura, para o pilar nao ser um quadrado liso.
-	_ret(img, px + 1, py + pilar / 2, pilar - 2, 1, n5)
+	_ret(img, px + 1, py + pilar / 2, pilar - 2, 1, n2)
+	# Rebite PROPRIO, e nao o `_rebite()` compartilhado.
+	#
+	# Aquele acende em N7 (V 0,502), que era um realce discreto sobre um pilar em
+	# N6 e virou um ponto quatro vezes mais claro que o pilar depois da TOPO 04.
+	# Quatro deles por quina, nas quatro quinas, seriam os pontos mais claros da
+	# sala -- e a regra de leitura de combate ja proibe ponto claro isolado com
+	# silhueta de projetil. Mexer no `_rebite()` compartilhado nao serve: ele
+	# ainda veste os `modulo_n/s/l/o`, que continuam na rampa antiga.
 	for dy: int in [4, pilar - 6]:
 		for dx: int in [4, pilar - 6]:
-			_rebite(img, px + dx, py + dy)
+			_ret(img, px + dx, py + dy, 2, 2, n1)
+			_pintar(img, px + dx, py + dy, n4)
 	# A sombra de contato, na aresta do pilar virada para a sala.
 	if fora.y > 0:
-		_ret(img, px, py, pilar, 2, n2)
+		_ret(img, px, py, pilar, 2, n0)
 	else:
-		_ret(img, px, py + pilar - 2, pilar, 2, n2)
+		_ret(img, px, py + pilar - 2, pilar, 2, n0)
 	return img
 
 

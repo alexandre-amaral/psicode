@@ -435,6 +435,11 @@ const AUTORADAS: Dictionary = {
 	"parede_face_boss_tecnica.png": {&"familia": &"parede", &"tipo": &"boss"},
 	"parede_face_boss_deteriorada.png": {&"familia": &"parede", &"tipo": &"boss"},
 	"parede_face_boss_ventilada.png": {&"familia": &"parede", &"tipo": &"boss"},
+	# Os dois modulos PROPRIOS da arena (PAREDE 12). Eles nao sao retint: sao
+	# maquina desenhada, e existem para o Automato parecer que mora ali. Motor e
+	# quadro de energia, no mesmo kit e na mesma faixa dos outros.
+	"parede_face_boss_motor.png": {&"familia": &"parede", &"tipo": &"boss"},
+	"parede_face_boss_energia.png": {&"familia": &"parede", &"tipo": &"boss"},
 	"parede_face_arma_tubulacao.png": {&"familia": &"parede", &"tipo": &"arma"},
 	"parede_face_arma_tecnica.png": {&"familia": &"parede", &"tipo": &"arma"},
 	"parede_face_arma_deteriorada.png": {&"familia": &"parede", &"tipo": &"arma"},

@@ -33,6 +33,7 @@ func executar() -> void:
 	await _a_fita_nao_gira_nem_espelha_arte()
 	await _o_vao_da_porta_fica_sem_modulo()
 	await _toda_quina_recebe_canto()
+	_a_variante_e_deterministica_e_o_espacamento_morde()
 
 
 ## Toda forma de sala em disco monta a fita, e nenhuma monta vazia.
@@ -243,6 +244,118 @@ func _toda_quina_recebe_canto() -> void:
 		sala.free()
 	ok(quinas >= 38, "a varredura contou as quinas das nove formas (%d)" % quinas)
 	igual(cantos, quinas, "nenhuma quina ficou sem peca (%d de %d)" % [cantos, quinas])
+
+
+## A VARIANTE e deterministica, o comum domina, e o espacamento MORDE.
+##
+## Tres afirmacoes, e as tres sao numero e nao gosto.
+##
+## 1. **Mesma celula, mesma variante.** Sair da sala e voltar mostra a mesma
+##    parede -- e a regra que o projeto ja aplica ao chao, a face e ao prop.
+## 2. **O comum domina.** Sem isso a sala fica ruidosa, e ruido na borda compete
+##    com o que o jogador precisa ler no meio. E o mesmo argumento que
+##    `max_props_animados` ja carrega.
+## 3. **O espacamento MORDE.** Teto que nunca e alcancado e teto que nunca foi
+##    testado -- a licao que `teste_props_animados.gd` ja registra. Aqui isso e
+##    provado montando a MESMA parede duas vezes, com espacamento 0 e com 2, e
+##    exigindo que a segunda tenha menos especiais. Se a regra nao mordesse, os
+##    dois numeros seriam iguais e o portao seria um carimbo.
+func _a_variante_e_deterministica_e_o_espacamento_morde() -> void:
+	# Uma parede longa e reta: 1600 px de lado dao 50 celulas por lado, amostra
+	# suficiente para a distribuicao significar alguma coisa.
+	var contorno := PackedVector2Array([
+		Vector2(-800, -400), Vector2(800, -400), Vector2(800, 400), Vector2(-800, 400),
+	])
+	var topos: Array[Texture2D] = [load("res://assets/texturas/parede_topo_a.png")]
+	var faces: Array[Texture2D] = [
+		load("res://assets/texturas/parede_face_combate.png"),
+		load("res://assets/texturas/parede_face_combate_tubulacao.png"),
+		load("res://assets/texturas/parede_face_combate_tecnica.png"),
+		load("res://assets/texturas/parede_face_combate_ventilada.png"),
+	]
+	var cantos: Array[Texture2D] = []
+	var vazias: Array[Porta] = []
+	for t in topos + faces:
+		if t == null:
+			ok(false, "as texturas de amostra carregam")
+			return
+
+	var solto := RenderizadorParedes.construir(
+		contorno, vazias, 12345, topos, faces, cantos, 0.65, 0)
+	var apertado := RenderizadorParedes.construir(
+		contorno, vazias, 12345, topos, faces, cantos, 0.65, 2)
+	var repetido := RenderizadorParedes.construir(
+		contorno, vazias, 12345, topos, faces, cantos, 0.65, 2)
+
+	# 1. DETERMINISMO: as duas montagens com a mesma semente sao identicas.
+	# Comparado por HASH e nao por `igual()`: a assinatura de uma parede tem
+	# centenas de pecas, e o relatorio da suite imprime o valor esperado E o
+	# obtido mesmo quando passa. Uma linha de portao nao pode custar duas telas
+	# de console -- quem le o relatorio deixa de ler.
+	var assinatura := _assinatura(apertado)
+	ok(
+		assinatura == _assinatura(repetido),
+		"a mesma semente monta a mesma parede (%d pecas, hash %d)"
+			% [apertado.get_child_count(), hash(assinatura)]
+	)
+
+	# 2. O COMUM DOMINA. Medido sem espacamento, que e onde o peso age sozinho.
+	var comuns := _contar(solto, faces[0])
+	var especiais := _contar_especiais(solto, faces)
+	var total := comuns + especiais
+	ok(total > 80, "a amostra tem celulas de face suficientes (%d)" % total)
+	if total > 0:
+		var fracao := float(comuns) / float(total)
+		entre(
+			fracao, 0.55, 0.75,
+			"o modulo comum domina (%.0f%% de %d celulas, alvo 65%%)"
+				% [fracao * 100.0, total]
+		)
+
+	# 3. O ESPACAMENTO MORDE.
+	var especiais_apertado := _contar_especiais(apertado, faces)
+	ok(
+		especiais_apertado < especiais,
+		"o espacamento MORDE: %d especiais com ele contra %d sem -- teto que nao morde nao foi testado"
+			% [especiais_apertado, especiais]
+	)
+
+	solto.free()
+	apertado.free()
+	repetido.free()
+
+
+## Uma assinatura da parede montada: textura e posicao de cada peca, em ordem.
+func _assinatura(raiz: Node2D) -> String:
+	var partes: Array[String] = []
+	for filho in raiz.get_children():
+		var sprite := filho as Sprite2D
+		if sprite == null or sprite.texture == null:
+			continue
+		partes.append("%s@%s" % [sprite.texture.resource_path.get_file(), sprite.position])
+	return "|".join(partes)
+
+
+func _contar(raiz: Node2D, alvo: Texture2D) -> int:
+	var n := 0
+	for filho in raiz.get_children():
+		var sprite := filho as Sprite2D
+		if sprite != null and sprite.texture == alvo:
+			n += 1
+	return n
+
+
+func _contar_especiais(raiz: Node2D, faces: Array[Texture2D]) -> int:
+	var n := 0
+	for filho in raiz.get_children():
+		var sprite := filho as Sprite2D
+		if sprite == null or sprite.texture == null:
+			continue
+		for i in range(1, faces.size()):
+			if sprite.texture == faces[i]:
+				n += 1
+				break
+	return n
 
 
 # ------------------------------------------------------------- helpers ------

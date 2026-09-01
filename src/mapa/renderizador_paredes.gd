@@ -83,7 +83,8 @@ enum Lado { NORTE, SUL, LESTE, OESTE }
 ## pai de quem.
 static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 		semente: int, topos: Array[Texture2D], faces: Array[Texture2D],
-		cantos: Array[Texture2D]) -> Node2D:
+		cantos: Array[Texture2D], peso_comum: float = 0.65,
+		espacamento: int = 2) -> Node2D:
 	var raiz := Node2D.new()
 	raiz.name = "ParedeModulos"
 	raiz.z_index = Z_FITA
@@ -96,7 +97,7 @@ static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 		var a := contorno[i]
 		var b := contorno[(i + 1) % contorno.size()]
 		_vestir_lado(raiz, contorno, a, b, portas, semente ^ (i * 0x9e3779b1),
-			topos, faces)
+			topos, faces, peso_comum, espacamento)
 	_vestir_cantos(raiz, contorno, cantos)
 	return raiz
 
@@ -110,7 +111,7 @@ static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 ## PAREDE 07; aqui o desalinhamento fica VISIVEL em vez de disfarcado.
 static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 		b: Vector2, portas: Array[Porta], semente: int, topos: Array[Texture2D],
-		faces: Array[Texture2D]) -> void:
+		faces: Array[Texture2D], peso_comum: float, espacamento: int) -> void:
 	var comprimento := a.distance_to(b)
 	if comprimento < LADO_MINIMO:
 		return
@@ -152,6 +153,11 @@ static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 	var fim := maxf(s0, s1)
 	var centro_da_faixa := normal * (Sala.ESPESSURA_PAREDE * 0.5)
 
+	# Quantas celulas passaram desde a ultima ESPECIAL. Comeca alto para a
+	# primeira celula do lado poder ser especial -- comecar em zero faria toda
+	# parede do jogo abrir com `espacamento` celulas comuns, que e um padrao
+	# regular nascido de um detalhe de implementacao.
+	var desde_especial := espacamento
 	var c := floorf(inicio / CELULA) * CELULA
 	while c < fim - 0.5:
 		var p0 := maxf(c, inicio)
@@ -165,8 +171,14 @@ static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 				var recorte := Vector2(p0 - c, largura)
 				_peca(raiz, _sorteia(topos, chave), ponto + normal * (CELULA * 1.5),
 					chave, recorte, direcao)
-				var interna := _sorteia(topos, chave ^ 0x27d4eb2f) if so_topo \
-					else _sorteia(faces, chave ^ 0x165667b1)
+				var interna: Texture2D = null
+				if so_topo:
+					interna = _sorteia(topos, chave ^ 0x27d4eb2f)
+				else:
+					var especial := _quer_especial(chave, peso_comum) \
+						and desde_especial >= espacamento
+					interna = _face_da_celula(faces, chave, especial)
+					desde_especial = 0 if especial else desde_especial + 1
 				_peca(raiz, interna, ponto + normal * (CELULA * 0.5),
 					chave ^ 0x9e3779b1, recorte, direcao)
 		c += CELULA
@@ -223,6 +235,29 @@ static func _cai_em_vao_escalar(de: float, ate: float, portas: Array[Porta],
 		if ate > centro - meia + 0.5 and de < centro + meia - 0.5:
 			return true
 	return false
+
+
+## Esta celula sorteou uma ESPECIAL?
+##
+## O sorteio e puro: mesma chave, mesma resposta. Sair da sala e voltar mostra a
+## mesma parede, que e a regra que o projeto ja aplica ao chao, a face e ao prop.
+static func _quer_especial(chave: int, peso_comum: float) -> bool:
+	return float(absi(chave) % 10000) / 10000.0 >= peso_comum
+
+
+## A face de uma celula: a COMUM, ou uma das especiais.
+##
+## A comum e a primeira da lista, e isso e contrato com o `tipo_*.tres`: a face
+## que da nome ao tipo (`parede_face_combate`) vem primeiro, e os modulos vem
+## depois. Lista de um elemento so nunca sorteia especial, e e o que faz um tipo
+## sem modulos continuar funcionando.
+static func _face_da_celula(faces: Array[Texture2D], chave: int,
+		especial: bool) -> Texture2D:
+	if faces.is_empty():
+		return null
+	if not especial or faces.size() < 2:
+		return faces[0]
+	return faces[1 + absi(chave ^ 0x165667b1) % (faces.size() - 1)]
 
 
 static func _sorteia(lista: Array[Texture2D], chave: int) -> Texture2D:

@@ -36,6 +36,7 @@ func executar() -> void:
 	await _sala_sem_vizinho_nao_deixa_solido_sobrando()
 	await _a_abertura_nao_cobra_pedagio()
 	await _a_folha_parte_em_vez_de_achatar()
+	await _a_travessia_e_decidida_na_saida()
 	_o_recesso_cobre_o_vao_da_moldura()
 	_a_folha_cobre_o_vao_da_moldura()
 	await _nenhuma_porta_desenha_arte_girada()
@@ -166,6 +167,86 @@ func _a_folha_parte_em_vez_de_achatar() -> void:
 	)
 
 	raiz.free()
+
+
+## A TRAVESSIA E DECIDIDA NA SAIDA DA AREA, E POR QUAL LADO.
+##
+## Este caso nasceu de um bug que se sentia jogando e que nenhum teste via. O
+## aviso de travessia saia no `body_entered`, e a area da porta tem 32 px de
+## profundidade: quem encostava nela e recuava sem cruzar disparava a saida da
+## sala e **nada a desfazia**. A camera ficava no enquadramento largo da
+## travessia -- meio numa sala, meio na outra --, e a proxima tentativa de sair de
+## verdade era lida como "desistiu" e consumida. Rocar o batente desviando de um
+## tiro bastava, e o estado so voltava ao normal depois de duas travessias
+## inteiras.
+##
+## Entrar numa porta nao e atravessa-la. O caso cobra as duas metades:
+##
+## 1. Sair pelo lado do CORREDOR avisa `para_fora = true`.
+## 2. Sair pelo lado da SALA avisa `para_fora = false`, e e esse aviso que nao
+##    existia -- sem ele o gerenciador nunca sabia que o jogador tinha voltado.
+func _a_travessia_e_decidida_na_saida() -> void:
+	var raiz := Node2D.new()
+	Engine.get_main_loop().root.add_child(raiz)
+	var porta := _porta_solta(raiz)
+	porta.abrir()
+
+	var avisos: Array[bool] = []
+	var ouvinte := func(_sala: Node2D, _direcao: Vector2, para_fora: bool) -> void:
+		avisos.append(para_fora)
+	EventBus.porta_atravessada.connect(ouvinte)
+
+	var corpo := _corpo_de_teste()
+	raiz.add_child(corpo)
+	var fora := porta.vetor()
+
+	# 1. Entra na area e SAI pelo lado do corredor: atravessou.
+	corpo.global_position = porta.global_position
+	await Engine.get_main_loop().physics_frame
+	await Engine.get_main_loop().physics_frame
+	igual(avisos.size(), 0, "entrar na area nao avisa nada -- entrar nao e atravessar")
+	corpo.global_position = porta.global_position + fora * 80.0
+	await Engine.get_main_loop().physics_frame
+	await Engine.get_main_loop().physics_frame
+	igual(avisos.size(), 1, "sair da area avisa (%d)" % avisos.size())
+	if avisos.size() == 1:
+		ok(avisos[0], "quem sai pelo lado do corredor atravessou (para_fora)")
+
+	# 2. Entra de novo e RECUA para dentro da sala: desistiu.
+	avisos.clear()
+	corpo.global_position = porta.global_position
+	await Engine.get_main_loop().physics_frame
+	await Engine.get_main_loop().physics_frame
+	corpo.global_position = porta.global_position - fora * 80.0
+	await Engine.get_main_loop().physics_frame
+	await Engine.get_main_loop().physics_frame
+	igual(avisos.size(), 1, "recuar tambem avisa (%d)" % avisos.size())
+	if avisos.size() == 1:
+		ok(
+			not avisos[0],
+			"e quem recua para dentro NAO atravessou -- era este aviso que faltava"
+		)
+
+	EventBus.porta_atravessada.disconnect(ouvinte)
+	raiz.free()
+
+
+## Um corpo na layer e no grupo do jogador.
+##
+## A porta so reage a quem esta no grupo "player" e na layer 1, entao o boneco
+## precisa das duas coisas: sem o grupo ela ignora, sem a layer o `collision_mask`
+## dela nunca o enxerga e o teste passaria medindo silencio.
+func _corpo_de_teste() -> CharacterBody2D:
+	var corpo := CharacterBody2D.new()
+	corpo.collision_layer = 1
+	corpo.collision_mask = 0
+	corpo.add_to_group("player")
+	var forma := CollisionShape2D.new()
+	var circulo := CircleShape2D.new()
+	circulo.radius = 8.0
+	forma.shape = circulo
+	corpo.add_child(forma)
+	return corpo
 
 
 ## ABERTA deixa passar, TRANCADA bloqueia, SELADA nao poe nada.

@@ -1182,20 +1182,38 @@ func _destrancar(sala: Sala) -> void:
 ## Uma unica porta de entrada para saida e chegada. Quem distingue os dois casos
 ## e de qual sala veio o sinal: da sala atual e saida, da sala destino e
 ## chegada. Nenhum estado extra precisa ser inventado.
-func _ao_porta_atravessada(sala: Node2D, direcao: Vector2) -> void:
+##
+## O aviso chega na SAIDA da area da porta, e `para_fora` diz por qual lado. E o
+## que fecha o buraco que se sentia jogando: quando ele vinha na ENTRADA, encostar
+## na porta e recuar ligava a travessia e nada a desligava -- a camera ficava no
+## enquadramento largo, meio numa sala e meio na outra, e a proxima tentativa de
+## sair era consumida como desistencia. Roçar o batente desviando de um tiro
+## bastava para entrar nesse estado.
+##
+## As quatro combinacoes, e todas tem resposta:
+##
+##   sala atual   + saiu para FORA    -> saiu de verdade
+##   sala atual   + saiu para DENTRO  -> desistiu, e nada acontece
+##   sala destino + saiu para DENTRO  -> chegou
+##   sala destino + saiu para FORA    -> ainda esta no corredor
+func _ao_porta_atravessada(sala: Node2D, direcao: Vector2, para_fora: bool) -> void:
 	var origem := sala as Sala
 	if origem == null or _ocupado:
 		return
 
 	if _em_travessia:
-		if origem == _sala_destino:
+		# Chegou: entrou no destino e saiu da porta pelo lado de DENTRO dele.
+		if origem == _sala_destino and not para_fora:
 			_chegar(_sala_destino.coordenadas_grid, _direcao_travessia)
-		elif origem == sala_atual:
-			# Desistiu no meio do corredor e voltou pela mesma porta.
+		# Voltou: reentrou na sala de origem pela mesma porta.
+		elif origem == sala_atual and not para_fora:
 			_cancelar_travessia()
 		return
 
-	if origem != sala_atual:
+	# Fora de travessia, so a saida da sala atual PELO LADO DE FORA vale. Sair de
+	# uma porta para dentro da propria sala e o gesto de quem desistiu antes de
+	# comecar, e antes desta correcao ele iniciava a travessia.
+	if origem != sala_atual or not para_fora:
 		return
 	var destino_grid := origem.coordenadas_grid + _para_grid(direcao)
 	if not _salas.has(destino_grid):

@@ -75,7 +75,17 @@ signal run_terminada(venceu: bool, estatisticas: Dictionary)
 ## Existe porque a HUD sobe antes do mapa em main.tscn: sem este aviso, o
 ## minimapa faria _ready com o grupo 'gerenciador_mapa' ainda vazio.
 signal andar_gerado()
-signal porta_atravessada(sala: Node2D, direcao: Vector2)
+## O jogador SAIU da area de uma porta, e `para_fora` diz por qual lado.
+##
+## Ele avisa na SAIDA e nao na entrada, e isso e a correcao de um bug que se
+## sentia jogando: a area da porta tem 32 px de profundidade, e quem entrava nela
+## e recuava sem cruzar deixava a travessia ligada para sempre. A camera ficava no
+## enquadramento largo -- meio numa sala, meio na outra -- e a proxima tentativa
+## de sair era consumida como "desistiu". Roçar o batente desviando de um tiro
+## bastava.
+##
+## Entrar nao quer dizer nada: o que decide e por qual lado se SAI.
+signal porta_atravessada(sala: Node2D, direcao: Vector2, para_fora: bool)
 signal sala_entrada(sala: Node2D)
 signal sala_limpa(sala: Node2D)
 signal transicao_iniciada(direcao: Vector2, sala_nova: Node2D)

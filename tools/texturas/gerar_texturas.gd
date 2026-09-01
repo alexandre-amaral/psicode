@@ -124,6 +124,8 @@ const SEEDS: Dictionary = {
 	&"parede": 2002,
 	&"porta_moldura": 4004,
 	&"porta_vao": 5105,
+	&"porta_topo": 5205,
+	&"porta_lado": 5305,
 	&"props_atlas": 6006,
 	&"parede_topo": 7007,
 	&"parede_face": 8008,
@@ -528,69 +530,124 @@ static func gerar_porta_moldura() -> Image:
 ##
 ## O desenho repete a medida da moldura -- 80 px ao longo da parede, 32 de
 ## abertura, 24 de batente de cada lado -- para a porta ter o mesmo tamanho nos
-## quatro lados. O que muda e a VISTA: aqui nao ha verga nem soleira, ha o topo
-## da caixa em que a folha recolhe e o poco escuro da passagem.
+## quatro lados. O que muda e a VISTA: aqui nao ha verga nem soleira, ha a
+## CARCACA em que a folha recolhe, vista por cima, e o poco da passagem.
+##
+## A primeira versao disto eram dois retangulos chapados de N5, e nao lia como
+## porta nenhuma: N5 mede V 0,30 contra os 0,38 do topo da parede, entao a
+## carcaca ficava mais ESCURA que a parede em volta e o olho a lia como buraco,
+## nao como maquina. Ela agora nasce em N6 -- o mesmo valor do topo -- e o que a
+## separa da parede sao as ARESTAS, que e como a moldura autorada tambem se
+## separa.
 ##
 ## As linhas 0..63 ficam transparentes: ali e o chao da sala, e quem desenha
 ## chao e a sala.
 static func gerar_porta_topo() -> Image:
 	var img := _nova(PORTA_TOPO.x, PORTA_TOPO.y)
-	var n4 := Paleta.neutro(&"N4")
-	var n5 := Paleta.neutro(&"N5")
-	var n6 := Paleta.neutro(&"N6")
-	var n7 := Paleta.neutro(&"N7")
 	var y0 := PORTA_BANDA
 	var x0 := (PORTA_TOPO.x - (PORTA_ABERTURA + 2 * PORTA_BATENTE)) / 2
+	var n4 := Paleta.neutro(&"N4")
+	var n7 := Paleta.neutro(&"N7")
 
-	# As duas CAIXAS de recolhimento, vistas de cima.
-	for lado: int in [x0, x0 + PORTA_BATENTE + PORTA_ABERTURA]:
-		_ret(img, lado, y0, PORTA_BATENTE, PORTA_BANDA, n5)
-		# A luz vem de cima (LOW_TOPDOWN secao 18) e a sala fica ao NORTE: a
-		# aresta virada para ela e a que acende.
+	# UMA CAIXA DE CADA LADO, e o vao entre elas fica TRANSPARENTE.
+	#
+	# A primeira versao pintava a carcaca sobre os 80 px inteiros, e com isso
+	# tapava o poco: `Vao` desenha ABAIXO da moldura, entao a passagem sumia e a
+	# porta trancada virava uma chapa lisa com uma barra em cima. Nenhum portao
+	# acusa -- as duas texturas continuam certas, e a de cima e que nao podia
+	# estar la.
+	for i in 2:
+		var lado := x0 if i == 0 else x0 + PORTA_BATENTE + PORTA_ABERTURA
+		_carcaca(img, lado, y0, PORTA_BATENTE, PORTA_BANDA, SEEDS[&"porta_topo"])
+		# A luz vem de cima e da esquerda (LOW_TOPDOWN secao 18), e a sala fica ao
+		# NORTE: a aresta de cima acende e a de baixo cai, nas duas caixas. Esta
+		# textura NUNCA e espelhada -- so `porta_lado` e --, entao ela pode marcar
+		# os dois eixos.
 		_ret(img, lado, y0, PORTA_BATENTE, 1, n7)
 		_ret(img, lado, y0 + PORTA_BANDA - 1, PORTA_BATENTE, 1, n4)
-		# A junta da tampa, no meio da espessura.
-		_ret(img, lado, y0 + PORTA_BANDA / 2, PORTA_BATENTE, 1, n6)
-		for dy: int in [6, PORTA_BANDA - 8]:
-			_pintar(img, lado + 4, y0 + dy, n4)
-			_pintar(img, lado + PORTA_BATENTE - 5, y0 + dy, n4)
-
-	# A ABERTURA fica TRANSPARENTE aqui: quem desenha o poco e
-	# `gerar_porta_vao_topo()`, uma peca abaixo da folha. Pintar o poco nesta
-	# textura poria um retangulo opaco por cima da chapa, e a porta trancada
-	# voltaria a ser um buraco -- que e o defeito inteiro da PORTA 01.
+		# O BATENTE do vao: a face interna que olha para a luz acende, a que lhe da
+		# as costas cai. E o que da fundo ao poco sem desenhar sombra nenhuma.
+		if i == 0:
+			_ret(img, lado, y0, 1, PORTA_BANDA, n7)
+			_ret(img, lado + PORTA_BATENTE - 2, y0, 2, PORTA_BANDA, n4)
+		else:
+			_ret(img, lado, y0, 2, PORTA_BANDA, n7)
+			_ret(img, lado + PORTA_BATENTE - 1, y0, 1, PORTA_BANDA, n4)
+		# A tampa: uma junta no meio da espessura, e rebites nos cantos.
+		_ret(img, lado + 1, y0 + PORTA_BANDA / 2, PORTA_BATENTE - 2, 1, n4)
+		_rebites(img, lado + 2, y0 + 2, PORTA_BATENTE - 4, PORTA_BANDA - 4)
 	return img
 
 
-## A vista de cima para LESTE -- e OESTE a espelha em x, o que nao gira nada.
+## A vista de cima para LESTE -- e OESTE a espelha em x.
 ##
-## Nao e `gerar_porta_topo()` transposta: a luz continua vindo de cima e da
-## esquerda, entao aqui quem acende e a aresta ESQUERDA de cada caixa (a virada
-## para a sala) e o fio de cima dela. Transpor os pixels giraria a iluminacao
-## junto, que e metade da armadilha que esta issue fecha.
+## O ESPELHO manda no desenho, e e a unica diferenca real entre esta textura e
+## `gerar_porta_topo()`. As duas sao a mesma carcaca vista de cima, e como a luz
+## do setor vem a 45 graus (de cima e da esquerda), refletir na DIAGONAL nao a
+## move: superficie virada para cima e superficie virada para a esquerda acendem
+## igual. E por isso que espelhar e legitimo e girar nao -- girar tira a luz da
+## diagonal, refletir a mantem.
+##
+## Mas o oeste espelha em X, e isso INVERTE o eixo x: a aresta que dava para a
+## sala no leste passa a dar para a parede no oeste. Entao a marca de luz desta
+## textura mora so no eixo Y, que o espelho preserva. As arestas x ganham JUNTA
+## dos dois lados, que le como emenda e nao como iluminacao -- uma aresta acesa
+## ali estaria certa no leste e errada no oeste, e ninguem veria.
 static func gerar_porta_lado() -> Image:
 	var img := _nova(PORTA_LADO.x, PORTA_LADO.y)
-	var n4 := Paleta.neutro(&"N4")
-	var n5 := Paleta.neutro(&"N5")
-	var n6 := Paleta.neutro(&"N6")
-	var n7 := Paleta.neutro(&"N7")
 	var x0 := PORTA_BANDA
 	var y0 := (PORTA_LADO.y - (PORTA_ABERTURA + 2 * PORTA_BATENTE)) / 2
+	var n4 := Paleta.neutro(&"N4")
+	var n7 := Paleta.neutro(&"N7")
 
-	for lado: int in [y0, y0 + PORTA_BATENTE + PORTA_ABERTURA]:
-		_ret(img, x0, lado, PORTA_BANDA, PORTA_BATENTE, n5)
-		# A aresta virada para a sala fica a OESTE, e e ela que acende.
-		_ret(img, x0, lado, 1, PORTA_BATENTE, n7)
+	for i in 2:
+		var lado := y0 if i == 0 else y0 + PORTA_BATENTE + PORTA_ABERTURA
+		_carcaca(img, x0, lado, PORTA_BANDA, PORTA_BATENTE, SEEDS[&"porta_lado"])
+		# Eixo X: JUNTA nos dois lados, e nao luz -- ver o cabecalho.
+		_ret(img, x0, lado, 1, PORTA_BATENTE, n4)
 		_ret(img, x0 + PORTA_BANDA - 1, lado, 1, PORTA_BATENTE, n4)
-		# A luz de cima continua valendo: o topo de cada caixa e um fio claro.
-		_ret(img, x0 + 1, lado, PORTA_BANDA - 2, 1, n6)
-		_ret(img, x0 + PORTA_BANDA / 2, lado, 1, PORTA_BATENTE, n6)
-		for dx: int in [6, PORTA_BANDA - 8]:
-			_pintar(img, x0 + dx, lado + 4, n4)
-			_pintar(img, x0 + dx, lado + PORTA_BATENTE - 5, n4)
-
-	# A abertura fica transparente, como em `gerar_porta_topo()`.
+		# Eixo Y: a luz, e ela sobrevive ao espelho.
+		if i == 0:
+			_ret(img, x0, lado, PORTA_BANDA, 1, n7)
+			_ret(img, x0, lado + PORTA_BATENTE - 2, PORTA_BANDA, 2, n4)
+		else:
+			_ret(img, x0, lado, PORTA_BANDA, 2, n7)
+			_ret(img, x0, lado + PORTA_BATENTE - 1, PORTA_BANDA, 1, n4)
+		_ret(img, x0 + PORTA_BANDA / 2, lado + 1, 1, PORTA_BATENTE - 2, n4)
+		_rebites(img, x0 + 2, lado + 2, PORTA_BANDA - 4, PORTA_BATENTE - 4)
 	return img
+
+
+## A chapa da carcaca: N6 com grao.
+##
+## N6 e o mesmo valor do topo da parede (V 0,38 nos dois), e isso e deliberado:
+## a porta nao se separa da parede por ser mais clara ou mais escura, e sim
+## pelas arestas e pelos rebites. Uma carcaca mais escura vira buraco, uma mais
+## clara vira sinal -- e sinal na porta ja e a barra de trancada.
+static func _carcaca(img: Image, x: int, y: int, w: int, h: int, semente: int) -> void:
+	var n5 := Paleta.neutro(&"N5")
+	var n6 := Paleta.neutro(&"N6")
+	for dy in h:
+		for dx in w:
+			var cor := n6
+			if _ruido(x + dx, y + dy, semente) < 0.12:
+				cor = n5
+			_pintar(img, x + dx, y + dy, cor)
+
+
+## Rebites nos quatro cantos de uma tampa.
+##
+## 2x2 e nao 1x1, e com realce: um pixel solto some na escala do jogo -- foi o
+## que aconteceu na primeira versao desta textura, em que os rebites existiam no
+## arquivo e nao existiam na tela. Bloco e nao disco, pela razao de sempre.
+static func _rebites(img: Image, x: int, y: int, w: int, h: int) -> void:
+	var n4 := Paleta.neutro(&"N4")
+	var n7 := Paleta.neutro(&"N7")
+	var recuo := 3
+	for dy: int in [recuo, h - recuo - 2]:
+		for dx: int in [recuo, w - recuo - 2]:
+			_ret(img, x + dx, y + dy, 2, 2, n4)
+			_pintar(img, x + dx, y + dy, n7)
 
 
 ## O POCO da passagem visto de cima, para o SUL.

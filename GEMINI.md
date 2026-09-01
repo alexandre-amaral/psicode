@@ -153,7 +153,8 @@ docs/
 | **Ator que nao cabe na moldura de 80 (o chefe)** | `MOLDURAS` em `tools/sprites/gerar_sprites.py` + `Direcoes.MOLDURAS_DE_ATOR`; as duas listas tem de continuar iguais |
 | **Gesto de ataque, morte ou atordoamento de um inimigo** | a lista `clipes` do no `Visual/Corpo` -- um `ClipeDirecional` por gesto |
 | **Se um gesto segue o TEMPO do estado ou o proprio fps** | `modo` no `.tres` do `ClipeDirecional` (`PROGRESSO`, `LACO`, `UMA_VEZ`) |
-| **Arte de gesto nova** | pastas em `animations/<id>/<clipe>/<direcao>/` e rodar `gerar_sprites.py`; do PixelLab, `baixar_pixellab.py` traz os quadros para la |
+| **Arte de gesto nova** | pastas em `animations/<id>/<clipe>/<direcao>/` e rodar `gerar_sprites.py`; do PixelLab, `baixar_pixellab.py` traz os quadros para la -- de um manifesto de URLs ou do PACOTE do personagem (`pacote.zip#animacao`) |
+| **Os oito gestos dos quatro ataques do chefe** | `src/enemies/clipe_*.tres`, listados em `clipes` do no `Visual/Corpo` do `boss_guardiao_01.tscn`. Os NOMES sao contrato com `BossGuardiao01.GESTOS` |
 | **Sprite e rotacoes de um inimigo** | o no `Visual/Corpo` da `src/enemies/*.tscn`, com `src/enemies/sprite_direcional.gd`: as duas listas de 8 texturas, `quadros_andando`, `fps_andando`, mais `scale` e `position` do proprio no |
 | **Arma inicial, Hack e texto do card de um personagem** | `src/player/personagem_*.tres` |
 | Dispersao que cresce com o gatilho preso | `dispersao_*` em `src/weapons/*.tres` — zero desliga |
@@ -1114,6 +1115,48 @@ em qualquer erro de script.
   horizontal pelo CENTRO DA MOLDURA de origem (a arte tem deslocamento lateral
   intencional, e centralizar pelo desenho o apagaria) e vertical pela BASE do
   bbox de alpha.
+- **Template do PixelLab DEFORMA ator com silhueta propria.** O `throw-object`
+  com `ai_freedom = 0` prende o desenho ao esqueleto do template: o Automato --
+  que e largo, de ombros e bracos grossos -- saiu com a MESMA altura e METADE da
+  largura (bbox de 130 px caiu para 67), virando um humanoide magro no meio do
+  proprio ataque. A paleta e a ferrugem passavam intactas, entao um portao de cor
+  nao acusaria; o que muda e a silhueta, que e justamente o que o jogador le. Em
+  ator com forma propria use `mode = "v3"` com `action_description`, que foi o
+  que manteve os 130 px. Custa 2 geracoes por direcao em vez de 1, e o preco de
+  descobrir isso depois sao 8 geracoes jogadas fora.
+- **Palavra de ENERGIA no `action_description` vira efeito desenhado.**
+  "exploding into a charge" produziu literalmente uma estrela de explosao amarela
+  cobrindo o chefe ao sul e jatos de chama ao leste -- fora da paleta, brilhante,
+  e diferente em cada direcao. O prompt de gesto descreve o CORPO e mais nada:
+  "bending the knees deep and leaning far forward with one shoulder dropped low"
+  deu o agachamento que a investida pede. Mesma licao para o pisao: "massive leg"
+  nao produziu movimento nenhum, "lifting one knee up to chest height" produziu.
+- **Manifesto de URLs do PixelLab expira, e le-lo custa caro.** As URLs sao
+  assinadas no proprio link e caducam, entao manifesto velho falha no download.
+  Pior que isso: para montar um manifesto e preciso ler o `get_character`, cuja
+  saida cresce com cada animacao -- num chefe com quatro ataques em oito direcoes
+  ela ja passa de dez mil palavras, das quais se aproveita uma URL por direcao. O
+  PACOTE do personagem resolve os dois: `baixar_pixellab.py <id> <clipe>
+  pacote.zip#animacao [a-b]`.
+- **UMA geracao vira DOIS clipes, e o corte tem de cair no golpe.** O preparo e o
+  golpe saem da MESMA fita cortada em 0-3 e 4-6, e nao de duas geracoes: o punho
+  que sobe no preparo e o mesmo que desce no golpe, sem risco de duas geracoes
+  discordarem. `QUADROS_DE_PREPARO` em `teste_boss_animacao.gd` e cobrado contra
+  o `.tres` desde a ANIM 04 -- antes ele era uma constante escrita antes de a arte
+  existir, e um clipe redesenhado com 6 quadros continuaria sendo medido como 4.
+- **Clipe declarado nao prova que alguem o DESENHA, e e a armadilha que criou
+  este epico.** `encenar()` devolve `false` em silencio quando o nome nao existe
+  ou o clipe nao e desenhavel, e o corpo cai na pose parada. Todo caso de TEMPO
+  desta suite continuaria verde: eles medem a duracao do ESTADO, que nao depende
+  de quem desenha. Por isso ha dois portoes e nao um --
+  `_o_gesto_pedido_existe_e_tem_a_contagem_medida` confere o NOME, e
+  `_o_corpo_do_chefe_TROCA_para_a_fita_do_gesto` confere o PIXEL, entrando em
+  PREPARAR e exigindo que `sprite.texture` esteja na lista de fitas do clipe.
+- **Gesto que falta e DECLARADO em `SEM_CLIPE_AINDA`, e a lista morde dos dois
+  lados.** Mesmo desenho do `SEM_ARTE_AINDA`: nome fora dela tem de existir, nome
+  DENTRO dela tem de continuar faltando. Sem a segunda metade a ANIM 05 entregaria
+  o Reator e a linha ficaria ali para sempre, cobrindo em silencio o dia em que
+  aquele clipe se perdesse.
 - **Ciclo de caminhada dirigido por TEMPO desliza.** O passo tem de seguir o
   CHAO, e nao o relogio: `fps_andando` sozinho so acerta se o bicho tiver uma
   velocidade so -- e isso nao existe aqui, porque a Deterioracao multiplica a

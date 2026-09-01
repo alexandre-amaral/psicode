@@ -33,10 +33,35 @@ const PASSO := 1.0 / 60.0
 
 ## Quantos quadros um gesto de preparo tem, para efeito de medicao.
 ##
-## Nao ha arte ainda. Quatro e o que a ANIM 04 vai entregar, e o numero esta aqui
-## para o teto de permanencia ser cobrado ANTES de a arte existir -- e nao depois
-## de ela estar em disco.
+## Ele nasceu antes da arte, para o teto de permanencia ser cobrado ANTES de os
+## quadros existirem. A arte chegou na ANIM 04 -- e agora o numero e cobrado
+## contra ela em `_o_gesto_pedido_existe_e_tem_a_contagem_medida`, senao ele
+## viraria uma constante que ninguem atualiza: um clipe redesenhado com 6 quadros
+## continuaria sendo medido como 4, e o teto de permanencia mediria uma arte que
+## nao esta em disco.
 const QUADROS_DE_PREPARO := 4
+
+## Os gestos que o chefe PEDE e a cena ainda nao tem.
+##
+## Mesmo desenho do `SEM_ARTE_AINDA` de `teste_sprite_direcional.gd`, e pela
+## mesma razao: `encenar()` nao da `push_error` quando o gesto falta -- um erro
+## por frame afogaria o console e tornaria a cena inutilizavel no editor --,
+## entao o barulho tem de ficar no PORTAO. Sem esta lista o portao so poderia
+## existir depois da ultima issue do epico, e a arte que ja chegou passaria sem
+## prova ate la.
+##
+## Uma lista assim so vale se ela morder dos DOIS lados, e e o que o caso faz:
+## nome fora dela tem de existir, e nome DENTRO dela tem de continuar faltando.
+## Sem a segunda metade, a ANIM 05 entregaria o Reator e a linha ficaria aqui
+## para sempre, cobrindo em silencio o dia em que aquele clipe se perdesse.
+const SEM_CLIPE_AINDA: Array[StringName] = [
+	# ANIM 05 -- a Falha do Reator.
+	&"armar_reator", &"sobrecarregar",
+	# ANIM 06 -- cambalear e morrer.
+	&"cambalear",
+	# ANIM 07 -- o despertar na baia.
+	&"despertar",
+]
 
 ## Teto de quanto tempo UM quadro pode ficar parado na tela.
 ##
@@ -55,12 +80,135 @@ func nome() -> String:
 
 func executar() -> void:
 	_barra_original = Deterioracao.valor
+	_o_gesto_pedido_existe_e_tem_a_contagem_medida()
+	_o_corpo_do_chefe_TROCA_para_a_fita_do_gesto()
 	_o_preparo_termina_no_golpe()
 	_o_gesto_de_beat_recomeca_a_cada_beat()
 	_nenhum_quadro_fica_parado_alem_do_teto()
 	_o_reator_nao_e_dirigido_por_progresso()
 	_a_boca_da_arma_sai_do_lado_que_o_corpo_encara()
 	Deterioracao.valor = _barra_original
+
+
+## TODO NOME QUE O CHEFE PEDE EXISTE NA CENA (ANIM 04).
+##
+## `clipe_do_estado()` devolve um nome, `SpriteDirecional.encenar()` procura esse
+## nome, e **nao acha nada e nao reclama**: o corpo cai na pose parada e a luta
+## segue. Isso e certo em jogo -- um erro por frame tornaria a cena inutilizavel
+## no editor -- e e exatamente por isso que o portao precisa existir: renomear
+## `socar` para `soco` no `.tres` nao quebra nada, nao imprime nada, e devolve o
+## chefe a pose congelada que esta epico existe para consertar.
+##
+## O caso tambem cobra a CONTAGEM, e nao so a existencia. `QUADROS_DE_PREPARO`
+## alimenta o teto de permanencia por quadro; um clipe redesenhado com outra
+## contagem faria aquele teto medir uma arte que nao esta em disco.
+func _o_gesto_pedido_existe_e_tem_a_contagem_medida() -> void:
+	var chefe := _nascer()
+	var sprite := chefe.get_node_or_null("Visual/Corpo") as SpriteDirecional
+	ok(sprite != null, "o chefe tem um SpriteDirecional em Visual/Corpo")
+	if sprite == null:
+		chefe.free()
+		return
+
+	var pedidos: Array[StringName] = []
+	for ataque: StringName in [chefe.SOCO, chefe.RAJADA, chefe.INVESTIDA, chefe.PISAO,
+			chefe.REATOR]:
+		for estado: StringName in [chefe.PREPARAR, chefe.EXECUTAR]:
+			var nome: StringName = chefe.clipe_do_estado(estado, ataque)
+			ok(nome != &"", "%s/%s pede um gesto" % [ataque, estado])
+			if nome != &"":
+				pedidos.append(nome)
+	for estado: StringName in [chefe.ATORDOADO, chefe.DESPERTAR]:
+		var nome: StringName = chefe.clipe_do_estado(estado, chefe.SOCO)
+		ok(nome != &"", "%s pede um gesto" % estado)
+		if nome != &"":
+			pedidos.append(nome)
+
+	var conferidos := 0
+	var pendentes: Array[StringName] = []
+	for nome in pedidos:
+		if SEM_CLIPE_AINDA.has(nome):
+			ok(
+				not sprite.tem_clipe(nome),
+				"'%s' esta declarado como pendente e continua faltando -- a lista nao carrega nome morto"
+					% nome
+			)
+			pendentes.append(nome)
+			continue
+		conferidos += 1
+		ok(sprite.tem_clipe(nome), "o gesto '%s' que o chefe pede existe na cena" % nome)
+
+	ok(conferidos >= 8, "os oito gestos dos quatro ataques foram conferidos (%d)" % conferidos)
+	igual(
+		pendentes.size(), SEM_CLIPE_AINDA.size(),
+		"toda pendencia declarada foi de fato pedida pelo chefe (%d de %d)"
+			% [pendentes.size(), SEM_CLIPE_AINDA.size()]
+	)
+
+	# A contagem que o teto de permanencia usa e a que esta em disco.
+	for ataque: StringName in [chefe.SOCO, chefe.RAJADA, chefe.INVESTIDA, chefe.PISAO]:
+		var nome: StringName = chefe.clipe_do_estado(chefe.PREPARAR, ataque)
+		var clipe := _clipe_de(sprite, nome)
+		if clipe == null:
+			ok(false, "o preparo de %s tem clipe" % ataque)
+			continue
+		igual(
+			clipe.quadros, QUADROS_DE_PREPARO,
+			"o preparo de %s tem os %d quadros que o teto de permanencia mede"
+				% [ataque, QUADROS_DE_PREPARO]
+		)
+	chefe.free()
+
+
+## O CORPO troca de fita ao entrar no gesto -- e nao so "o gesto existe".
+##
+## Este caso fecha a mesma armadilha que deu origem ao epico inteiro. Ali as
+## oito poses e as oito fitas de caminhada estavam declaradas, casadas e
+## medidas; o que faltava era o CHAMADOR, e chamador ausente nao aparece em
+## teste de arquivo. O chefe passou seis issues no `south.png` quadro 0.
+##
+## O portao acima confere que o NOME existe. Este confere que o pixel muda: com
+## `_pos_movimento` deixando de chamar `encenar()`, ou com `encenar()` caindo no
+## `return false` por um clipe nao desenhavel, todos os outros casos desta suite
+## continuariam verdes -- eles medem TEMPO, e o tempo do estado nao depende de
+## quem desenha.
+func _o_corpo_do_chefe_TROCA_para_a_fita_do_gesto() -> void:
+	var chefe := _nascer()
+	var sprite := chefe.get_node_or_null("Visual/Corpo") as SpriteDirecional
+	if sprite == null:
+		ok(false, "o chefe tem um SpriteDirecional em Visual/Corpo")
+		chefe.free()
+		return
+
+	Deterioracao.valor = 0.0
+	_forcar_fase(chefe, 1)
+	var trocas := 0
+	for ataque: StringName in [chefe.SOCO, chefe.RAJADA, chefe.INVESTIDA, chefe.PISAO]:
+		_entrar_em_preparar(chefe, ataque)
+		# Um passo de fisica: e nele que `_pos_movimento` roda e pede o gesto.
+		chefe._physics_process(PASSO)
+		var nome: StringName = chefe.clipe_do_estado(chefe.PREPARAR, ataque)
+		var clipe := _clipe_de(sprite, nome)
+		if clipe == null:
+			ok(false, "%s tem clipe de preparo" % ataque)
+			continue
+		var na_fita := clipe.fitas.has(sprite.texture)
+		if na_fita:
+			trocas += 1
+		ok(
+			na_fita,
+			"%s: o corpo esta desenhando a fita de '%s', e nao a pose parada"
+				% [ataque, nome]
+		)
+	igual(trocas, 4, "os quatro preparos trocaram a fita do corpo (%d)" % trocas)
+	chefe.free()
+
+
+func _clipe_de(sprite: SpriteDirecional, nome: StringName) -> ClipeDirecional:
+	for c in sprite.clipes:
+		if c != null and c.nome == nome:
+			return c
+	return null
 
 
 ## O progresso do preparo chega a 1,0 no instante em que o golpe sai.

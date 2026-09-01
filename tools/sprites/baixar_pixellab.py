@@ -12,7 +12,12 @@ Dai `gerar_sprites.py` faz o resto -- moldura, ancora unica de clipe, fita
 horizontal --, e ha **um** lugar que decide moldura e ancora, que e o ponto.
 
 USO
-    python tools/sprites/baixar_pixellab.py <id> <clipe> <manifesto.json> [a-b]
+    python tools/sprites/baixar_pixellab.py <id> <clipe> <fonte> [a-b]
+
+A FONTE tem duas formas, e a segunda existe porque a primeira APODRECE:
+
+    manifesto.json          as URLs assinadas, como o MCP as devolve
+    pacote.zip#animacao     o download do personagem, e o nome da animacao dentro dele
 
 O intervalo opcional `a-b` (inclusivo, base zero) recorta os quadros. Ele existe
 porque um GESTO de ataque e uma coisa so na geracao e DUAS no jogo: um template
@@ -29,11 +34,25 @@ O manifesto e `{"<direcao>": ["url", ...], ...}`, que e o formato em que o
 proprio link, entao o script nao precisa de credencial nenhuma -- o que tambem
 quer dizer que elas EXPIRAM: manifesto velho falha no download, e nao com um
 PNG corrompido.
+
+O ZIP e o `download:` que o `get_character` imprime, e ele resolve DOIS
+problemas do manifesto. O primeiro e a validade: o pacote e um arquivo, e
+arquivo nao expira. O segundo e mais caro e menos obvio -- para montar um
+manifesto e preciso LER o `get_character`, e a saida dele cresce com cada
+animacao do personagem; num chefe com quatro ataques em oito direcoes ela ja
+passa de dez mil palavras, das quais se aproveita uma URL por direcao. O pacote
+traz os mesmos quadros sem intermediario.
+
+Dentro dele os quadros moram em `<estado>/animations/<animacao>/<direcao>/`, e e
+por isso que a fonte carrega o `#animacao`: o nome do CLIPE no jogo
+(`armar_rajada`) nao e o nome da ANIMACAO na geracao (`rajada`) -- uma geracao
+vira dois clipes, que e a razao de o corte existir.
 """
 import io
 import json
 import os
 import sys
+import zipfile
 
 from urllib.request import urlopen, Request
 
@@ -68,10 +87,51 @@ def baixar(url, caminho):
     return len(dados)
 
 
+## Os quadros de cada direcao, vindos de um manifesto de URLs.
+def _do_manifesto(caminho):
+    with io.open(caminho, encoding="utf-8") as f:
+        mapa = json.load(f)
+    return {d: list(mapa.get(d) or []) for d in DIRECOES}
+
+
+## Os quadros de cada direcao, vindos do pacote do personagem.
+##
+## A chave e o BYTE do PNG e nao uma URL, entao quem consome nao precisa saber
+## de onde veio -- e o que deixa o resto do script igual nas duas fontes.
+def _do_zip(caminho, animacao):
+    if not os.path.exists(caminho):
+        sys.exit("pacote nao encontrado: %s" % caminho)
+    pacote = zipfile.ZipFile(caminho)
+    achados = {d: [] for d in DIRECOES}
+    sufixo = "/animations/%s/" % animacao
+    for nome in sorted(pacote.namelist()):
+        if sufixo not in nome or not nome.endswith(".png"):
+            continue
+        direcao = nome.split("/")[-2]
+        if direcao in achados:
+            achados[direcao].append(pacote.read(nome))
+    if not any(achados.values()):
+        dentro = sorted(set(n.split("/animations/")[1].split("/")[0]
+                            for n in pacote.namelist() if "/animations/" in n))
+        sys.exit("o pacote nao tem a animacao '%s'. Tem: %s" % (animacao, ", ".join(dentro)))
+    return achados
+
+
+def _escrever(dado, caminho):
+    """Grava um quadro, venha ele de URL ou de pacote."""
+    if isinstance(dado, bytes):
+        if not dado.startswith(b"\x89PNG"):
+            sys.exit("nao veio PNG do pacote em %s" % caminho)
+        with io.open(caminho, "wb") as f:
+            f.write(dado)
+        return len(dado)
+    return baixar(dado, caminho)
+
+
 def main():
     if len(sys.argv) not in (4, 5):
         sys.exit(__doc__)
-    ator, clipe, manifesto = sys.argv[1], sys.argv[2], sys.argv[3]
+    ator, clipe, fonte = sys.argv[1], sys.argv[2], sys.argv[3]
     corte = None
     if len(sys.argv) == 5:
         try:
@@ -82,8 +142,13 @@ def main():
     if clipe == NOME_RESERVADO:
         sys.exit("'%s' e nome reservado: ele comeria o ciclo de caminhada" % NOME_RESERVADO)
 
-    with io.open(manifesto, encoding="utf-8") as f:
-        mapa = json.load(f)
+    if ".zip" in fonte:
+        pacote, _, animacao = fonte.partition("#")
+        if not animacao:
+            sys.exit("com pacote a fonte e caminho.zip#animacao")
+        mapa = _do_zip(pacote, animacao)
+    else:
+        mapa = _do_manifesto(fonte)
 
     faltando = [d for d in DIRECOES if not mapa.get(d)]
     if faltando:
@@ -91,7 +156,7 @@ def main():
         # clipe tem de ter a mesma contagem de quadros, porque `hframes` sai de
         # um campo so. Sete direcoes viram sete arquivos que passam em tudo e
         # deixam um lado do bicho congelado.
-        sys.exit("faltam direcoes no manifesto: %s" % ", ".join(faltando))
+        sys.exit("faltam direcoes na fonte: %s" % ", ".join(faltando))
 
     if corte is not None:
         for d in DIRECOES:
@@ -111,9 +176,9 @@ def main():
         pasta = os.path.join(base, direcao)
         if not os.path.isdir(pasta):
             os.makedirs(pasta)
-        for i, url in enumerate(mapa[direcao]):
+        for i, quadro in enumerate(mapa[direcao]):
             alvo = os.path.join(pasta, "%02d.png" % i)
-            total += baixar(url, alvo)
+            total += _escrever(quadro, alvo)
         print("  %-12s %d quadros" % (direcao, len(mapa[direcao])))
 
     print("%s/%s: %d quadros por direcao, %.1f KB" % (

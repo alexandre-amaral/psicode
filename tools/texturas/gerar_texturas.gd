@@ -130,7 +130,6 @@ static func nomes() -> Array[String]:
 	lista.append("porta_campo.png")
 	lista.append("porta_vao.png")
 	lista.append("props_atlas.png")
-	lista.append("parede_topo.png")
 	return lista
 
 

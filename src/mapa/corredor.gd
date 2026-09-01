@@ -25,12 +25,6 @@ const TEXTURAS_CHAO: Array[String] = [
 	"res://assets/texturas/chao_andar1_b.png",
 	"res://assets/texturas/chao_andar1_c.png",
 ]
-const TEXTURAS_PAREDE: Array[String] = [
-	"res://assets/texturas/parede_andar1_a.png",
-	"res://assets/texturas/parede_andar1_b.png",
-	"res://assets/texturas/parede_andar1_c2.png",
-	"res://assets/texturas/parede_andar1_d.png",
-]
 ## Cor de emergencia, usada so quando a textura nao carrega: o chao N1 da
 ## paleta combate (docs/IDENTIDADE_VISUAL.md).
 const COR_CHAO_EMERGENCIA := Color("0b0d16")
@@ -43,7 +37,6 @@ const COR_CHAO_EMERGENCIA := Color("0b0d16")
 ## Aqui anunciar E o objetivo -- e o unico trecho do andar em que a arquitetura
 ## tem permissao de dizer o que vem.
 const TEXTURA_CHAO_CHEFE := "res://assets/texturas/chao_boss.png"
-const TEXTURA_PAREDE_CHEFE := "res://assets/texturas/parede_boss.png"
 const FACE_CHEFE := "res://assets/texturas/parede_face_boss.png"
 
 ## Quanto o chao do trecho pre-chefe escurece.
@@ -140,12 +133,15 @@ func _textura_de_chao() -> Texture2D:
 	return _textura(TEXTURAS_CHAO, 0)
 
 
+## O topo do corredor sai da MESMA lista neutra da sala.
+##
+## O trecho pre-chefe nao tem excecao aqui, e isso e consequencia da PAR 04 e nao
+## esquecimento: com o topo neutro em todo o andar, o anuncio do chefe passa a
+## viver no CHAO escurecido e na FACE, que continuam sendo dele. Um topo proprio
+## para o chefe reintroduziria a identidade de tipo na superficie de onde ela
+## acabou de sair.
 func _textura_de_parede() -> Texture2D:
-	if pre_chefe:
-		var chefe := load(TEXTURA_PAREDE_CHEFE) as Texture2D
-		if chefe != null:
-			return chefe
-	return _textura(TEXTURAS_PAREDE, 0x2f1b3c5d)
+	return Sala.topo_neutro(hash(_retangulo_local.position) ^ 0x2f1b3c5d)
 
 
 func _textura(lista: Array[String], deslocamento: int) -> Texture2D:

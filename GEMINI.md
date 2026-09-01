@@ -922,6 +922,28 @@ em qualquer erro de script.
   suite, depois de a arte ja estar em disco. A do `andar1` e larga de proposito
   (185-320): ela separa TIPO DE SALA, e quem separa mapa de ATOR e o teto de
   valor (chao em 0,30 contra o piso de 0,55 do portao G2), que nao muda.
+- **O TOPO da parede e neutro e compartilhado; quem carrega a identidade do tipo
+  e a FACE.** Isso foi decidido na LTD 13 (#43), que entregou os cinco modulos de
+  face -- e a segunda metade, trocar o topo, ficou por pagar por seis issues. Ate
+  a PAR 04 o topo continuava vestido com `parede_andar1_*` de antes da
+  identidade: S medio de 0,75 a 0,93, duas das quatro fora da faixa de densidade
+  da familia, e uma delas com 37 pontos de silhueta de projetil. A lista vive em
+  `Sala.TOPOS_NEUTROS` e nao copiada nos cinco `tipo_*.tres`: cinco copias da
+  mesma lista divergem no dia em que alguem mudar quatro.
+- **Textura autorada se gera GRANDE e se reduz no funil -- gerar direto no tile
+  final enche cada pixel de detalhe.** Medido na PAR 03: as mesmas ideias em
+  64x64 sairam com 55% a 61% de densidade contra a faixa de 18-34% da parede; em
+  256x256 reduzidas para 64 pelo BOX do funil, 24% a 31%. E o funil ja dizia isso
+  ao explicar por que reduz ANTES de costurar.
+- **Suavizar para caber num numero e o jeito errado.** Um filtro de mediana
+  derrubou a densidade de 41% para 24% e MATOU a arte: os topos viraram borroes
+  sem aresta, que nao leem como metal. Quantizar nao move nada (a densidade e
+  espacial, nao de paleta). O proprio `preparar_textura.py` avisa: "uma trava em
+  que nao se confia empurra a arte para o lado errado com a autoridade de um
+  numero" -- e por isso densidade e informativa la, e nao portao.
+- **Baixar saturacao SOBE a densidade.** Nao e contra-intuitivo por acaso: o
+  funil renormaliza o valor depois, e o contraste de luminancia cresce. Medido:
+  de `--saturacao 0.78` para `0.35`, o mesmo arquivo foi de 33,7% para 41,4%.
 - **A contagem de `AUTORADAS` nao acusa arquivo que nunca entrou nela.** Ela
   confere o que esta na lista contra o que foi conferido: um PNG fora da lista
   nao aparece nos dois lados, ele SOME, e a suite fica verde. Os quatro modulos

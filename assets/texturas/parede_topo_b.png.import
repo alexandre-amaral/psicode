@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://big0v08ek8q5i"
-path="res://.godot/imported/parede_item.png-bae17c71a44a9e82843f98f64ea7b1f8.ctex"
+uid="uid://bc4oef214ge7k"
+path="res://.godot/imported/parede_topo_b.png-18b3c182b4e413ac1eebf8340dac2f62.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/texturas/parede_item.png"
-dest_files=["res://.godot/imported/parede_item.png-bae17c71a44a9e82843f98f64ea7b1f8.ctex"]
+source_file="res://assets/texturas/parede_topo_b.png"
+dest_files=["res://.godot/imported/parede_topo_b.png-18b3c182b4e413ac1eebf8340dac2f62.ctex"]
 
 [params]
 

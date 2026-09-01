@@ -142,6 +142,23 @@ const TEXTURA_PADRAO := "res://assets/texturas/%s_andar1_a.png"
 ## cena aberta sozinha no editor, que nao tem DadosSala. Ela e o modulo
 ## "simples" da biblioteca: paineis metalicos antigos, sem tubo nem escotilha.
 const FACE_NEUTRA := "res://assets/texturas/parede_face.png"
+
+## O TOPO da parede, e ele e o mesmo em todo tipo de sala.
+##
+## A identidade do tipo mora na FACE desde a LTD 13 (#43), e esta lista e a
+## segunda metade daquela issue: enquanto ela nao existia, o topo continuava
+## vestido com as `parede_*.png` por tipo -- arte de antes da identidade, com
+## saturacao de 0,75 a 0,93 e duas das quatro fora da faixa de densidade da
+## familia.
+##
+## Compartilhada e nao copiada nos cinco `tipo_*.tres`: cinco copias da mesma
+## lista divergem no dia em que alguem mudar quatro. Se um tipo um dia precisar
+## de topo proprio, isso e uma decisao nova e nao um campo esperando.
+const TOPOS_NEUTROS: Array[String] = [
+	"res://assets/texturas/parede_topo_a.png",
+	"res://assets/texturas/parede_topo_b.png",
+	"res://assets/texturas/parede_topo_c.png",
+]
 ## Cor de emergencia do chao quando a textura nao carrega: o N1 da paleta, que
 ## e o chao que o jogo sempre teve. Sala invisivel seria pior que sala lisa.
 const COR_CHAO_EMERGENCIA := Color("0b0d16")
@@ -777,19 +794,10 @@ func _montar_visual() -> void:
 	var textura_chao := _textura(&"chao")
 	var textura_parede := _textura(&"parede")
 
-	# O topo usa a textura de parede DO TIPO (`parede_boss.png`,
-	# `parede_andar1_*.png`), e nao a `parede_topo.png` neutra que o gerador
-	# escreve. Nao e engano: hoje a identidade de cada tipo de sala mora no
-	# topo, porque era a unica superficie de parede que existia quando as
-	# variantes por tipo foram autoradas.
-	#
-	# DIVIDA: `parede_topo.png` e gerada e medida por `teste_texturas.gd` -- o
-	# portao de volume compara o valor dela com o da face -- mas NENHUMA cena a
-	# consome. Ela fica de pe ate a LTD 13 (issue #43), que move a identidade
-	# do tipo para a FACE; ai o topo passa a ser a superficie neutra que todo
-	# tipo compartilha, e e esta linha que troca `textura_parede` por ela.
-	# Apagar o PNG antes disso derruba o portao de volume sem ninguem ganhar
-	# nada.
+	# O topo e NEUTRO e igual em todo tipo de sala (PAR 04). A identidade do
+	# tipo mora na face desde a LTD 13, e esta linha e a segunda metade daquela
+	# issue -- ela ficou por pagar por seis issues, com as `parede_*.png` por
+	# tipo vestindo o topo enquanto a face ja tinha migrado.
 	var topo := Polygon2D.new()
 	topo.name = "ParedeTopo"
 	topo.polygon = _inflar(contorno, ESPESSURA_PAREDE)
@@ -1010,8 +1018,25 @@ func _caixa_de(pontos: PackedVector2Array) -> Rect2:
 ## Sala aberta sozinha no editor, e a amostra que `_montar_catalogo()` instancia
 ## para medir portas, chegam aqui com celula (0,0) e sem dados -- as duas caem no
 ## fallback, que e o comportamento certo e nao um caso a tratar.
+## O topo desta celula, sorteado da lista neutra.
+##
+## A semente e deslocada para chao e topo nao andarem juntos: com a mesma, a
+## sala que pega o chao 2 pegaria sempre o topo 2, e as combinacoes possiveis
+## viravam uma fila em vez de uma grade.
+##
+## `static` porque o corredor precisa do mesmo sorteio sem ser uma Sala.
+static func topo_neutro(semente: int) -> Texture2D:
+	if TOPOS_NEUTROS.is_empty():
+		return null
+	var i := absi(semente ^ 0x5bf03635) % TOPOS_NEUTROS.size()
+	return load(TOPOS_NEUTROS[i]) as Texture2D
+
+
 func _textura(familia: StringName) -> Texture2D:
 	var textura: Texture2D = null
+	if familia == &"parede":
+		# O topo nao depende do tipo: ele e o mesmo em todo o andar.
+		return topo_neutro(hash(coordenadas_grid))
 	if _dados_visual != null:
 		var semente := hash(coordenadas_grid)
 		match familia:
@@ -1020,13 +1045,7 @@ func _textura(familia: StringName) -> Texture2D:
 					_dados_visual.texturas_chao, semente, fracao_do_andar
 				)
 			&"parede":
-				# Desloca a semente para chao e parede nao andarem juntos: com a
-				# mesma semente, a sala que pega o chao 2 pegaria sempre a parede
-				# 2, e quatro combinacoes possiveis virariam quatro de fato em vez
-				# das dezesseis que as listas oferecem.
-				textura = _dados_visual.textura_progressiva(
-					_dados_visual.texturas_parede, semente ^ 0x5bf03635, fracao_do_andar
-				)
+				textura = topo_neutro(semente)
 	if textura == null:
 		textura = load(TEXTURA_PADRAO % familia) as Texture2D
 	return textura

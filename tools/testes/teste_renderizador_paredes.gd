@@ -19,6 +19,9 @@ const PASTA := "res://src/mapa"
 ## Longe da origem, como as outras suites que sobem nos.
 const LONGE := Vector2(21000, 21000)
 
+## O lado da celula, espelhando `RenderizadorParedes.CELULA`.
+const CELULA := 32.0
+
 
 func nome() -> String:
 	return "Renderizador de paredes"
@@ -165,6 +168,32 @@ func _o_vao_da_porta_fica_sem_modulo() -> void:
 				invasores, 0,
 				"%s/%s: nenhum modulo desenha dentro do vao (%d)"
 					% [caminho.get_file(), porta.name, invasores]
+			)
+
+			# E A RESERVA E EXATA: o primeiro modulo ao lado do vao encosta nele.
+			#
+			# Antes da grade ancorada na sala, cada lado tinha a propria grade e a
+			# mesma porta caia em lugares diferentes dela conforme a paridade da
+			# meia dimensao daquela sala -- 2 celulas reservadas num lado e 3 no
+			# outro para o mesmo vao. Os 32 px de sobra apareciam como parede
+			# antiga ao lado do batente, e nada acusava.
+			#
+			# Com o vao em 64 e a borda de celula caindo no centro da porta, o
+			# modulo vizinho tem de estar a meia celula da borda do vao -- 48 px do
+			# centro. Mais que isso e sobra.
+			var vizinho := 9999.0
+			for peca in fita.get_children():
+				var sprite := peca as Sprite2D
+				if sprite == null or not sprite.region_enabled:
+					continue
+				if sprite.position.dot(porta.vetor()) < 0.0:
+					continue
+				var onde := sprite.position.dot(eixo)
+				vizinho = minf(vizinho, absf(onde - centro))
+			ok(
+				vizinho <= meia + CELULA * 0.5 + 0.5,
+				"%s/%s: a reserva e exata -- o modulo vizinho esta a %.0f px do centro (teto %.0f)"
+					% [caminho.get_file(), porta.name, vizinho, meia + CELULA * 0.5]
 			)
 		sala.free()
 	ok(conferidas >= 15, "a varredura achou as portas abertas das salas (%d)" % conferidas)

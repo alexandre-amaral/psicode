@@ -102,9 +102,21 @@ func _a_margem_deriva_da_parede(margem: float) -> void:
 	ok(conferidas >= 5, "a varredura mediu a fita das salas (%d)" % conferidas)
 
 
-## O portao de verdade: o retangulo que a camera usa tem de coincidir com o
-## poligono que a parede montou. Nem sobrando (vazio no quadro) nem faltando
-## (parede cortada).
+## O portao de verdade: o retangulo que a camera usa tem de coincidir com o que a
+## parede DESENHOU. Nem sobrando (vazio no quadro) nem faltando (parede cortada).
+##
+## **Ele mediu a coisa errada por uma issue inteira, e ficou verde.** Ate a
+## PAREDE 13 a parede era um `Polygon2D` chamado `ParedeTopo` e este caso lia
+## `topo.polygon`. Quando a fita substituiu o poligono, o no virou `Node2D` e a
+## leitura passou a explodir -- `Invalid access to property or key 'polygon'`.
+## Erro em GDScript ABORTA a funcao: as quatro comparacoes abaixo simplesmente
+## deixaram de acontecer, o runner nao conta o que nao rodou, e a suite seguiu
+## imprimindo PASSOU com quatro asserções a menos por cena.
+##
+## E a licao nao e "confira o `sed`": e que **portao que morre nao grita.** Por
+## isso a caixa passou a sair de `caixa_das_pecas()`, compartilhada com o caso
+## anterior -- uma funcao a mais e um lugar a menos onde o alvo pode envelhecer
+## sozinho.
 func _o_clamp_cobre_a_parede_e_mais_nada(margem: float) -> void:
 	var conferidas := 0
 	for caminho in CENAS:
@@ -119,16 +131,16 @@ func _o_clamp_cobre_a_parede_e_mais_nada(margem: float) -> void:
 		sala.position = LONGE
 		Engine.get_main_loop().root.add_child(sala)
 
-		var topo := sala.get_node_or_null("ParedeModulos") as Node2D
-		if topo == null:
-			ok(false, "%s monta ParedeTopo" % caminho.get_file())
+		var fita := sala.get_node_or_null("ParedeModulos") as Node2D
+		if fita == null:
+			ok(false, "%s monta a fita" % caminho.get_file())
 			sala.free()
 			continue
 
 		# O que a camera vai enquadrar: o contorno mais a margem.
 		var esperado := _caixa(sala.contorno_local()).grow(margem)
 		# O que a parede de fato desenhou.
-		var real := _caixa(topo.polygon)
+		var real := caixa_das_pecas(fita)
 
 		conferidas += 1
 		var nome_curto := caminho.get_file()
@@ -158,6 +170,40 @@ func _margem() -> float:
 	var margem := gerenciador.margem_da_parede()
 	gerenciador.free()
 	return margem
+
+
+## A caixa do que a fita DESENHOU, e nao do contorno dela.
+##
+## Publica e nao `_privada` porque os dois casos desta suite a usam, e porque a
+## pergunta "ate onde a parede chegou" e a mesma para os dois. Ela mede toda
+## peca, e nao so `Sprite2D`: acabamento desenhado em codigo tambem ocupa a
+## faixa, e uma peca fora do alcance da camera nao daria erro nenhum -- daria uma
+## tira de vazio na borda do quadro.
+func caixa_das_pecas(fita: Node2D) -> Rect2:
+	var caixa := Rect2()
+	var primeira := true
+	for filho in fita.get_children():
+		var item := filho as Node2D
+		if item == null:
+			continue
+		var meia := Vector2.ZERO
+		var sprite := item as Sprite2D
+		if sprite != null:
+			if sprite.texture == null:
+				continue
+			meia = (sprite.region_rect.size if sprite.region_enabled 				else sprite.texture.get_size()) * 0.5
+		else:
+			var poly := item as Polygon2D
+			if poly == null or poly.polygon.is_empty():
+				continue
+			meia = _caixa(poly.polygon).size * 0.5
+		var caixinha := Rect2(item.position - meia, meia * 2.0)
+		if primeira:
+			caixa = caixinha
+			primeira = false
+		else:
+			caixa = caixa.merge(caixinha)
+	return caixa
 
 
 func _caixa(pontos: PackedVector2Array) -> Rect2:

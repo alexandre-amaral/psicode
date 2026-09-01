@@ -29,6 +29,7 @@ func executar() -> void:
 	await _nenhuma_celula_invade_o_chao()
 	await _a_fita_nao_gira_nem_espelha_arte()
 	await _o_vao_da_porta_fica_sem_modulo()
+	await _toda_quina_recebe_canto()
 
 
 ## Toda forma de sala em disco monta a fita, e nenhuma monta vazia.
@@ -167,6 +168,52 @@ func _o_vao_da_porta_fica_sem_modulo() -> void:
 			)
 		sala.free()
 	ok(conferidas >= 15, "a varredura achou as portas abertas das salas (%d)" % conferidas)
+
+
+## TODA QUINA RECEBE CANTO, e a sala em L e o caso que prova.
+##
+## O contorno de uma sala e um poligono qualquer, e o renderizador classifica
+## cada quina pelo par de lados que se encontram nela. Quina que nao cai no mapa
+## sai SEM peca -- e o sintoma e um pedaco de faixa sem articulacao, visivel so
+## naquela forma de sala e em nenhuma outra. Nao ha erro no console para canto
+## faltando.
+##
+## A sala em L e o caso duro por dois motivos: ela tem SEIS quinas em vez de
+## quatro, e uma delas e CONCAVA -- a do fundo da mordida, onde as duas faixas se
+## sobrepoem em vez de contornar. As duas familias usam a mesma peca de
+## proposito, e este caso e o que prova que a concava nao ficou de fora.
+func _toda_quina_recebe_canto() -> void:
+	var quinas := 0
+	var cantos := 0
+	for caminho in _cenas():
+		var sala := _nascer(caminho)
+		if sala == null:
+			continue
+		await Engine.get_main_loop().process_frame
+		var contorno := sala.contorno_local()
+		var fita := sala.get_node_or_null("ParedeModulos")
+		if fita == null:
+			sala.free()
+			continue
+		# A celula de fita e um RECORTE da textura autorada, entao ela tem
+		# `region_enabled`. O canto e a peca inteira, e nao tem. E a unica
+		# diferenca estrutural entre as duas, e ela nao depende de tamanho -- o
+		# dia em que um canto tiver outro lado, esta conta continua valendo.
+		var deste := 0
+		for filho in fita.get_children():
+			var sprite := filho as Sprite2D
+			if sprite != null and not sprite.region_enabled:
+				deste += 1
+		quinas += contorno.size()
+		cantos += deste
+		igual(
+			deste, contorno.size(),
+			"%s: as %d quinas receberam canto (%d)"
+				% [caminho.get_file(), contorno.size(), deste]
+		)
+		sala.free()
+	ok(quinas >= 38, "a varredura contou as quinas das nove formas (%d)" % quinas)
+	igual(cantos, quinas, "nenhuma quina ficou sem peca (%d de %d)" % [cantos, quinas])
 
 
 # ------------------------------------------------------------- helpers ------

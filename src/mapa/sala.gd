@@ -154,6 +154,20 @@ const FACE_NEUTRA := "res://assets/texturas/parede_face.png"
 ## Compartilhada e nao copiada nos cinco `tipo_*.tres`: cinco copias da mesma
 ## lista divergem no dia em que alguem mudar quatro. Se um tipo um dia precisar
 ## de topo proprio, isso e uma decisao nova e nao um campo esperando.
+## Os CANTOS neutros, na ordem do `RenderizadorParedes.Canto`.
+##
+## Existem pelo mesmo motivo que `TOPOS_NEUTROS`: sala sem `DadosSala` -- aberta
+## sozinha no editor, a amostra do catalogo, toda suite que monta sala sem visual
+## -- tem de continuar desenhando parede inteira. Sem esta lista ela perdia os
+## cantos em silencio enquanto a fita continuava, e a quina ficava sem
+## articulacao so naquelas salas.
+const CANTOS_NEUTROS: Array[String] = [
+	"res://assets/texturas/modulo_canto_no.png",
+	"res://assets/texturas/modulo_canto_ne.png",
+	"res://assets/texturas/modulo_canto_so.png",
+	"res://assets/texturas/modulo_canto_se.png",
+]
+
 const TOPOS_NEUTROS: Array[String] = [
 	"res://assets/texturas/parede_topo_a.png",
 	"res://assets/texturas/parede_topo_b.png",
@@ -878,8 +892,17 @@ func _montar_fita(contorno: PackedVector2Array) -> void:
 		if neutra != null:
 			faces.append(neutra)
 
+	var cantos: Array[Texture2D] = []
+	if estilo != null and not estilo.cantos.is_empty():
+		cantos = estilo.cantos
+	else:
+		for caminho in CANTOS_NEUTROS:
+			var c := load(caminho) as Texture2D
+			if c != null:
+				cantos.append(c)
+
 	add_child(RenderizadorParedes.construir(
-		contorno, portas, hash(coordenadas_grid), topos, faces, estilo))
+		contorno, portas, hash(coordenadas_grid), topos, faces, cantos))
 
 
 ## A FACE vertical da parede: a metade interna da faixa, so nos lados voltados

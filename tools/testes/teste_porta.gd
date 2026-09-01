@@ -39,7 +39,7 @@ func executar() -> void:
 	await _a_travessia_e_decidida_na_saida()
 	_o_recesso_cobre_o_vao_da_moldura()
 	_a_folha_cobre_o_vao_da_moldura()
-	await _nenhuma_porta_desenha_arte_girada()
+	await _o_giro_da_porta_concorda_com_a_direcao()
 	await _a_moldura_de_cada_lado_abre_no_vao()
 	_toda_moldura_CERCA_o_vao()
 	_a_moldura_e_mais_escura_que_a_parede()
@@ -505,25 +505,29 @@ func _a_folha_cobre_o_vao_da_moldura() -> void:
 	porta.free()
 
 
-## NENHUMA PORTA DESENHA ARTE GIRADA (PORTA 03).
+## O GIRO DA PORTA E UM DOS QUATRO ANGULOS RETOS, e nunca um espelho vertical.
 ##
-## A porta era a MESMA imagem rotacionada nos quatro lados: 180 graus no sul, 90
-## no leste, -90 no oeste. Numa perspectiva em que parede tem topo e face, girar
-## uma face e destruir a perspectiva -- e a `porta_moldura.png` e face, com 96 de
-## largura por 128 de altura. Girada para o leste, aqueles 128 px de ALTURA
-## viravam 128 px de extensao horizontal, com a face deitada.
+## Este portao ja proibiu giro por completo, e a proibicao caiu -- por decisao do
+## dono do projeto, olhando as quatro portas no jogo. O argumento original
+## continua correto no papel: `porta_moldura.png` e arte de FACE, e girar uma face
+## e destruir a perspectiva Low Top-Down. O que ele nao previu e que o substituto
+## teria de ser tao bom quanto a arte desenhada, e em tres rodadas as vistas de
+## cima geradas nao chegaram perto.
 ##
-## O portao varre as cenas de sala em DISCO em vez de listar as sete: uma lista
-## fixa aqui teria o mesmo defeito que a `AUTORADAS` do teste de texturas ja
-## teve -- cena nova fora dela nao seria conferida por nada, e ninguem
-## descobriria.
+## O que sobra a cobrar nao e "nao gire": e **gire certo**. Duas coisas, e as duas
+## erram calado:
 ##
-## Espelhar continua permitido, e a distincao e o assunto inteiro da issue:
-## `flip_h` reflete e nao gira, entao a porta oeste pode ser a leste espelhada.
-## `flip_v` nao entra na mesma sacada -- espelhar na vertical troca o que esta
-## em cima pelo que esta embaixo, que numa arte com face e a mesma destruicao
-## que girar 180 graus.
-func _nenhuma_porta_desenha_arte_girada() -> void:
+## 1. **O angulo e um dos quatro retos.** Um giro de 0,3 rad em alguma cena poria
+##    a moldura torta sobre um vao reto, e a fresta apareceria so naquele lado.
+## 2. **`flip_v` continua proibido.** Espelhar na vertical troca o que esta em
+##    cima pelo que esta embaixo -- poria a SOLEIRA acima da VERGA, e isso nenhum
+##    giro faz. Girar 180 mantem a peca inteira coerente consigo mesma; espelhar
+##    a desmonta.
+##
+## E o angulo tem de CONCORDAR com `direcao`, que continua sendo a fonte de
+## verdade: uma porta leste com o visual girado como sul desenharia o batente
+## atravessado no vao, e nada mais no projeto acusaria.
+func _o_giro_da_porta_concorda_com_a_direcao() -> void:
 	var cenas := _cenas_de_sala()
 	ok(cenas.size() >= 5, "a varredura achou as cenas de sala (%d)" % cenas.size())
 	var portas := 0
@@ -544,16 +548,18 @@ func _nenhuma_porta_desenha_arte_girada() -> void:
 				if porta == null:
 					continue
 				portas += 1
+				var esperado := porta.vetor().angle() + PI * 0.5
 				for sprite in _sprites_de(porta):
 					sprites += 1
+					var giro := wrapf(sprite.global_rotation - esperado, -PI, PI)
 					ok(
-						is_zero_approx(sprite.global_rotation),
-						"%s/%s desenha sem rotacao (%.2f rad)"
-							% [porta.name, sprite.name, sprite.global_rotation]
+						absf(giro) < 0.01,
+						"%s/%s gira o que a direcao pede (%.2f rad, esperado %.2f)"
+							% [porta.name, sprite.name, sprite.global_rotation, esperado]
 					)
 					ok(
 						not sprite.flip_v,
-						"%s/%s nao espelha na vertical -- isso vira arte de cabeca para baixo"
+						"%s/%s nao espelha na vertical -- isso poria a soleira acima da verga"
 							% [porta.name, sprite.name]
 					)
 		sala.free()
@@ -603,11 +609,14 @@ func _a_moldura_de_cada_lado_abre_no_vao() -> void:
 			continue
 
 		var img := moldura.texture.get_image()
-		var canto := moldura.position \
-			- Vector2(img.get_width(), img.get_height()) * 0.5
 		var centro := (folha.position + outra.position) * 0.5
-		var c := int(centro.x - canto.x)
-		var r := int(centro.y - canto.y)
+		# Pelo TRANSFORM do sprite, e nao subtraindo posicoes: a moldura gira com a
+		# direcao desde que a arte autorada voltou a servir os quatro lados, e uma
+		# conta em coordenada de mundo acertaria o norte e erraria o leste --
+		# apontando para um pixel que nao e o que esta sob a folha.
+		var local := moldura.to_local(porta.to_global(centro))
+		var c := int(local.x + img.get_width() * 0.5)
+		var r := int(local.y + img.get_height() * 0.5)
 		var dentro := c >= 0 and c < img.get_width() and r >= 0 and r < img.get_height()
 		ok(dentro, "o centro da folha da porta %d cai dentro da moldura (%d, %d)"
 			% [direcao, c, r])
@@ -699,7 +708,7 @@ func _a_moldura_e_mais_escura_que_a_parede() -> void:
 	ok(face > 0.0, "a face da parede carrega (%.3f)" % face)
 	if face <= 0.0:
 		return
-	for nome in ["porta_topo.png", "porta_lado.png"]:
+	for nome in ["porta_moldura.png"]:
 		var v := _mediana_de_valor("res://assets/texturas/%s" % nome)
 		if v <= 0.0:
 			ok(false, "%s carrega" % nome)

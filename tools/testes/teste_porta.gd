@@ -35,6 +35,8 @@ func executar() -> void:
 	await _cada_estado_e_seu_solido()
 	await _sala_sem_vizinho_nao_deixa_solido_sobrando()
 	await _a_abertura_nao_cobra_pedagio()
+	_o_recesso_cobre_o_vao_da_moldura()
+	await _a_face_abre_no_vao_da_porta()
 
 
 ## A ANIMACAO DE ABERTURA e leitura, e nao pedagio (AND1 05).
@@ -173,6 +175,143 @@ func _sala_sem_vizinho_nao_deixa_solido_sobrando() -> void:
 
 
 # ------------------------------------------------------------- helpers ------
+
+## O recesso tapa a abertura da moldura, pixel a pixel.
+##
+## O defeito que este caso fecha: `porta_moldura.png` e arte autorada com um
+## BURACO -- 32x34 px de alfa zero no meio dela. A moldura GERADA que ela
+## substituiu na LTD 11 preenchia esse vao com N0 opaco ("corredor nao revelado e
+## escuridao"); a migracao para arte autorada perdeu o preenchimento e nada o
+## substituiu. O que aparecia por dentro do batente era a parede da sala.
+##
+## O caso mede as DUAS imagens e cruza as coordenadas locais delas, em vez de
+## comparar numeros escritos a mao. Assim o recesso continua cobrindo o vao no
+## dia em que a moldura for redesenhada -- e se nao cobrir, o teste diz quantos
+## pixels ficaram de fora, que e por onde a parede volta a vazar.
+func _o_recesso_cobre_o_vao_da_moldura() -> void:
+	var moldura := _imagem("res://assets/texturas/porta_moldura.png")
+	var vao := _imagem("res://assets/texturas/porta_vao.png")
+	if moldura == null or vao == null:
+		return
+
+	var porta := CENA_PORTA.instantiate() as Porta
+	Engine.get_main_loop().root.add_child(porta)
+	var no_moldura := porta.get_node_or_null("Moldura") as Sprite2D
+	var no_vao := porta.get_node_or_null("Vao") as Sprite2D
+	ok(no_vao != null, "a porta tem um no Vao -- o recesso do batente")
+	if no_moldura == null or no_vao == null:
+		porta.free()
+		return
+
+	# Sprite2D centrado: o pixel (c, r) cai em (c - largura/2, r - altura/2) mais
+	# a posicao do no.
+	var canto_moldura := no_moldura.position - Vector2(moldura.get_width(), moldura.get_height()) * 0.5
+	var canto_vao := no_vao.position - Vector2(vao.get_width(), vao.get_height()) * 0.5
+
+	var buracos := 0
+	var descobertos := 0
+	for r in moldura.get_height():
+		for c in moldura.get_width():
+			if not _e_furo_interno(moldura, c, r):
+				continue
+			buracos += 1
+			var local := canto_moldura + Vector2(c, r)
+			var no_vao_c := int(local.x - canto_vao.x)
+			var no_vao_r := int(local.y - canto_vao.y)
+			if no_vao_c < 0 or no_vao_c >= vao.get_width() \
+					or no_vao_r < 0 or no_vao_r >= vao.get_height() \
+					or vao.get_pixel(no_vao_c, no_vao_r).a < 0.999:
+				descobertos += 1
+
+	ok(buracos > 0, "a moldura tem uma abertura (%d px) -- e por ela que se ve o vao" % buracos)
+	igual(descobertos, 0, "o recesso cobre a abertura inteira da moldura (%d de %d descobertos)"
+		% [descobertos, buracos])
+	porta.free()
+
+
+## Este pixel e transparente E esta cercado por moldura nos QUATRO lados?
+##
+## Quatro e nao dois, e a diferenca foi medida. Cercar so na horizontal acha
+## 1240 px de "abertura" numa moldura cuja porta tem 1088, e os 152 restantes NAO
+## sao defeito:
+##
+##   linha 6, colunas 20-75  -- o vao ENTRE os dois blocos de canto, no alto. Ali
+##                              se ve a parede de proposito: e o recorte da
+##                              moldura, e nao um buraco nela.
+##   linhas 65-67            -- abaixo da SOLEIRA, ja dentro da sala. Ali se ve o
+##                              CHAO, que e o que tem de aparecer: a passagem
+##                              continua no piso.
+##
+## So a porta e fechada em cima (verga), embaixo (soleira) e dos dois lados
+## (batentes). Cercar nos quatro isola exatamente ela, sem numero escrito a mao,
+## e continua isolando se a moldura for redesenhada.
+func _e_furo_interno(img: Image, c: int, r: int) -> bool:
+	if img.get_pixel(c, r).a >= 0.999:
+		return false
+	return _ha_opaco(img, c, r, -1, 0) and _ha_opaco(img, c, r, 1, 0) \
+		and _ha_opaco(img, c, r, 0, -1) and _ha_opaco(img, c, r, 0, 1)
+
+
+func _ha_opaco(img: Image, c: int, r: int, dc: int, dr: int) -> bool:
+	var x := c + dc
+	var y := r + dr
+	while x >= 0 and x < img.get_width() and y >= 0 and y < img.get_height():
+		if img.get_pixel(x, y).a >= 0.999:
+			return true
+		x += dc
+		y += dr
+	return false
+
+
+## A face da parede ABRE no vao da porta, em vez de passar reta por cima.
+##
+## `_subtrechos()` corta o lado nas portas e, ate esta issue, tinha um consumidor
+## so: a colisao. O visual usava o par de vertices cru, entao o quad de face
+## atravessava a porta inteira. Como so o lado NORTE ganha face
+## (`LIMIAR_LADO_NORTE`), era la que o modulo autorado aparecia dentro do batente.
+##
+## O caso conta QUADS: um lado sem porta da um, um lado com porta no meio da
+## dois. E o numero que separa "abriu" de "nao abriu" sem depender de pixel.
+func _a_face_abre_no_vao_da_porta() -> void:
+	var sala := CENA_SALA.instantiate() as Sala
+	Engine.get_main_loop().root.add_child(sala)
+	sala.global_position = LONGE
+	await Engine.get_main_loop().process_frame
+
+	var raiz := sala.get_node_or_null("ParedeFace")
+	ok(raiz != null, "a sala retangular desenha face")
+	if raiz == null:
+		sala.free()
+		return
+
+	# A sala retangular tem UMA face (o lado norte) e uma porta no meio dele.
+	# Aberta, ela vira dois trechos.
+	igual(
+		raiz.get_child_count(), 2,
+		"a face do lado norte abre no vao da porta, virando dois trechos (%d)"
+			% raiz.get_child_count()
+	)
+
+	# E nenhum trecho pode cobrir o centro do vao.
+	var porta := sala.get_node_or_null("Portas/Porta_Norte") as Porta
+	if porta != null:
+		var centro := porta.position
+		var cobrindo := 0
+		for filho in raiz.get_children():
+			var quad := filho as Polygon2D
+			if quad != null and Geometry2D.is_point_in_polygon(centro, quad.polygon):
+				cobrindo += 1
+		igual(cobrindo, 0, "nenhum trecho de face cobre o centro do vao")
+	sala.free()
+
+
+func _imagem(caminho: String) -> Image:
+	var tex := load(caminho) as Texture2D
+	if tex == null:
+		ok(false, "%s existe" % caminho)
+		return null
+	return tex.get_image()
+
 
 func _porta_solta(raiz: Node) -> Porta:
 	# A porta espera morar em Sala/Portas/Porta -- ela sobe dois niveis para

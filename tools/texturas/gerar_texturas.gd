@@ -37,6 +37,31 @@ const TAMANHO_PAREDE := 128
 ## como um retangulo de 24 px no meio de uma parede de 64.
 const PORTA_MOLDURA := Vector2i(96, 128)
 const PORTA_CAMPO := Vector2i(80, 32)
+
+## O RECESSO do vao: o que se ve DENTRO do batente.
+##
+## Ele existe porque a moldura autorada tem um buraco literal. A moldura gerada
+## que ela substituiu na LTD 11 preenchia o vao com N0 opaco -- `gerar_porta_moldura`
+## ainda tem a linha, comentada como "corredor nao revelado e escuridao" --, e
+## esse codigo saiu de `nomes()` junto com a migracao. O fundo se perdeu ali, e
+## sem ele a parede aparece por dentro da porta: no lado NORTE, que e o unico que
+## ganha face, o que se ve e o modulo autorado de face dentro do batente.
+##
+## Tile PROPRIO em vez de repintar a moldura: os batentes, a verga e a soleira
+## sao arte autorada e nao podem mudar um pixel, e um no separado deixa o recesso
+## disponivel para a folha da porta deslizar POR CIMA dele quando a abertura
+## virar abertura de verdade.
+const PORTA_VAO := Vector2i(32, 48)
+
+## Onde a abertura da moldura cai dentro deste tile, em linhas.
+##
+## Medido na propria `porta_moldura.png`: a regiao transparente dela vai da linha
+## 29 a 62, e o recesso e centrado em (0, -18) na cena. Sao numeros de UM lugar
+## so, e `teste_porta.gd` confere que eles ainda casam com o alfa da moldura --
+## um recesso deslocado deixaria uma fresta, e fresta e por onde a parede volta a
+## vazar.
+const VAO_LINHA_INICIAL := 7
+const VAO_LINHA_FINAL := 40
 const PROPS_ATLAS := Vector2i(256, 128)
 ## Lado do tile da parede Low Top-Down (docs/LOW_TOPDOWN_SQUARED.md secao 14).
 ## Multiplo de 16 e de 32, entao nao mexe na grade estrutural do projeto.
@@ -55,6 +80,7 @@ const SEEDS: Dictionary = {
 	&"parede": 2002,
 	&"porta_moldura": 4004,
 	&"porta_campo": 5005,
+	&"porta_vao": 5105,
 	&"props_atlas": 6006,
 	&"parede_topo": 7007,
 	&"parede_face": 8008,
@@ -102,6 +128,7 @@ func _ready() -> void:
 static func nomes() -> Array[String]:
 	var lista: Array[String] = []
 	lista.append("porta_campo.png")
+	lista.append("porta_vao.png")
 	lista.append("props_atlas.png")
 	lista.append("parede_topo.png")
 	return lista
@@ -123,6 +150,8 @@ static func gerar(nome: String) -> Image:
 			return gerar_porta_moldura()
 		"porta_campo.png":
 			return gerar_porta_campo()
+		"porta_vao.png":
+			return gerar_porta_vao()
 		"props_atlas.png":
 			return gerar_props_atlas(SEEDS[&"props_atlas"])
 		"parede_topo.png":
@@ -431,6 +460,38 @@ static func gerar_porta_campo() -> Image:
 			if x == 0 or x == PORTA_CAMPO.x - 1 or y == 0 or y == PORTA_CAMPO.y - 1:
 				cor = claro
 			_pintar(img, x, y, cor)
+	return img
+
+
+## O recesso do vao: escuridao com um piso e uma soleira.
+##
+## Tudo em AMBIENTE, e o mais escuro que a paleta tem. O vao NAO pode virar
+## sinal: `porta_campo` ja e o sinal de "trancada", e dois sinais na mesma
+## silhueta cancelam um ao outro.
+##
+## A luz vem de cima e da esquerda (LOW_TOPDOWN secao 18), entao a sombra e mais
+## funda embaixo da verga e o piso da passagem pega o pouco que sobra. A soleira
+## e uma LINHA de 1 px e nao um bloco: detalhe pequeno neste projeto e sempre
+## linha, junta ou canto -- nunca um disco, que e a silhueta de um tiro.
+static func gerar_porta_vao() -> Image:
+	var img := _nova(PORTA_VAO.x, PORTA_VAO.y)
+	var n0: Color = Paleta.NEUTROS[&"N0"]
+	var n1: Color = Paleta.NEUTROS[&"N1"]
+	var n2: Color = Paleta.NEUTROS[&"N2"]
+	# O piso da passagem ocupa o quinto de baixo da abertura.
+	var piso := VAO_LINHA_FINAL - 5
+	for y in range(VAO_LINHA_INICIAL, VAO_LINHA_FINAL + 1):
+		for x in PORTA_VAO.x:
+			var cor := n0
+			if y >= piso:
+				cor = n1
+			if y == VAO_LINHA_FINAL:
+				cor = n2
+			elif x == 0 and y < piso:
+				# A ombreira esquerda pega a luz: uma coluna de 1 px que da
+				# profundidade sem acender nada.
+				cor = n1
+			img.set_pixel(x, y, cor)
 	return img
 
 

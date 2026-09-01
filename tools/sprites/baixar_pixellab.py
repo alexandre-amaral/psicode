@@ -35,10 +35,14 @@ import json
 import os
 import sys
 
-try:
-    from urllib.request import urlopen
-except ImportError:  # Python 2
-    from urllib2 import urlopen
+from urllib.request import urlopen, Request
+
+## O CDN do PixelLab recusa requisicao sem User-Agent com 403.
+##
+## Nao e autenticacao -- as URLs ja vem assinadas no proprio link. E filtro de
+## bot, e sem cabecalho o download falha com "Forbidden", o que manda procurar o
+## erro em credencial e nao em cabecalho.
+CABECALHO = {"User-Agent": "psicode-baixar-pixellab/1.0"}
 
 RAIZ = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DESTINO = os.path.join(RAIZ, "animations")
@@ -56,7 +60,7 @@ NOME_RESERVADO = "andar"
 
 
 def baixar(url, caminho):
-    dados = urlopen(url).read()
+    dados = urlopen(Request(url, headers=CABECALHO)).read()
     if not dados.startswith(b"\x89PNG"):
         sys.exit("nao veio PNG de %s" % url)
     with io.open(caminho, "wb") as f:

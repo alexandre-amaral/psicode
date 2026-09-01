@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://src/mapa/porta.gd" id="1_p"]
 [ext_resource type="Texture2D" path="res://assets/texturas/porta_moldura.png" id="2_moldura"]
 [ext_resource type="Texture2D" path="res://assets/texturas/porta_campo.png" id="3_campo"]
+[ext_resource type="Texture2D" path="res://assets/texturas/porta_vao.png" id="4_vao"]
 [ext_resource type="AudioStream" path="res://assets/audio/valvula.wav" id="50_motor"]
 [ext_resource type="AudioStream" path="res://assets/audio/estalo.wav" id="51_trava"]
 
@@ -29,6 +30,11 @@ collision_mask = 0
 [node name="Colisao" type="CollisionShape2D" parent="Barreira"]
 shape = SubResource("RectangleShape2D_2")
 disabled = true
+
+[node name="Vao" type="Sprite2D" parent="."]
+position = Vector2(0, -18)
+z_index = -2
+texture = ExtResource("4_vao")
 
 [node name="Moldura" type="Sprite2D" parent="."]
 z_index = -1

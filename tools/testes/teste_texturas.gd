@@ -364,8 +364,15 @@ const AUTORADAS: Dictionary = {
 	# A MOLDURA da porta (LTD 11). Familia `prop` e nao `parede`: ela serve
 	# todos os tipos de sala, entao nao pode ter faixa de matiz -- amarra-la a
 	# uma pintaria a mesma porta de vermelho no chefe e de ambar na sala de arma.
-	# O CAMPO continua gerado: ele e SINAL e tem lista de cor propria.
+	# As barras de TRANCADA continuam geradas: elas sao SINAL e tem lista propria.
 	"porta_moldura.png": {&"familia": &"prop", &"tipo": &"andar1"},
+	# A FOLHA que fecha o vao (PORTA 01). Mesma familia da moldura pela mesma
+	# razao -- ela e a chapa daquela moldura, e as duas atravessam os cinco tipos
+	# de sala. O que a porta tinha antes dela era `porta_campo.png`: 80x32 em duas
+	# cores de SINAL, uma grade de listras rosa-vermelhas sobre um vao vazio. Nao
+	# havia chapa nenhuma, e o buraco continuava um buraco com um adesivo luminoso
+	# na frente.
+	"porta_folha.png": {&"familia": &"prop", &"tipo": &"andar1"},
 	"props_frente.png": {&"familia": &"prop", &"tipo": &"andar1"},
 	# A BAIA do chefe (AND1 07): a marca de chao sob o ponto de partida dele.
 	# Familia `decalque` -- ela e chapada e o jogador anda por cima --, tipo

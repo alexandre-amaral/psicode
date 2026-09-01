@@ -35,7 +35,10 @@ func executar() -> void:
 	await _cada_estado_e_seu_solido()
 	await _sala_sem_vizinho_nao_deixa_solido_sobrando()
 	await _a_abertura_nao_cobra_pedagio()
+	await _a_folha_parte_em_vez_de_achatar()
 	_o_recesso_cobre_o_vao_da_moldura()
+	_a_folha_cobre_o_vao_da_moldura()
+	await _nenhuma_porta_desenha_arte_girada()
 	await _a_face_abre_no_vao_da_porta()
 
 
@@ -75,13 +78,90 @@ func _a_abertura_nao_cobra_pedagio() -> void:
 		"aberta, a passagem libera no MESMO frame -- a animacao nao e pedagio")
 	igual(porta.estado, porta.Estado.ABERTA, "e o estado ja e ABERTA desde o inicio dela")
 
-	# O campo de forca -- o unico elemento que o jogador le num quadro so -- some
-	# ao fim da encenacao, e nao antes: e a unica chance de mostrar a tranca
-	# soltando.
-	var campo := porta.get_node_or_null("Campo") as Sprite2D
-	ok(campo != null, "a porta tem campo de forca")
-	if campo != null:
-		ok(campo.visible, "e ele ainda esta em tela enquanto a porta abre")
+	# A FOLHA -- a chapa que o jogador le num quadro so -- some ao fim da
+	# encenacao, e nao antes: e a unica chance de mostrar a porta abrindo.
+	var folha := porta.get_node_or_null("FolhaA") as Sprite2D
+	ok(folha != null, "a porta tem folha")
+	if folha != null:
+		ok(folha.visible, "e ela ainda esta em tela enquanto a porta abre")
+
+	raiz.free()
+
+
+## A FOLHA PARTE, E NAO ACHATA (PORTA 02).
+##
+## O que existia aqui antes nao era uma abertura: `_encenar_abertura()` levava a
+## `scale` do campo de forca a `(1.0, 0.02)`. Numa grade de listras aquilo
+## passava como "o campo recolheu"; numa CHAPA metalica -- que e o que a porta e
+## desde a PORTA 01 -- e a porta sendo esmagada, e nao aberta.
+##
+## Tres coisas se cobram, e as tres sao geometria e nao gosto:
+##
+## 1. **A escala nunca sai de 1.** Deformar o desenho e o defeito, entao o teste
+##    e sobre `scale` e nao sobre "parece bom".
+## 2. **Cada metade recolhe o proprio tamanho.** Meia folha some por inteiro,
+##    sem sobrar um fio dela no meio do vao.
+## 3. **O recuo cabe atras do BATENTE**, medido no alfa da moldura autorada e
+##    nao escrito a mao. Quem esconde a folha e a moldura, como numa porta de
+##    verdade -- um `visible = false` no meio do vao seria a folha evaporando.
+func _a_folha_parte_em_vez_de_achatar() -> void:
+	var raiz := Node2D.new()
+	Engine.get_main_loop().root.add_child(raiz)
+	var porta := _porta_solta(raiz)
+	var a := porta.get_node_or_null("FolhaA") as Sprite2D
+	var b := porta.get_node_or_null("FolhaB") as Sprite2D
+	ok(a != null and b != null, "a folha tem duas metades")
+	if a == null or b == null:
+		raiz.free()
+		return
+
+	var meia := a.region_rect.size.x
+	igual(
+		meia, Porta.RECUO_DA_FOLHA,
+		"cada metade recolhe o proprio tamanho (%.0f px de %.0f)" % [Porta.RECUO_DA_FOLHA, meia]
+	)
+
+	var batente := _batente_da_moldura(porta)
+	ok(batente > 0.0, "a moldura tem batente opaco ao lado do vao (%.0f px)" % batente)
+	ok(
+		Porta.RECUO_DA_FOLHA <= batente,
+		"a metade recolhida cabe atras do batente (%.0f px de %.0f) -- quem esconde a folha e a moldura"
+			% [Porta.RECUO_DA_FOLHA, batente]
+	)
+
+	var casa_a := a.position
+	var casa_b := b.position
+	porta.trancar()
+	await Engine.get_main_loop().process_frame
+	ok(a.visible and b.visible, "trancada, as duas metades estao em tela (pre-condicao)")
+
+	porta.abrir()
+	# O laco anda ate a animacao TERMINAR, e nao um numero fixo de quadros.
+	#
+	# Sem janela o Godot nao tem vsync e roda centenas de quadros por segundo:
+	# um teto de 30 quadros cobria 0,05 s de uma abertura de 0,42 s, e parava
+	# dentro do TREMOR -- antes de a chapa ter comecado a se mexer. O caso
+	# reprovava com o codigo certo, dizendo que a folha nao partia.
+	var andou := false
+	for i in 5000:
+		await Engine.get_main_loop().process_frame
+		if not a.scale.is_equal_approx(Vector2.ONE) or not b.scale.is_equal_approx(Vector2.ONE):
+			ok(false, "a folha foi deformada em vez de deslocada (escala %s)" % a.scale)
+			break
+		if not a.position.is_equal_approx(casa_a):
+			andou = true
+		if not a.visible and not b.visible:
+			break
+	ok(andou, "as metades PARTEM: a posicao delas muda durante a abertura")
+	ok(a.scale.is_equal_approx(Vector2.ONE), "e a escala nunca sai de 1 -- nada e achatado")
+
+	# ABERTA nao deixa residuo, e o residuo nao e so o pixel: uma metade parada
+	# fora de casa reapareceria deslocada na proxima vez que esta porta trancasse.
+	ok(not a.visible and not b.visible, "ABERTA nao deixa a folha em cena")
+	ok(
+		a.position.is_equal_approx(casa_a) and b.position.is_equal_approx(casa_b),
+		"e as metades voltam para casa, para a proxima tranca comecar do lugar certo"
+	)
 
 	raiz.free()
 
@@ -189,24 +269,35 @@ func _sala_sem_vizinho_nao_deixa_solido_sobrando() -> void:
 ## dia em que a moldura for redesenhada -- e se nao cobrir, o teste diz quantos
 ## pixels ficaram de fora, que e por onde a parede volta a vazar.
 func _o_recesso_cobre_o_vao_da_moldura() -> void:
-	var moldura := _imagem("res://assets/texturas/porta_moldura.png")
-	var vao := _imagem("res://assets/texturas/porta_vao.png")
-	if moldura == null or vao == null:
-		return
-
-	var porta := CENA_PORTA.instantiate() as Porta
-	Engine.get_main_loop().root.add_child(porta)
-	var no_moldura := porta.get_node_or_null("Moldura") as Sprite2D
+	var raiz := Node2D.new()
+	Engine.get_main_loop().root.add_child(raiz)
+	var porta := _porta_solta(raiz)
 	var no_vao := porta.get_node_or_null("Vao") as Sprite2D
 	ok(no_vao != null, "a porta tem um no Vao -- o recesso do batente")
-	if no_moldura == null or no_vao == null:
-		porta.free()
-		return
+	if no_vao != null:
+		_o_no_cobre_o_vao(porta, no_vao.texture, no_vao.position, "o recesso")
+	raiz.free()
 
-	# Sprite2D centrado: o pixel (c, r) cai em (c - largura/2, r - altura/2) mais
-	# a posicao do no.
+
+## Um sprite da porta tapa, pixel a pixel, o furo da moldura.
+##
+## Duas pecas fazem essa pergunta: o RECESSO (o que ha atras do furo) e a FOLHA
+## (o que fecha o furo). A conta e a mesma -- cruzar as coordenadas locais das
+## duas imagens -- e por isso ela mora num lugar so: duas copias divergiriam no
+## dia em que a moldura fosse redesenhada, e uma delas continuaria verde.
+##
+## Sprite2D e centrado: o pixel (c, r) cai em (c - largura/2, r - altura/2) mais
+## a posicao do no.
+func _o_no_cobre_o_vao(porta: Porta, cobertura: Texture2D, centro: Vector2, rotulo: String) -> void:
+	var no_moldura := porta.get_node_or_null("Moldura") as Sprite2D
+	if no_moldura == null or no_moldura.texture == null or cobertura == null:
+		ok(false, "%s e a moldura tem textura" % rotulo)
+		return
+	var moldura := no_moldura.texture.get_image()
+	var cobre := cobertura.get_image()
+
 	var canto_moldura := no_moldura.position - Vector2(moldura.get_width(), moldura.get_height()) * 0.5
-	var canto_vao := no_vao.position - Vector2(vao.get_width(), vao.get_height()) * 0.5
+	var canto_cobre := centro - Vector2(cobre.get_width(), cobre.get_height()) * 0.5
 
 	var buracos := 0
 	var descobertos := 0
@@ -216,17 +307,16 @@ func _o_recesso_cobre_o_vao_da_moldura() -> void:
 				continue
 			buracos += 1
 			var local := canto_moldura + Vector2(c, r)
-			var no_vao_c := int(local.x - canto_vao.x)
-			var no_vao_r := int(local.y - canto_vao.y)
-			if no_vao_c < 0 or no_vao_c >= vao.get_width() \
-					or no_vao_r < 0 or no_vao_r >= vao.get_height() \
-					or vao.get_pixel(no_vao_c, no_vao_r).a < 0.999:
+			var cc := int(local.x - canto_cobre.x)
+			var cr := int(local.y - canto_cobre.y)
+			if cc < 0 or cc >= cobre.get_width() \
+					or cr < 0 or cr >= cobre.get_height() \
+					or cobre.get_pixel(cc, cr).a < 0.999:
 				descobertos += 1
 
 	ok(buracos > 0, "a moldura tem uma abertura (%d px) -- e por ela que se ve o vao" % buracos)
-	igual(descobertos, 0, "o recesso cobre a abertura inteira da moldura (%d de %d descobertos)"
-		% [descobertos, buracos])
-	porta.free()
+	igual(descobertos, 0, "%s cobre a abertura inteira da moldura (%d de %d descobertos)"
+		% [rotulo, descobertos, buracos])
 
 
 ## Este pixel e transparente E esta cercado por moldura nos QUATRO lados?
@@ -305,12 +395,144 @@ func _a_face_abre_no_vao_da_porta() -> void:
 	sala.free()
 
 
-func _imagem(caminho: String) -> Image:
-	var tex := load(caminho) as Texture2D
-	if tex == null:
-		ok(false, "%s existe" % caminho)
-		return null
-	return tex.get_image()
+## A FOLHA cobre o vao da moldura (PORTA 01).
+##
+## Mesma pergunta que o recesso responde -- "o que ha atras deste furo?" -- so
+## que um passo a frente: atras dele tem de haver uma CHAPA, e nao escuridao. A
+## porta trancada era `porta_campo.png`, 80x32 em duas cores de sinal, no meio de
+## uma moldura de 96x128: uma tira vermelha de 32 px de altura num vao de 34, com
+## o buraco continuando visivelmente um buraco.
+##
+## O caso cruza as coordenadas locais das DUAS imagens, como o do recesso, e nao
+## compara numero escrito a mao: a medida sai do alfa da moldura autorada.
+func _a_folha_cobre_o_vao_da_moldura() -> void:
+	var porta := CENA_PORTA.instantiate() as Porta
+	Engine.get_main_loop().root.add_child(porta)
+	var a := porta.get_node_or_null("FolhaA") as Sprite2D
+	var b := porta.get_node_or_null("FolhaB") as Sprite2D
+	ok(a != null and b != null, "a porta tem as duas metades da folha")
+	if a == null or b == null:
+		porta.free()
+		return
+	# As duas metades sao regioes da MESMA textura e, juntas, reconstroem a chapa
+	# inteira centrada no meio delas. Medir a uniao e medir a folha fechada.
+	var centro := (a.position + b.position) * 0.5
+	_o_no_cobre_o_vao(porta, a.texture, centro, "a folha")
+	porta.free()
+
+
+## NENHUMA PORTA DESENHA ARTE GIRADA (PORTA 03).
+##
+## A porta era a MESMA imagem rotacionada nos quatro lados: 180 graus no sul, 90
+## no leste, -90 no oeste. Numa perspectiva em que parede tem topo e face, girar
+## uma face e destruir a perspectiva -- e a `porta_moldura.png` e face, com 96 de
+## largura por 128 de altura. Girada para o leste, aqueles 128 px de ALTURA
+## viravam 128 px de extensao horizontal, com a face deitada.
+##
+## O portao varre as cenas de sala em DISCO em vez de listar as sete: uma lista
+## fixa aqui teria o mesmo defeito que a `AUTORADAS` do teste de texturas ja
+## teve -- cena nova fora dela nao seria conferida por nada, e ninguem
+## descobriria.
+##
+## Espelhar continua permitido, e a distincao e o assunto inteiro da issue:
+## `flip_h` reflete e nao gira, entao a porta oeste pode ser a leste espelhada.
+## `flip_v` nao entra na mesma sacada -- espelhar na vertical troca o que esta
+## em cima pelo que esta embaixo, que numa arte com face e a mesma destruicao
+## que girar 180 graus.
+func _nenhuma_porta_desenha_arte_girada() -> void:
+	var cenas := _cenas_de_sala()
+	ok(cenas.size() >= 5, "a varredura achou as cenas de sala (%d)" % cenas.size())
+	var portas := 0
+	var sprites := 0
+	for caminho in cenas:
+		var cena := load(caminho) as PackedScene
+		if cena == null:
+			ok(false, "%s carrega" % caminho)
+			continue
+		var sala := cena.instantiate() as Sala
+		Engine.get_main_loop().root.add_child(sala)
+		sala.global_position = LONGE
+		await Engine.get_main_loop().process_frame
+		var raiz := sala.get_node_or_null("Portas")
+		if raiz != null:
+			for filho in raiz.get_children():
+				var porta := filho as Porta
+				if porta == null:
+					continue
+				portas += 1
+				for sprite in _sprites_de(porta):
+					sprites += 1
+					ok(
+						is_zero_approx(sprite.global_rotation),
+						"%s/%s desenha sem rotacao (%.2f rad)"
+							% [porta.name, sprite.name, sprite.global_rotation]
+					)
+					ok(
+						not sprite.flip_v,
+						"%s/%s nao espelha na vertical -- isso vira arte de cabeca para baixo"
+							% [porta.name, sprite.name]
+					)
+		sala.free()
+	ok(portas >= 20, "a varredura conferiu as portas das salas (%d)" % portas)
+	ok(sprites >= portas, "e conferiu ao menos um sprite por porta (%d)" % sprites)
+
+
+func _cenas_de_sala() -> Array[String]:
+	var lista: Array[String] = []
+	var pasta := DirAccess.open("res://src/mapa")
+	if pasta == null:
+		return lista
+	for arquivo in pasta.get_files():
+		if arquivo.begins_with("sala_") and arquivo.ends_with(".tscn"):
+			lista.append("res://src/mapa/%s" % arquivo)
+	lista.sort()
+	return lista
+
+
+func _sprites_de(raiz: Node) -> Array[Sprite2D]:
+	var lista: Array[Sprite2D] = []
+	for filho in raiz.get_children():
+		var sprite := filho as Sprite2D
+		if sprite != null and sprite.texture != null:
+			lista.append(sprite)
+		lista.append_array(_sprites_de(filho))
+	return lista
+
+
+## Quantos px OPACOS a moldura tem entre o vao e a borda do desenho.
+##
+## E o esconderijo da folha recolhida, e sai do alfa em vez de uma constante:
+## redesenhar a moldura com batente mais estreito passa a reprovar o recuo, que e
+## exatamente o dia em que a folha comecaria a aparecer no meio do vao.
+func _batente_da_moldura(porta: Porta) -> float:
+	var no := porta.get_node_or_null("Moldura") as Sprite2D
+	if no == null or no.texture == null:
+		return 0.0
+	var img := no.texture.get_image()
+	# O furo primeiro, e nao o meio do SPRITE. A abertura da moldura vai da linha
+	# 29 a 62 de 128: medir na linha 64 cai na SOLEIRA, que e opaca de ponta a
+	# ponta -- a primeira versao deste portao respondia 48 px de batente onde ha
+	# 24, e um portao que mede a coisa errada aprova o dobro do que devia.
+	var esquerda := img.get_width()
+	var topo := img.get_height()
+	var base := -1
+	for r in img.get_height():
+		for c in img.get_width():
+			if not _e_furo_interno(img, c, r):
+				continue
+			esquerda = mini(esquerda, c)
+			topo = mini(topo, r)
+			base = maxi(base, r)
+	if base < 0:
+		return 0.0
+
+	var linha := (topo + base) / 2
+	var x := esquerda - 1
+	var largura := 0
+	while x >= 0 and img.get_pixel(x, linha).a >= 0.999:
+		largura += 1
+		x -= 1
+	return float(largura)
 
 
 func _porta_solta(raiz: Node) -> Porta:

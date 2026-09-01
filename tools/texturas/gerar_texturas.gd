@@ -36,7 +36,51 @@ const TAMANHO_PAREDE := 128
 ## Top-Down: a moldura tem de cobrir a faixa inteira, senao a porta aparece
 ## como um retangulo de 24 px no meio de uma parede de 64.
 const PORTA_MOLDURA := Vector2i(96, 128)
-const PORTA_CAMPO := Vector2i(80, 32)
+
+## A porta em NUMEROS, e eles sao os mesmos nos quatro lados (PORTA 03).
+##
+## AO LONGO da parede sao 80 px -- e `Porta.LARGURA`, o vao que a parede abre --
+## mais 8 px de folga de cada lado, o que da os 96 da moldura autorada.
+## ATRAVESSANDO a parede sao 64 px de banda mais 64 dentro da sala: os 128.
+##
+## A ABERTURA de 32 nao foi escolhida, foi MEDIDA no alfa da
+## `porta_moldura.png` (colunas 32..63). O que sobra de cada lado -- 24 px de
+## batente -- e onde a folha recolhe, e e por isso que meia folha, 16 px, cabe
+## atras dele com folga. As vistas de cima repetem esse desenho para que a mesma
+## porta tenha a mesma medida nos quatro lados.
+const PORTA_ABERTURA := 32
+const PORTA_BATENTE := 24
+## A banda de parede vista de cima. E o mesmo numero de `Sala.ESPESSURA_PAREDE`.
+const PORTA_BANDA := 64
+
+## A vista de CIMA da porta, para os lados que so mostram o topo da parede
+## (sul, leste e oeste). Transposta em `porta_lado`, nunca rotacionada.
+const PORTA_TOPO := Vector2i(96, 128)
+const PORTA_LADO := Vector2i(128, 96)
+
+## A FOLHA vista de cima: a chapa dentro da espessura da parede. O sprite cobre
+## a banda inteira para a metade poder deslizar dentro dele.
+const PORTA_FOLHA_TOPO := Vector2i(32, 64)
+const PORTA_FOLHA_LADO := Vector2i(64, 32)
+
+## O RECESSO das vistas de cima: o poco da passagem, visto de cima.
+##
+## Ele e uma peca SEPARADA da moldura pela mesma razao que no norte: a folha
+## desliza ENTRE os dois. Desenhar o poco dentro da propria moldura -- que foi a
+## primeira versao desta issue -- poe um retangulo opaco por cima da chapa, e a
+## porta trancada volta a ser um buraco com um adesivo luminoso na frente. O
+## defeito nao aparece em teste de arquivo nenhum: as duas texturas estavam
+## certas, so estavam na ordem errada.
+const PORTA_VAO_TOPO := Vector2i(32, 64)
+const PORTA_VAO_LADO := Vector2i(64, 32)
+
+## O indicador de TRANCADA, e a unica peca da porta que fica na paleta SINAL.
+##
+## Ele e uma BARRA que atravessa a abertura, e nao a folha inteira: a folha e
+## chapa de ambiente, e o sinal e detalhe sobre ela. Barra e nao disco pela
+## razao de sempre -- disco e a silhueta de um projetil.
+const PORTA_TRAVA := Vector2i(32, 16)
+const PORTA_TRAVA_LADO := Vector2i(16, 32)
 
 ## O RECESSO do vao: o que se ve DENTRO do batente.
 ##
@@ -79,7 +123,6 @@ const SEEDS: Dictionary = {
 	&"chao": 1001,
 	&"parede": 2002,
 	&"porta_moldura": 4004,
-	&"porta_campo": 5005,
 	&"porta_vao": 5105,
 	&"props_atlas": 6006,
 	&"parede_topo": 7007,
@@ -127,18 +170,33 @@ func _ready() -> void:
 ## silencio justamente os props que carregam a identidade de cada sala.
 static func nomes() -> Array[String]:
 	var lista: Array[String] = []
-	lista.append("porta_campo.png")
+	lista.append("porta_topo.png")
+	lista.append("porta_lado.png")
+	lista.append("porta_vao_topo.png")
+	lista.append("porta_vao_lado.png")
+	lista.append("porta_folha_topo.png")
+	lista.append("porta_folha_lado.png")
+	lista.append("porta_trava.png")
+	lista.append("porta_trava_lado.png")
 	lista.append("porta_vao.png")
 	lista.append("props_atlas.png")
 	return lista
 
 
-## Texturas que pertencem a paleta AMBIENTE (G1 e G2 valem para elas). O campo
-## da porta e SINAL e fica de fora de proposito.
+## As texturas que ficam na paleta SINAL, e nao na AMBIENTE.
+##
+## Sao as duas barras de trancada -- o que sobrou do campo de forca depois que a
+## porta ganhou folha (PORTA 01). Sinal e para DETALHE: uma lista pequena aqui e
+## a prova de que ele continua sendo detalhe.
+const SINALIZADORAS: Array[String] = ["porta_trava.png", "porta_trava_lado.png"]
+
+
+## Texturas que pertencem a paleta AMBIENTE (G1 e G2 valem para elas). As barras
+## de trancada sao SINAL e ficam de fora de proposito.
 static func nomes_de_ambiente() -> Array[String]:
 	var lista: Array[String] = []
 	for nome in nomes():
-		if nome != "porta_campo.png":
+		if not SINALIZADORAS.has(nome):
 			lista.append(nome)
 	return lista
 
@@ -147,8 +205,22 @@ static func gerar(nome: String) -> Image:
 	match nome:
 		"porta_moldura.png":
 			return gerar_porta_moldura()
-		"porta_campo.png":
-			return gerar_porta_campo()
+		"porta_topo.png":
+			return gerar_porta_topo()
+		"porta_lado.png":
+			return gerar_porta_lado()
+		"porta_vao_topo.png":
+			return gerar_porta_vao_topo()
+		"porta_vao_lado.png":
+			return gerar_porta_vao_lado()
+		"porta_folha_topo.png":
+			return gerar_porta_folha_topo()
+		"porta_folha_lado.png":
+			return gerar_porta_folha_lado()
+		"porta_trava.png":
+			return gerar_porta_trava()
+		"porta_trava_lado.png":
+			return gerar_porta_trava_lado()
 		"porta_vao.png":
 			return gerar_porta_vao()
 		"props_atlas.png":
@@ -446,26 +518,206 @@ static func gerar_porta_moldura() -> Image:
 	return img
 
 
-## Campo de forca de 80x32: scanlines nos dois tons de SINAL. E a unica textura
-## fora da paleta AMBIENTE, e por isso e a unica que so aparece TRANCADA -- e
-## sempre com 80x32, tamanho que nenhum projetil tem.
-static func gerar_porta_campo() -> Image:
-	var img := _nova(PORTA_CAMPO.x, PORTA_CAMPO.y)
+## A vista de CIMA da porta, para o lado SUL (PORTA 03).
+##
+## Ela existe porque a moldura autorada e uma FACE, e face so aparece no lado
+## norte: `Sala._montar_faces()` pula todo lado cuja normal externa nao aponta
+## para cima, entao a parede sul, a leste e a oeste mostram so o TOPO. Uma face
+## girada 90 ou 180 graus e exatamente o que o `LOW_TOPDOWN_SQUARED.md` proibe,
+## e era o que as tres portas faziam.
+##
+## O desenho repete a medida da moldura -- 80 px ao longo da parede, 32 de
+## abertura, 24 de batente de cada lado -- para a porta ter o mesmo tamanho nos
+## quatro lados. O que muda e a VISTA: aqui nao ha verga nem soleira, ha o topo
+## da caixa em que a folha recolhe e o poco escuro da passagem.
+##
+## As linhas 0..63 ficam transparentes: ali e o chao da sala, e quem desenha
+## chao e a sala.
+static func gerar_porta_topo() -> Image:
+	var img := _nova(PORTA_TOPO.x, PORTA_TOPO.y)
+	var n4 := Paleta.neutro(&"N4")
+	var n5 := Paleta.neutro(&"N5")
+	var n6 := Paleta.neutro(&"N6")
+	var n7 := Paleta.neutro(&"N7")
+	var y0 := PORTA_BANDA
+	var x0 := (PORTA_TOPO.x - (PORTA_ABERTURA + 2 * PORTA_BATENTE)) / 2
+
+	# As duas CAIXAS de recolhimento, vistas de cima.
+	for lado: int in [x0, x0 + PORTA_BATENTE + PORTA_ABERTURA]:
+		_ret(img, lado, y0, PORTA_BATENTE, PORTA_BANDA, n5)
+		# A luz vem de cima (LOW_TOPDOWN secao 18) e a sala fica ao NORTE: a
+		# aresta virada para ela e a que acende.
+		_ret(img, lado, y0, PORTA_BATENTE, 1, n7)
+		_ret(img, lado, y0 + PORTA_BANDA - 1, PORTA_BATENTE, 1, n4)
+		# A junta da tampa, no meio da espessura.
+		_ret(img, lado, y0 + PORTA_BANDA / 2, PORTA_BATENTE, 1, n6)
+		for dy: int in [6, PORTA_BANDA - 8]:
+			_pintar(img, lado + 4, y0 + dy, n4)
+			_pintar(img, lado + PORTA_BATENTE - 5, y0 + dy, n4)
+
+	# A ABERTURA fica TRANSPARENTE aqui: quem desenha o poco e
+	# `gerar_porta_vao_topo()`, uma peca abaixo da folha. Pintar o poco nesta
+	# textura poria um retangulo opaco por cima da chapa, e a porta trancada
+	# voltaria a ser um buraco -- que e o defeito inteiro da PORTA 01.
+	return img
+
+
+## A vista de cima para LESTE -- e OESTE a espelha em x, o que nao gira nada.
+##
+## Nao e `gerar_porta_topo()` transposta: a luz continua vindo de cima e da
+## esquerda, entao aqui quem acende e a aresta ESQUERDA de cada caixa (a virada
+## para a sala) e o fio de cima dela. Transpor os pixels giraria a iluminacao
+## junto, que e metade da armadilha que esta issue fecha.
+static func gerar_porta_lado() -> Image:
+	var img := _nova(PORTA_LADO.x, PORTA_LADO.y)
+	var n4 := Paleta.neutro(&"N4")
+	var n5 := Paleta.neutro(&"N5")
+	var n6 := Paleta.neutro(&"N6")
+	var n7 := Paleta.neutro(&"N7")
+	var x0 := PORTA_BANDA
+	var y0 := (PORTA_LADO.y - (PORTA_ABERTURA + 2 * PORTA_BATENTE)) / 2
+
+	for lado: int in [y0, y0 + PORTA_BATENTE + PORTA_ABERTURA]:
+		_ret(img, x0, lado, PORTA_BANDA, PORTA_BATENTE, n5)
+		# A aresta virada para a sala fica a OESTE, e e ela que acende.
+		_ret(img, x0, lado, 1, PORTA_BATENTE, n7)
+		_ret(img, x0 + PORTA_BANDA - 1, lado, 1, PORTA_BATENTE, n4)
+		# A luz de cima continua valendo: o topo de cada caixa e um fio claro.
+		_ret(img, x0 + 1, lado, PORTA_BANDA - 2, 1, n6)
+		_ret(img, x0 + PORTA_BANDA / 2, lado, 1, PORTA_BATENTE, n6)
+		for dx: int in [6, PORTA_BANDA - 8]:
+			_pintar(img, x0 + dx, lado + 4, n4)
+			_pintar(img, x0 + dx, lado + PORTA_BATENTE - 5, n4)
+
+	# A abertura fica transparente, como em `gerar_porta_topo()`.
+	return img
+
+
+## O POCO da passagem visto de cima, para o SUL.
+##
+## Mesmo papel do `porta_vao.png` do norte -- responder "o que ha atras deste
+## furo?" --, e a resposta e a mesma: escuridao, porque corredor nao revelado e
+## o desconhecido e nao parede. A luz vem de cima, entao a boca virada para a
+## sala pega um fio de soleira e o fundo escurece.
+static func gerar_porta_vao_topo() -> Image:
+	var img := _nova(PORTA_VAO_TOPO.x, PORTA_VAO_TOPO.y)
+	var n0 := Paleta.neutro(&"N0")
+	var n1 := Paleta.neutro(&"N1")
+	var n2 := Paleta.neutro(&"N2")
+	var h := PORTA_VAO_TOPO.y
+	_ret(img, 0, 0, PORTA_VAO_TOPO.x, h, n0)
+	_ret(img, 0, 0, PORTA_VAO_TOPO.x, 1, n2)
+	_ret(img, 0, 1, PORTA_VAO_TOPO.x, 6, n1)
+	# Do outro lado da passagem ja e corredor, e corredor tem piso.
+	_ret(img, 0, h - 8, PORTA_VAO_TOPO.x, 8, n1)
+	# A ombreira esquerda pega a luz: uma coluna de 1 px, como no recesso frontal.
+	_ret(img, 0, 7, 1, h - 15, n1)
+	return img
+
+
+## O poco para leste e oeste. A boca virada para a sala fica a OESTE, e a
+## ombreira que pega a luz e a de CIMA -- e o que separa esta textura de uma
+## transposicao da de cima.
+static func gerar_porta_vao_lado() -> Image:
+	var img := _nova(PORTA_VAO_LADO.x, PORTA_VAO_LADO.y)
+	var n0 := Paleta.neutro(&"N0")
+	var n1 := Paleta.neutro(&"N1")
+	var n2 := Paleta.neutro(&"N2")
+	var w := PORTA_VAO_LADO.x
+	_ret(img, 0, 0, w, PORTA_VAO_LADO.y, n0)
+	_ret(img, 0, 0, 1, PORTA_VAO_LADO.y, n2)
+	_ret(img, 1, 0, 6, PORTA_VAO_LADO.y, n1)
+	_ret(img, w - 8, 0, 8, PORTA_VAO_LADO.y, n1)
+	_ret(img, 7, 0, w - 15, 1, n1)
+	return img
+
+
+## A FOLHA vista de cima, para o SUL: a chapa dentro da espessura da parede.
+##
+## O sprite cobre a banda inteira, 64 px, porque as duas metades deslizam DENTRO
+## dele; a chapa ocupa so os 16 px do meio, que e a espessura de uma folha vista
+## de cima. A junta central e o que faz as duas metades lerem como duas.
+static func gerar_porta_folha_topo() -> Image:
+	return _folha_de_cima(PORTA_FOLHA_TOPO, true)
+
+
+## A folha de cima para leste e oeste. Mesma chapa, outro eixo -- e a
+## iluminacao redesenhada, pelo motivo de `gerar_porta_lado()`.
+static func gerar_porta_folha_lado() -> Image:
+	return _folha_de_cima(PORTA_FOLHA_LADO, false)
+
+
+static func _folha_de_cima(tamanho: Vector2i, vertical: bool) -> Image:
+	var img := _nova(tamanho.x, tamanho.y)
+	var n4 := Paleta.neutro(&"N4")
+	var n5 := Paleta.neutro(&"N5")
+	var n6 := Paleta.neutro(&"N6")
+	var n7 := Paleta.neutro(&"N7")
+	var espessura := 16
+	if vertical:
+		var y := (tamanho.y - espessura) / 2
+		_ret(img, 0, y, tamanho.x, espessura, n6)
+		_ret(img, 0, y, tamanho.x, 1, n7)
+		_ret(img, 0, y + espessura - 1, tamanho.x, 1, n4)
+		# A junta entre as duas metades, no eixo em que elas partem.
+		_ret(img, tamanho.x / 2 - 1, y, 2, espessura, n4)
+		for dx: int in [4, tamanho.x - 5]:
+			_pintar(img, dx, y + 4, n5)
+			_pintar(img, dx, y + espessura - 5, n5)
+	else:
+		var x := (tamanho.x - espessura) / 2
+		_ret(img, x, 0, espessura, tamanho.y, n6)
+		# A oeste fica a sala: e a aresta esquerda da chapa que acende.
+		_ret(img, x, 0, 1, tamanho.y, n7)
+		_ret(img, x + espessura - 1, 0, 1, tamanho.y, n4)
+		_ret(img, x, tamanho.y / 2 - 1, espessura, 2, n4)
+		for dy: int in [4, tamanho.y - 5]:
+			_pintar(img, x + 4, dy, n5)
+			_pintar(img, x + espessura - 5, dy, n5)
+	return img
+
+
+## O indicador de TRANCADA: uma barra de SINAL atravessando a abertura.
+##
+## Ela substitui o campo de forca de 80x32, que era a porta INTEIRA feita de
+## sinal -- listras rosa-vermelhas sobre um vao vazio, sem folha nenhuma atras.
+## O que sobrou daquele desenho e a parte que importava: o jogador tem de saber
+## de LONGE que a porta esta trancada. A saida e o sinal virar DETALHE sobre a
+## chapa, e nao a chapa virar sinal.
+##
+## Barra e nunca disco, porque disco e a silhueta de um projetil. E ela
+## atravessa a abertura inteira para nao poder ser lida como pickup, que e
+## pequeno e pulsa.
+static func gerar_porta_trava() -> Image:
+	return _barra_de_trava(PORTA_TRAVA, true)
+
+
+## A mesma barra para leste e oeste, onde a abertura corre no outro eixo. Duas
+## texturas e nao uma girada: barra girada e arte girada, e o portao novo de
+## `teste_porta.gd` recusa isso na porta inteira.
+static func gerar_porta_trava_lado() -> Image:
+	return _barra_de_trava(PORTA_TRAVA_LADO, false)
+
+
+static func _barra_de_trava(tamanho: Vector2i, horizontal: bool) -> Image:
+	var img := _nova(tamanho.x, tamanho.y)
 	var claro: Color = Paleta.SINAL[&"porta_trancada"]
 	var escuro: Color = Paleta.SINAL[&"porta_trancada_sombra"]
-	for y in PORTA_CAMPO.y:
-		for x in PORTA_CAMPO.x:
-			var cor := claro if (y / 2) % 2 == 0 else escuro
-			if x == 0 or x == PORTA_CAMPO.x - 1 or y == 0 or y == PORTA_CAMPO.y - 1:
-				cor = claro
-			_pintar(img, x, y, cor)
+	if horizontal:
+		var y := tamanho.y / 2 - 3
+		_ret(img, 0, y, tamanho.x, 6, escuro)
+		_ret(img, 0, y + 1, tamanho.x, 3, claro)
+	else:
+		var x := tamanho.x / 2 - 3
+		_ret(img, x, 0, 6, tamanho.y, escuro)
+		_ret(img, x + 1, 0, 3, tamanho.y, claro)
 	return img
 
 
 ## O recesso do vao: escuridao com um piso e uma soleira.
 ##
 ## Tudo em AMBIENTE, e o mais escuro que a paleta tem. O vao NAO pode virar
-## sinal: `porta_campo` ja e o sinal de "trancada", e dois sinais na mesma
+## sinal: `porta_trava` ja e o sinal de "trancada", e dois sinais na mesma
 ## silhueta cancelam um ao outro.
 ##
 ## A luz vem de cima e da esquerda (LOW_TOPDOWN secao 18), entao a sombra e mais

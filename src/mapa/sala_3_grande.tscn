@@ -19,17 +19,14 @@ position = Vector2(0, -400)
 
 [node name="Porta_Sul" parent="Portas" instance=ExtResource("2_p")]
 position = Vector2(0, 400)
-rotation = 3.14159
 direcao = 1
 
 [node name="Porta_Leste" parent="Portas" instance=ExtResource("2_p")]
 position = Vector2(720, 0)
-rotation = 1.5708
 direcao = 2
 
 [node name="Porta_Oeste" parent="Portas" instance=ExtResource("2_p")]
 position = Vector2(-720, 0)
-rotation = -1.5708
 direcao = 3
 
 [node name="ContainerInimigos" type="Node2D" parent="."]

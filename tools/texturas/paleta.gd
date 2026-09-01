@@ -114,8 +114,14 @@ const ATOR: Dictionary = {
 	&"salva_diretora": Color(0.6, 0.35, 1.0),
 }
 
-## Brilhante de proposito, e por isso restrita a formas grandes: o campo de
-## forca da porta tem 80x32, o telegrafo e um disco no chao, o pickup pulsa.
+## Brilhante de proposito, e por isso restrita a formas grandes: a barra de
+## trancada atravessa a abertura inteira da porta, o telegrafo e um disco no
+## chao, o pickup pulsa.
+##
+## A porta era o contra-exemplo desta regra ate a PORTA 01: o `porta_campo.png`
+## de 80x32 nao era um sinal SOBRE a porta, era a porta INTEIRA feita de sinal --
+## listras rosa-vermelhas sobre um vao vazio, sem folha nenhuma atras. Hoje a
+## chapa e AMBIENTE e o sinal e a barra que a atravessa.
 const SINAL: Dictionary = {
 	&"porta_trancada": Color("ff3366"),
 	&"porta_trancada_sombra": Color("99203f"),

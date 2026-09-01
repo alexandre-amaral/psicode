@@ -595,3 +595,68 @@ suas faces frontais.
 **A filosofia central:** o mundo funciona como um top-down 2D tradicional, mas a
 arte é desenhada como se uma câmera estivesse posicionada um pouco mais baixa,
 permitindo enxergar as faces verticais dos elementos.
+
+---
+
+## 28. A porta tem três vistas, e nenhuma delas é girada
+
+> **Decisão tomada na PORTA 03 (#101).** Ela estava em aberto e a issue pedia
+> que fosse registrada antes de qualquer desenho.
+
+Até essa issue a porta era **a mesma imagem girada** nos quatro lados: 180° no
+sul, 90° no leste, −90° no oeste. E `porta_moldura.png` é arte **de face** —
+96 px de largura por 128 de altura, com batentes, verga e ferragem desenhados
+para serem vistos de frente. Girada 90°, aqueles 128 px de altura viravam 128 px
+de extensão horizontal e a face ficava deitada; girada 180°, de cabeça para
+baixo. É exatamente o que a §4 proíbe: a perspectiva nasce da arte, e girar uma
+face é destruí-la.
+
+### Por que três, e não quatro, duas ou uma
+
+O número **não foi escolhido: ele já estava decidido pela parede.** A §20 diz
+que a parede sul recebe só o topo e que a face é desenhada apenas ao norte, e
+`Sala._montar_faces()` executa isso — todo lado cuja normal externa não aponta
+para a câmera é pulado. Então:
+
+| Lado | O que a parede mostra | O que a porta usa |
+|---|---|---|
+| Norte | topo **e face** | `porta_moldura` — a face autorada, de frente |
+| Sul | só o topo | `porta_topo` — a vista de cima |
+| Leste | só o topo | `porta_lado` — a vista de cima, no outro eixo |
+| Oeste | só o topo | `porta_lado` **espelhada em x** |
+
+A porta precisa concordar com a parede em que ela está. Uma face na parede sul
+seria uma porta mostrando o que a parede ao lado dela não mostra.
+
+As três opções que a issue levantou ficam respondidas assim:
+
+- **Quatro artes** custa uma a mais sem comprar nada: leste e oeste são o mesmo
+  lado visto do mesmo ângulo, e espelhar em x reflete sem girar.
+- **Duas artes (norte+sul dividindo uma)** não fecha na geometria. A metade
+  "para fora" do sprite cai *abaixo* da linha do contorno no sul e *acima* no
+  norte; a mesma arte nos dois lados poria a passagem dentro da sala.
+- **Uma arte só, sem face**, faria a porta deixar de concordar com a parede
+  norte, que tem face.
+
+### O que espelhar e o que girar
+
+**Espelhar em x reflete; girar destrói.** A luz do setor vem de cima e da
+esquerda (§18), então uma vista de cima *transposta* leva a iluminação junto e
+passa a mentir sobre de onde vem a luz. Por isso `porta_lado` não é `porta_topo`
+transposta: nela quem acende é a aresta virada para a sala (a oeste) e o fio de
+cima de cada caixa. Espelhar em **y** é proibido pela mesma razão que girar 180°.
+
+`tools/testes/teste_porta.gd:_nenhuma_porta_desenha_arte_girada` varre as cenas
+de sala em disco e cobra `global_rotation == 0` e `flip_v == false` em todo
+sprite de toda porta. `Porta.direcao` continua sendo a fonte de verdade da
+orientação lógica (`vetor()`) — o que mudou é que ela agora escolhe **arte**, e
+não um ângulo.
+
+### Uma divergência que fica registrada, e não corrigida aqui
+
+A abertura **visual** da moldura tem 32 px; o vão que a parede abre
+(`Porta.LARGURA`) tem 80. Os 24 px de batente de cada lado são chão jogável, e o
+jogador passa por baixo deles. Isso é anterior a esta issue — veio com a arte
+autorada da LTD 11 — e mexer nisso é redesenhar a moldura, não corrigir uma
+rotação. As três vistas usam a **mesma** medida justamente para a divergência ser
+uma só, e não quatro.

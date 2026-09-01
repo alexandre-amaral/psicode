@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://brxkr0wdx2x8q"
-path="res://.godot/imported/porta_campo.png-44001cd18c49c4eb9c9697202ce6db54.ctex"
+uid="uid://cqxyl3e21pi0l"
+path="res://.godot/imported/porta_lado.png-13fb6cd4776c0240622c7cfe4443a8e2.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/texturas/porta_campo.png"
-dest_files=["res://.godot/imported/porta_campo.png-44001cd18c49c4eb9c9697202ce6db54.ctex"]
+source_file="res://assets/texturas/porta_lado.png"
+dest_files=["res://.godot/imported/porta_lado.png-13fb6cd4776c0240622c7cfe4443a8e2.ctex"]
 
 [params]
 

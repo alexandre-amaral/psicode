@@ -207,6 +207,10 @@ docs/
 | Forma e parede de uma sala | Line2D `Parede` em `src/mapa/sala_*.tscn` — a colisao nasce dele |
 | **Quanto a porta demora para abrir** | `TEMPO_DE_ABERTURA` em `src/mapa/porta.gd` -- const e nao `@export`, com teto cobrado por `teste_porta.gd` |
 | **O som do motor e da trava da porta** | `som_do_motor` e `som_da_trava` no `src/mapa/porta.tscn` |
+| **A arte da porta de UM lado** | `Porta._vestir()`. Norte usa `porta_moldura.png` (face autorada), sul usa `porta_topo.png`, leste usa `porta_lado.png` e oeste e o leste espelhado. NUNCA um `rotation` |
+| **A chapa que fecha a porta** | `assets/texturas/porta_folha.png` (autorada, funil `prop`) no norte; `gerar_porta_folha_topo/lado()` nas vistas de cima |
+| **Quanto a folha recolhe ao abrir** | `Porta.RECUO_DA_FOLHA`; o teto e o batente da moldura, medido no alfa dela por `teste_porta.gd` |
+| **O indicador de porta trancada** | `gerar_porta_trava()` e `gerar_porta_trava_lado()`, as unicas texturas de porta em paleta SINAL |
 | **Como a arena do chefe reage as fases** | `@export` do no `ReacaoDeArena` em `src/mapa/sala_6_boss.tscn` |
 | **Quanto o chefe demora para acordar na baia** | `tempo_despertar` no `src/enemies/boss_guardiao_01.tscn` |
 | **O trecho de corredor que anuncia o chefe** | `Corredor.pre_chefe`, decidido por `GerenciadorMapa._e_trecho_pre_chefe()`; as texturas em `TEXTURA_*_CHEFE` do `corredor.gd` |
@@ -579,6 +583,52 @@ em qualquer erro de script.
   de colisao desenhado a mao no `.tscn` desalinha e chega a tapar as portas.
 - **`Area2D` nao bloqueia ninguem.** Porta trancada precisa de `StaticBody2D`
   com a colisao habilitada.
+- **A porta era a MESMA arte girada nos quatro lados, e isso e destruir a
+  perspectiva.** 180 graus no sul, 90 no leste, -90 no oeste -- e
+  `porta_moldura.png` e arte de FACE, 96x128, com batente e verga desenhados para
+  serem vistos de frente. Girada 90 graus, os 128 px de ALTURA viravam 128 px de
+  extensao horizontal com a face deitada. O numero de vistas nao e escolha: a
+  `Sala._montar_faces()` so poe face nos lados virados para a camera, entao o
+  norte mostra FACE e os outros tres mostram TOPO -- e a porta tem de concordar
+  com a parede em que ela esta. Sao TRES artes para quatro lados, com o oeste
+  espelhado em x. A decisao inteira esta no `LOW_TOPDOWN_SQUARED.md` secao 28, e
+  quem a cobra e `teste_porta.gd:_nenhuma_porta_desenha_arte_girada`, que varre
+  as cenas de sala em DISCO e exige `global_rotation == 0` e `flip_v == false`.
+- **Espelhar em x reflete; girar e transpor NAO.** As vistas de cima da porta
+  parecem uma a transposta da outra e nao sao: a luz vem de cima e da esquerda,
+  entao transpor os pixels giraria a iluminacao junto. Em `porta_lado` quem
+  acende e a aresta virada para a sala mais o fio de cima de cada caixa, e em
+  `porta_topo` e a aresta virada para o norte. Espelhar em Y e proibido pela
+  mesma razao que girar 180.
+- **Poco desenhado DENTRO da moldura tapa a folha, e nenhum portao de arquivo
+  pega isso.** A primeira versao das vistas de cima pintava a passagem escura na
+  propria textura de moldura -- e a moldura desenha ACIMA da folha. A chapa
+  existia, carregava e ficava no lugar certo, com um retangulo opaco em cima: a
+  porta trancada voltava a ser um buraco com a barra de sinal na frente, que e o
+  defeito inteiro da PORTA 01. As duas texturas estavam certas; era a ORDEM que
+  nao estava. Por isso o recesso e peca separada nos QUATRO lados, e nao so no
+  norte.
+- **A folha some ATRAS do batente, e nao por `visible = false`.** Cada metade
+  recolhe `RECUO_DA_FOLHA` (16 px) para dentro de um batente de 24, que e opaco e
+  desenha por cima. E por isso que a animacao nao deforma nada: o antigo campo de
+  forca ia a `scale (1.0, 0.02)`, que numa grade de listras passava como "recolheu"
+  e numa CHAPA le como a porta sendo esmagada. `teste_porta.gd` cobra os dois
+  lados -- que a escala nunca sai de 1, e que o recuo cabe no batente MEDIDO no
+  alfa da moldura.
+- **`_aplicar_estado()` esconde a folha ANTES de a animacao comecar.** ABERTA nao
+  tem folha, entao quem abre precisa devolve-la a tela dentro de
+  `_encenar_abertura()`. Sem essa linha a porta abre no primeiro quadro (certo) e
+  a encenacao inteira acontece sobre nada (silencioso). O campo de forca ja pedia
+  o mesmo cuidado antes da PORTA 02, e foi essa linha que se perdeu na migracao.
+- **Teste que espera ANIMACAO nao pode contar quadros.** Sem janela o Godot nao
+  tem vsync e roda centenas de quadros por segundo: um laco de 30
+  `process_frame` cobria 0,05 s de uma abertura de 0,42 s e parava dentro do
+  TREMOR, antes de a chapa se mexer. O caso reprovava com o codigo certo. Espere
+  a CONDICAO (a folha sumir), com um teto grande so como rede.
+- **Portao que mede a moldura tem de achar o FURO primeiro.** A primeira versao
+  de `_batente_da_moldura` mediu na linha do meio do sprite -- que e a SOLEIRA,
+  opaca de ponta a ponta -- e respondeu 48 px de batente onde ha 24. Um portao
+  que mede a coisa errada aprova o dobro do que devia, e continua verde.
 - **`_vaos_no_trecho()` vale para o VISUAL tambem, e por seis issues nao valeu.**
   Ela e `_subtrechos()` cortam o lado da sala nas portas, e ate a PAR 01 tinham
   UM consumidor: a colisao (`sala.gd:704`). `_montar_faces` usava o par de

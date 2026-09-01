@@ -128,7 +128,7 @@ o chão texturizado: a aura não é enfeite, é a âncora de leitura.
 
 | | Cor | Forma |
 |---|---|---|
-| porta trancada | `#FF3366` sobre `#99203F` | campo de força de 80×32, scanlines |
+| porta trancada | `#FF3366` sobre `#99203F` | barra de 32×6 atravessando a abertura |
 | telegrafo | `#8CFF73` | disco no chão, com borda |
 | pickup de arma | `#FFB84A` | halo pulsando |
 | pickup de item | `#7DF7C4` | halo pulsando |
@@ -229,10 +229,19 @@ juntas eram duas bordas desenhadas uma sobre a outra, e como a câmera parava no
 contorno era o neon — não a parede — que encostava na beira do quadro. O pilar
 e o corredor perderam a mesma borda, pelo mesmo motivo.
 
-**Porta** (`porta.tscn`): dois `Sprite2D`. `Moldura` (96×48) aparece sempre que
-há vão — dois batentes, uma soleira, e a passagem para fora pintada de `N0` (o corredor ainda não revelado é escuridão, não parede).
-`Campo` (80×32) é o campo de força, só quando TRANCADA, em SINAL. Porta SELADA
-esconde os dois: o vão nem é aberto na parede.
+**Porta** (`porta.tscn`): cinco `Sprite2D`, e **arte por lado, nunca arte
+girada** (PORTA 03 — a decisão está registrada em
+`LOW_TOPDOWN_SQUARED.md` §28). `Moldura` (96×128) é o batente e aparece sempre
+que há vão; `Vao` é o recesso atrás dela, pintado de `N0` porque o corredor ainda
+não revelado é escuridão e não parede; `FolhaA` e `FolhaB` são as duas metades da
+chapa que fecha a passagem, só quando TRANCADA; e `Trava` é a **única peça em
+SINAL** — uma barra atravessando a abertura. Porta SELADA esconde todas: o vão
+nem é aberto na parede.
+
+A moldura muda com o lado, e não com um `rotation`: o norte usa a face autorada
+(`porta_moldura.png`), o sul e o leste usam as vistas de cima
+(`porta_topo.png`, `porta_lado.png`), e o oeste é o leste **espelhado em x**.
+Espelhar reflete; girar destrói a perspectiva.
 
 **Corredor** (`corredor.gd`): mesmo chão e mesma parede da variante `combate`,
 que é a neutra do andar. As laterais dele são só barreira: quem dá a leitura é
@@ -265,7 +274,13 @@ par lê como uma sala repetida sete vezes.
 3. **Nada de ambiente tem forma de projétil.** Ponto isolado de `N7` ou `A2`
    com raio de 3 a 6 px é proibido: é exatamente a silhueta de um tiro. Detalhe
    pequeno é sempre linha, junta ou canto — nunca um disco.
-4. **Sinal é grande.** O menor sinal do jogo é o campo de porta, 80×32.
+4. **Sinal é COMPRIDO, e não grande.** A regra era "o menor sinal do jogo é o
+   campo de porta, 80×32", e ela caiu junto com o campo de força (PORTA 01): a
+   barra de trancada tem 32×6. O que ela protegia continua de pé e é o item 3 —
+   sinal não pode ter silhueta de projétil. Uma barra que atravessa a abertura
+   inteira não tem: ela é longa num eixo e fina no outro, que é o oposto de um
+   disco. O piso passa a ser esse, e não uma área: **nenhum sinal cabe num
+   quadrado**.
 5. **Telegrafo encurta com a fase, nunca some** (GDD). Uma textura nunca pode
    cobrir um telegrafo: o disco de perigo é `z=0`, acima do chão.
 6. **Efeito que atrapalha a leitura é efeito cortado**, por mais bonito que

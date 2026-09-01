@@ -522,13 +522,22 @@ func _montar_com(cena: PackedScene, dados: DadosSala, celula: Vector2i) -> Sala:
 
 ## Os caminhos das texturas de cada quad de face, na ordem em que a sala montou.
 ## Caminho e nao Texture2D para a mensagem de falha ser legivel.
+## As texturas DISTINTAS de face que a sala veste.
+##
+## Distintas, e nao um item por poligono: desde que a face abre no vao da porta
+## (PAR 01), um lado com porta no meio vira DOIS quads da mesma textura. A
+## pergunta que estes casos fazem sempre foi "quantos MODULOS a sala veste", e a
+## contagem de filhos era so um atalho que deixou de valer -- contar poligonos
+## faria a resposta mudar quando uma sala ganhasse uma porta a mais, sem nada
+## sobre a arte ter mudado.
 func _texturas_de_face(sala: Sala) -> Array[String]:
 	var achados: Array[String] = []
 	var raiz := sala.get_node_or_null("ParedeFace") as Node2D
 	if raiz != null:
 		for filho in raiz.get_children():
 			var poly := filho as Polygon2D
-			if poly != null and poly.texture != null:
+			if poly != null and poly.texture != null \
+					and not achados.has(poly.texture.resource_path):
 				achados.append(poly.texture.resource_path)
 	sala.free()
 	return achados

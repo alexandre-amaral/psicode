@@ -857,10 +857,27 @@ func _montar_faces(contorno: PackedVector2Array, ancora: Vector2) -> void:
 		if textura == null:
 			continue
 		var recuo := normal * ALTURA_FACE
-		var quad := Polygon2D.new()
-		quad.polygon = PackedVector2Array([a, b, b + recuo, a + recuo])
-		_texturizar(quad, textura, ancora)
-		raiz.add_child(quad)
+		# UM QUAD POR SUBTRECHO, e nao um por lado.
+		#
+		# `_subtrechos()` e a MESMA funcao que a colisao usa (`_montar_paredes`),
+		# e ate esta issue era o unico consumidor dela: o visual passava reto por
+		# cima das portas. Duas respostas para "onde ha parede" e uma a mais do
+		# que a pergunta comporta -- e o sintoma era a face aparecendo DENTRO do
+		# batente, que e onde o jogador mais olha.
+		#
+		# O TOPO continua inteiro de proposito: sobre a porta ha verga, e a
+		# superficie de cima da parede atravessa o vao de verdade. Quem tem
+		# abertura e a FACE.
+		#
+		# A UV continua ancorada no canto do contorno, entao a textura nao salta
+		# na emenda: os dois lados do vao seguem a mesma grade.
+		for trecho in _subtrechos(a, b):
+			var quad := Polygon2D.new()
+			quad.polygon = PackedVector2Array([
+				trecho[0], trecho[1], trecho[1] + recuo, trecho[0] + recuo,
+			])
+			_texturizar(quad, textura, ancora)
+			raiz.add_child(quad)
 
 
 ## O modulo de face que veste UM lado da sala.

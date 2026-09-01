@@ -45,6 +45,7 @@ const TREMOR := 1.5
 const CAMINHO_BARREIRA := ^"Barreira/Colisao"
 const CAMINHO_MOLDURA := ^"Moldura"
 const CAMINHO_CAMPO := ^"Campo"
+const CAMINHO_VAO := ^"Vao"
 
 @export var direcao: Direcao = Direcao.NORTE
 
@@ -65,6 +66,7 @@ var sala_dona: Sala = null
 var _barreira: CollisionShape2D = null
 var _moldura: Sprite2D = null
 var _campo: Sprite2D = null
+var _vao: Sprite2D = null
 var _moldura_em_casa: Vector2 = Vector2.ZERO
 var _tween_abertura: Tween = null
 
@@ -82,6 +84,7 @@ func _ready() -> void:
 	if _moldura != null:
 		_moldura_em_casa = _moldura.position
 	_campo = get_node_or_null(CAMINHO_CAMPO) as Sprite2D
+	_vao = get_node_or_null(CAMINHO_VAO) as Sprite2D
 
 	body_entered.connect(_ao_corpo_entrar)
 	_aplicar_estado()
@@ -198,5 +201,10 @@ func _aplicar_estado() -> void:
 	# parede e continua ali e qualquer coisa desenhada seria um erro visivel.
 	if _moldura != null:
 		_moldura.visible = estado != Estado.SELADA
+	if _vao != null:
+		# O recesso segue a MOLDURA e nao o estado: porta selada nao tem vao
+		# nenhum -- `_vaos_no_trecho` a pula e a parede passa reta por cima --,
+		# entao desenhar escuridao ali abriria um buraco onde ha parede.
+		_vao.visible = estado != Estado.SELADA
 	if _campo != null:
 		_campo.visible = estado == Estado.TRANCADA

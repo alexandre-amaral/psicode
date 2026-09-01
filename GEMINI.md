@@ -579,6 +579,34 @@ em qualquer erro de script.
   de colisao desenhado a mao no `.tscn` desalinha e chega a tapar as portas.
 - **`Area2D` nao bloqueia ninguem.** Porta trancada precisa de `StaticBody2D`
   com a colisao habilitada.
+- **`_vaos_no_trecho()` vale para o VISUAL tambem, e por seis issues nao valeu.**
+  Ela e `_subtrechos()` cortam o lado da sala nas portas, e ate a PAR 01 tinham
+  UM consumidor: a colisao (`sala.gd:704`). `_montar_faces` usava o par de
+  vertices cru, entao o quad de face atravessava a porta inteira -- duas
+  respostas para "onde ha parede". Como so o lado NORTE ganha face
+  (`LIMIAR_LADO_NORTE`), era la que o modulo autorado aparecia DENTRO do batente,
+  e a porta lia como uma janela para a parede. O TOPO continua inteiro de
+  proposito: sobre a porta ha verga, e a superficie de cima atravessa o vao de
+  verdade. Quem tem abertura e a face.
+- **Arte autorada pode PERDER uma peca que a versao gerada tinha.** A
+  `porta_moldura.png` da LTD 11 e boa arte e tem um buraco literal: 32x34 px de
+  alfa zero. A moldura GERADA que ela substituiu preenchia o vao com N0 opaco --
+  `gerar_porta_moldura()` ainda tem a linha, comentada como "corredor nao
+  revelado e escuridao" --, e a migracao levou junto o preenchimento sem ninguem
+  notar, porque nenhum portao perguntava "o que ha atras deste furo?". Hoje quem
+  pergunta e `teste_porta.gd:_o_recesso_cobre_o_vao_da_moldura`, que cruza as
+  coordenadas locais das DUAS imagens em vez de comparar numeros escritos a mao.
+- **Furo de arte tem de ser cercado nos QUATRO lados para contar como vao.**
+  Cercar so na horizontal acha 1240 px de "abertura" numa moldura cuja porta tem
+  1088, e os 152 restantes nao sao defeito: a linha 6 e o vao ENTRE os blocos de
+  canto (ali se ve a parede de proposito) e as linhas 65-67 estao abaixo da
+  SOLEIRA, ja dentro da sala, onde o que tem de aparecer e o chao. So a porta e
+  fechada em cima, embaixo e dos dois lados.
+- **Teste que conta POLIGONOS de face conta a coisa errada.** A pergunta e sempre
+  "quantos MODULOS a sala veste", e a contagem de filhos de `ParedeFace` era um
+  atalho: com a face abrindo no vao, um lado com porta no meio vira DOIS quads da
+  mesma textura. `_texturas_de_face` deduplica por isso -- senao a resposta muda
+  quando uma sala ganha uma porta, sem nada sobre a arte ter mudado.
 - **Porta SELADA nao pode ligar a barreira.** So a TRANCADA precisa de solido
   proprio: `Sala._vaos_no_trecho()` pula porta selada, entao a parede gerada ja
   passa reta por cima daquele lado. E os dois solidos nao ficam no mesmo lugar

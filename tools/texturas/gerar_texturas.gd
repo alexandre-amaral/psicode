@@ -107,6 +107,19 @@ const PORTA_VAO := Vector2i(32, 48)
 const VAO_LINHA_INICIAL := 7
 const VAO_LINHA_FINAL := 40
 const PROPS_ATLAS := Vector2i(256, 128)
+## O MODULO de parede: 32 px ao longo do muro, 64 atravessando a faixa.
+##
+## 32 e o tile visual do projeto e o unico numero que divide toda dimensao de
+## sala; 64 e `Sala.ESPESSURA_PAREDE`, a faixa inteira. A metade interna dela --
+## os 32 colados no contorno -- e a FACE, e a externa e o TOPO. A razao 1:1 entre
+## as duas e o que o `LOW_TOPDOWN_SQUARED.md` secao 24 exige, e ela ja estava
+## satisfeita antes deste epico: o que muda aqui e a parede deixar de ser uma
+## textura esticada e virar uma fita de pecas.
+const MODULO := 32
+const MODULO_VERTICAL := Vector2i(32, 64)
+const MODULO_HORIZONTAL := Vector2i(64, 32)
+const MODULO_CANTO := Vector2i(64, 64)
+
 ## Lado do tile da parede Low Top-Down (docs/LOW_TOPDOWN_SQUARED.md secao 14).
 ## Multiplo de 16 e de 32, entao nao mexe na grade estrutural do projeto.
 const TILE_PAREDE := 64
@@ -126,6 +139,7 @@ const SEEDS: Dictionary = {
 	&"porta_vao": 5105,
 	&"porta_topo": 5205,
 	&"porta_lado": 5305,
+	&"modulo": 6106,
 	&"props_atlas": 6006,
 	&"parede_topo": 7007,
 	&"parede_face": 8008,
@@ -181,6 +195,12 @@ static func nomes() -> Array[String]:
 	lista.append("porta_trava.png")
 	lista.append("porta_trava_lado.png")
 	lista.append("porta_vao.png")
+	lista.append("modulo_n.png")
+	lista.append("modulo_s.png")
+	lista.append("modulo_l.png")
+	lista.append("modulo_o.png")
+	lista.append("modulo_canto_no.png")
+	lista.append("modulo_canto_ne.png")
 	lista.append("props_atlas.png")
 	return lista
 
@@ -225,6 +245,18 @@ static func gerar(nome: String) -> Image:
 			return gerar_porta_trava_lado()
 		"porta_vao.png":
 			return gerar_porta_vao()
+		"modulo_n.png":
+			return gerar_modulo_n()
+		"modulo_s.png":
+			return gerar_modulo_s()
+		"modulo_l.png":
+			return gerar_modulo_l()
+		"modulo_o.png":
+			return gerar_modulo_o()
+		"modulo_canto_no.png":
+			return gerar_modulo_canto(true)
+		"modulo_canto_ne.png":
+			return gerar_modulo_canto(false)
 		"props_atlas.png":
 			return gerar_props_atlas(SEEDS[&"props_atlas"])
 		"parede_topo.png":
@@ -800,6 +832,227 @@ static func gerar_porta_vao() -> Image:
 				# profundidade sem acender nada.
 				cor = n1
 			img.set_pixel(x, y, cor)
+	return img
+
+
+# --------------------------------------------------------------- modulos -----
+
+## OS SEIS MODULOS BASE (PAREDE 03), e nenhum deles tem ferrugem.
+##
+## A regra que esta secao carrega vem do plano com todas as letras: **se a sala
+## nao parecer boa com seis modulos lisos, o problema e proporcao e nao falta de
+## decoracao.** Painel, tubo, ventilacao e chapa amassada sao outra issue, e
+## acrescenta-los aqui esconderia a pergunta em vez de responde-la.
+##
+## Eles nascem GERADOS, e nao autorados, e isso e deliberado. O que se prova aqui
+## e FORMA: como o topo encontra a face, onde a junta cai, e se a fita de 32 px
+## fecha sem fresta. Codigo da controle exato do pixel da emenda, que e o unico
+## lugar onde um erro aqui aparece. A familia autorada `parede_modulo` que a
+## PAREDE 01 decidiu chega com o kit industrial do andar 1.
+##
+## A LUZ vem de cima e da esquerda (LOW_TOPDOWN secao 18), e e ela que faz cada
+## lado ser um desenho proprio em vez de uma rotacao:
+##
+##   NORTE  a face olha para a camera. Topo em cima, TRIM, face embaixo.
+##   SUL    so topo. A aresta virada para a sala e a de cima, e ela acende.
+##   LESTE  so topo. A aresta virada para a sala fica a OESTE e acende.
+##   OESTE  so topo. A aresta virada para a sala fica a LESTE -- e ela NAO acende,
+##          porque olha para longe da luz. E por isso que oeste e arte propria e
+##          nao o leste espelhado: o espelho inverteria a luz junto.
+
+## Quanto do modulo e face. Metade -- a razao 1:1 da secao 24.
+const MODULO_FACE := 32
+
+## O TRIM: o acabamento entre topo e face que a secao 4 do plano pede.
+##
+## Nao e neon, e nao pode ser: uma linha clara continua na borda da sala e
+## exatamente o filete que o projeto ja removeu uma vez, quando ele virou a coisa
+## mais brilhante encostando na beira do quadro. Aqui sao dois pixels -- um claro
+## no lado do topo, um escuro no lado da face --, que e mudanca de VALOR e nao de
+## brilho.
+static func _trim(img: Image, x: int, y: int, w: int, horizontal: bool) -> void:
+	var n4 := Paleta.neutro(&"N4")
+	var n7 := Paleta.neutro(&"N7")
+	if horizontal:
+		_ret(img, x, y, w, 1, n7)
+		_ret(img, x, y + 1, w, 1, n4)
+	else:
+		_ret(img, x, y, 1, w, n7)
+		_ret(img, x + 1, y, 1, w, n4)
+
+
+## A chapa de um modulo: base com grao, para nao ler como retangulo chapado.
+## A rampa neutra em ordem. O grao de uma chapa e sempre UM degrau abaixo da
+## base: dois degraus ja leem como duas superficies, e nao como uma superficie
+## com textura.
+const RAMPA: Array[StringName] = [&"N0", &"N1", &"N2", &"N3", &"N4", &"N5", &"N6", &"N7"]
+
+
+static func _um_degrau_abaixo(base: StringName) -> StringName:
+	var i := RAMPA.find(base)
+	return RAMPA[maxi(i - 1, 0)] if i > 0 else base
+
+
+static func _chapa(img: Image, x: int, y: int, w: int, h: int, base: StringName,
+		semente: int) -> void:
+	var cor := Paleta.neutro(base)
+	var escura := Paleta.neutro(_um_degrau_abaixo(base))
+	for dy in h:
+		for dx in w:
+			var c := cor
+			if _ruido(x + dx, y + dy, semente) < 0.12:
+				c = escura
+			_pintar(img, x + dx, y + dy, c)
+
+
+## Rebites de 2x2 com realce. Um pixel solto some na escala do jogo.
+static func _rebite(img: Image, x: int, y: int) -> void:
+	_ret(img, x, y, 2, 2, Paleta.neutro(&"N4"))
+	_pintar(img, x, y, Paleta.neutro(&"N7"))
+
+
+## NORTE: o unico lado que mostra FACE, e o que carrega a sala.
+##
+## De cima para baixo: 32 px de topo, o trim, e 32 px de face. A face e mais
+## ESCURA que o topo de proposito -- superficie vertical pega menos luz que
+## horizontal, e e essa diferenca que vende a altura. O ultimo pixel e a linha de
+## contato com o chao: sem ela a parede FLUTUA sobre o piso em vez de assentar.
+static func gerar_modulo_n() -> Image:
+	var img := _nova(MODULO_VERTICAL.x, MODULO_VERTICAL.y)
+	var semente: int = SEEDS[&"modulo"]
+	var n4 := Paleta.neutro(&"N4")
+	var meio := MODULO_VERTICAL.y - MODULO_FACE
+	# TOPO em N6, FACE em N4: DOIS degraus da rampa, e nao um.
+	#
+	# A primeira versao usou N5 na face, que e o valor exato da face autorada
+	# (0,298 contra 0,380 do topo). Medido em tela, aquilo nao leu: 0,09 de
+	# diferenca some no grao, e quem separava as duas superficies era so a linha
+	# de trim. A face autorada sobrevivia com esse degrau porque tinha MATIZ
+	# proprio -- ela e teal contra o cinza-azulado do topo --, e um modulo liso
+	# nao tem esse recurso. Sem matiz, o degrau tem de ser de valor.
+	_chapa(img, 0, 0, MODULO_VERTICAL.x, meio, &"N6", semente)
+	_chapa(img, 0, meio, MODULO_VERTICAL.x, MODULO_FACE, &"N4", semente + 1)
+	_trim(img, 0, meio - 1, MODULO_VERTICAL.x, true)
+	# A junta entre modulos vizinhos. Ela e o que faz a fita ler como uma
+	# sequencia de placas e nao como uma textura repetida.
+	_ret(img, 0, 0, 1, MODULO_VERTICAL.y, n4)
+	# O CONTATO COM O CHAO, e sao dois pixels de N2 e nao um de N4.
+	#
+	# N4 e junta, e junta le como "aqui ha uma emenda"; o que se quer aqui e
+	# SOMBRA -- o escuro que prova que a parede assenta no piso em vez de flutuar
+	# sobre ele. N2 e cor de chao medio, e usada como linha de 2 px ela nao vira
+	# superficie: vira o vao embaixo da chapa.
+	_ret(img, 0, MODULO_VERTICAL.y - 2, MODULO_VERTICAL.x, 2, Paleta.neutro(&"N2"))
+	_rebite(img, 4, meio + 5)
+	_rebite(img, MODULO_VERTICAL.x - 6, meio + 5)
+	return img
+
+
+## SUL: so topo, e e a assimetria da secao 8 virando desenho.
+##
+## A parede de baixo nao ergue face na frente do jogador -- ela o esconderia. O
+## que ela mostra e a superficie de cima, e a aresta virada para a SALA (a de
+## cima, no sul) e a que acende.
+static func gerar_modulo_s() -> Image:
+	var img := _nova(MODULO_VERTICAL.x, MODULO_VERTICAL.y)
+	var semente: int = SEEDS[&"modulo"] + 2
+	var n4 := Paleta.neutro(&"N4")
+	_chapa(img, 0, 0, MODULO_VERTICAL.x, MODULO_VERTICAL.y, &"N6", semente)
+	# A borda que toca o chao da sala, e o chanfro aceso logo depois.
+	_ret(img, 0, 0, MODULO_VERTICAL.x, 1, n4)
+	_ret(img, 0, 1, MODULO_VERTICAL.x, 1, Paleta.neutro(&"N7"))
+	# A metade externa cai de valor: o topo se afastando da luz.
+	_chapa(img, 0, MODULO_VERTICAL.y - 16, MODULO_VERTICAL.x, 16, &"N5", semente + 1)
+	_ret(img, 0, 0, 1, MODULO_VERTICAL.y, n4)
+	_rebite(img, 4, 6)
+	_rebite(img, MODULO_VERTICAL.x - 6, 6)
+	return img
+
+
+## LESTE: so topo. A aresta virada para a sala fica a oeste, e ela acende.
+static func gerar_modulo_l() -> Image:
+	return _modulo_lateral(SEEDS[&"modulo"] + 3, true)
+
+
+## OESTE: so topo, e NAO e o leste espelhado.
+##
+## No oeste a aresta virada para a sala olha para LESTE -- para longe da luz --,
+## entao ela nao acende: quem acende e a borda externa, que olha para o oeste. Um
+## espelho em x inverteria o eixo e poria o realce no lado errado, e ninguem
+## veria. E a mesma licao que a `porta_lado` ja carrega.
+static func gerar_modulo_o() -> Image:
+	return _modulo_lateral(SEEDS[&"modulo"] + 4, false)
+
+
+static func _modulo_lateral(semente: int, leste: bool) -> Image:
+	var img := _nova(MODULO_HORIZONTAL.x, MODULO_HORIZONTAL.y)
+	var n4 := Paleta.neutro(&"N4")
+	var n7 := Paleta.neutro(&"N7")
+	var w := MODULO_HORIZONTAL.x
+	var h := MODULO_HORIZONTAL.y
+	_chapa(img, 0, 0, w, h, &"N6", semente)
+	# A coluna que toca o chao da sala: leste a tem na esquerda, oeste na direita.
+	var contato := 0 if leste else w - 1
+	_ret(img, contato, 0, 1, h, n4)
+	if leste:
+		# A aresta virada para a sala olha para oeste: ela pega a luz.
+		_ret(img, 1, 0, 1, h, n7)
+		_chapa(img, w - 16, 0, 16, h, &"N5", semente + 1)
+	else:
+		# No oeste quem pega a luz e a borda EXTERNA, que olha para a esquerda.
+		_ret(img, 0, 0, 1, h, n7)
+		_chapa(img, 1, 0, 14, h, &"N5", semente + 1)
+	# A junta entre modulos vizinhos corre na horizontal aqui.
+	_ret(img, 0, 0, w, 1, n4)
+	_rebite(img, w / 2 - 1, 4)
+	_rebite(img, w / 2 - 1, h - 6)
+	return img
+
+
+## O CANTO, e ele resolve um degrau e nao uma quina.
+##
+## No norte a parede tem topo E face; no leste e no oeste ela tem so topo. O
+## canto e onde a face TERMINA, e sobrepor dois retangulos nao responde isso --
+## e o que a secao 19 diz ao recusar a solucao obvia.
+##
+## A saida e um PILAR: uma coluna quadrada na quina, que e o que arquitetura
+## industrial de verdade faz e o que le num relance. A face do norte e o topo da
+## lateral morrem os dois dentro dele, e o degrau some atras de uma peca que tem
+## razao de existir.
+static func gerar_modulo_canto(oeste: bool) -> Image:
+	var img := _nova(MODULO_CANTO.x, MODULO_CANTO.y)
+	var semente: int = SEEDS[&"modulo"] + (5 if oeste else 6)
+	var n4 := Paleta.neutro(&"N4")
+	var n5 := Paleta.neutro(&"N5")
+	var n7 := Paleta.neutro(&"N7")
+	var lado := MODULO_CANTO.x
+	# A faixa em volta do pilar nasce mais ESCURA que o resto do topo, e nao igual.
+	#
+	# A primeira versao pintava as duas em N6, e o pilar virava um quadrado
+	# desenhado a lapis: so a linha de 1 px o separava do fundo, e a 1x ela some.
+	# Um pilar e um volume que SOBE acima do topo da parede -- entao ele fica no
+	# valor do topo e quem baixa e a laje em volta.
+	_chapa(img, 0, 0, lado, lado, &"N5", semente)
+
+	# O pilar: 44x44 encostado na quina INTERNA, que e a que da para a sala.
+	var pilar := 44
+	var px := lado - pilar if oeste else 0
+	var py := lado - pilar
+	_chapa(img, px, py, pilar, pilar, &"N6", semente + 10)
+	# A luz vem de cima e da esquerda: acende em cima e a esquerda, cai embaixo e
+	# a direita. Isto NAO se espelha entre os dois cantos, e e por isso que eles
+	# sao dois arquivos.
+	_ret(img, px, py, pilar, 1, n7)
+	_ret(img, px, py, 1, pilar, n7)
+	_ret(img, px, py + pilar - 1, pilar, 1, n4)
+	_ret(img, px + pilar - 1, py, 1, pilar, n4)
+	# Uma cinta no meio da altura, para o pilar nao ser um quadrado liso.
+	_ret(img, px + 1, py + pilar / 2, pilar - 2, 1, n5)
+	for dy: int in [4, pilar - 6]:
+		for dx: int in [4, pilar - 6]:
+			_rebite(img, px + dx, py + dy)
+	# O contato do pilar com o chao, na mesma sombra do modulo norte.
+	_ret(img, px, py + pilar - 2, pilar, 2, Paleta.neutro(&"N2"))
 	return img
 
 

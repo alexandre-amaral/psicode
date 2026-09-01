@@ -52,6 +52,7 @@ func executar() -> void:
 	_determinismo()
 	_tipos_apontam_textura()
 	_a_parede_tem_volume()
+	_o_modulo_norte_separa_topo_de_face()
 	_os_modulos_de_face_ficam_na_faixa_da_base()
 	_nenhum_png_fica_fora_de_regime()
 
@@ -187,6 +188,43 @@ func _a_parede_tem_volume() -> void:
 				% [nome, v_topo, v_face]
 		)
 	igual(conferidos, Sala.TOPOS_NEUTROS.size(), "as tres variantes de topo estao em disco")
+
+
+## O MODULO NORTE separa topo de face por DOIS degraus da rampa, e nao por um.
+##
+## `_a_parede_tem_volume()` acima cobra so `topo > face`, sem numero -- e foi
+## exatamente por essa fresta que a primeira versao do modulo passou. Ela usava
+## N5 na face, o valor exato da face autorada (0,298 contra 0,380 do topo), e
+## medida em TELA aquilo nao lia: 0,09 de diferenca some no grao, e quem separava
+## as duas superficies era so a linha de trim de 2 px.
+##
+## A face autorada sobrevive com esse degrau porque tem MATIZ proprio -- ela e
+## teal contra o cinza-azulado do topo. Um modulo liso nao tem esse recurso, e
+## sem matiz o degrau tem de ser de valor.
+##
+## O piso NAO e escolhido: ele e a distancia entre dois degraus da rampa neutra,
+## lida da propria paleta. Um degrau e o menor passo que a paleta sabe escrever, e
+## foi o que falhou; dois e o proximo que existe.
+func _o_modulo_norte_separa_topo_de_face() -> void:
+	var img := _abrir("modulo_n.png")
+	ok(img != null, "modulo_n.png existe em disco")
+	if img == null:
+		return
+	var meio := img.get_height() - GeradorTexturas.MODULO_FACE
+	var topo := img.get_region(Rect2i(0, 0, img.get_width(), meio))
+	# A face sem as duas ultimas linhas: elas sao a sombra de contato com o chao,
+	# e ela e mais escura que a chapa de proposito -- medi-la junto faria a face
+	# parecer mais funda do que e.
+	var face := img.get_region(Rect2i(0, meio, img.get_width(),
+		GeradorTexturas.MODULO_FACE - 2))
+	var v_topo := _mediana_de_valor(topo)
+	var v_face := _mediana_de_valor(face)
+	var piso: float = Paleta.neutro(&"N6").v - Paleta.neutro(&"N4").v
+	ok(
+		v_topo - v_face >= piso - 0.001,
+		"o modulo norte separa topo de face por dois degraus da rampa (%.3f contra o piso de %.3f)"
+			% [v_topo - v_face, piso]
+	)
 
 
 func _abrir(nome: String) -> Image:

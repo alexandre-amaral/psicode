@@ -39,6 +39,23 @@ const DADOS_COMBATE := preload("res://src/mapa/tipo_combate.tres")
 const PERSONAGEM := preload("res://src/player/personagem_raven.tres")
 const ARMA_PLAYER := preload("res://src/weapons/pistola.tres")
 
+## Os seis modulos da PAREDE 03. Eles sao montados A MAO aqui, e nao por um
+## renderizador: o plano manda provar a forma antes de escrever o sistema, e este
+## laco e o rascunho que a PAREDE 04 promove a `RenderizadorParedes`.
+const MODULO_N := preload("res://assets/texturas/modulo_n.png")
+const MODULO_S := preload("res://assets/texturas/modulo_s.png")
+const MODULO_L := preload("res://assets/texturas/modulo_l.png")
+const MODULO_O := preload("res://assets/texturas/modulo_o.png")
+const CANTO_NO := preload("res://assets/texturas/modulo_canto_no.png")
+const CANTO_NE := preload("res://assets/texturas/modulo_canto_ne.png")
+
+## Onde a fita de modulos desenha: acima da parede antiga, abaixo de `Z_MUNDO`.
+##
+## A parede antiga continua embaixo de proposito (o fallback vivo que o plano
+## pede): onde a fita ainda nao cobre -- os dois cantos de baixo, que sao a
+## PAREDE 06, e o vao da porta -- e ela que aparece.
+const Z_MODULO := -13
+
 ## 15 x 11 tiles de 32. Multiplos de 32 nas duas dimensoes, entao a MEIA dimensao
 ## cai na grade de 16 -- que e o que `teste_grade.gd` cobra de toda sala, e a
 ## razao pela qual dimensao impar de tile nao serve.
@@ -83,6 +100,7 @@ func _ready() -> void:
 	_sala.configurar_conexoes([Vector2.UP, Vector2.DOWN])
 	add_child(_sala)
 
+	_montar_modulos()
 	_montar_atores()
 	_montar_camera()
 	# Laco explicito: `Dictionary.keys()` devolve `Array` SEM tipo, e atribuir
@@ -121,6 +139,81 @@ func _encolher(sala: Sala) -> void:
 		var porta := portas.get_node_or_null(nome) as Node2D
 		if porta != null:
 			porta.position = onde[nome]
+
+
+## A FITA DE MODULOS, montada a mao.
+##
+## Um sprite por celula de 32 px ao longo de cada lado, mais os dois cantos de
+## cima. E o rascunho do `RenderizadorParedes`: o que se prova aqui e que a fita
+## FECHA -- que 32 px encostam em 32 px sem fresta e sem sobreposicao --, e isso
+## nao se prova em textura esticada.
+##
+## Os cantos de BAIXO ficam de fora porque ainda nao existem: eles resolvem a
+## transicao entre lateral alta e parede sul baixa, que e problema proprio. A
+## foto mostra os dois regimes lado a lado, e e util que mostre.
+func _montar_modulos() -> void:
+	var raiz := Node2D.new()
+	raiz.name = "ModulosDeParede"
+	raiz.z_index = Z_MODULO
+	_sala.add_child(raiz)
+
+	var meia := Vector2(LARGURA, ALTURA) * 0.5
+	var banda := Sala.ESPESSURA_PAREDE
+	var passo := 32.0
+
+	# Norte e sul: a fita corre em x.
+	var x := -meia.x
+	while x < meia.x - 0.5:
+		if not _vao_de_porta(Vector2.UP, x, x + passo):
+			_modulo(raiz, MODULO_N, Vector2(x + passo * 0.5, -meia.y - banda * 0.5))
+		if not _vao_de_porta(Vector2.DOWN, x, x + passo):
+			_modulo(raiz, MODULO_S, Vector2(x + passo * 0.5, meia.y + banda * 0.5))
+		x += passo
+
+	# Leste e oeste: a fita corre em y.
+	var y := -meia.y
+	while y < meia.y - 0.5:
+		if not _vao_de_porta(Vector2.RIGHT, y, y + passo):
+			_modulo(raiz, MODULO_L, Vector2(meia.x + banda * 0.5, y + passo * 0.5))
+		if not _vao_de_porta(Vector2.LEFT, y, y + passo):
+			_modulo(raiz, MODULO_O, Vector2(-meia.x - banda * 0.5, y + passo * 0.5))
+		y += passo
+
+	_modulo(raiz, CANTO_NO, Vector2(-meia.x - banda * 0.5, -meia.y - banda * 0.5))
+	_modulo(raiz, CANTO_NE, Vector2(meia.x + banda * 0.5, -meia.y - banda * 0.5))
+
+
+## Esta celula cai no vao de uma porta?
+##
+## E aqui que aparece um numero que o plano nao previu: **`Porta.LARGURA` e 80, e
+## 80 nao e multiplo de 32.** O plano desenha `[wall][wall][DOOR][DOOR][wall]`,
+## com a porta ocupando celulas inteiras, e com 80 ela ocupa 2,5. As celulas das
+## pontas ficam meio dentro e meio fora, e nao ha modulo que sirva.
+##
+## Aqui isso e resolvido do jeito honesto e provisorio: a celula que ENCOSTA no
+## vao nao recebe modulo, e a parede antiga aparece por baixo. A foto mostra o
+## desalinhamento em vez de escondе-lo, que e o que faz dele um achado da
+## PAREDE 07 e nao uma surpresa dela.
+func _vao_de_porta(lado: Vector2, de: float, ate: float) -> bool:
+	var portas := _sala.get_node_or_null("Portas")
+	if portas == null:
+		return false
+	for filho in portas.get_children():
+		var porta := filho as Porta
+		if porta == null or porta.esta_selada() or porta.vetor() != lado:
+			continue
+		var centro := porta.position.x if absf(lado.y) > 0.5 else porta.position.y
+		var meia := Porta.LARGURA * 0.5
+		if ate > centro - meia and de < centro + meia:
+			return true
+	return false
+
+
+func _modulo(raiz: Node2D, textura: Texture2D, onde: Vector2) -> void:
+	var sprite := Sprite2D.new()
+	sprite.texture = textura
+	sprite.position = onde
+	raiz.add_child(sprite)
 
 
 ## O jogador, um inimigo e dois projeteis parados.

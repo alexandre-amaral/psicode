@@ -813,6 +813,7 @@ func _montar_visual() -> void:
 	add_child(chao)
 
 	_montar_faces(contorno, ancora)
+	_montar_fita(contorno)
 	_montar_obstaculos_visuais(textura_parede, ancora)
 
 	# O Line2D "Parede" do .tscn nunca aparece em jogo: ele e a fonte da
@@ -824,6 +825,29 @@ func _montar_visual() -> void:
 	var linha_fonte := get_node_or_null("Parede") as Line2D
 	if linha_fonte != null:
 		linha_fonte.visible = false
+
+
+## A FITA DE MODULOS (PAREDE 04): a parede como pecas de 32 px.
+##
+## Ela desenha POR CIMA do topo e da face antigos, que continuam la. Isso nao e
+## indecisao: enquanto o sistema novo nao cobre tudo -- faltam as duas quinas de
+## baixo e as celulas que encostam no vao da porta --, a parede antiga e o que
+## aparece nos buracos. Quem aposenta a antiga e a PAREDE 13, e nao antes, porque
+## fallback removido cedo demais vira faixa preta na borda da sala.
+##
+## A `Sala` nao sabe qual textura e um tubo, e nao deve saber: ela entrega
+## contorno, portas e semente. E o renderizador nao mexe em colisao -- o solido
+## continua sendo `SegmentShape2D` sobre a linha do contorno, que e a regra do
+## Low Top-Down e nao muda neste epico.
+func _montar_fita(contorno: PackedVector2Array) -> void:
+	# Laco explicito: `Dictionary.values()` devolve `Array` sem tipo, e atribuir
+	# isso a um `Array[Porta]` explode em runtime.
+	var portas: Array[Porta] = []
+	for chave in _portas_por_direcao:
+		var porta := _portas_por_direcao[chave] as Porta
+		if porta != null:
+			portas.append(porta)
+	add_child(RenderizadorParedes.construir(contorno, portas, hash(coordenadas_grid)))
 
 
 ## A FACE vertical da parede: a metade interna da faixa, so nos lados voltados

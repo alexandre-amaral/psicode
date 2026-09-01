@@ -1,0 +1,197 @@
+extends TesteBase
+## A FITA de modulos: ela fecha, ela nao invade o chao, e ela nao gira arte.
+##
+## O que esta suite existe para provar e uma AFIRMACAO GEOMETRICA, e nao um
+## gosto. A parede antiga -- o contorno inflado e solido -- e desenhada ATRAS do
+## chao, e o chao por cima recorta a faixa que sobra: e esse truque que faz a
+## sala em L funcionar sem calcular anel com furo. A fita abandona o truque e
+## desenha ACIMA do chao, e so pode fazer isso se **nenhuma celula encostar em
+## area jogavel**. Se um dia uma encostar, o sintoma sera um retangulo de parede
+## no meio da sala -- visivel na hora, mas so em UMA forma de sala, e o teste de
+## fumaca nao olha para o chao.
+##
+## E ela varre as cenas em DISCO em vez de listar as nove. Lista fixa aqui teria
+## o mesmo defeito que a `AUTORADAS` do teste de texturas ja teve: cena nova fora
+## dela nao seria conferida por nada.
+
+const PASTA := "res://src/mapa"
+
+## Longe da origem, como as outras suites que sobem nos.
+const LONGE := Vector2(21000, 21000)
+
+
+func nome() -> String:
+	return "Renderizador de paredes"
+
+
+func executar() -> void:
+	await _toda_forma_de_sala_veste_a_fita()
+	await _nenhuma_celula_invade_o_chao()
+	await _a_fita_nao_gira_nem_espelha_arte()
+	await _o_vao_da_porta_fica_sem_modulo()
+
+
+## Toda forma de sala em disco monta a fita, e nenhuma monta vazia.
+##
+## O piso importa: uma fita vazia nao da erro nenhum -- a sala continua com a
+## parede antiga por baixo e a foto sai igual a de antes deste epico.
+func _toda_forma_de_sala_veste_a_fita() -> void:
+	var cenas := _cenas()
+	ok(cenas.size() >= 5, "a varredura achou as cenas de sala (%d)" % cenas.size())
+	for caminho in cenas:
+		var sala := _nascer(caminho)
+		if sala == null:
+			continue
+		await Engine.get_main_loop().process_frame
+		var fita := sala.get_node_or_null("ParedeModulos")
+		ok(fita != null, "%s monta a fita" % caminho.get_file())
+		if fita != null:
+			ok(
+				fita.get_child_count() >= 8,
+				"%s veste %d celulas -- fita vazia nao da erro nenhum"
+					% [caminho.get_file(), fita.get_child_count()]
+			)
+		sala.free()
+
+
+## NENHUMA CELULA CAI DENTRO DO CONTORNO.
+##
+## E a afirmacao que autoriza a fita a desenhar acima do chao, e ela vale para a
+## sala em L tambem: no vao dela a normal externa aponta para dentro da mordida,
+## que e area FORA do poligono. Um contorno novo que quebrasse isso poria parede
+## no meio do combate.
+func _nenhuma_celula_invade_o_chao() -> void:
+	var conferidas := 0
+	for caminho in _cenas():
+		var sala := _nascer(caminho)
+		if sala == null:
+			continue
+		await Engine.get_main_loop().process_frame
+		var contorno := sala.contorno_local()
+		var fita := sala.get_node_or_null("ParedeModulos")
+		if fita == null:
+			sala.free()
+			continue
+		var dentro := 0
+		for filho in fita.get_children():
+			var sprite := filho as Sprite2D
+			if sprite == null:
+				continue
+			conferidas += 1
+			if Geometry2D.is_point_in_polygon(sprite.position, contorno):
+				dentro += 1
+		igual(
+			dentro, 0,
+			"%s: nenhuma celula da fita cai na area jogavel (%d de %d)"
+				% [caminho.get_file(), dentro, fita.get_child_count()]
+		)
+		sala.free()
+	ok(conferidas > 300, "a varredura mediu as celulas de todas as formas (%d)" % conferidas)
+
+
+## A fita nao gira nem espelha arte, e e a mesma trava que a porta ja tem.
+##
+## Cada lado tem modulo PROPRIO -- 32x64 no norte e no sul, 64x32 no leste e no
+## oeste --, e o oeste nao e o leste espelhado: no leste a aresta virada para a
+## sala pega a luz, no oeste ela olha para longe dela. Um `flip_h` aqui poria o
+## realce no lado errado, e ninguem veria.
+func _a_fita_nao_gira_nem_espelha_arte() -> void:
+	for caminho in _cenas():
+		var sala := _nascer(caminho)
+		if sala == null:
+			continue
+		await Engine.get_main_loop().process_frame
+		var fita := sala.get_node_or_null("ParedeModulos")
+		if fita == null:
+			sala.free()
+			continue
+		var tortos := 0
+		for filho in fita.get_children():
+			var sprite := filho as Sprite2D
+			if sprite == null:
+				continue
+			if not is_zero_approx(sprite.global_rotation) or sprite.flip_h or sprite.flip_v:
+				tortos += 1
+		igual(tortos, 0, "%s: nenhuma celula gira ou espelha (%d)"
+			% [caminho.get_file(), tortos])
+		sala.free()
+
+
+## O VAO DA PORTA fica sem modulo.
+##
+## Aqui mora um numero que o plano nao previu: `Porta.LARGURA` e 80, e 80 nao e
+## multiplo de 32. A porta ocupa 2,5 celulas, entao as das pontas ficam meio
+## dentro e meio fora do vao. A regra provisoria e tirar toda celula que ENCOSTA
+## no vao -- 128 px de buraco para 80 px de passagem --, e ela e segura porque a
+## parede antiga continua desenhando por baixo e preenche a sobra.
+##
+## O que este caso cobra e o lado que NAO pode falhar: nenhum modulo pode cair
+## dentro do vao. Modulo ali desenharia parede em cima do batente da porta.
+func _o_vao_da_porta_fica_sem_modulo() -> void:
+	var conferidas := 0
+	for caminho in _cenas():
+		var sala := _nascer(caminho)
+		if sala == null:
+			continue
+		await Engine.get_main_loop().process_frame
+		var fita := sala.get_node_or_null("ParedeModulos")
+		var portas := sala.get_node_or_null("Portas")
+		if fita == null or portas == null:
+			sala.free()
+			continue
+		for filho in portas.get_children():
+			var porta := filho as Porta
+			if porta == null or porta.esta_selada():
+				continue
+			conferidas += 1
+			# O eixo AO LONGO da parede daquela porta.
+			var eixo := Vector2(absf(porta.vetor().y), absf(porta.vetor().x))
+			var centro := porta.position.dot(eixo)
+			var meia := Porta.LARGURA * 0.5
+			var invasores := 0
+			for peca in fita.get_children():
+				var sprite := peca as Sprite2D
+				if sprite == null:
+					continue
+				# So conta quem esta na MESMA faixa: a fita do lado oposto
+				# projeta no mesmo eixo e nao tem nada a ver com este vao.
+				if sprite.position.dot(porta.vetor()) < 0.0:
+					continue
+				var onde := sprite.position.dot(eixo)
+				if onde > centro - meia and onde < centro + meia:
+					invasores += 1
+			igual(
+				invasores, 0,
+				"%s/%s: nenhum modulo desenha dentro do vao (%d)"
+					% [caminho.get_file(), porta.name, invasores]
+			)
+		sala.free()
+	ok(conferidas >= 15, "a varredura achou as portas abertas das salas (%d)" % conferidas)
+
+
+# ------------------------------------------------------------- helpers ------
+
+func _cenas() -> Array[String]:
+	var lista: Array[String] = []
+	var pasta := DirAccess.open(PASTA)
+	if pasta == null:
+		return lista
+	for arquivo in pasta.get_files():
+		if arquivo.begins_with("sala_") and arquivo.ends_with(".tscn"):
+			lista.append("%s/%s" % [PASTA, arquivo])
+	lista.sort()
+	return lista
+
+
+## Uma sala montada com TODAS as conexoes: assim nenhuma porta se sela, e o caso
+## do vao tem o que conferir nos quatro lados.
+func _nascer(caminho: String) -> Sala:
+	var cena := load(caminho) as PackedScene
+	if cena == null:
+		ok(false, "%s carrega" % caminho)
+		return null
+	var sala := cena.instantiate() as Sala
+	sala.configurar_conexoes([Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT])
+	Engine.get_main_loop().root.add_child(sala)
+	sala.global_position = LONGE
+	return sala

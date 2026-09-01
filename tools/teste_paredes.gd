@@ -212,11 +212,9 @@ func _conferir() -> void:
 	var faltando: Array[String] = []
 	if _sala.get_node_or_null("Chao") == null:
 		faltando.append("chao")
-	if _sala.get_node_or_null("ParedeTopo") == null:
-		faltando.append("topo")
-	var face := _sala.get_node_or_null("ParedeFace")
-	if face == null or face.get_child_count() == 0:
-		faltando.append("face")
+	var fita := _sala.get_node_or_null("ParedeModulos")
+	if fita == null or fita.get_child_count() == 0:
+		faltando.append("fita de parede")
 	var abertas := 0
 	for filho in _sala.get_node("Portas").get_children():
 		var porta := filho as Porta
@@ -230,6 +228,6 @@ func _conferir() -> void:
 		faltando.append("projetil hostil")
 
 	if faltando.is_empty():
-		print("a caixa esta montada: chao, topo, face, duas portas e dois projeteis")
+		print("a caixa esta montada: chao, fita de parede, duas portas e dois projeteis")
 	else:
 		print("teste_paredes: FALTANDO %s" % ", ".join(faltando))

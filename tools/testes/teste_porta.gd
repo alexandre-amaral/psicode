@@ -437,45 +437,47 @@ func _ha_opaco(img: Image, c: int, r: int, dc: int, dr: int) -> bool:
 	return false
 
 
-## A face da parede ABRE no vao da porta, em vez de passar reta por cima.
+## A PAREDE ABRE no vao da porta, em vez de passar reta por cima.
 ##
-## `_subtrechos()` corta o lado nas portas e, ate esta issue, tinha um consumidor
+## `_subtrechos()` corta o lado nas portas e, ate a PAR 01, tinha um consumidor
 ## so: a colisao. O visual usava o par de vertices cru, entao o quad de face
-## atravessava a porta inteira. Como so o lado NORTE ganha face
-## (`LIMIAR_LADO_NORTE`), era la que o modulo autorado aparecia dentro do batente.
+## atravessava a porta inteira, e o modulo autorado aparecia DENTRO do batente --
+## onde o jogador mais olha.
 ##
-## O caso conta QUADS: um lado sem porta da um, um lado com porta no meio da
-## dois. E o numero que separa "abriu" de "nao abriu" sem depender de pixel.
+## Com a fita o mecanismo mudou e a pergunta nao: quem decide agora e o
+## renderizador, reservando as celulas do vao antes de escolher modulo. O caso
+## mede o resultado, que e o que interessa -- **nenhuma peca de parede cai dentro
+## do vao** --, e por isso ele sobrevive a troca do desenho por baixo.
 func _a_face_abre_no_vao_da_porta() -> void:
 	var sala := CENA_SALA.instantiate() as Sala
 	Engine.get_main_loop().root.add_child(sala)
 	sala.global_position = LONGE
 	await Engine.get_main_loop().process_frame
 
-	var raiz := sala.get_node_or_null("ParedeFace")
-	ok(raiz != null, "a sala retangular desenha face")
-	if raiz == null:
+	var fita := sala.get_node_or_null("ParedeModulos")
+	ok(fita != null, "a sala retangular monta a fita")
+	if fita == null:
 		sala.free()
 		return
 
-	# A sala retangular tem UMA face (o lado norte) e uma porta no meio dele.
-	# Aberta, ela vira dois trechos.
-	igual(
-		raiz.get_child_count(), 2,
-		"a face do lado norte abre no vao da porta, virando dois trechos (%d)"
-			% raiz.get_child_count()
-	)
-
-	# E nenhum trecho pode cobrir o centro do vao.
 	var porta := sala.get_node_or_null("Portas/Porta_Norte") as Porta
 	if porta != null:
-		var centro := porta.position
-		var cobrindo := 0
-		for filho in raiz.get_children():
-			var quad := filho as Polygon2D
-			if quad != null and Geometry2D.is_point_in_polygon(centro, quad.polygon):
-				cobrindo += 1
-		igual(cobrindo, 0, "nenhum trecho de face cobre o centro do vao")
+		var eixo := Vector2(absf(porta.vetor().y), absf(porta.vetor().x))
+		var centro := porta.position.dot(eixo)
+		var meia := Porta.LARGURA * 0.5
+		var dentro := 0
+		for filho in fita.get_children():
+			var sprite := filho as Sprite2D
+			if sprite == null:
+				continue
+			# So a faixa DESTE lado: a fita do lado oposto projeta no mesmo eixo
+			# e nao tem nada a ver com este vao.
+			if sprite.position.dot(porta.vetor()) < 0.0:
+				continue
+			var onde := sprite.position.dot(eixo)
+			if onde > centro - meia and onde < centro + meia:
+				dentro += 1
+		igual(dentro, 0, "nenhuma peca de parede cai dentro do vao da porta (%d)" % dentro)
 	sala.free()
 
 

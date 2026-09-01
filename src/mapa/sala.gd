@@ -115,6 +115,16 @@ const LIMIAR_LADO_NORTE := -0.5
 ## furo. Subi-lo para acima do chao, como o documento pede, faria o poligono
 ## cobrir a sala inteira. Quem sobe para -14 e a FACE da parede (issue LTD 04),
 ## e ela pode: a face e desenhada FORA do contorno, entao nao cobre nada.
+## Reservada, e hoje VAZIA: a fita de modulos desenha acima do chao.
+##
+## O topo da parede era um poligono nesta faixa, ATRAS do chao, e quem recortava
+## a faixa visivel era o chao por cima -- o truque que fazia a sala em L
+## funcionar sem calcular anel com furo. A fita nao precisa dele: toda celula
+## mora na faixa, do contorno para fora, e nenhuma toca area jogavel.
+##
+## A constante fica porque o espacamento entre as faixas e o que permite
+## acrescentar uma camada sem renumerar as outras -- e renumerar e o que quebra
+## ordem sem erro no console.
 const Z_PAREDE_TOPO := -22
 const Z_CHAO := -20
 const Z_CHAO_DETALHE := -18
@@ -808,17 +818,6 @@ func _montar_visual() -> void:
 	var textura_chao := _textura(&"chao")
 	var textura_parede := _textura(&"parede")
 
-	# O topo e NEUTRO e igual em todo tipo de sala (PAR 04). A identidade do
-	# tipo mora na face desde a LTD 13, e esta linha e a segunda metade daquela
-	# issue -- ela ficou por pagar por seis issues, com as `parede_*.png` por
-	# tipo vestindo o topo enquanto a face ja tinha migrado.
-	var topo := Polygon2D.new()
-	topo.name = "ParedeTopo"
-	topo.polygon = _inflar(contorno, ESPESSURA_PAREDE)
-	topo.z_index = Z_PAREDE_TOPO
-	_texturizar(topo, textura_parede, ancora)
-	add_child(topo)
-
 	var chao := Polygon2D.new()
 	chao.name = "Chao"
 	chao.polygon = contorno
@@ -826,7 +825,6 @@ func _montar_visual() -> void:
 	_texturizar(chao, textura_chao, ancora)
 	add_child(chao)
 
-	_montar_faces(contorno, ancora)
 	_montar_fita(contorno)
 	_montar_obstaculos_visuais(textura_parede, ancora)
 
@@ -880,11 +878,27 @@ func _montar_fita(contorno: PackedVector2Array) -> void:
 			if t != null:
 				topos.append(t)
 
+	# A FACE COMUM sempre, mais as ESPECIAIS do terco do andar em que esta sala
+	# esta. A progressao existia antes da fita -- `_face_do_lado` sorteava por
+	# `textura_progressiva` -- e se perdeu quando o desenho virou celula; o portao
+	# de camada visual pegou. Ela importa: e o que faz o andar mudar de cara
+	# conforme o jogador avanca, em vez de repetir a mesma biblioteca do inicio ao
+	# fim.
+	#
+	# A comum fica FORA do terco de proposito: ela e o modulo que domina 65% da
+	# parede, e some-la do meio do andar deixaria um terco inteiro so de
+	# especiais.
 	var faces: Array[Texture2D] = []
-	if _dados_visual != null:
-		for f in _dados_visual.texturas_face:
-			if f != null:
-				faces.append(f)
+	if _dados_visual != null and not _dados_visual.texturas_face.is_empty():
+		var todas := _dados_visual.texturas_face
+		if todas[0] != null:
+			faces.append(todas[0])
+		var especiais: Array[Texture2D] = []
+		for i in range(1, todas.size()):
+			if todas[i] != null:
+				especiais.append(todas[i])
+		faces.append_array(
+			_dados_visual.faixa_progressiva(especiais, fracao_do_andar))
 	if faces.is_empty():
 		var neutra: Texture2D = estilo.face_neutra if estilo != null else null
 		if neutra == null:
@@ -906,95 +920,6 @@ func _montar_fita(contorno: PackedVector2Array) -> void:
 	add_child(RenderizadorParedes.construir(
 		contorno, portas, hash(coordenadas_grid), topos, faces, cantos,
 		peso, espacamento))
-
-
-## A FACE vertical da parede: a metade interna da faixa, so nos lados voltados
-## para o sul. E ela que da altura ao cenario, e sem ela a parede volta a ler
-## como faixa chapada.
-##
-## Desenhada para FORA do contorno, nunca para dentro: a linha do contorno
-## continua sendo a base da parede e a colisao (LOW_TOPDOWN_SQUARED secao 21), e
-## nenhum pixel de area jogavel e perdido. Face para dentro comeria espaco de
-## combate e mudaria o balanceamento de todas as salas de uma vez.
-##
-## Um quad por lado, e nao um anel: `offset_polygon` nao sabe inflar um lado so,
-## e sao justamente os lados que tem orientacoes diferentes. O topo continua
-## vindo do contorno inflado, que ja resolve quina e concavidade -- este passo
-## so pinta por cima da metade que a camera ve de frente.
-func _montar_faces(contorno: PackedVector2Array, ancora: Vector2) -> void:
-	if contorno.size() < 3:
-		return
-	var neutra := load(FACE_NEUTRA) as Texture2D
-	if neutra == null and (_dados_visual == null or _dados_visual.texturas_face.is_empty()):
-		# Sem face o jogo continua jogavel, so volta a parecer chapado. Avisar
-		# importa porque nenhuma suite instancia a sala com textura em disco.
-		push_warning("Sala '%s': nenhuma face carregou; parede sem volume." % name)
-		return
-
-	var raiz := Node2D.new()
-	raiz.name = "ParedeFace"
-	raiz.z_index = Z_PAREDE_FACE
-	add_child(raiz)
-
-	var semente := hash(coordenadas_grid)
-	for i in contorno.size():
-		var a := contorno[i]
-		var b := contorno[(i + 1) % contorno.size()]
-		var normal := _normal_externa(contorno, a, b)
-		if normal.y > LIMIAR_LADO_NORTE:
-			continue
-		var textura := _face_do_lado(i, semente, neutra)
-		if textura == null:
-			continue
-		var recuo := normal * ALTURA_FACE
-		# UM QUAD POR SUBTRECHO, e nao um por lado.
-		#
-		# `_subtrechos()` e a MESMA funcao que a colisao usa (`_montar_paredes`),
-		# e ate esta issue era o unico consumidor dela: o visual passava reto por
-		# cima das portas. Duas respostas para "onde ha parede" e uma a mais do
-		# que a pergunta comporta -- e o sintoma era a face aparecendo DENTRO do
-		# batente, que e onde o jogador mais olha.
-		#
-		# O TOPO continua inteiro de proposito: sobre a porta ha verga, e a
-		# superficie de cima da parede atravessa o vao de verdade. Quem tem
-		# abertura e a FACE.
-		#
-		# A UV continua ancorada no canto do contorno, entao a textura nao salta
-		# na emenda: os dois lados do vao seguem a mesma grade.
-		for trecho in _subtrechos(a, b):
-			var quad := Polygon2D.new()
-			quad.polygon = PackedVector2Array([
-				trecho[0], trecho[1], trecho[1] + recuo, trecho[0] + recuo,
-			])
-			_texturizar(quad, textura, ancora)
-			raiz.add_child(quad)
-
-
-## O modulo de face que veste UM lado da sala.
-##
-## O sorteio e por LADO e nao por sala, e essa e a peca inteira desta issue. Uma
-## face por sala daria o mesmo painel nos quatro lados -- que e exatamente o que
-## a face ja fazia quando era textura unica, so que com mais arquivos em disco.
-## Sorteando por lado, a parede norte pode ter uma escotilha e a leste um duto, e
-## e isso que transforma uma lista de texturas numa biblioteca de MODULOS.
-##
-## O indice do lado entra na semente por multiplicacao com um primo grande: a
-## soma simples faria o lado 1 da celula (3,0) cair no mesmo modulo do lado 0 da
-## celula (4,0), e o andar ganharia faixas diagonais de painel repetido.
-##
-## Continua deterministico: mesma celula, mesmos modulos, e uma suite consegue
-## reproduzir. `coordenadas_grid` ja vale aqui porque o GerenciadorMapa a escreve
-## ANTES do add_child.
-func _face_do_lado(indice_do_lado: int, semente: int, neutra: Texture2D) -> Texture2D:
-	if _dados_visual != null and not _dados_visual.texturas_face.is_empty():
-		var propria := _dados_visual.textura_progressiva(
-			_dados_visual.texturas_face,
-			semente ^ (indice_do_lado * 0x9e3779b1),
-			fracao_do_andar
-		)
-		if propria != null:
-			return propria
-	return neutra
 
 
 ## Normal para FORA de um lado do contorno.

@@ -310,12 +310,28 @@ func textura_de(lista: Array[Texture2D], semente: int) -> Texture2D:
 ## direto -- o que esta certo, e o caso de hoje. A janela so comeca a valer com
 ## listas maiores, e ela existe para nao precisar mexer aqui quando elas vierem.
 func textura_progressiva(lista: Array[Texture2D], semente: int, fracao: float) -> Texture2D:
+	var faixa := faixa_progressiva(lista, fracao)
+	if faixa.is_empty():
+		return null
+	# absi() porque hash() devolve negativo, e o modulo de negativo em GDScript
+	# devolve negativo -- indice negativo aqui seria um crash intermitente.
+	return faixa[absi(semente) % faixa.size()]
+
+
+## O TERCO da lista que este ponto do andar pode usar.
+##
+## A conta dos tercos mora aqui e nao em dois lugares: quem sorteia UMA textura
+## (`textura_progressiva`) e quem precisa da FATIA inteira -- a fita de modulos,
+## que sorteia por celula e nao por lado -- leem a mesma divisao. Duas copias
+## divergiriam com o sintoma aparecendo em tela e nunca no console: metade do
+## andar vestindo o terco errado.
+func faixa_progressiva(lista: Array[Texture2D], fracao: float) -> Array[Texture2D]:
 	var validas: Array[Texture2D] = []
 	for t in lista:
 		if t != null:
 			validas.append(t)
 	if validas.is_empty():
-		return null
+		return validas
 	var n := validas.size()
 	# clampi antes de int(): fracao 1.0 daria terco 3, que e fora da lista.
 	var terco := clampi(int(clampf(fracao, 0.0, 1.0) * 3.0), 0, 2)
@@ -324,10 +340,7 @@ func textura_progressiva(lista: Array[Texture2D], semente: int, fracao: float) -
 	if fim <= inicio:
 		fim = inicio + 1
 	fim = mini(fim, n)
-	var largura := fim - inicio
-	# absi() porque hash() devolve negativo, e o modulo de negativo em GDScript
-	# devolve negativo -- indice negativo aqui seria um crash intermitente.
-	return validas[inicio + absi(semente) % largura]
+	return validas.slice(inicio, fim)
 
 
 func celulas_reservadas() -> int:

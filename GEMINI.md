@@ -193,7 +193,7 @@ docs/
 | Cor e icone de uma sala no minimapa | `cor_mapa` e `icone` do `tipo_*.tres` |
 | **Prop de cenario que se MEXE (ventilador, luz, pistao)** | `regioes_props_animados` no `src/mapa/tipo_*.tres`: uma regiao a mais na lista, e nada de cena nova |
 | **Quantos props podem se mexer numa sala** | `max_props_animados` no `tipo_*.tres` -- e o orcamento, e ele e baixo de proposito |
-| **Textura de chao, parede e props de um tipo de sala** | grupo `Visual` do `tipo_*.tres`. Chao e parede sao LISTAS: a sala sorteia a variante por `hash(coordenadas_grid)`. Os PNGs sao arte autorada passada por `tools/texturas/preparar_textura.py`; porta e props ainda saem do gerador |
+| **Textura de chao, parede e props de um tipo de sala** | grupo `Visual` do `tipo_*.tres` para chao e face; o TOPO e os cantos vem do `estilo_de_parede`. Os PNGs sao arte autorada passada por `tools/texturas/preparar_textura.py`; porta, canto e props saem do gerador |
 | **Arte de chao ou parede que nao nasceu na paleta** | o pre-passo de `preparar_textura.py`: `--desvinheta` (chapa a iluminacao), `--tingir GRAUS` + `--limiar-neon` (tinge o metal apagado e deixa o acento aceso intacto), `--grampear-matiz`, `--alvo-v`. Tudo desligado por default |
 | **Prop volumetrico novo** | desenhar na celula do `props_volume.png` ancorado no FUNDO dela, e declarar a regiao em `regioes_props_volume` do `tipo_*.tres` |
 | **Prop que so pode aparecer uma vez por andar (o Robo Desativado)** | `regioes_props_raras` do `tipo_*.tres`; quem escolhe a sala e `GerenciadorMapa._sortear_celula_de_prop_raro()` |
@@ -674,6 +674,21 @@ em qualquer erro de script.
   de `_batente_da_moldura` mediu na linha do meio do sprite -- que e a SOLEIRA,
   opaca de ponta a ponta -- e respondeu 48 px de batente onde ha 24. Um portao
   que mede a coisa errada aprova o dobro do que devia, e continua verde.
+- **A parede nao e mais poligono, e o truque do recorte MORREU junto.** O topo
+  era o contorno INFLADO e solido desenhado ATRAS do chao, e quem recortava a
+  faixa visivel era o chao por cima -- era isso que fazia a sala em L funcionar
+  sem calcular anel com furo, e era fragil porque dependia de duas camadas na
+  ordem certa. A fita de modulos nao precisa: toda celula mora na FAIXA, do
+  contorno para fora, e nenhuma toca area jogavel. Por isso ela desenha ACIMA do
+  chao e mesmo assim nao cobre nada, e por isso a sala em L nao precisou de
+  geometria nova. Isso e afirmacao geometrica e virou portao --
+  `teste_renderizador_paredes.gd` mede as 800 e poucas celulas das nove formas.
+- **A textura de face chega a tela INTEIRA desde a fita.** A armadilha antiga
+  dizia que so a metade de baixo aparecia: a UV do quad era em pixels ancorada no
+  canto do contorno, o quad tinha 32 px e a textura 64, entao a repeticao
+  amostrava as linhas 32..63. Com a celula sendo um `region_rect` de 32x32 dentro
+  da textura de 64x64 e o quadrante saindo do hash da celula, os quatro sao
+  alcancaveis -- e numa parede longa os quatro aparecem.
 - **`_vaos_no_trecho()` vale para o VISUAL tambem, e por seis issues nao valeu.**
   Ela e `_subtrechos()` cortam o lado da sala nas portas, e ate a PAR 01 tinham
   UM consumidor: a colisao (`sala.gd:704`). `_montar_faces` usava o par de

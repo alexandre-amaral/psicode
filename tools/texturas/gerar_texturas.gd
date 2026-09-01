@@ -578,36 +578,10 @@ static func gerar_porta_topo() -> Image:
 	var img := _nova(PORTA_TOPO.x, PORTA_TOPO.y)
 	var y0 := PORTA_BANDA
 	var x0 := (PORTA_TOPO.x - (PORTA_ABERTURA + 2 * PORTA_BATENTE)) / 2
-	var n4 := Paleta.neutro(&"N4")
-	var n7 := Paleta.neutro(&"N7")
-
-	# UMA CAIXA DE CADA LADO, e o vao entre elas fica TRANSPARENTE.
-	#
-	# A primeira versao pintava a carcaca sobre os 80 px inteiros, e com isso
-	# tapava o poco: `Vao` desenha ABAIXO da moldura, entao a passagem sumia e a
-	# porta trancada virava uma chapa lisa com uma barra em cima. Nenhum portao
-	# acusa -- as duas texturas continuam certas, e a de cima e que nao podia
-	# estar la.
 	for i in 2:
 		var lado := x0 if i == 0 else x0 + PORTA_BATENTE + PORTA_ABERTURA
-		_carcaca(img, lado, y0, PORTA_BATENTE, PORTA_BANDA, SEEDS[&"porta_topo"])
-		# A luz vem de cima e da esquerda (LOW_TOPDOWN secao 18), e a sala fica ao
-		# NORTE: a aresta de cima acende e a de baixo cai, nas duas caixas. Esta
-		# textura NUNCA e espelhada -- so `porta_lado` e --, entao ela pode marcar
-		# os dois eixos.
-		_ret(img, lado, y0, PORTA_BATENTE, 1, n7)
-		_ret(img, lado, y0 + PORTA_BANDA - 1, PORTA_BATENTE, 1, n4)
-		# O BATENTE do vao: a face interna que olha para a luz acende, a que lhe da
-		# as costas cai. E o que da fundo ao poco sem desenhar sombra nenhuma.
-		if i == 0:
-			_ret(img, lado, y0, 1, PORTA_BANDA, n7)
-			_ret(img, lado + PORTA_BATENTE - 2, y0, 2, PORTA_BANDA, n4)
-		else:
-			_ret(img, lado, y0, 2, PORTA_BANDA, n7)
-			_ret(img, lado + PORTA_BATENTE - 1, y0, 1, PORTA_BANDA, n4)
-		# A tampa: uma junta no meio da espessura, e rebites nos cantos.
-		_ret(img, lado + 1, y0 + PORTA_BANDA / 2, PORTA_BATENTE - 2, 1, n4)
-		_rebites(img, lado + 2, y0 + 2, PORTA_BATENTE - 4, PORTA_BANDA - 4)
+		_batente_de_cima(img, lado, y0, PORTA_BATENTE, PORTA_BANDA, true,
+			SEEDS[&"porta_topo"] + i)
 	return img
 
 
@@ -622,64 +596,81 @@ static func gerar_porta_topo() -> Image:
 ##
 ## Mas o oeste espelha em X, e isso INVERTE o eixo x: a aresta que dava para a
 ## sala no leste passa a dar para a parede no oeste. Entao a marca de luz desta
-## textura mora so no eixo Y, que o espelho preserva. As arestas x ganham JUNTA
-## dos dois lados, que le como emenda e nao como iluminacao -- uma aresta acesa
-## ali estaria certa no leste e errada no oeste, e ninguem veria.
+## textura mora so no eixo Y, que o espelho preserva.
 static func gerar_porta_lado() -> Image:
 	var img := _nova(PORTA_LADO.x, PORTA_LADO.y)
 	var x0 := PORTA_BANDA
 	var y0 := (PORTA_LADO.y - (PORTA_ABERTURA + 2 * PORTA_BATENTE)) / 2
-	var n4 := Paleta.neutro(&"N4")
-	var n7 := Paleta.neutro(&"N7")
-
 	for i in 2:
 		var lado := y0 if i == 0 else y0 + PORTA_BATENTE + PORTA_ABERTURA
-		_carcaca(img, x0, lado, PORTA_BANDA, PORTA_BATENTE, SEEDS[&"porta_lado"])
-		# Eixo X: JUNTA nos dois lados, e nao luz -- ver o cabecalho.
-		_ret(img, x0, lado, 1, PORTA_BATENTE, n4)
-		_ret(img, x0 + PORTA_BANDA - 1, lado, 1, PORTA_BATENTE, n4)
-		# Eixo Y: a luz, e ela sobrevive ao espelho.
-		if i == 0:
-			_ret(img, x0, lado, PORTA_BANDA, 1, n7)
-			_ret(img, x0, lado + PORTA_BATENTE - 2, PORTA_BANDA, 2, n4)
-		else:
-			_ret(img, x0, lado, PORTA_BANDA, 2, n7)
-			_ret(img, x0, lado + PORTA_BATENTE - 1, PORTA_BANDA, 1, n4)
-		_ret(img, x0 + PORTA_BANDA / 2, lado + 1, 1, PORTA_BATENTE - 2, n4)
-		_rebites(img, x0 + 2, lado + 2, PORTA_BANDA - 4, PORTA_BATENTE - 4)
+		_batente_de_cima(img, x0, lado, PORTA_BANDA, PORTA_BATENTE, false,
+			SEEDS[&"porta_lado"] + i)
 	return img
 
 
-## A chapa da carcaca: N6 com grao.
+## UM BATENTE visto de cima: laje escura, e um pilar em cima dela.
 ##
-## N6 e o mesmo valor do topo da parede (V 0,38 nos dois), e isso e deliberado:
-## a porta nao se separa da parede por ser mais clara ou mais escura, e sim
-## pelas arestas e pelos rebites. Uma carcaca mais escura vira buraco, uma mais
-## clara vira sinal -- e sinal na porta ja e a barra de trancada.
-static func _carcaca(img: Image, x: int, y: int, w: int, h: int, semente: int) -> void:
-	var n5 := Paleta.neutro(&"N5")
-	var n6 := Paleta.neutro(&"N6")
-	for dy in h:
-		for dx in w:
-			var cor := n6
-			if _ruido(x + dx, y + dy, semente) < 0.12:
-				cor = n5
-			_pintar(img, x + dx, y + dy, cor)
-
-
-## Rebites nos quatro cantos de uma tampa.
+## A primeira versao destas duas vistas pintava o batente com a MESMA chapa da
+## parede -- N6 com grao e rebites --, e enquanto a parede era uma textura lisa
+## isso bastava para a porta se destacar. Quando a parede virou fita de modulos
+## (PAREDE 03) ela ganhou grao e rebites tambem, **e a porta sumiu dentro dela**:
+## o que sobrava era um buraco escuro com uma barra de sinal, sem moldura
+## nenhuma. So a porta norte continuava certa, porque a dela e arte autorada.
 ##
-## 2x2 e nao 1x1, e com realce: um pixel solto some na escala do jogo -- foi o
-## que aconteceu na primeira versao desta textura, em que os rebites existiam no
-## arquivo e nao existiam na tela. Bloco e nao disco, pela razao de sempre.
-static func _rebites(img: Image, x: int, y: int, w: int, h: int) -> void:
+## A saida e a mesma que o canto ja usa, e ela e a resposta certa pelo mesmo
+## motivo: o batente e um VOLUME que sobe acima do topo da parede. Ele fica no
+## valor do topo (N6) e quem baixa e a laje em volta -- so que aqui a laje vai
+## dois degraus abaixo, em N4, e nao um. A porta tem de ser a estrutura mais
+## forte da parede, e um degrau some no grao (medido na PAREDE 03).
+static func _batente_de_cima(img: Image, x: int, y: int, w: int, h: int,
+		vertical: bool, semente: int) -> void:
+	var n2 := Paleta.neutro(&"N2")
 	var n4 := Paleta.neutro(&"N4")
+	var n6 := Paleta.neutro(&"N6")
 	var n7 := Paleta.neutro(&"N7")
+
+	# A laje: a moldura escura que separa a porta da parede.
+	_ret(img, x, y, w, h, n4)
+
+	# O pilar, recuado 3 px da laje nos quatro lados.
 	var recuo := 3
-	for dy: int in [recuo, h - recuo - 2]:
-		for dx: int in [recuo, w - recuo - 2]:
-			_ret(img, x + dx, y + dy, 2, 2, n4)
-			_pintar(img, x + dx, y + dy, n7)
+	var px := x + recuo
+	var py := y + recuo
+	var pw := w - recuo * 2
+	var ph := h - recuo * 2
+	for dy in ph:
+		for dx in pw:
+			var cor := n6
+			if _ruido(px + dx, py + dy, semente) < 0.12:
+				cor = Paleta.neutro(&"N5")
+			_pintar(img, px + dx, py + dy, cor)
+	# A luz vem de cima e da esquerda: acende em cima e a esquerda dos dois
+	# batentes. Isto NAO se inverte entre eles -- inverter faria um dos dois
+	# parecer iluminado por outra fonte.
+	_ret(img, px, py, pw, 1, n7)
+	_ret(img, px, py, 1, ph, n7)
+	_ret(img, px, py + ph - 1, pw, 1, n4)
+	_ret(img, px + pw - 1, py, 1, ph, n4)
+
+	# A junta da tampa, no meio da dimensao que atravessa a parede.
+	if vertical:
+		_ret(img, px + 1, py + ph / 2, pw - 2, 1, n4)
+	else:
+		_ret(img, px + pw / 2, py + 1, 1, ph - 2, n4)
+
+	# Rebites nos cantos do pilar.
+	for dy: int in [3, ph - 5]:
+		for dx: int in [3, pw - 5]:
+			_ret(img, px + dx, py + dy, 2, 2, n4)
+			_pintar(img, px + dx, py + dy, n7)
+
+	# A SOMBRA DE CONTATO com o chao da sala, na mesma linguagem do modulo de
+	# parede: dois pixels de N2 na aresta virada para dentro. Sem ela o batente
+	# flutua sobre o piso.
+	if vertical:
+		_ret(img, x, y, w, 2, n2)
+	else:
+		_ret(img, x, y, 2, h, n2)
 
 
 ## O POCO da passagem visto de cima, para o SUL.

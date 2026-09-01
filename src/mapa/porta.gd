@@ -149,7 +149,7 @@ func _ready() -> void:
 	if _folha_b != null:
 		_folha_b_em_casa = _folha_b.position
 
-	body_entered.connect(_ao_corpo_entrar)
+	body_exited.connect(_ao_corpo_sair)
 	_aplicar_estado()
 
 
@@ -360,12 +360,28 @@ func esta_selada() -> bool:
 	return estado == Estado.SELADA
 
 
-func _ao_corpo_entrar(corpo: Node2D) -> void:
+## A travessia e decidida na SAIDA da area, e por qual lado.
+##
+## Antes ela era decidida na ENTRADA, e isso tinha um buraco que se sentia
+## jogando: a area tem 32 px de profundidade, entao quem encostava nela e recuava
+## sem cruzar disparava a saida da sala e nunca a desfazia. A camera ficava no
+## enquadramento largo da travessia -- meio numa sala, meio na outra --, e a
+## proxima tentativa de sair de verdade era lida como "desistiu" e consumida.
+## Rocar o batente desviando de um tiro era suficiente, e o estado so voltava ao
+## normal depois de duas travessias inteiras.
+##
+## Entrar numa porta nao e atravessa-la. Sair PELO LADO DE FORA e -- e sair pelo
+## lado de dentro e ter desistido. Os dois casos passam por aqui, e quem os
+## distingue e a geometria e nao uma bandeira.
+func _ao_corpo_sair(corpo: Node2D) -> void:
 	if estado != Estado.ABERTA:
 		return
 	if not corpo.is_in_group("player"):
 		return
-	EventBus.porta_atravessada.emit(sala_dona, vetor())
+	# `vetor()` aponta para fora da sala. Positivo = o corpo saiu da area pelo
+	# lado do corredor.
+	var para_fora := (corpo.global_position - global_position).dot(vetor()) > 0.0
+	EventBus.porta_atravessada.emit(sala_dona, vetor(), para_fora)
 
 
 func _aplicar_estado() -> void:

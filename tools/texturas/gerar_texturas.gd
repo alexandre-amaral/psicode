@@ -582,6 +582,7 @@ static func gerar_porta_topo() -> Image:
 		var lado := x0 if i == 0 else x0 + PORTA_BATENTE + PORTA_ABERTURA
 		_batente_de_cima(img, lado, y0, PORTA_BATENTE, PORTA_BANDA, true,
 			SEEDS[&"porta_topo"] + i)
+	_travessas(img, x0 + PORTA_BATENTE, y0, PORTA_ABERTURA, PORTA_BANDA, true)
 	return img
 
 
@@ -605,7 +606,49 @@ static func gerar_porta_lado() -> Image:
 		var lado := y0 if i == 0 else y0 + PORTA_BATENTE + PORTA_ABERTURA
 		_batente_de_cima(img, x0, lado, PORTA_BANDA, PORTA_BATENTE, false,
 			SEEDS[&"porta_lado"] + i)
+	_travessas(img, x0, y0 + PORTA_BATENTE, PORTA_BANDA, PORTA_ABERTURA, false)
 	return img
+
+
+## AS DUAS TRAVESSAS que fecham o anel da moldura.
+##
+## Sem elas a porta vista de cima e **dois blocos com um vao entre eles**, e nao
+## uma moldura: o olho le "a parede tem um buraco aqui", nao "aqui ha uma porta".
+## O que a porta NORTE tem e as de cima nao tinham e uma peca ATRAVESSANDO a
+## abertura -- la e a verga, e e ela que fecha o desenho e o torna reconhecivel.
+##
+## De cima nao existe "acima da porta", entao a travessa vira DUAS: uma na boca
+## voltada para a sala, que le como soleira, e outra na voltada para o corredor,
+## que le como o trilho. Com as duas o vao fica cercado nos quatro lados, e um
+## retangulo cercado le como abertura de mecanismo -- que e o que ele e.
+##
+## Elas ficam nas PONTAS da espessura, e nao no meio, por uma razao concreta: a
+## chapa da folha mora no meio da faixa. Uma travessa ali cobriria a folha, e a
+## porta trancada perderia justamente o que diz que ela esta trancada.
+static func _travessas(img: Image, x: int, y: int, w: int, h: int,
+		vertical: bool) -> void:
+	var n4 := Paleta.neutro(&"N4")
+	var n6 := Paleta.neutro(&"N6")
+	var n7 := Paleta.neutro(&"N7")
+	var espessura := 6
+	if vertical:
+		for topo: int in [y, y + h - espessura]:
+			_ret(img, x, topo, w, espessura, n4)
+			_ret(img, x, topo + 1, w, espessura - 2, n6)
+			_ret(img, x, topo + 1, w, 1, n7)
+		# Ferragem: dois pares de rebites por travessa, nas pontas, como a
+		# moldura autorada tem nos cantos.
+		for topo: int in [y + 1, y + h - espessura + 1]:
+			_pintar(img, x + 2, topo + 1, n7)
+			_pintar(img, x + w - 3, topo + 1, n7)
+	else:
+		for esq: int in [x, x + w - espessura]:
+			_ret(img, esq, y, espessura, h, n4)
+			_ret(img, esq + 1, y, espessura - 2, h, n6)
+			_ret(img, esq + 1, y, 1, h, n7)
+		for esq: int in [x + 1, x + w - espessura + 1]:
+			_pintar(img, esq + 1, y + 2, n7)
+			_pintar(img, esq + 1, y + h - 3, n7)
 
 
 ## UM BATENTE visto de cima: laje escura, e um pilar em cima dela.

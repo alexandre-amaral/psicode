@@ -586,6 +586,26 @@ em qualquer erro de script.
   de colisao desenhado a mao no `.tscn` desalinha e chega a tapar as portas.
 - **`Area2D` nao bloqueia ninguem.** Porta trancada precisa de `StaticBody2D`
   com a colisao habilitada.
+- **"So a porta norte tem moldura" quase sempre NAO e um defeito de arte.** As
+  outras tres estao SELADAS. `Sala._selar_portas_sem_vizinho()` sela todo lado do
+  grid que nao tem sala do outro lado, e porta selada esconde tudo -- moldura
+  inclusive --, porque ali a parede passa reta e desenhar batente abriria um
+  buraco onde ha parede. Medido no andar inteiro: **18 portas conectadas, todas
+  as 18 desenhando a moldura, e 19 seladas desenhando nada.** A sala inicial tem
+  UMA conexao, entao ela mostra UMA porta. O `sala_prototipo.tscn` engana aqui:
+  ele nao chama `configurar_conexoes()`, entao nenhuma porta se sela e as quatro
+  aparecem -- foi por isso que a conferencia no prototipo passou tres vezes
+  enquanto o jogo mostrava outra coisa. Confira no JOGO, ou selando de proposito.
+- **Dois blocos com um vao entre eles NAO sao uma moldura, e a diferenca e
+  topologia.** As vistas de cima da porta ganharam grao, rebite, laje escura e
+  sombra de contato e continuaram nao lendo como porta, porque nada ATRAVESSAVA a
+  abertura: o olho lia "a parede tem um buraco aqui". Na porta norte quem fecha o
+  vao em cima e a verga e embaixo e a soleira. De cima nao existe "acima da
+  porta", entao a travessa vira DUAS -- soleira na boca voltada para a sala,
+  trilho na voltada para o corredor -- e o vao fica cercado nos quatro lados.
+  Nenhuma medicao de COR pega isso; `teste_porta.gd:_toda_moldura_CERCA_o_vao`
+  pega, contando pixel cercado nos quatro sentidos: antes das travessas as vistas
+  de cima tinham ZERO.
 - **A porta era a MESMA arte girada nos quatro lados, e isso e destruir a
   perspectiva.** 180 graus no sul, 90 no leste, -90 no oeste -- e
   `porta_moldura.png` e arte de FACE, 96x128, com batente e verga desenhados para

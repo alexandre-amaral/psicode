@@ -90,8 +90,13 @@ func _os_modulos_de_face_ficam_na_faixa_da_base() -> void:
 	var teto_parede := 0.34
 	var teto := densidade_base * 1.4
 	var conferidos := 0
-	for arquivo in ["parede_face_combate_tubulacao.png", "parede_face_combate_tecnica.png",
-			"parede_face_combate_deteriorada.png", "parede_face_combate_ventilada.png"]:
+	# VARRE o disco, e nao uma lista de quatro nomes.
+	#
+	# A lista fixa tinha o mesmo defeito que a `AUTORADAS` ja teve: os modulos dos
+	# outros quatro tipos de sala nasceram e nao seriam conferidos por nada. E
+	# eles sao doze -- tres vezes o que a lista cobria --, entao o portao mediria
+	# um quarto da superficie de parede do andar achando que media tudo.
+	for arquivo in _modulos_de_face():
 		var imagem := _abrir(arquivo)
 		if imagem == null:
 			ok(false, "%s existe" % arquivo)
@@ -104,7 +109,28 @@ func _os_modulos_de_face_ficam_na_faixa_da_base() -> void:
 		ok(d <= teto,
 			"%s nao vira ruido de borda (%.0f%%, teto %.0f%%)"
 				% [arquivo, d * 100.0, teto * 100.0])
-	igual(conferidos, 4, "os quatro modulos novos foram conferidos")
+	ok(conferidos >= 16, "os modulos de face de todos os tipos foram conferidos (%d)"
+		% conferidos)
+
+
+## Os modulos de face em disco: `parede_face_<tipo>_<modulo>.png`.
+##
+## O que os separa das faces LISAS (`parede_face_<tipo>.png`) e o segundo
+## sublinhado -- a lisa e o modulo COMUM daquele tipo, e ela ja e medida como
+## referencia de densidade em vez de contra ela.
+func _modulos_de_face() -> Array[String]:
+	var lista: Array[String] = []
+	var pasta := DirAccess.open(PASTA)
+	if pasta == null:
+		return lista
+	for arquivo in pasta.get_files():
+		if not arquivo.begins_with("parede_face_") or not arquivo.ends_with(".png"):
+			continue
+		if arquivo.trim_prefix("parede_face_").count("_") < 1:
+			continue
+		lista.append(arquivo)
+	lista.sort()
+	return lista
 
 
 ## Quantos pixels tem um vizinho diferente. Mesma conta do
@@ -399,6 +425,28 @@ const AUTORADAS: Dictionary = {
 	"parede_face_combate_tecnica.png": {&"familia": &"parede", &"tipo": &"andar1"},
 	"parede_face_combate_deteriorada.png": {&"familia": &"parede", &"tipo": &"andar1"},
 	"parede_face_combate_ventilada.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	# Os MESMOS quatro modulos tingidos na rampa dos outros quatro tipos
+	# (PAREDE 11). Nao e arte nova: e a decisao da LTD 13 aplicada onde ela ainda
+	# nao tinha chegado -- "mesma estrutura industrial tingida na rampa de cada
+	# tipo", que ja valia para as faces LISAS e nao para os modulos. Ate aqui, so
+	# a sala de combate variava; as outras quatro repetiam a mesma chapa em todas
+	# as celulas do andar.
+	"parede_face_boss_tubulacao.png": {&"familia": &"parede", &"tipo": &"boss"},
+	"parede_face_boss_tecnica.png": {&"familia": &"parede", &"tipo": &"boss"},
+	"parede_face_boss_deteriorada.png": {&"familia": &"parede", &"tipo": &"boss"},
+	"parede_face_boss_ventilada.png": {&"familia": &"parede", &"tipo": &"boss"},
+	"parede_face_arma_tubulacao.png": {&"familia": &"parede", &"tipo": &"arma"},
+	"parede_face_arma_tecnica.png": {&"familia": &"parede", &"tipo": &"arma"},
+	"parede_face_arma_deteriorada.png": {&"familia": &"parede", &"tipo": &"arma"},
+	"parede_face_arma_ventilada.png": {&"familia": &"parede", &"tipo": &"arma"},
+	"parede_face_item_tubulacao.png": {&"familia": &"parede", &"tipo": &"item"},
+	"parede_face_item_tecnica.png": {&"familia": &"parede", &"tipo": &"item"},
+	"parede_face_item_deteriorada.png": {&"familia": &"parede", &"tipo": &"item"},
+	"parede_face_item_ventilada.png": {&"familia": &"parede", &"tipo": &"item"},
+	"parede_face_inicial_tubulacao.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"parede_face_inicial_tecnica.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"parede_face_inicial_deteriorada.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"parede_face_inicial_ventilada.png": {&"familia": &"parede", &"tipo": &"andar1"},
 	# A MOLDURA da porta (LTD 11). Familia `prop` e nao `parede`: ela serve
 	# todos os tipos de sala, entao nao pode ter faixa de matiz -- amarra-la a
 	# uma pintaria a mesma porta de vermelho no chefe e de ambar na sala de arma.

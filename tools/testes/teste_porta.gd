@@ -41,6 +41,7 @@ func executar() -> void:
 	_a_folha_cobre_o_vao_da_moldura()
 	await _nenhuma_porta_desenha_arte_girada()
 	await _a_moldura_de_cada_lado_abre_no_vao()
+	_toda_moldura_CERCA_o_vao()
 	_a_carcaca_nao_le_como_buraco()
 	await _a_face_abre_no_vao_da_porta()
 
@@ -620,6 +621,61 @@ func _a_moldura_de_cada_lado_abre_no_vao() -> void:
 		porta.queue_free()
 
 	igual(conferidos, 4, "os quatro lados foram conferidos (%d)" % conferidos)
+	raiz.free()
+
+
+## TODA MOLDURA CERCA O VAO NOS QUATRO LADOS.
+##
+## Este e o portao que faltava, e ele mede exatamente a diferenca entre as duas
+## coisas que se confundiram tres vezes seguidas:
+##
+##   dois blocos com um vao entre eles   -> o olho le "a parede tem um buraco"
+##   uma moldura                          -> o olho le "aqui ha uma porta"
+##
+## O que separa as duas e topologia, e nao capricho: numa moldura o vao e FECHADO
+## nos quatro lados. Na porta norte, que e arte autorada, quem fecha em cima e a
+## verga e embaixo e a soleira. As vistas de cima nao tinham nada atravessando a
+## abertura -- so os dois batentes laterais --, e por isso nao liam como porta por
+## mais que ganhassem grao, rebite, laje e sombra de contato. Nenhuma medicao de
+## COR pegaria isso; a de forma pega.
+##
+## A conta reusa `_e_furo_interno`, que ja existe nesta suite: um pixel so conta
+## como vao quando ha opaco a esquerda, a direita, acima e abaixo dele. Antes das
+## travessas, `porta_topo` e `porta_lado` tinham ZERO pixels assim.
+func _toda_moldura_CERCA_o_vao() -> void:
+	var raiz := Node2D.new()
+	Engine.get_main_loop().root.add_child(raiz)
+	var sala := CENA_SALA.instantiate() as Sala
+	sala.configurar_conexoes([])
+	raiz.add_child(sala)
+	sala.global_position = LONGE
+	var portas := sala.get_node("Portas")
+
+	var conferidas := 0
+	for direcao: int in [Porta.Direcao.NORTE, Porta.Direcao.SUL,
+			Porta.Direcao.LESTE, Porta.Direcao.OESTE]:
+		var porta := CENA_PORTA.instantiate() as Porta
+		porta.direcao = direcao
+		portas.add_child(porta)
+		var moldura := porta.get_node_or_null("Moldura") as Sprite2D
+		if moldura == null or moldura.texture == null:
+			ok(false, "a porta %d tem moldura" % direcao)
+			porta.free()
+			continue
+		var img := moldura.texture.get_image()
+		var cercados := 0
+		for r in img.get_height():
+			for c in img.get_width():
+				if _e_furo_interno(img, c, r):
+					cercados += 1
+		conferidas += 1
+		ok(
+			cercados > 0,
+			"a moldura da porta %d CERCA o vao (%d px cercados) -- dois blocos com um buraco entre eles nao sao moldura"
+				% [direcao, cercados]
+		)
+		porta.free()
+	igual(conferidas, 4, "as quatro molduras foram medidas (%d)" % conferidas)
 	raiz.free()
 
 

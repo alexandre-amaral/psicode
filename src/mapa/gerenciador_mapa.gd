@@ -862,6 +862,22 @@ func _montar_andar() -> void:
 ## jogador entra, os inimigos ja estao distribuidos. Ele tambem e o unico lugar
 ## do projeto onde a dificuldade de uma sala e escolhida, o que torna a curva do
 ## andar ajustavel por .tres em vez de por seis cenas.
+## Quem LIGA o ambiente desliga: o par de `_ligar_ambiente()`.
+##
+## Aqui e nao nos botoes de "voltar ao menu", e a diferenca importa. `Audio` e
+## autoload e sobrevive a troca de cena, entao alguem precisa calar -- mas
+## espalhar isso pelos call sites e o desenho que este projeto ja viu falhar:
+## `GameState.terminar_run()` se perdeu exatamente assim ao trocar quem hospeda a
+## run, com sintoma silencioso. Um terceiro caminho de saida apareceria sem
+## ninguem lembrar do som.
+##
+## No `_exit_tree` isso vale para toda saida -- menu, tela de fim, reinicio --
+## sem depender de ninguem lembrar. E nao e permanente: o `_ready` do proximo
+## andar liga o ambiente de novo.
+func _exit_tree() -> void:
+	Audio.silenciar()
+
+
 ## Este trecho desemboca na sala do chefe?
 ##
 ## E a pergunta que o corredor nao consegue responder sozinho: ele conhece dois

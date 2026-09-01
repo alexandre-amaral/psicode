@@ -27,6 +27,8 @@ func executar() -> void:
 	_desligado_quer_dizer_desligado()
 	_os_sons_do_andar_existem_e_tocam_no_web()
 	_o_audio_puxa_a_preferencia_em_vez_de_esperar()
+	_o_padrao_deixa_espaco_para_um_frame_cheio()
+	_o_ambiente_tem_par_para_desligar()
 
 
 ## Os tres buses, e a divisao entre eles.
@@ -98,6 +100,95 @@ func _o_volume_sobrevive_ao_reinicio() -> void:
 ## `linear_to_db(0)` devolve -inf, mas 0,001 devolveria -60 dB -- audivel num
 ## fone. Um "desligado" que ainda se ouve e pior que nao ter a opcao: o jogador
 ## acha que o jogo esta quebrado.
+## Quantos sons cabem num frame de combate movimentado.
+##
+## Quatro: tiro, impacto, morte e porta e o pior caso comum. Nao e o teto de
+## vozes (12) porque doze simultaneos nao acontece -- projetar o padrao para
+## eles deixaria o jogo inaudivel no caso normal.
+const SONS_JUNTOS := 4
+
+## Onde todo som deste jogo nasce, em dBFS.
+##
+## Nao e um numero escolhido aqui: `gerar_sons.gd` normaliza toda amostra com
+## `ganho = 0.707 / pico`, de proposito, para mexer numa formula nao mudar o
+## volume. 0,707 e -3 dBFS.
+const PICO_DA_FONTE_DB := -3.0
+
+
+## O padrao de volume deixa espaco para um frame cheio sem clipar.
+##
+## O defeito que este caso fecha: o slider e LINEAR e passa por `linear_to_db()`,
+## entao 0,8 nao quer dizer 80% -- da -1,94 dB, que e 97% do fundo de escala. O
+## padrao antigo (0,8 / 0,8) parecia moderado no menu e entregava o maximo, e com
+## a fonte ja em -3 dBFS bastavam DOIS sons no mesmo frame para estourar.
+##
+## O limite deriva do fundo de escala e nao da amostra: som somado nao pode
+## passar de 0 dBFS, porque acima disso o driver corta a onda.
+func _o_padrao_deixa_espaco_para_um_frame_cheio() -> void:
+	# Instanciado do SCRIPT, e nao lido do autoload: o autoload ja carregou
+	# `user://config.cfg` e responde com a preferencia de quem joga nesta
+	# maquina. O que este caso afirma e o PADRAO, que e o que chega a quem nunca
+	# abriu o menu de opcoes.
+	var script := load("res://src/autoload/configuracao.gd") as GDScript
+	var cfg: Node = script.new()
+
+	var master := linear_to_db(cfg.volume_master)
+	var sfx := linear_to_db(cfg.volume_sfx)
+	var ambiente := linear_to_db(cfg.volume_ambiente)
+
+	var um_som := PICO_DA_FONTE_DB + master + sfx
+	# Somar N fontes coerentes e +20*log10(N) dB. E o pior caso, e e o que se
+	# quer barrar.
+	var cheio := um_som + 20.0 * (log(float(SONS_JUNTOS)) / log(10.0))
+
+	ok(
+		cheio < 0.0,
+		"%d sons juntos no padrao ficam em %.1f dBFS, abaixo do teto (um som sozinho: %.1f)"
+			% [SONS_JUNTOS, cheio, um_som]
+	)
+	# E o ambiente e uma CAMA: ele fica abaixo da acao, senao a musica compete
+	# com o feedback que o jogador precisa ouvir para reagir.
+	ok(
+		PICO_DA_FONTE_DB + master + ambiente < um_som,
+		"o ambiente (%.1f dBFS) nasce abaixo de um SFX (%.1f dBFS)"
+			% [PICO_DA_FONTE_DB + master + ambiente, um_som]
+	)
+	cfg.free()
+
+
+## `definir_ambiente()` tem par, e o par desliga de verdade.
+##
+## Sem isto o som do setor sobrevivia a run inteira: os players moram no
+## AUTOLOAD, nao na cena, entao `change_scene_to_file()` liberava o
+## `GerenciadorMapa` e o ambiente seguia em laco por cima do menu inicial, para
+## sempre. E o loop e forcado por `definir_ambiente()`, que e justamente o que
+## garante que ele nao pare sozinho.
+func _o_ambiente_tem_par_para_desligar() -> void:
+	var fluxo := load("res://assets/audio/ambiente_setor.wav") as AudioStream
+	if fluxo == null:
+		ok(false, "o ambiente do setor existe em disco")
+		return
+
+	Audio.definir_ambiente(fluxo)
+	ok(Audio.ambiente_tocando(), "definir_ambiente poe o setor no ar")
+
+	Audio.silenciar()
+	ok(not Audio.ambiente_tocando(), "silenciar tira o setor do ar")
+
+	# E nao pode ser permanente: reiniciar a run tem de voltar a tocar.
+	Audio.definir_ambiente(fluxo)
+	ok(Audio.ambiente_tocando(), "e o andar seguinte volta a ligar o ambiente")
+	Audio.silenciar()
+
+	# O par mora em quem LIGA, e nao nos botoes de voltar ao menu: espalhar isso
+	# pelos call sites e o desenho que ja perdeu o `terminar_run` uma vez.
+	var fonte := FileAccess.get_file_as_string("res://src/mapa/gerenciador_mapa.gd")
+	ok(
+		fonte.contains("func _exit_tree") and fonte.contains("Audio.silenciar()"),
+		"quem liga o ambiente desliga, no _exit_tree -- e nao os botoes de saida"
+	)
+
+
 func _desligado_quer_dizer_desligado() -> void:
 	var guardado := Configuracao.volume_ambiente
 	var indice := AudioServer.get_bus_index(String(Audio.BUS_AMBIENTE))

@@ -21,6 +21,7 @@ godot --headless --path . --import                          # gera .godot/ ; rod
 godot --headless --path . tools/testes/runner.tscn          # segundos ; "a conta esta certa?"
 godot --headless --path . tools/teste_fumaca.tscn           # minutos ; "a run inteira funciona?"
 godot --path . tools/capturar.tscn --resolution 960x544    # screenshots em user://capturas
+godot --path . tools/teste_paredes.tscn --resolution 960x544  # a caixa: arquitetura da sala em zoom 1.0
 godot --headless --path . --export-release "Windows Desktop"
 godot --headless --path . --export-release "Web"
 ```

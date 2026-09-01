@@ -173,6 +173,7 @@ docs/
 | **Como QUALQUER inimigo se desloca** | `src/util/movimento.gd` -- perseguir, recuar, orbitar, investir, fugir; os numeros continuam nos `@export` de cada inimigo |
 | Chefe do andar 1 | `src/enemies/boss_guardiao_01.gd` + `dados_boss_guardiao_01.tres` |
 | **Trocar QUEM e o chefe do andar** | o grupo apontado por `inimigos` em `src/mapa/tipo_boss.tres` |
+| **Provar a ARQUITETURA da sala antes de desenhar parede** | `godot --path . tools/teste_paredes.tscn --resolution 960x544` -- sala de 480x352 em zoom 1.0, tres fotos (geral, jogador ao norte, jogador ao sul). Ela e pobre de proposito: se ficar boa, e a arquitetura funcionando e nao a decoracao |
 | **Ajustar o chefe sem jogar a run inteira** | `godot --path . tools/chefe/arena_chefe.tscn -- --hp=0.32` entra na fase 3 direto; sem janela ele varre os quatro pontos e imprime o relatorio |
 | Chefe antigo, hoje fora do andar 1 | `src/enemies/diretora.gd` |
 | **Como QUALQUER inimigo avisa um ataque** | `src/enemies/telegrafo.gd` -- linha, mancha no chao ou pulso de sprite, sempre nas mesmas quatro fases |

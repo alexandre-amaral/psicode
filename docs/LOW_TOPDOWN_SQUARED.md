@@ -464,6 +464,13 @@ legível.
 
 > **O `psicode` adota a Solução 1.** A parede sul recebe só o topo (32 px); a
 > face é desenhada apenas ao norte e nas pontas sul de leste/oeste.
+>
+> **A segunda metade ainda não existe em código**, e isso está medido em
+> `PIVO_PAREDES.md` §7: nenhuma das nove formas de sala tem mais de um lado com
+> face. Ela não foi esquecida por acaso — `_montar_faces()` decide por lado
+> inteiro, e "ponta sul de um lado leste" não é um lado, é uma **quina**. A
+> promessa continua valendo e mudou de dono: ela é `corner_SW` / `corner_SE` na
+> issue [PAREDE 06].
 
 ---
 

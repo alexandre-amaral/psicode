@@ -194,6 +194,8 @@ static func nomes() -> Array[String]:
 	lista.append("modulo_o.png")
 	lista.append("modulo_canto_no.png")
 	lista.append("modulo_canto_ne.png")
+	lista.append("modulo_canto_so.png")
+	lista.append("modulo_canto_se.png")
 	lista.append("props_atlas.png")
 	return lista
 
@@ -233,9 +235,13 @@ static func gerar(nome: String) -> Image:
 		"modulo_o.png":
 			return gerar_modulo_o()
 		"modulo_canto_no.png":
-			return gerar_modulo_canto(true)
+			return gerar_modulo_canto(Vector2i(-1, -1))
 		"modulo_canto_ne.png":
-			return gerar_modulo_canto(false)
+			return gerar_modulo_canto(Vector2i(1, -1))
+		"modulo_canto_so.png":
+			return gerar_modulo_canto(Vector2i(-1, 1))
+		"modulo_canto_se.png":
+			return gerar_modulo_canto(Vector2i(1, 1))
 		"props_atlas.png":
 			return gerar_props_atlas(SEEDS[&"props_atlas"])
 		"parede_topo.png":
@@ -756,39 +762,52 @@ static func _modulo_lateral(semente: int, leste: bool) -> Image:
 	return img
 
 
-## O CANTO, e ele resolve um degrau e nao uma quina.
+## O CANTO, e ele resolve um DEGRAU e nao uma quina.
 ##
-## No norte a parede tem topo E face; no leste e no oeste ela tem so topo. O
-## canto e onde a face TERMINA, e sobrepor dois retangulos nao responde isso --
-## e o que a secao 19 diz ao recusar a solucao obvia.
+## Ao norte a parede tem topo E face; ao sul so topo; a leste e a oeste, topo e
+## uma face de esguelha. A quina e onde essas alturas se encontram, e sobrepor
+## dois retangulos nao responde isso -- e o que o plano diz ao recusar a solucao
+## obvia.
 ##
 ## A saida e um PILAR: uma coluna quadrada na quina, que e o que arquitetura
-## industrial de verdade faz e o que le num relance. A face do norte e o topo da
-## lateral morrem os dois dentro dele, e o degrau some atras de uma peca que tem
-## razao de existir.
-static func gerar_modulo_canto(oeste: bool) -> Image:
+## industrial de verdade faz e o que le num relance. As duas faixas morrem dentro
+## dele, e o degrau some atras de uma peca que tem razao de existir.
+##
+## **QUATRO pecas, uma por diagonal, e elas servem tambem as quinas CONCAVAS.**
+## O plano previa oito -- quatro convexas e quatro concavas --, e medindo a
+## geometria as duas familias pedem o mesmo desenho: em ambas o pilar fica na
+## quina virada para a SALA, e o que muda e so de que lado a sala esta. Numa
+## quina convexa as duas faixas contornam o pilar por fora; numa concava elas se
+## sobrepoem debaixo dele. O `Canto` do `EstiloDeParede` tem espaco para as
+## concavas ganharem desenho proprio no dia em que alguem provar que precisam --
+## por ora, quatro arquivos fazem o trabalho de oito.
+##
+## `fora` e a diagonal que aponta para longe da sala. O pilar vai no canto
+## OPOSTO a ela, que e o virado para dentro.
+static func gerar_modulo_canto(fora: Vector2i) -> Image:
 	var img := _nova(MODULO_CANTO.x, MODULO_CANTO.y)
-	var semente: int = SEEDS[&"modulo"] + (5 if oeste else 6)
+	var semente: int = SEEDS[&"modulo"] + 5 + fora.x * 3 + fora.y * 7
+	var n2 := Paleta.neutro(&"N2")
 	var n4 := Paleta.neutro(&"N4")
 	var n5 := Paleta.neutro(&"N5")
 	var n7 := Paleta.neutro(&"N7")
 	var lado := MODULO_CANTO.x
-	# A faixa em volta do pilar nasce mais ESCURA que o resto do topo, e nao igual.
+
+	# A laje em volta nasce mais ESCURA que o pilar, e nao igual.
 	#
 	# A primeira versao pintava as duas em N6, e o pilar virava um quadrado
 	# desenhado a lapis: so a linha de 1 px o separava do fundo, e a 1x ela some.
 	# Um pilar e um volume que SOBE acima do topo da parede -- entao ele fica no
-	# valor do topo e quem baixa e a laje em volta.
+	# valor do topo e quem baixa e a laje.
 	_chapa(img, 0, 0, lado, lado, &"N5", semente)
 
-	# O pilar: 44x44 encostado na quina INTERNA, que e a que da para a sala.
 	var pilar := 44
-	var px := lado - pilar if oeste else 0
-	var py := lado - pilar
+	var px := 0 if fora.x > 0 else lado - pilar
+	var py := 0 if fora.y > 0 else lado - pilar
 	_chapa(img, px, py, pilar, pilar, &"N6", semente + 10)
-	# A luz vem de cima e da esquerda: acende em cima e a esquerda, cai embaixo e
-	# a direita. Isto NAO se espelha entre os dois cantos, e e por isso que eles
-	# sao dois arquivos.
+	# A luz vem de cima e da esquerda, e isto NAO se espelha entre as quatro
+	# pecas: acender a aresta de baixo num canto do sul faria aquele pilar parecer
+	# iluminado por outra fonte, no mesmo quadro que os outros tres.
 	_ret(img, px, py, pilar, 1, n7)
 	_ret(img, px, py, 1, pilar, n7)
 	_ret(img, px, py + pilar - 1, pilar, 1, n4)
@@ -798,17 +817,14 @@ static func gerar_modulo_canto(oeste: bool) -> Image:
 	for dy: int in [4, pilar - 6]:
 		for dx: int in [4, pilar - 6]:
 			_rebite(img, px + dx, py + dy)
-	# O contato do pilar com o chao, na mesma sombra do modulo norte.
-	_ret(img, px, py + pilar - 2, pilar, 2, Paleta.neutro(&"N2"))
+	# A sombra de contato, na aresta do pilar virada para a sala.
+	if fora.y > 0:
+		_ret(img, px, py, pilar, 2, n2)
+	else:
+		_ret(img, px, py + pilar - 2, pilar, 2, n2)
 	return img
 
 
-# ----------------------------------------------------------------- props -----
-
-## Atlas de 8x4 celulas de 32. Linhas 0 e 1 sao neutras e servem a qualquer
-## sala; a linha 2 e um painel de parede e a 3 uma marcacao de chao, uma
-## celula por tipo na ordem de TIPOS. Qual celula cada tipo usa esta em
-## `regioes_props` do tipo_*.tres -- o atlas so oferece.
 static func gerar_props_atlas(semente: int) -> Image:
 	var img := _nova(PROPS_ATLAS.x, PROPS_ATLAS.y)
 

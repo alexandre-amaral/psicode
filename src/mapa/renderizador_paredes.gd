@@ -60,7 +60,7 @@ const Z_FITA := -13
 ## Enum e nao indice solto: a PAREDE 06 acrescenta os concavos NO FIM da lista, e
 ## um numero cru espalhado pelo arquivo seria reescrito em silencio no dia em que
 ## a ordem mudasse. Mesma armadilha que `DadosArma.Comportamento` ja registra.
-enum Canto { NOROESTE, NORDESTE }
+enum Canto { NOROESTE, NORDESTE, SUDOESTE, SUDESTE }
 
 ## O lado da celula, e ele e o mesmo tile visual do projeto.
 ##
@@ -83,7 +83,7 @@ enum Lado { NORTE, SUL, LESTE, OESTE }
 ## pai de quem.
 static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 		semente: int, topos: Array[Texture2D], faces: Array[Texture2D],
-		estilo: EstiloDeParede = null) -> Node2D:
+		cantos: Array[Texture2D]) -> Node2D:
 	var raiz := Node2D.new()
 	raiz.name = "ParedeModulos"
 	raiz.z_index = Z_FITA
@@ -97,7 +97,7 @@ static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 		var b := contorno[(i + 1) % contorno.size()]
 		_vestir_lado(raiz, contorno, a, b, portas, semente ^ (i * 0x9e3779b1),
 			topos, faces)
-	_vestir_cantos(raiz, contorno, estilo)
+	_vestir_cantos(raiz, contorno, cantos)
 	return raiz
 
 
@@ -179,9 +179,16 @@ static func _sorteia(lista: Array[Texture2D], chave: int) -> Texture2D:
 ## O deslocamento sai da soma das duas normais externas, e nao de uma tabela: com
 ## tabela, a sala em L entraria com o canto no lugar errado no dia em que uma
 ## quina nova aparecesse.
+## O renderizador recebe LISTAS de textura, e nao o `EstiloDeParede`.
+##
+## Quem resolve o kit e a `Sala`, que sabe cair no neutro quando nao ha
+## `DadosSala` -- e isso acontece de verdade: sala aberta sozinha no editor, a
+## amostra que o catalogo instancia, e toda suite que monta uma sala sem visual.
+## Com o renderizador lendo o recurso, essas salas perdiam os cantos em silencio
+## enquanto a fita continuava desenhando, e o portao pegou exatamente isso.
 static func _vestir_cantos(raiz: Node2D, contorno: PackedVector2Array,
-		estilo: EstiloDeParede) -> void:
-	if estilo == null:
+		cantos: Array[Texture2D]) -> void:
+	if cantos.is_empty():
 		return
 	var total := contorno.size()
 	for i in total:
@@ -192,7 +199,8 @@ static func _vestir_cantos(raiz: Node2D, contorno: PackedVector2Array,
 			continue
 		var n1 := normal_externa(contorno, anterior, v)
 		var n2 := normal_externa(contorno, v, proximo)
-		var textura := estilo.canto(_canto_de(classificar(n1), classificar(n2)))
+		var indice := _canto_de(classificar(n1), classificar(n2))
+		var textura: Texture2D = cantos[indice] if indice >= 0 and indice < cantos.size() else null
 		if textura == null:
 			continue
 		var sprite := Sprite2D.new()
@@ -201,13 +209,29 @@ static func _vestir_cantos(raiz: Node2D, contorno: PackedVector2Array,
 		raiz.add_child(sprite)
 
 
-## Qual canto do kit cobre esta quina. -1 quando o kit ainda nao tem um.
+## Qual canto do kit cobre esta quina. -1 quando a quina nao e um encontro de um
+## lado horizontal com um vertical -- o que so acontece em contorno degenerado.
+##
+## As quinas CONCAVAS caem no mesmo mapa, de proposito. Medindo a geometria, as
+## duas familias pedem o mesmo desenho: em ambas o pilar fica na quina virada
+## para a sala, e o que muda e so de que lado ela esta. Numa convexa as duas
+## faixas contornam o pilar por fora; numa concava elas se sobrepoem debaixo
+## dele. O plano previa oito pecas; quatro fazem o trabalho, e o enum tem espaco
+## para as concavas ganharem desenho proprio se um dia alguem provar que precisam.
 static func _canto_de(um: Lado, outro: Lado) -> int:
 	var lados := [um, outro]
-	if lados.has(Lado.NORTE) and lados.has(Lado.OESTE):
-		return Canto.NOROESTE
-	if lados.has(Lado.NORTE) and lados.has(Lado.LESTE):
-		return Canto.NORDESTE
+	var norte := lados.has(Lado.NORTE)
+	var sul := lados.has(Lado.SUL)
+	if lados.has(Lado.OESTE):
+		if norte:
+			return Canto.NOROESTE
+		if sul:
+			return Canto.SUDOESTE
+	if lados.has(Lado.LESTE):
+		if norte:
+			return Canto.NORDESTE
+		if sul:
+			return Canto.SUDESTE
 	return -1
 
 

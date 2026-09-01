@@ -39,6 +39,8 @@ func executar() -> void:
 	_o_recesso_cobre_o_vao_da_moldura()
 	_a_folha_cobre_o_vao_da_moldura()
 	await _nenhuma_porta_desenha_arte_girada()
+	await _a_moldura_de_cada_lado_abre_no_vao()
+	_a_carcaca_nao_le_como_buraco()
 	await _a_face_abre_no_vao_da_porta()
 
 
@@ -475,6 +477,122 @@ func _nenhuma_porta_desenha_arte_girada() -> void:
 		sala.free()
 	ok(portas >= 20, "a varredura conferiu as portas das salas (%d)" % portas)
 	ok(sprites >= portas, "e conferiu ao menos um sprite por porta (%d)" % sprites)
+
+
+## A MOLDURA DE CADA LADO tem de estar VAZADA onde a folha desenha.
+##
+## O defeito que este caso fecha nao existia no norte, e sim nas vistas de cima:
+## a carcaca era pintada sobre os 80 px inteiros, passagem incluida. E a moldura
+## desenha ACIMA da folha e do recesso, entao a porta trancada virava uma chapa
+## lisa com uma barra de sinal em cima -- exatamente o buraco-com-adesivo que a
+## PORTA 01 existiu para acabar.
+##
+## Nenhum portao de arquivo pega isso. As tres texturas continuam validas, cada
+## uma no seu regime, e a de cima e que nao podia estar la: e um defeito de
+## ORDEM, e ordem so se ve montando as tres.
+##
+## O caso pergunta o minimo que separa "abre" de "nao abre": no centro da folha,
+## a moldura daquele lado tem de ser transparente. E ele varre os QUATRO lados,
+## porque o norte -- o unico com arte autorada -- e justamente o que ja estava
+## certo, e um caso cravado nele nao teria achado nada.
+func _a_moldura_de_cada_lado_abre_no_vao() -> void:
+	var raiz := Node2D.new()
+	Engine.get_main_loop().root.add_child(raiz)
+	var sala := CENA_SALA.instantiate() as Sala
+	sala.configurar_conexoes([])
+	raiz.add_child(sala)
+	sala.global_position = LONGE
+	var portas := sala.get_node("Portas")
+
+	var conferidos := 0
+	for direcao: int in [Porta.Direcao.NORTE, Porta.Direcao.SUL,
+			Porta.Direcao.LESTE, Porta.Direcao.OESTE]:
+		var porta := CENA_PORTA.instantiate() as Porta
+		porta.direcao = direcao
+		portas.add_child(porta)
+		await Engine.get_main_loop().process_frame
+
+		var moldura := porta.get_node_or_null("Moldura") as Sprite2D
+		var folha := porta.get_node_or_null("FolhaA") as Sprite2D
+		var outra := porta.get_node_or_null("FolhaB") as Sprite2D
+		if moldura == null or moldura.texture == null or folha == null or outra == null:
+			ok(false, "a porta %d tem moldura e folha" % direcao)
+			porta.queue_free()
+			continue
+
+		var img := moldura.texture.get_image()
+		var canto := moldura.position \
+			- Vector2(img.get_width(), img.get_height()) * 0.5
+		var centro := (folha.position + outra.position) * 0.5
+		var c := int(centro.x - canto.x)
+		var r := int(centro.y - canto.y)
+		var dentro := c >= 0 and c < img.get_width() and r >= 0 and r < img.get_height()
+		ok(dentro, "o centro da folha da porta %d cai dentro da moldura (%d, %d)"
+			% [direcao, c, r])
+		if dentro:
+			conferidos += 1
+			ok(
+				img.get_pixel(c, r).a < 0.999,
+				"a moldura da porta %d e vazada onde a folha desenha -- senao ela tapa a chapa"
+					% direcao
+			)
+		porta.queue_free()
+
+	igual(conferidos, 4, "os quatro lados foram conferidos (%d)" % conferidos)
+	raiz.free()
+
+
+## A CARCACA da porta nao pode ser mais escura que a parede em volta.
+##
+## Este numero saiu de um erro que se via na tela e nao no console: as vistas de
+## cima nasceram em N5, que mede V 0,30 contra os 0,38 do topo da parede. Mais
+## escura que a superficie em volta, a carcaca lia como BURACO -- dois retangulos
+## sem desenho ao lado de um vao --, e nao como maquina. O que separa a porta da
+## parede tem de ser a ARESTA e o rebite, que e como a moldura autorada tambem se
+## separa; escurecer para "aparecer" faz o oposto do que se quer.
+##
+## O teto existe pelo motivo espelhado: carcaca mais CLARA que a parede vira
+## sinal, e sinal na porta ja e a barra de trancada.
+func _a_carcaca_nao_le_como_buraco() -> void:
+	var parede := _mediana_de_valor("res://assets/texturas/parede_topo_a.png")
+	ok(parede > 0.0, "o topo da parede carrega (%.3f)" % parede)
+	if parede <= 0.0:
+		return
+	for nome in ["porta_topo.png", "porta_lado.png"]:
+		var v := _mediana_de_valor("res://assets/texturas/%s" % nome)
+		if v <= 0.0:
+			ok(false, "%s carrega" % nome)
+			continue
+		ok(
+			v >= parede - 0.03,
+			"%s nao e mais escura que a parede em volta (V %.3f contra %.3f) -- senao le como buraco"
+				% [nome, v, parede]
+		)
+		ok(
+			v <= parede + 0.12,
+			"%s tambem nao vira sinal de tao clara (V %.3f contra %.3f)"
+				% [nome, v, parede]
+		)
+
+
+## A mediana do VALOR entre os pixels opacos. Mesma conta de
+## `teste_texturas.gd`, e nao outra: dois numeros para a mesma pergunta seria o
+## comeco de duas respostas.
+func _mediana_de_valor(caminho: String) -> float:
+	var tex := load(caminho) as Texture2D
+	if tex == null:
+		return 0.0
+	var img := tex.get_image()
+	var valores: Array[float] = []
+	for y in img.get_height():
+		for x in img.get_width():
+			var cor := img.get_pixel(x, y)
+			if cor.a >= 0.5:
+				valores.append(cor.v)
+	if valores.is_empty():
+		return 0.0
+	valores.sort()
+	return valores[valores.size() / 2]
 
 
 func _cenas_de_sala() -> Array[String]:

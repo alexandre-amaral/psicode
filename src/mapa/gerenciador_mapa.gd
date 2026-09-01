@@ -66,7 +66,17 @@ const MAX_TENTATIVAS := 24
 @export var vao_corredor: float = 256.0
 ## Quantas salas o andar tenta ter, contando as penduradas.
 @export var total_salas: int = 10
-@export var largura_corredor: float = 80.0
+## A largura do corredor DERIVA do vao da porta, e nao e um numero proprio.
+##
+## Os dois tinham de ser iguais e eram escritos duas vezes -- a porta e o vao que
+## a parede abre, e o corredor encaixa nessa boca; mudar um sem o outro deixa
+## parede no meio da passagem. Era armadilha registrada e portao em
+## `teste_grade.gd`, o que quer dizer que o projeto ja sabia que a duplicata era
+## perigosa e a mantinha assim mesmo.
+##
+## Continua `@export` porque ainda e botao de tuning; o que mudou e o DEFAULT
+## deixar de ser um literal.
+@export var largura_corredor: float = Porta.LARGURA
 
 var sala_atual: Sala = null
 

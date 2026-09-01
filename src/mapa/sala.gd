@@ -847,7 +847,25 @@ func _montar_fita(contorno: PackedVector2Array) -> void:
 		var porta := _portas_por_direcao[chave] as Porta
 		if porta != null:
 			portas.append(porta)
-	add_child(RenderizadorParedes.construir(contorno, portas, hash(coordenadas_grid)))
+	# O material vem das MESMAS texturas autoradas que a parede antiga usa: o
+	# topo neutro em tres variantes e a face do tipo de sala. A fita nao inventa
+	# superficie -- ela so a recorta em celulas.
+	var topos: Array[Texture2D] = []
+	for caminho in TOPOS_NEUTROS:
+		var t := load(caminho) as Texture2D
+		if t != null:
+			topos.append(t)
+	var faces: Array[Texture2D] = []
+	if _dados_visual != null:
+		for f in _dados_visual.texturas_face:
+			if f != null:
+				faces.append(f)
+	if faces.is_empty():
+		var neutra := load(FACE_NEUTRA) as Texture2D
+		if neutra != null:
+			faces.append(neutra)
+	add_child(RenderizadorParedes.construir(
+		contorno, portas, hash(coordenadas_grid), topos, faces))
 
 
 ## A FACE vertical da parede: a metade interna da faixa, so nos lados voltados

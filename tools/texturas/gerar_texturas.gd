@@ -627,55 +627,55 @@ static func gerar_porta_lado() -> Image:
 ## porta trancada perderia justamente o que diz que ela esta trancada.
 static func _travessas(img: Image, x: int, y: int, w: int, h: int,
 		vertical: bool) -> void:
-	var n4 := Paleta.neutro(&"N4")
-	var n6 := Paleta.neutro(&"N6")
-	var n7 := Paleta.neutro(&"N7")
+	var n1 := Paleta.neutro(&"N1")
+	var n3 := Paleta.neutro(&"N3")
+	var n5 := Paleta.neutro(&"N5")
 	var espessura := 6
 	if vertical:
 		for topo: int in [y, y + h - espessura]:
-			_ret(img, x, topo, w, espessura, n4)
-			_ret(img, x, topo + 1, w, espessura - 2, n6)
-			_ret(img, x, topo + 1, w, 1, n7)
-		# Ferragem: dois pares de rebites por travessa, nas pontas, como a
-		# moldura autorada tem nos cantos.
+			_ret(img, x, topo, w, espessura, n1)
+			_ret(img, x, topo + 1, w, espessura - 2, n3)
+			_ret(img, x, topo + 1, w, 1, n5)
 		for topo: int in [y + 1, y + h - espessura + 1]:
-			_pintar(img, x + 2, topo + 1, n7)
-			_pintar(img, x + w - 3, topo + 1, n7)
+			_pintar(img, x + 2, topo + 1, n5)
+			_pintar(img, x + w - 3, topo + 1, n5)
 	else:
 		for esq: int in [x, x + w - espessura]:
-			_ret(img, esq, y, espessura, h, n4)
-			_ret(img, esq + 1, y, espessura - 2, h, n6)
-			_ret(img, esq + 1, y, 1, h, n7)
+			_ret(img, esq, y, espessura, h, n1)
+			_ret(img, esq + 1, y, espessura - 2, h, n3)
+			_ret(img, esq + 1, y, 1, h, n5)
 		for esq: int in [x + 1, x + w - espessura + 1]:
-			_pintar(img, esq + 1, y + 2, n7)
-			_pintar(img, esq + 1, y + h - 3, n7)
+			_pintar(img, esq + 1, y + 2, n5)
+			_pintar(img, esq + 1, y + h - 3, n5)
 
 
-## UM BATENTE visto de cima: laje escura, e um pilar em cima dela.
+## UM BATENTE visto de cima, e ele e ESCURO.
 ##
-## A primeira versao destas duas vistas pintava o batente com a MESMA chapa da
-## parede -- N6 com grao e rebites --, e enquanto a parede era uma textura lisa
-## isso bastava para a porta se destacar. Quando a parede virou fita de modulos
-## (PAREDE 03) ela ganhou grao e rebites tambem, **e a porta sumiu dentro dela**:
-## o que sobrava era um buraco escuro com uma barra de sinal, sem moldura
-## nenhuma. So a porta norte continuava certa, porque a dela e arte autorada.
+## As duas primeiras versoes deste desenho erraram o valor, e erraram para o lado
+## oposto do que a referencia mostra. A primeira pintava o batente com a mesma
+## chapa da parede (N6) e ele sumia dentro dela; a segunda o deixou mais CLARO
+## que a parede, para se destacar -- e ficou um bloco palido colado num muro
+## escuro.
 ##
-## A saida e a mesma que o canto ja usa, e ela e a resposta certa pelo mesmo
-## motivo: o batente e um VOLUME que sobe acima do topo da parede. Ele fica no
-## valor do topo (N6) e quem baixa e a laje em volta -- so que aqui a laje vai
-## dois degraus abaixo, em N4, e nao um. A porta tem de ser a estrutura mais
-## forte da parede, e um degrau some no grao (medido na PAREDE 03).
+## Medido na referencia de `docs/objetivo/`: a moldura da porta norte, que e arte
+## autorada e e o alvo, mede V **0,094 a 0,251**, contra 0,294 da face e 0,380 do
+## topo. **A moldura e a coisa mais escura da parede, tirando o proprio vao.** Ela
+## nao se destaca por ser mais clara: ela se destaca por ser um POCO, e um poco e
+## escuro.
+##
+## Entao a laje vai a N1, o corpo do batente a N3, e o que sobra de claro e um fio
+## de N5 na aresta que pega a luz -- realce, e nao superficie.
 static func _batente_de_cima(img: Image, x: int, y: int, w: int, h: int,
 		vertical: bool, semente: int) -> void:
+	var n1 := Paleta.neutro(&"N1")
 	var n2 := Paleta.neutro(&"N2")
-	var n4 := Paleta.neutro(&"N4")
-	var n6 := Paleta.neutro(&"N6")
-	var n7 := Paleta.neutro(&"N7")
+	var n3 := Paleta.neutro(&"N3")
+	var n5 := Paleta.neutro(&"N5")
 
-	# A laje: a moldura escura que separa a porta da parede.
-	_ret(img, x, y, w, h, n4)
+	# A laje: a moldura escura que cerca o batente.
+	_ret(img, x, y, w, h, n1)
 
-	# O pilar, recuado 3 px da laje nos quatro lados.
+	# O corpo do batente, recuado 3 px da laje nos quatro lados.
 	var recuo := 3
 	var px := x + recuo
 	var py := y + recuo
@@ -683,37 +683,29 @@ static func _batente_de_cima(img: Image, x: int, y: int, w: int, h: int,
 	var ph := h - recuo * 2
 	for dy in ph:
 		for dx in pw:
-			var cor := n6
+			var cor := n3
 			if _ruido(px + dx, py + dy, semente) < 0.12:
-				cor = Paleta.neutro(&"N5")
+				cor = n2
 			_pintar(img, px + dx, py + dy, cor)
-	# A luz vem de cima e da esquerda: acende em cima e a esquerda dos dois
-	# batentes. Isto NAO se inverte entre eles -- inverter faria um dos dois
-	# parecer iluminado por outra fonte.
-	_ret(img, px, py, pw, 1, n7)
-	_ret(img, px, py, 1, ph, n7)
-	_ret(img, px, py + ph - 1, pw, 1, n4)
-	_ret(img, px + pw - 1, py, 1, ph, n4)
+	# A luz vem de cima e da esquerda: um FIO aceso em cima e a esquerda, e a
+	# sombra nas opostas. Fio e nao chapa -- N5 numa superficie inteira poria a
+	# moldura mais clara que a face, que e o erro que esta versao corrige.
+	_ret(img, px, py, pw, 1, n5)
+	_ret(img, px, py, 1, ph, n5)
+	_ret(img, px, py + ph - 1, pw, 1, n1)
+	_ret(img, px + pw - 1, py, 1, ph, n1)
 
 	# A junta da tampa, no meio da dimensao que atravessa a parede.
 	if vertical:
-		_ret(img, px + 1, py + ph / 2, pw - 2, 1, n4)
+		_ret(img, px + 1, py + ph / 2, pw - 2, 1, n1)
 	else:
-		_ret(img, px + pw / 2, py + 1, 1, ph - 2, n4)
+		_ret(img, px + pw / 2, py + 1, 1, ph - 2, n1)
 
-	# Rebites nos cantos do pilar.
+	# Ferragem nos cantos.
 	for dy: int in [3, ph - 5]:
 		for dx: int in [3, pw - 5]:
-			_ret(img, px + dx, py + dy, 2, 2, n4)
-			_pintar(img, px + dx, py + dy, n7)
-
-	# A SOMBRA DE CONTATO com o chao da sala, na mesma linguagem do modulo de
-	# parede: dois pixels de N2 na aresta virada para dentro. Sem ela o batente
-	# flutua sobre o piso.
-	if vertical:
-		_ret(img, x, y, w, 2, n2)
-	else:
-		_ret(img, x, y, 2, h, n2)
+			_ret(img, px + dx, py + dy, 2, 2, n1)
+			_pintar(img, px + dx, py + dy, n5)
 
 
 ## O POCO da passagem visto de cima, para o SUL.

@@ -24,10 +24,21 @@ extends RefCounted
 ## do chao e mesmo assim nao cobre nada, e por isso a sala em L nao precisa de
 ## geometria nova.
 ##
-## **Nada aqui gira arte.** Os modulos ja nascem orientados -- 32x64 no norte e no
-## sul, 64x32 no leste e no oeste --, e o oeste e desenho proprio e nao o leste
-## espelhado, porque o espelho inverteria de que lado vem a luz. E a mesma regra
-## que a porta ja carrega desde a PORTA 03.
+## **A ESTRUTURA e gerada; a SUPERFICIE e autorada.** Esta divisao foi paga com
+## um erro: a primeira versao da fita desenhava tambem a superficie, em chapa
+## lisa de N6, e o resultado foi uma faixa CINZA-CLARA em volta da sala. O
+## motivo, medido contra a referencia de `docs/objetivo/`: o topo mede V 0,380 e
+## a face 0,251, e a parede norte le escura porque METADE do que se ve dela e
+## face. Leste, oeste e sul nao tinham face nenhuma -- 64 px de topo puro, 3x
+## mais claros que o chao --, e viravam uma fita palida colada na borda.
+##
+## Entao a fita passa a vestir as texturas AUTORADAS (`parede_topo_*` e
+## `parede_face*`), recortadas em celulas de 32, e quem continua gerado e so o
+## que e ESTRUTURA: o canto e o batente da porta. E a mesma divisao que o resto
+## do projeto ja faz -- chao e parede autorados, porta e prop gerados.
+##
+## **Nada aqui gira arte.** As celulas sao recortes 32x32 das texturas autoradas,
+## colocadas na faixa; nenhuma passa por `rotation` nem por `flip`.
 
 ## O tile visual do projeto, e o unico numero que divide toda dimensao de sala.
 const MODULO := 32.0
@@ -44,12 +55,15 @@ const LADO_MINIMO := MODULO
 ## sendo `Z_FRENTE`.
 const Z_FITA := -13
 
-const MODULO_N := preload("res://assets/texturas/modulo_n.png")
-const MODULO_S := preload("res://assets/texturas/modulo_s.png")
-const MODULO_L := preload("res://assets/texturas/modulo_l.png")
-const MODULO_O := preload("res://assets/texturas/modulo_o.png")
 const CANTO_NO := preload("res://assets/texturas/modulo_canto_no.png")
 const CANTO_NE := preload("res://assets/texturas/modulo_canto_ne.png")
+
+## O lado da celula, e ele e o mesmo tile visual do projeto.
+##
+## A faixa tem 64 px de profundidade, entao cada celula da fita sao DUAS peças
+## de 32x32 empilhadas: a de fora e TOPO e a de dentro e FACE -- menos no sul,
+## onde as duas sao topo.
+const CELULA := 32
 
 ## Como um lado e classificado, e o limiar e o MESMO de `Sala.LIMIAR_LADO_NORTE`.
 ##
@@ -64,17 +78,20 @@ enum Lado { NORTE, SUL, LESTE, OESTE }
 ## onde a cena guarda as portas -- ele precisa saber ONDE ha vao, e nao quem e o
 ## pai de quem.
 static func construir(contorno: PackedVector2Array, portas: Array[Porta],
-		semente: int) -> Node2D:
+		semente: int, topos: Array[Texture2D], faces: Array[Texture2D]) -> Node2D:
 	var raiz := Node2D.new()
 	raiz.name = "ParedeModulos"
 	raiz.z_index = Z_FITA
 	if contorno.size() < 3:
 		return raiz
 
+	if topos.is_empty():
+		return raiz
 	for i in contorno.size():
 		var a := contorno[i]
 		var b := contorno[(i + 1) % contorno.size()]
-		_vestir_lado(raiz, contorno, a, b, portas, semente)
+		_vestir_lado(raiz, contorno, a, b, portas, semente ^ (i * 0x9e3779b1),
+			topos, faces)
 	_vestir_cantos(raiz, contorno)
 	return raiz
 
@@ -87,26 +104,64 @@ static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 ## 2,5 celulas e as das pontas ficam meio dentro e meio fora. Resolver isso e a
 ## PAREDE 07; aqui o desalinhamento fica VISIVEL em vez de disfarcado.
 static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
-		b: Vector2, portas: Array[Porta], semente: int) -> void:
+		b: Vector2, portas: Array[Porta], semente: int, topos: Array[Texture2D],
+		faces: Array[Texture2D]) -> void:
 	var comprimento := a.distance_to(b)
 	if comprimento < LADO_MINIMO:
 		return
 	var direcao := (b - a) / comprimento
 	var normal := normal_externa(contorno, a, b)
 	var lado := classificar(normal)
-	var textura := textura_do_lado(lado)
+
+	# O SUL mostra so o topo, e isso e fisica e nao economia: a face de uma
+	# parede ao sul olha para longe da camera, escondida pela propria parede. Nos
+	# outros tres lados ela aparece -- de frente no norte, de esguelha no leste e
+	# no oeste --, e e ela que faz a faixa ler escura.
+	var so_topo := lado == Lado.SUL
+	var t := 0.0
+	var indice := 0
+	while t + CELULA <= comprimento + 0.5:
+		if not _cai_em_vao(a + direcao * t, a + direcao * (t + CELULA), portas, normal):
+			var meio := a + direcao * (t + CELULA * 0.5)
+			var chave := semente ^ (indice * 0x85ebca6b)
+			# A peça de FORA: topo, sempre.
+			_peca(raiz, _sorteia(topos, chave), meio + normal * (CELULA * 1.5))
+			# A de DENTRO: face, menos no sul.
+			var interna := _sorteia(topos, chave ^ 0x27d4eb2f) if so_topo \
+				else _sorteia(faces, chave ^ 0x165667b1)
+			_peca(raiz, interna, meio + normal * (CELULA * 0.5))
+		t += CELULA
+		indice += 1
+
+
+## Uma celula de 32x32 recortada da textura autorada.
+##
+## `region_rect` e nao uma textura por celula: as autoradas tem 64x64, entao cada
+## uma ja carrega QUATRO celulas diferentes. Recortar multiplica a variedade por
+## quatro sem um byte novo em disco, e e o que evita a faixa virar o mesmo
+## quadrado repetido.
+static func _peca(raiz: Node2D, textura: Texture2D, onde: Vector2) -> void:
 	if textura == null:
 		return
+	var sprite := Sprite2D.new()
+	sprite.texture = textura
+	sprite.region_enabled = true
+	var largura := int(textura.get_width())
+	var altura := int(textura.get_height())
+	var colunas := maxi(largura / CELULA, 1)
+	var linhas := maxi(altura / CELULA, 1)
+	var i := absi(hash(onde)) % (colunas * linhas)
+	sprite.region_rect = Rect2(
+		float((i % colunas) * CELULA), float((i / colunas) * CELULA),
+		float(CELULA), float(CELULA))
+	sprite.position = onde
+	raiz.add_child(sprite)
 
-	var centro_da_faixa := normal * (Sala.ESPESSURA_PAREDE * 0.5)
-	var t := 0.0
-	while t + MODULO <= comprimento + 0.5:
-		if not _cai_em_vao(a + direcao * t, a + direcao * (t + MODULO), portas, normal):
-			var sprite := Sprite2D.new()
-			sprite.texture = textura
-			sprite.position = a + direcao * (t + MODULO * 0.5) + centro_da_faixa
-			raiz.add_child(sprite)
-		t += MODULO
+
+static func _sorteia(lista: Array[Texture2D], chave: int) -> Texture2D:
+	if lista.is_empty():
+		return null
+	return lista[absi(chave) % lista.size()]
 
 
 ## O canto de cada quina CONVEXA, onde a face do norte termina.
@@ -175,19 +230,6 @@ static func classificar(normal: Vector2) -> Lado:
 	if normal.x <= -0.5:
 		return Lado.OESTE
 	return Lado.SUL
-
-
-static func textura_do_lado(lado: Lado) -> Texture2D:
-	match lado:
-		Lado.NORTE:
-			return MODULO_N
-		Lado.SUL:
-			return MODULO_S
-		Lado.LESTE:
-			return MODULO_L
-		Lado.OESTE:
-			return MODULO_O
-	return null
 
 
 ## A normal que aponta para FORA do contorno.

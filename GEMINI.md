@@ -922,6 +922,20 @@ em qualquer erro de script.
   suite, depois de a arte ja estar em disco. A do `andar1` e larga de proposito
   (185-320): ela separa TIPO DE SALA, e quem separa mapa de ATOR e o teto de
   valor (chao em 0,30 contra o piso de 0,55 do portao G2), que nao muda.
+- **A contagem de `AUTORADAS` nao acusa arquivo que nunca entrou nela.** Ela
+  confere o que esta na lista contra o que foi conferido: um PNG fora da lista
+  nao aparece nos dois lados, ele SOME, e a suite fica verde. Os quatro modulos
+  de face da AND1 03 e a `baia_chefe.png` da AND1 07 passaram assim -- cinco
+  arquivos, tres ondas de arte, nenhum erro no console. Hoje quem fecha isso e
+  `_nenhum_png_fica_fora_de_regime()`, que VARRE `assets/texturas/` e exige que
+  todo PNG esteja em `AUTORADAS` ou em `GeradorTexturas.nomes()`. Os cinco
+  passaram assim que foram conferidos, e e esse o pior caso: o portao nao estava
+  barrando arte ruim, estava deixando arte boa passar sem prova.
+- **`TETO_VALOR` do teste e GEMEO de `FAMILIAS` do funil, e faltava uma linha.**
+  A familia `decalque` nao estava na tabela, entao a `baia_chefe.png` era medida
+  contra o default de 0,55 -- quase tres vezes os 0,19 que o funil aplicou ao
+  escreve-la. Mesma armadilha que o `MATIZ_POR_TIPO` ja documenta: os dois lados
+  tem de mudar juntos, e "esta no funil" nao quer dizer "esta cobrado".
 - **`teste_texturas.gd` compara o PNG em disco com o gerador.** Mudou uma cor
   em `paleta.gd` ou um traco em `gerar_texturas.gd`? Rode o gerador e o
   `--import` de novo, senao a suite reprova com "gerou e esqueceu de rodar?".

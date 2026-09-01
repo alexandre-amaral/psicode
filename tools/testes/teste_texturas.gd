@@ -53,6 +53,7 @@ func executar() -> void:
 	_tipos_apontam_textura()
 	_a_parede_tem_volume()
 	_os_modulos_de_face_ficam_na_faixa_da_base()
+	_nenhum_png_fica_fora_de_regime()
 
 
 ## Mesmo limiar do `preparar_textura.py`: dois pixels vizinhos contam como
@@ -314,13 +315,68 @@ const AUTORADAS: Dictionary = {
 	"parede_face_boss.png": {&"familia": &"parede", &"tipo": &"boss"},
 	"parede_face_arma.png": {&"familia": &"parede", &"tipo": &"arma"},
 	"parede_face_item.png": {&"familia": &"parede", &"tipo": &"item"},
+	# Os quatro MODULOS de combate (AND1 03). Eles ficaram FORA desta lista
+	# desde que nasceram, e por isso passavam so pelo portao de densidade --
+	# nao por gamut, teto de valor, faixa de matiz, grade, alfa nem costura.
+	# Metade da superficie de parede do andar estava sem medicao enquanto a
+	# outra metade era cobrada. A contagem de `AUTORADAS` nao acusa ausencia:
+	# ela confere o que esta na lista contra o que foi conferido, entao um
+	# arquivo que nunca entrou simplesmente some.
+	"parede_face_combate_tubulacao.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"parede_face_combate_tecnica.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"parede_face_combate_deteriorada.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"parede_face_combate_ventilada.png": {&"familia": &"parede", &"tipo": &"andar1"},
 	# A MOLDURA da porta (LTD 11). Familia `prop` e nao `parede`: ela serve
 	# todos os tipos de sala, entao nao pode ter faixa de matiz -- amarra-la a
 	# uma pintaria a mesma porta de vermelho no chefe e de ambar na sala de arma.
 	# O CAMPO continua gerado: ele e SINAL e tem lista de cor propria.
 	"porta_moldura.png": {&"familia": &"prop", &"tipo": &"andar1"},
 	"props_frente.png": {&"familia": &"prop", &"tipo": &"andar1"},
+	# A BAIA do chefe (AND1 07): a marca de chao sob o ponto de partida dele.
+	# Familia `decalque` -- ela e chapada e o jogador anda por cima --, tipo
+	# `boss` porque a faixa dela e a da sala do chefe. Ela tambem estava fora
+	# de regime nenhum, e foi a varredura de orfaos que a achou.
+	"baia_chefe.png": {&"familia": &"decalque", &"tipo": &"boss"},
 }
+
+## Todo PNG de `assets/texturas/` esta num REGIME -- gerado ou autorado.
+##
+## Este caso existe porque o cabecalho desta suite ja avisava do defeito e nao o
+## cobrava: "uma lista fixa aqui teria o mesmo defeito que a `AUTORADAS` do teste
+## de texturas ja tem -- arquivo fora dela nao e conferido por nada, e ninguem
+## descobre". Era exatamente o que estava acontecendo.
+##
+## O que a contagem existente NAO pega: `igual(autoradas, AUTORADAS.size())`
+## confere o que esta na lista contra o que foi conferido. Um arquivo que nunca
+## entrou na lista nao aparece nos dois lados -- ele SOME, e a suite fica verde.
+##
+## Achados por esta varredura quando ela foi escrita: os quatro modulos de face
+## de combate (AND1 03) e a `baia_chefe.png` (AND1 07). Cinco arquivos, tres
+## ondas de arte, nenhum erro no console -- e os cinco passaram assim que foram
+## conferidos, que e o pior caso: o portao nao estava barrando arte ruim, estava
+## deixando arte boa passar sem prova, e a proxima podia nao ser boa.
+func _nenhum_png_fica_fora_de_regime() -> void:
+	var pasta := DirAccess.open(PASTA)
+	if pasta == null:
+		ok(false, "assets/texturas/ pode ser aberta")
+		return
+	var gerados := GeradorTexturas.nomes()
+	var orfaos: Array[String] = []
+	var vistos := 0
+	for arquivo in pasta.get_files():
+		if not arquivo.ends_with(".png"):
+			continue
+		vistos += 1
+		if AUTORADAS.has(arquivo) or gerados.has(arquivo):
+			continue
+		orfaos.append(arquivo)
+
+	ok(vistos >= AUTORADAS.size(), "a varredura achou os PNGs em disco (%d)" % vistos)
+	igual(
+		orfaos.size(), 0,
+		"nenhum PNG fica fora de regime -- gerado ou autorado (%s)" % [orfaos]
+	)
+
 
 ## A faixa de matiz e do TIPO DE SALA, e e ela que faz a sala do chefe se
 ## anunciar de longe sem o andar deixar de ser um lugar so. Sai das rampas
@@ -379,6 +435,13 @@ const TETO_VALOR: Dictionary = {
 	## aparece -- mas vive no miolo por onde o combate passa, entao nao chega aos
 	## 0,50 da parede, que e moldura e fica na beira do quadro.
 	&"prop": 0.42,
+	## O DECALQUE e o mais escuro dos quatro, e o numero vem do funil
+	## (`FAMILIAS` de preparar_textura.py). Ele fica embaixo do prop de
+	## proposito: prop vive na margem calma e pode ter volume, decalque e
+	## chapado e vive ONDE O COMBATE ACONTECE -- o jogador anda por cima dele.
+	## Faltava aqui, entao a `baia_chefe.png` era medida contra o default de
+	## 0,55: quase tres vezes o teto que o funil aplicou ao escreve-la.
+	&"decalque": 0.19,
 }
 
 ## Abaixo deste valor o matiz de um pixel de 8 bits e ruido de arredondamento --

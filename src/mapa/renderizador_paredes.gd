@@ -55,8 +55,12 @@ const LADO_MINIMO := MODULO
 ## sendo `Z_FRENTE`.
 const Z_FITA := -13
 
-const CANTO_NO := preload("res://assets/texturas/modulo_canto_no.png")
-const CANTO_NE := preload("res://assets/texturas/modulo_canto_ne.png")
+## Os cantos, na ordem em que o `EstiloDeParede` os guarda.
+##
+## Enum e nao indice solto: a PAREDE 06 acrescenta os concavos NO FIM da lista, e
+## um numero cru espalhado pelo arquivo seria reescrito em silencio no dia em que
+## a ordem mudasse. Mesma armadilha que `DadosArma.Comportamento` ja registra.
+enum Canto { NOROESTE, NORDESTE }
 
 ## O lado da celula, e ele e o mesmo tile visual do projeto.
 ##
@@ -78,7 +82,8 @@ enum Lado { NORTE, SUL, LESTE, OESTE }
 ## onde a cena guarda as portas -- ele precisa saber ONDE ha vao, e nao quem e o
 ## pai de quem.
 static func construir(contorno: PackedVector2Array, portas: Array[Porta],
-		semente: int, topos: Array[Texture2D], faces: Array[Texture2D]) -> Node2D:
+		semente: int, topos: Array[Texture2D], faces: Array[Texture2D],
+		estilo: EstiloDeParede = null) -> Node2D:
 	var raiz := Node2D.new()
 	raiz.name = "ParedeModulos"
 	raiz.z_index = Z_FITA
@@ -92,7 +97,7 @@ static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 		var b := contorno[(i + 1) % contorno.size()]
 		_vestir_lado(raiz, contorno, a, b, portas, semente ^ (i * 0x9e3779b1),
 			topos, faces)
-	_vestir_cantos(raiz, contorno)
+	_vestir_cantos(raiz, contorno, estilo)
 	return raiz
 
 
@@ -174,7 +179,10 @@ static func _sorteia(lista: Array[Texture2D], chave: int) -> Texture2D:
 ## O deslocamento sai da soma das duas normais externas, e nao de uma tabela: com
 ## tabela, a sala em L entraria com o canto no lugar errado no dia em que uma
 ## quina nova aparecesse.
-static func _vestir_cantos(raiz: Node2D, contorno: PackedVector2Array) -> void:
+static func _vestir_cantos(raiz: Node2D, contorno: PackedVector2Array,
+		estilo: EstiloDeParede) -> void:
+	if estilo == null:
+		return
 	var total := contorno.size()
 	for i in total:
 		var anterior := contorno[(i - 1 + total) % total]
@@ -184,7 +192,7 @@ static func _vestir_cantos(raiz: Node2D, contorno: PackedVector2Array) -> void:
 			continue
 		var n1 := normal_externa(contorno, anterior, v)
 		var n2 := normal_externa(contorno, v, proximo)
-		var textura := _canto_de(classificar(n1), classificar(n2))
+		var textura := estilo.canto(_canto_de(classificar(n1), classificar(n2)))
 		if textura == null:
 			continue
 		var sprite := Sprite2D.new()
@@ -193,13 +201,14 @@ static func _vestir_cantos(raiz: Node2D, contorno: PackedVector2Array) -> void:
 		raiz.add_child(sprite)
 
 
-static func _canto_de(um: Lado, outro: Lado) -> Texture2D:
+## Qual canto do kit cobre esta quina. -1 quando o kit ainda nao tem um.
+static func _canto_de(um: Lado, outro: Lado) -> int:
 	var lados := [um, outro]
 	if lados.has(Lado.NORTE) and lados.has(Lado.OESTE):
-		return CANTO_NO
+		return Canto.NOROESTE
 	if lados.has(Lado.NORTE) and lados.has(Lado.LESTE):
-		return CANTO_NE
-	return null
+		return Canto.NORDESTE
+	return -1
 
 
 ## Esta celula encosta no vao de alguma porta deste lado?

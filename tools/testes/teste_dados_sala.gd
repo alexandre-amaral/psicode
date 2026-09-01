@@ -34,6 +34,36 @@ func executar() -> void:
 	_salas_sem_combate(catalogo)
 	_arma_so_na_sala_de_arma(catalogo)
 	_contornos_desenhaveis(catalogo)
+	_todo_tipo_aponta_um_kit_de_parede(catalogo)
+
+
+## TODO TIPO APONTA UM KIT DE PAREDE, e o kit carrega.
+##
+## O `EstiloDeParede` e o unico campo novo que a PAREDE 05 acrescentou, e ele e
+## opcional por construcao: sala sem dados -- aberta sozinha no editor, ou a
+## amostra que o catalogo instancia -- cai na lista neutra em disco, e tem de
+## continuar caindo. Mas um TIPO sem kit e outra coisa: ele desenharia a parede
+## neutra em silencio, e a sala do chefe sairia com o material do corredor sem
+## uma linha no console.
+##
+## O caso tambem cobra que o kit esteja MONTADO. Um `.tres` que carrega mas tem
+## a lista de topos vazia passa em qualquer teste de existencia e desenha uma
+## sala sem parede -- que e o pior tipo de defeito deste sistema, porque a sala
+## continua jogavel.
+func _todo_tipo_aponta_um_kit_de_parede(catalogo: Array[DadosSala]) -> void:
+	var conferidos := 0
+	for dados in catalogo:
+		var kit := dados.estilo_de_parede
+		ok(kit != null, "o tipo '%s' aponta um kit de parede" % dados.id)
+		if kit == null:
+			continue
+		conferidos += 1
+		ok(kit.vestivel(), "o kit '%s' do tipo '%s' esta montado (%d topos)"
+			% [kit.id, dados.id, kit.topos.size()])
+		for t in kit.topos:
+			ok(t != null, "o kit '%s' nao tem topo nulo na lista" % kit.id)
+	igual(conferidos, catalogo.size(), "os %d tipos apontam kit (%d)"
+		% [catalogo.size(), conferidos])
 
 
 func _carregar() -> Array[DadosSala]:

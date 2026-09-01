@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="DadosSala" load_steps=29 format=3]
+[gd_resource type="Resource" script_class="DadosSala" load_steps=30 format=3]
 
 [ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
 [ext_resource type="Texture2D" path="res://assets/texturas/chao_andar1_a.png" id="30_c0"]
@@ -24,6 +24,7 @@
 [ext_resource type="Resource" path="res://src/enemies/grupo_atirador_neon.tres" id="11_neon"]
 [ext_resource type="Resource" path="res://src/enemies/grupo_cyber_besta.tres" id="12_besta"]
 [ext_resource type="Resource" path="res://src/enemies/grupo_hacker_parasita.tres" id="13_hacker"]
+[ext_resource type="Resource" path="res://src/mapa/estilo_industrial_velho.tres" id="91_estilo"]
 
 [resource]
 script = ExtResource("1_ds")
@@ -45,6 +46,7 @@ cor_mapa = Color(0.3, 0.9, 1, 1)
 icone = ""
 texturas_chao = Array[Texture2D]([ExtResource("30_c0"), ExtResource("30_c1"), ExtResource("30_c2")])
 texturas_face = Array[Texture2D]([ExtResource("40_fc"), ExtResource("90_fm0"), ExtResource("90_fm1"), ExtResource("90_fm2"), ExtResource("90_fm3")])
+estilo_de_parede = ExtResource("91_estilo")
 atlas_props = ExtResource("23_atlas")
 regioes_props = Array[Rect2i]([Rect2i(0, 0, 32, 32), Rect2i(32, 0, 32, 32), Rect2i(64, 0, 32, 32), Rect2i(96, 0, 32, 32), Rect2i(128, 0, 32, 32), Rect2i(160, 0, 32, 32), Rect2i(192, 0, 32, 32), Rect2i(224, 0, 32, 32), Rect2i(0, 32, 32, 32), Rect2i(32, 32, 32, 32), Rect2i(64, 32, 32, 32), Rect2i(96, 32, 32, 32), Rect2i(128, 32, 32, 32), Rect2i(160, 32, 32, 32), Rect2i(192, 32, 32, 32), Rect2i(224, 32, 32, 32), Rect2i(0, 64, 32, 32), Rect2i(0, 96, 32, 32)])
 quantidade_props = 10

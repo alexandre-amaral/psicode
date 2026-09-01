@@ -137,6 +137,20 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## Vazia = cai na face neutra em disco. Sala aberta sozinha no editor nao tem
 ## DadosSala e nao pode ficar sem face.
 @export var texturas_face: Array[Texture2D] = []
+
+## O KIT de parede do andar: topo, cantos e a face de recurso.
+##
+## UM campo, e nao uma duzia. Com a parede virando fita de modulos, cada tipo de
+## sala precisaria de listas de topo, canto e variante -- e o plano avisa contra a
+## explosao de `@export`. O `EstiloDeParede` reune isso e fica reusavel: as cinco
+## salas do andar 1 apontam o MESMO recurso, porque elas sao o mesmo setor.
+##
+## A face do TIPO continua acima, em `texturas_face`, e nao aqui: desde a LTD 13
+## e ela que diz de que sala se trata, e o estilo carrega o que e do ANDAR.
+##
+## Vazio cai na parede neutra em disco -- o mesmo caminho que a sala aberta
+## sozinha no editor ja segue.
+@export var estilo_de_parede: EstiloDeParede = null
 ## Atlas de props e QUAIS celulas dele esta sala pode usar. O atlas e um so
 ## para o jogo inteiro; a lista e o que da identidade -- a sala do chefe nao
 ## recebe o painel de acento da sala de arma.

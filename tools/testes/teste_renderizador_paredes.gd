@@ -32,6 +32,7 @@ func executar() -> void:
 	await _nenhuma_celula_invade_o_chao()
 	await _a_fita_nao_gira_nem_espelha_arte()
 	await _o_vao_da_porta_fica_sem_modulo()
+	await _o_acabamento_existe_e_cabe_na_faixa()
 	await _toda_quina_recebe_canto()
 	_a_variante_e_deterministica_e_o_espacamento_morde()
 
@@ -65,6 +66,11 @@ func _toda_forma_de_sala_veste_a_fita() -> void:
 ## sala em L tambem: no vao dela a normal externa aponta para dentro da mordida,
 ## que e area FORA do poligono. Um contorno novo que quebrasse isso poria parede
 ## no meio do combate.
+##
+## Ele varre todo `Node2D` e nao so `Sprite2D`, e a diferenca nao e cosmetica: o
+## acabamento da TOPO 01 sao `Polygon2D`, e com o alvo estreito o portao mediria
+## 300 celulas ignorando as tiras -- verde, e cego para metade do que a fita
+## desenha. Alvo estreito e como um portao vira carimbo.
 func _nenhuma_celula_invade_o_chao() -> void:
 	var conferidas := 0
 	for caminho in _cenas():
@@ -79,11 +85,11 @@ func _nenhuma_celula_invade_o_chao() -> void:
 			continue
 		var dentro := 0
 		for filho in fita.get_children():
-			var sprite := filho as Sprite2D
-			if sprite == null:
+			var item := filho as Node2D
+			if item == null:
 				continue
 			conferidas += 1
-			if Geometry2D.is_point_in_polygon(sprite.position, contorno):
+			if Geometry2D.is_point_in_polygon(item.position, contorno):
 				dentro += 1
 		igual(
 			dentro, 0,
@@ -100,6 +106,13 @@ func _nenhuma_celula_invade_o_chao() -> void:
 ## oeste --, e o oeste nao e o leste espelhado: no leste a aresta virada para a
 ## sala pega a luz, no oeste ela olha para longe dela. Um `flip_h` aqui poria o
 ## realce no lado errado, e ninguem veria.
+##
+## **Com o acabamento da TOPO 01 o portao ENDURECE, e nao afrouxa.** A tentacao
+## era abrir excecao para a tira poder acompanhar o lado; a saida foi desenha-la
+## em coordenadas, onde nao ha o que girar. Entao ele passa a varrer todo
+## `Node2D` -- uma tira rotacionada seria a mesma mentira de luz que uma arte
+## girada, e a tabela por lado de `_vestir_acabamento()` so vale se ninguem a
+## contornar com um `rotation`.
 func _a_fita_nao_gira_nem_espelha_arte() -> void:
 	for caminho in _cenas():
 		var sala := _nascer(caminho)
@@ -111,14 +124,20 @@ func _a_fita_nao_gira_nem_espelha_arte() -> void:
 			sala.free()
 			continue
 		var tortos := 0
+		var vistos := 0
 		for filho in fita.get_children():
-			var sprite := filho as Sprite2D
-			if sprite == null:
+			var item := filho as Node2D
+			if item == null:
 				continue
-			if not is_zero_approx(sprite.global_rotation) or sprite.flip_h or sprite.flip_v:
+			vistos += 1
+			if not is_zero_approx(item.global_rotation):
 				tortos += 1
-		igual(tortos, 0, "%s: nenhuma celula gira ou espelha (%d)"
-			% [caminho.get_file(), tortos])
+				continue
+			var sprite := item as Sprite2D
+			if sprite != null and (sprite.flip_h or sprite.flip_v):
+				tortos += 1
+		igual(tortos, 0, "%s: nenhuma peca da fita gira ou espelha (%d de %d)"
+			% [caminho.get_file(), tortos, vistos])
 		sala.free()
 
 
@@ -155,15 +174,22 @@ func _o_vao_da_porta_fica_sem_modulo() -> void:
 			var meia := Porta.LARGURA * 0.5
 			var invasores := 0
 			for peca in fita.get_children():
-				var sprite := peca as Sprite2D
-				if sprite == null:
+				var item := peca as Node2D
+				if item == null:
 					continue
 				# So conta quem esta na MESMA faixa: a fita do lado oposto
 				# projeta no mesmo eixo e nao tem nada a ver com este vao.
-				if sprite.position.dot(porta.vetor()) < 0.0:
+				if item.position.dot(porta.vetor()) < 0.0:
 					continue
-				var onde := sprite.position.dot(eixo)
-				if onde > centro - meia and onde < centro + meia:
+				# A EXTENSAO, e nao o centro.
+				#
+				# O acabamento e uma tira por TRECHO, entao o centro dela fica no
+				# meio do lado -- longe do vao, e um teste de centro a daria por
+				# inocente mesmo que ela atravessasse a soleira inteira. Medir a
+				# extensao tambem endurece o caso para as celulas: uma peca cuja
+				# BORDA entra no vao passava antes.
+				var faixa := _extensao(item, eixo)
+				if faixa.y > centro - meia + 0.5 and faixa.x < centro + meia - 0.5:
 					invasores += 1
 			igual(
 				invasores, 0,
@@ -384,3 +410,112 @@ func _nascer(caminho: String) -> Sala:
 	Engine.get_main_loop().root.add_child(sala)
 	sala.global_position = LONGE
 	return sala
+
+
+## O ACABAMENTO EXISTE, cabe na faixa, e a costura sabe onde ha face.
+##
+## Os tres portoes que a TOPO 01 ampliou sao todos NEGATIVOS -- nao invade o
+## chao, nao gira, nao atravessa a porta. Os tres passariam perfeitamente com o
+## acabamento nao existindo, que e a forma mais comum de um portao aprovar o
+## nada. Este e o positivo, e ele cobra as tres afirmacoes que a peca faz:
+##
+## 1. **existe** -- ha tira em toda forma de sala;
+## 2. **cabe** -- nenhuma passa de `alcance()`, nem para fora nem para dentro do
+##    contorno. Um pixel alem de 64 e a camera passa a mostrar vazio na borda do
+##    quadro, sem erro no console;
+## 3. **a costura sabe onde ha face** -- ela existe em `n*32` nos lados com face
+##    e NAO existe no sul, que nao tem face para virar. Uma costura no sul seria
+##    uma linha atravessando o meio de uma superficie continua.
+func _o_acabamento_existe_e_cabe_na_faixa() -> void:
+	var alcance := RenderizadorParedes.alcance()
+	for caminho in _cenas():
+		var sala := _nascer(caminho)
+		if sala == null:
+			continue
+		await Engine.get_main_loop().process_frame
+		var fita := sala.get_node_or_null("ParedeModulos")
+		if fita == null:
+			sala.free()
+			continue
+		var contorno := sala.contorno_local()
+		var tiras := 0
+		var fora := 0
+		var costuras_ao_sul := 0
+		var costuras := 0
+		for filho in fita.get_children():
+			var poly := filho as Polygon2D
+			if poly == null or poly.polygon.is_empty():
+				continue
+			tiras += 1
+			# A profundidade de cada vertice, medida a partir do lado mais
+			# proximo do contorno. Fora de [0, 64] a peca saiu da faixa.
+			for ponto in poly.polygon:
+				var mundo: Vector2 = poly.position + ponto
+				var d := _profundidade(mundo, contorno)
+				if d < -0.5 or d > alcance + 0.5:
+					fora += 1
+			if poly.color.is_equal_approx(RenderizadorParedes.N4) 					or poly.color.is_equal_approx(RenderizadorParedes.N7):
+				var meio := poly.position
+				var d := _profundidade(meio, contorno)
+				if absf(d - RenderizadorParedes.COSTURA) <= 2.0:
+					costuras += 1
+					# Ao sul a fita e topo puro: costura ali e linha no meio de
+					# uma superficie continua.
+					if meio.y > _caixa(contorno).end.y:
+						costuras_ao_sul += 1
+		var nome := caminho.get_file()
+		ok(tiras > 0, "%s: a fita monta acabamento (%d tiras)" % [nome, tiras])
+		igual(fora, 0, "%s: nenhum vertice do acabamento sai da faixa de %.0f px (%d)"
+			% [nome, alcance, fora])
+		ok(costuras > 0, "%s: a costura existe onde ha face (%d)" % [nome, costuras])
+		igual(costuras_ao_sul, 0,
+			"%s: nenhuma costura na parede SUL -- la nao ha face para virar (%d)"
+				% [nome, costuras_ao_sul])
+		sala.free()
+
+
+## A que distancia do contorno este ponto esta, para FORA. Negativo se dentro.
+func _profundidade(ponto: Vector2, contorno: PackedVector2Array) -> float:
+	var perto_de := INF
+	var total := contorno.size()
+	for i in total:
+		var a := contorno[i]
+		var b := contorno[(i + 1) % total]
+		perto_de = minf(perto_de,
+			ponto.distance_to(Geometry2D.get_closest_point_to_segment(ponto, a, b)))
+	if Geometry2D.is_point_in_polygon(ponto, contorno):
+		return -perto_de
+	return perto_de
+
+
+func _caixa(pontos: PackedVector2Array) -> Rect2:
+	var caixa := Rect2(pontos[0], Vector2.ZERO)
+	for i in range(1, pontos.size()):
+		caixa = caixa.expand(pontos[i])
+	return caixa
+
+
+## Ate onde uma peca da fita vai, projetada num eixo. (minimo, maximo)
+##
+## Sprite e poligono medem diferente e a diferenca importa: o sprite e centrado
+## na `position` e o poligono tem os vertices em coordenada local. Somar os dois
+## do mesmo jeito faria a tira do acabamento ser medida na origem da sala.
+func _extensao(item: Node2D, eixo: Vector2) -> Vector2:
+	var base := item.position.dot(eixo)
+	var sprite := item as Sprite2D
+	if sprite != null:
+		if sprite.texture == null:
+			return Vector2(base, base)
+		var tamanho: Vector2 = sprite.region_rect.size if sprite.region_enabled 			else sprite.texture.get_size()
+		var meia := absf(tamanho.dot(eixo)) * 0.5
+		return Vector2(base - meia, base + meia)
+	var poly := item as Polygon2D
+	if poly == null or poly.polygon.is_empty():
+		return Vector2(base, base)
+	var lo := INF
+	var hi := -INF
+	for ponto in poly.polygon:
+		var onde: float = (poly.position + ponto).dot(eixo)
+		lo = minf(lo, onde)
+		hi = maxf(hi, onde)
+	return Vector2(lo, hi)

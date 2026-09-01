@@ -44,7 +44,7 @@ func executar() -> void:
 	_a_faixa_de_uv_da_face_e_declarada()
 	_o_corredor_usa_a_mesma_perspectiva_da_sala()
 	_a_razao_face_topo_fica_em_um_para_um()
-	_o_topo_cerca_a_sala_e_a_face_so_aparece_ao_norte()
+	_o_topo_cerca_a_sala_e_a_face_nao_desce_para_o_sul()
 	_a_deterioracao_visual_nunca_decresce()
 	_so_o_trecho_pre_chefe_anuncia_o_chefe()
 
@@ -806,49 +806,64 @@ func _a_razao_face_topo_fica_em_um_para_um() -> void:
 	)
 
 
-## `ParedeTopo` cerca a sala inteira; `ParedeFace` so aparece onde a camera ve a
-## superficie vertical (LTD 15).
+## A fita cerca a sala inteira, e a FACE nao desce para o sul (LTD 15).
 ##
-## Os dois lados desta asercao importam, e o segundo mais que o primeiro:
+## **Este caso estava MORTO, e morreu na mesma linha que o irmao dele em
+## `teste_camera.gd`.** Ate a PAREDE 13 a parede era um `Polygon2D` chamado
+## `ParedeTopo`, e as duas metades liam `topo.polygon` e o no `ParedeFace`.
+## Quando a fita substituiu os dois, o `polygon` passou a explodir num `Node2D` e
+## o `ParedeFace` passou a devolver `null` -- o primeiro ABORTA a funcao, o
+## segundo desliga o laco em silencio. A suite continuou verde sem fazer
+## nenhuma das duas perguntas.
 ##
-## - o TOPO e um poligono unico, o contorno inflado, entao ele cobre os quatro
-##   lados por construcao. Medir a area dele contra a do contorno prova isso sem
-##   depender de quantos lados a sala tem.
-## - a FACE so pode aparecer nos lados virados para a camera. Face no lado de
-##   BAIXO cobriria jogador, inimigo, projetil e telegrafo -- e a Solucao 1 do
-##   documento (parede cortada) existe exatamente para impedir isso.
+## As duas continuam valendo, e a segunda MUDOU DE FORMA:
 ##
-## O teste seria facil de enganar contando nos; ele compara GEOMETRIA: nenhum
-## quad de face pode estar na metade de baixo do contorno.
-func _o_topo_cerca_a_sala_e_a_face_so_aparece_ao_norte() -> void:
+## - **cercar** deixou de ser "a area do inflado contra a do chao" e virou "as
+##   pecas passam do contorno nos QUATRO sentidos". A fita nao tem poligono para
+##   medir; ela tem ~180 pecas, e cercar e uma afirmacao sobre onde elas chegam.
+## - **"a face so aparece ao norte" nao e mais verdade, e nao e defeito.** Ate a
+##   PAREDE 13 so o lado voltado para a camera ganhava face e os outros tres
+##   viravam faixa chapada. Hoje o norte, o leste e o oeste tem face; quem NAO
+##   tem e o SUL, porque a face de uma parede ao sul olha para longe da camera.
+##   O que o caso cobra passa a ser o limite que importa: **nenhuma peca de face
+##   abaixo da borda sul do contorno**, que e onde ela cobriria combate.
+func _o_topo_cerca_a_sala_e_a_face_nao_desce_para_o_sul() -> void:
 	for cena: PackedScene in [CENA_SALA, CENA_L, CENA_PILAR]:
 		var sala := _montar(cena)
+		var nome := cena.resource_path.get_file()
 		var contorno := sala.contorno_local()
 		var caixa := _caixa_do_poligono(contorno)
 
-		var topo := sala.get_node_or_null("ParedeModulos") as Node2D
-		ok(topo != null, "%s monta a fita" % cena.resource_path.get_file())
-		if topo != null:
-			var caixa_topo := _caixa_do_poligono(topo.polygon)
-			ok(
-				caixa_topo.size.x > caixa.size.x and caixa_topo.size.y > caixa.size.y,
-				"%s: o topo cerca a sala pelos quatro lados" % cena.resource_path.get_file()
-			)
+		var fita := sala.get_node_or_null("ParedeModulos") as Node2D
+		ok(fita != null, "%s monta a fita" % nome)
+		if fita == null:
+			sala.free()
+			continue
 
-		var raiz := sala.get_node_or_null("ParedeFace") as Node2D
-		if raiz != null:
-			for filho in raiz.get_children():
-				var quad := filho as Polygon2D
-				if quad == null:
-					continue
-				var c := _caixa_do_poligono(quad.polygon)
-				# A face fica na METADE DE CIMA do contorno. Uma no lado de baixo
-				# desenharia por cima da area de combate.
-				ok(
-					c.position.y < caixa.get_center().y,
-					"%s: a face fica ao norte, longe de cobrir o combate (y %.0f)"
-						% [cena.resource_path.get_file(), c.position.y]
-				)
+		# CERCAR, medido peca a peca: a fita tem de passar do contorno nos quatro
+		# sentidos. Comparar so o tamanho da caixa deixaria passar uma fita
+		# inteira deslocada para um lado.
+		var folga := Rect2(caixa)
+		var faces_ao_sul := 0
+		var pecas := 0
+		for filho in fita.get_children():
+			var sprite := filho as Sprite2D
+			if sprite == null or sprite.texture == null:
+				continue
+			pecas += 1
+			var meia: Vector2 = (sprite.region_rect.size if sprite.region_enabled 				else sprite.texture.get_size()) * 0.5
+			folga = folga.merge(Rect2(sprite.position - meia, meia * 2.0))
+			if sprite.texture.resource_path.get_file().begins_with("parede_face") 					and sprite.position.y > caixa.end.y:
+				faces_ao_sul += 1
+		ok(pecas > 40, "%s: a fita tem pecas para medir (%d)" % [nome, pecas])
+		ok(
+			folga.position.x < caixa.position.x and folga.position.y < caixa.position.y 				and folga.end.x > caixa.end.x and folga.end.y > caixa.end.y,
+			"%s: a fita cerca a sala pelos QUATRO sentidos" % nome
+		)
+		igual(
+			faces_ao_sul, 0,
+			"%s: nenhuma face desce abaixo da borda sul -- e la que ela cobriria combate" % nome
+		)
 		sala.free()
 
 

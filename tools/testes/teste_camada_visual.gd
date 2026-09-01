@@ -41,6 +41,7 @@ func executar() -> void:
 	_todo_ator_com_arte_tem_origem_nos_pes()
 	_o_chefe_do_andar_e_alcancado_pelo_portao_de_origem()
 	_a_face_sorteia_por_lado()
+	_a_faixa_de_uv_da_face_e_declarada()
 	_o_corredor_usa_a_mesma_perspectiva_da_sala()
 	_a_razao_face_topo_fica_em_um_para_um()
 	_o_topo_cerca_a_sala_e_a_face_so_aparece_ao_norte()
@@ -530,6 +531,48 @@ func _montar_com(cena: PackedScene, dados: DadosSala, celula: Vector2i) -> Sala:
 ## contagem de filhos era so um atalho que deixou de valer -- contar poligonos
 ## faria a resposta mudar quando uma sala ganhasse uma porta a mais, sem nada
 ## sobre a arte ter mudado.
+## QUE PARTE do modulo de face chega a tela.
+##
+## A UV e escrita em PIXELS e ancorada no canto do contorno (`Sala._texturizar`),
+## e o quad de face tem `Sala.ALTURA_FACE` de altura. Se a textura for mais alta
+## que a faixa, parte dela simplesmente nao e amostrada -- e nada avisa: o
+## arquivo continua valido, o portao de densidade continua medindo o arquivo
+## INTEIRO, e quem desenhar o proximo modulo desenha as cegas na metade que nao
+## aparece.
+##
+## Este caso mede a faixa de `uv.y` de fato usada e a compara com a altura da
+## textura. Ele nao exige que sejam iguais -- exige que a relacao esteja
+## DECLARADA aqui, para deixar de ser acidente.
+func _a_faixa_de_uv_da_face_e_declarada() -> void:
+	var sala := CENA_SALA.instantiate() as Sala
+	Engine.get_main_loop().root.add_child(sala)
+	var raiz := sala.get_node_or_null("ParedeFace") as Node2D
+	if raiz == null or raiz.get_child_count() == 0:
+		ok(false, "a sala desenha face")
+		sala.free()
+		return
+	var quad := raiz.get_child(0) as Polygon2D
+	if quad == null or quad.texture == null:
+		ok(false, "o primeiro trecho de face tem textura")
+		sala.free()
+		return
+
+	var menor := INF
+	var maior := -INF
+	for p in quad.uv:
+		menor = minf(menor, p.y)
+		maior = maxf(maior, p.y)
+	var altura := float(quad.texture.get_height())
+	var usado := maior - menor
+	ok(
+		true,
+		"MEDIDO -- uv.y de %.1f a %.1f (%.0f px) numa textura de %.0f px; ALTURA_FACE = %.0f"
+			% [menor, maior, usado, altura, Sala.ALTURA_FACE]
+	)
+	perto(usado, Sala.ALTURA_FACE, "a faixa de uv da face tem a altura do quad", 0.5)
+	sala.free()
+
+
 func _texturas_de_face(sala: Sala) -> Array[String]:
 	var achados: Array[String] = []
 	var raiz := sala.get_node_or_null("ParedeFace") as Node2D

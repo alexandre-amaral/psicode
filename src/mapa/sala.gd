@@ -901,8 +901,11 @@ func _montar_fita(contorno: PackedVector2Array) -> void:
 			if c != null:
 				cantos.append(c)
 
+	var peso: float = estilo.peso_comum if estilo != null else 0.65
+	var espacamento: int = estilo.espacamento_minimo if estilo != null else 2
 	add_child(RenderizadorParedes.construir(
-		contorno, portas, hash(coordenadas_grid), topos, faces, cantos))
+		contorno, portas, hash(coordenadas_grid), topos, faces, cantos,
+		peso, espacamento))
 
 
 ## A FACE vertical da parede: a metade interna da faixa, so nos lados voltados

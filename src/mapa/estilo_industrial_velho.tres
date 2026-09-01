@@ -16,3 +16,5 @@ id = &"industrial_velho"
 topos = Array[Texture2D]([ExtResource("2_ta"), ExtResource("3_tb"), ExtResource("4_tc")])
 face_neutra = ExtResource("5_fn")
 cantos = Array[Texture2D]([ExtResource("6_cno"), ExtResource("7_cne"), ExtResource("8_cso"), ExtResource("9_cse")])
+peso_comum = 0.65
+espacamento_minimo = 2

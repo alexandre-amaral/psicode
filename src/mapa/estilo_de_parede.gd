@@ -45,6 +45,32 @@ extends Resource
 ## para evitar. Quem indexa e `RenderizadorParedes`, por um enum.
 @export var cantos: Array[Texture2D] = []
 
+@export_group("Variacao")
+
+## Quanto da parede e o modulo COMUM.
+##
+## O plano manda o comum dominar, e o motivo nao e economia: **ruido na borda
+## compete com o que o jogador precisa ler no meio.** E o mesmo argumento que
+## `max_props_animados` ja carrega -- "se tudo se mover, nada parece importante" e
+## um NUMERO, e nao uma opiniao, porque opiniao nao sobrevive a proxima pessoa que
+## achar o ventilador bonito.
+##
+## 0,65 sai do plano. Ele e por FAMILIA e nao por modulo: as especiais dividem os
+## 35% restantes por igual, porque hoje elas nao sao TIPADAS -- a lista de faces
+## de um tipo de sala e uma lista, e nao um catalogo com nomes. Peso por tipo de
+## modulo (painel 12%, tubo 10%, desgaste 8%, ventilacao 5%) entra quando o kit
+## industrial trouxer a biblioteca nomeada; inventar os quatro numeros agora seria
+## cravar uma tabela que ninguem consegue girar.
+@export_range(0.0, 1.0, 0.01) var peso_comum: float = 0.65
+
+## Quantas celulas COMUNS tem de haver entre duas especiais.
+##
+## `vent + vent + vent` por sorteio puro nao pode acontecer, e o plano pede
+## espacamento minimo. Duas celulas e o piso: com uma, duas especiais encostam e
+## a parede ganha um bloco de ruido; com zero, o peso sozinho nao impede a
+## sequencia -- ele so a torna improvavel, e improvavel acontece.
+@export_range(0, 8, 1) var espacamento_minimo: int = 2
+
 
 ## Este estilo esta montado o bastante para vestir uma parede?
 ##

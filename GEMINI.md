@@ -183,6 +183,7 @@ docs/
 | Layout e conexao das salas | `src/mapa/gerenciador_mapa.gd`, `src/mapa/sala_*.tscn` |
 | **Tipo de sala novo (loja, desafio...)** | criar `src/mapa/tipo_*.tres` e por na lista `tipos_de_sala` do `GerenciadorMapa` |
 | **Estilo novo de uma sala que ja existe** | arrastar a cena para `cenas` no `tipo_*.tres` correspondente |
+| **Quanto a parede varia (peso do comum, espacamento das especiais)** | grupo `Variacao` do `src/mapa/estilo_industrial_velho.tres` |
 | **O MATERIAL da parede de um andar** | `src/mapa/estilo_industrial_velho.tres` -- topo, cantos e face neutra. Os cinco `tipo_*.tres` apontam o MESMO kit, porque sao o mesmo setor; a face do TIPO continua em `texturas_face` |
 | **Implante novo (so numeros)** | criar `src/items/implante_*.tres` com a lista de `efeitos` e listar em `pool_padrao.tres` |
 | **Implante com comportamento novo** | enum em `DadosItem.Comportamento` + o codigo que le, em quem sofre o efeito |

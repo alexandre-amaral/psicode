@@ -123,44 +123,106 @@ static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 	# outros tres lados ela aparece -- de frente no norte, de esguelha no leste e
 	# no oeste --, e e ela que faz a faixa ler escura.
 	var so_topo := lado == Lado.SUL
-	var t := 0.0
-	var indice := 0
-	while t + CELULA <= comprimento + 0.5:
-		if not _cai_em_vao(a + direcao * t, a + direcao * (t + CELULA), portas, normal):
-			var meio := a + direcao * (t + CELULA * 0.5)
-			var chave := semente ^ (indice * 0x85ebca6b)
-			# A peça de FORA: topo, sempre.
-			_peca(raiz, _sorteia(topos, chave), meio + normal * (CELULA * 1.5))
-			# A de DENTRO: face, menos no sul.
-			var interna := _sorteia(topos, chave ^ 0x27d4eb2f) if so_topo \
-				else _sorteia(faces, chave ^ 0x165667b1)
-			_peca(raiz, interna, meio + normal * (CELULA * 0.5))
-		t += CELULA
-		indice += 1
+
+	# A GRADE E ANCORADA NA SALA, e nao no vertice de cada lado.
+	#
+	# Andar a partir do vertice fazia cada lado ter a propria grade, e a mesma
+	# porta caia em lugares diferentes dela conforme a paridade da meia dimensao
+	# daquela sala: nos lados de 960 o centro batia numa borda de celula e nos de
+	# 544 no MEIO de uma. O sintoma era a porta reservar 2 celulas num lado e 3 no
+	# outro para o mesmo vao de 64 -- e os 32 px de sobra apareciam como parede
+	# antiga ao lado do batente.
+	#
+	# Ancorada em multiplos de 32 nas coordenadas da sala, a borda de celula cai
+	# no centro da porta em TODO lado, e o vao de 64 reserva 2 celulas exatas em
+	# qualquer forma de sala. O preco e a ponta de cada lado poder sobrar menos que
+	# uma celula -- e ela nao fica descoberta: a peca da ponta e recortada na
+	# medida, o que a arte permite porque a celula ja e um `region_rect`.
+	var eixo := Vector2(absf(direcao.x), absf(direcao.y))
+	if eixo.x < 0.99 and eixo.y < 0.99:
+		# Lado diagonal: nao ha eixo em que ancorar, entao ele volta a andar do
+		# vertice. Nenhuma sala em disco tem um, e a saida existe para nao virar
+		# buraco no dia em que uma tiver.
+		eixo = Vector2(1.0, 0.0) if absf(direcao.x) >= absf(direcao.y) else Vector2(0.0, 1.0)
+
+	var s0 := a.dot(eixo)
+	var s1 := b.dot(eixo)
+	var passo := direcao.dot(eixo)
+	var inicio := minf(s0, s1)
+	var fim := maxf(s0, s1)
+	var centro_da_faixa := normal * (Sala.ESPESSURA_PAREDE * 0.5)
+
+	var c := floorf(inicio / CELULA) * CELULA
+	while c < fim - 0.5:
+		var p0 := maxf(c, inicio)
+		var p1 := minf(c + CELULA, fim)
+		var largura := p1 - p0
+		if largura > 0.5:
+			var meio := (p0 + p1) * 0.5
+			var ponto := a + direcao * ((meio - s0) * passo)
+			if not _cai_em_vao_escalar(p0, p1, portas, normal, eixo):
+				var chave := semente ^ (int(c / CELULA) * 0x85ebca6b)
+				var recorte := Vector2(p0 - c, largura)
+				_peca(raiz, _sorteia(topos, chave), ponto + normal * (CELULA * 1.5),
+					chave, recorte, direcao)
+				var interna := _sorteia(topos, chave ^ 0x27d4eb2f) if so_topo \
+					else _sorteia(faces, chave ^ 0x165667b1)
+				_peca(raiz, interna, ponto + normal * (CELULA * 0.5),
+					chave ^ 0x9e3779b1, recorte, direcao)
+		c += CELULA
 
 
-## Uma celula de 32x32 recortada da textura autorada.
+## Uma celula recortada da textura autorada, e ela pode ser MENOR que 32.
 ##
 ## `region_rect` e nao uma textura por celula: as autoradas tem 64x64, entao cada
 ## uma ja carrega QUATRO celulas diferentes. Recortar multiplica a variedade por
-## quatro sem um byte novo em disco, e e o que evita a faixa virar o mesmo
-## quadrado repetido.
-static func _peca(raiz: Node2D, textura: Texture2D, onde: Vector2) -> void:
+## quatro sem um byte novo em disco.
+##
+## `recorte` e (deslocamento, largura) dentro da celula nominal, e ele existe para
+## a ponta de um lado nao ficar descoberta quando ela sobra menos que 32 px. A
+## peca curta mostra um PEDACO da mesma arte, e nao a arte espremida -- esticar
+## quebraria a escala de pixel, que no projeto e sempre inteira.
+static func _peca(raiz: Node2D, textura: Texture2D, onde: Vector2, chave: int,
+		recorte: Vector2, direcao: Vector2) -> void:
 	if textura == null:
 		return
 	var sprite := Sprite2D.new()
 	sprite.texture = textura
 	sprite.region_enabled = true
-	var largura := int(textura.get_width())
-	var altura := int(textura.get_height())
-	var colunas := maxi(largura / CELULA, 1)
-	var linhas := maxi(altura / CELULA, 1)
-	var i := absi(hash(onde)) % (colunas * linhas)
-	sprite.region_rect = Rect2(
-		float((i % colunas) * CELULA), float((i / colunas) * CELULA),
-		float(CELULA), float(CELULA))
+	var colunas := maxi(int(textura.get_width()) / CELULA, 1)
+	var linhas := maxi(int(textura.get_height()) / CELULA, 1)
+	var i := absi(chave) % (colunas * linhas)
+	var base := Vector2(float((i % colunas) * CELULA), float((i / colunas) * CELULA))
+	# O recorte corre no eixo da PAREDE: em x nos lados horizontais, em y nos
+	# verticais. Trocar os dois faria a peca curta cortar a altura da faixa em vez
+	# do comprimento dela.
+	if absf(direcao.x) >= absf(direcao.y):
+		sprite.region_rect = Rect2(base + Vector2(recorte.x, 0.0),
+			Vector2(recorte.y, float(CELULA)))
+	else:
+		sprite.region_rect = Rect2(base + Vector2(0.0, recorte.x),
+			Vector2(float(CELULA), recorte.y))
 	sprite.position = onde
 	raiz.add_child(sprite)
+
+
+## Este trecho do lado encosta no vao de alguma porta dele?
+##
+## Escalar e nao vetorial: com a grade ancorada na sala, o que se compara e a
+## posicao AO LONGO da parede, e projetar duas vezes o mesmo ponto so criaria
+## chance de erro de sinal.
+static func _cai_em_vao_escalar(de: float, ate: float, portas: Array[Porta],
+		normal: Vector2, eixo: Vector2) -> bool:
+	for porta in portas:
+		if porta == null or porta.esta_selada():
+			continue
+		if porta.vetor().dot(normal) < 0.5:
+			continue
+		var centro := porta.position.dot(eixo)
+		var meia := Porta.LARGURA * 0.5
+		if ate > centro - meia + 0.5 and de < centro + meia - 0.5:
+			return true
+	return false
 
 
 static func _sorteia(lista: Array[Texture2D], chave: int) -> Texture2D:
@@ -233,25 +295,6 @@ static func _canto_de(um: Lado, outro: Lado) -> int:
 		if sul:
 			return Canto.SUDESTE
 	return -1
-
-
-## Esta celula encosta no vao de alguma porta deste lado?
-static func _cai_em_vao(de: Vector2, ate: Vector2, portas: Array[Porta],
-		normal: Vector2) -> bool:
-	for porta in portas:
-		if porta == null or porta.esta_selada():
-			continue
-		# A porta pertence a este lado? A normal externa dele e o vetor dela.
-		if porta.vetor().dot(normal) < 0.5:
-			continue
-		var meia := Porta.LARGURA * 0.5
-		var eixo := (ate - de).normalized()
-		var centro := porta.position.dot(eixo)
-		var inicio := de.dot(eixo)
-		var fim := ate.dot(eixo)
-		if fim > centro - meia and inicio < centro + meia:
-			return true
-	return false
 
 
 ## Para que lado este trecho aponta.

@@ -309,6 +309,14 @@ const AUTORADAS: Dictionary = {
 	# Combate e inicial declaram tipo `andar1` porque e a faixa que o portao
 	# cobra deles; o que os separa e o matiz DENTRO da faixa (ciano contra
 	# cinza-azulado), nao a faixa.
+	# O TOPO neutro, em tres variantes sorteadas por celula como o chao (PAR 03).
+	# Elas NAO tem tipo proprio: a identidade da sala mora na face desde a #43, e
+	# o topo e a superficie que todo tipo compartilha. Autoradas de origem GRANDE
+	# e reduzidas pelo funil -- gerar direto em 64 enche cada pixel de detalhe e
+	# a densidade sai no dobro da faixa.
+	"parede_topo_a.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"parede_topo_b.png": {&"familia": &"parede", &"tipo": &"andar1"},
+	"parede_topo_c.png": {&"familia": &"parede", &"tipo": &"andar1"},
 	"parede_face.png": {&"familia": &"parede", &"tipo": &"andar1"},
 	"parede_face_combate.png": {&"familia": &"parede", &"tipo": &"andar1"},
 	"parede_face_inicial.png": {&"familia": &"parede", &"tipo": &"andar1"},

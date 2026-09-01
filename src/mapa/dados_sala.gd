@@ -120,7 +120,6 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## quando a parede ganhou textura propria -- duas bordas desenhadas uma sobre a
 ## outra, e era o neon que encostava na beira do quadro.
 @export var texturas_chao: Array[Texture2D] = []
-@export var texturas_parede: Array[Texture2D] = []
 ## As FACES da parede -- os modulos que a sala pode vestir nos lados que a
 ## camera enxerga de frente (LTD 13).
 ##

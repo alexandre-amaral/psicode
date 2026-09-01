@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
 [ext_resource type="Texture2D" path="res://assets/texturas/chao_boss.png" id="30_c0"]
-[ext_resource type="Texture2D" path="res://assets/texturas/parede_boss.png" id="31_p0"]
 [ext_resource type="Texture2D" path="res://assets/texturas/parede_face_boss.png" id="40_fb"]
 [ext_resource type="Texture2D" path="res://assets/texturas/props_atlas.png" id="23_atlas"]
 [ext_resource type="Texture2D" path="res://assets/texturas/props_volume.png" id="24_pvol"]
@@ -28,7 +27,6 @@ deterioracao_minima_ao_entrar = 88.0
 cor_mapa = Color(1, 0.2, 0.4, 1)
 icone = "!"
 texturas_chao = Array[Texture2D]([ExtResource("30_c0")])
-texturas_parede = Array[Texture2D]([ExtResource("31_p0")])
 texturas_face = Array[Texture2D]([ExtResource("40_fb")])
 atlas_props = ExtResource("23_atlas")
 regioes_props = Array[Rect2i]([Rect2i(0, 0, 32, 32), Rect2i(64, 0, 32, 32), Rect2i(96, 0, 32, 32), Rect2i(160, 0, 32, 32), Rect2i(192, 0, 32, 32), Rect2i(32, 32, 32, 32), Rect2i(96, 32, 32, 32), Rect2i(128, 32, 32, 32), Rect2i(160, 32, 32, 32), Rect2i(224, 32, 32, 32), Rect2i(32, 64, 32, 32), Rect2i(32, 96, 32, 32)])

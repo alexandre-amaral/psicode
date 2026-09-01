@@ -137,22 +137,36 @@ func _diferenca(a: Color, b: Color) -> int:
 ##
 ## Mede a MEDIANA e nao a media: a face tem uma faixa de sombra de 8 px na base
 ## que puxaria a media para baixo por um motivo diferente do que se quer medir.
+## Ele varre AS TRES variantes de topo (PAR 04): enquanto o topo era um arquivo
+## so, medir "o topo" bastava; com uma lista, uma variante clara e duas escuras
+## passariam pela media de ninguem e a parede leria chapada em dois tercos do
+## andar. E a lista vem de `Sala.TOPOS_NEUTROS`, que e quem o jogo consome --
+## uma copia aqui deixaria de cobrar a variante que alguem acrescentasse la.
 func _a_parede_tem_volume() -> void:
-	var topo := _abrir("parede_topo.png")
 	var face := _abrir("parede_face.png")
-	if topo == null or face == null:
-		ok(false, "parede_topo.png e parede_face.png existem em disco")
+	if face == null:
+		ok(false, "parede_face.png existe em disco")
 		return
-
-	igual(topo.get_width(), GeradorTexturas.TILE_PAREDE, "o topo usa o tile da parede")
-	igual(topo.get_height(), GeradorTexturas.TILE_PAREDE, "o topo e quadrado")
 	igual(face.get_width(), GeradorTexturas.TILE_PAREDE, "a face usa o tile da parede")
 	igual(face.get_height(), GeradorTexturas.TILE_PAREDE, "a face e quadrada")
 
-	var v_topo := _mediana_de_valor(topo)
 	var v_face := _mediana_de_valor(face)
-	ok(v_topo > v_face,
-		"o topo da parede e mais claro que a face (topo %.3f, face %.3f) -- e o que vende a altura" % [v_topo, v_face])
+	var conferidos := 0
+	for caminho in Sala.TOPOS_NEUTROS:
+		var nome: String = caminho.get_file()
+		var topo := _abrir(nome)
+		if topo == null:
+			continue
+		conferidos += 1
+		igual(topo.get_width(), GeradorTexturas.TILE_PAREDE, "%s usa o tile da parede" % nome)
+		igual(topo.get_height(), GeradorTexturas.TILE_PAREDE, "%s e quadrado" % nome)
+		var v_topo := _mediana_de_valor(topo)
+		ok(
+			v_topo > v_face,
+			"%s e mais claro que a face (%.3f contra %.3f) -- e o que vende a altura"
+				% [nome, v_topo, v_face]
+		)
+	igual(conferidos, Sala.TOPOS_NEUTROS.size(), "as tres variantes de topo estao em disco")
 
 
 func _abrir(nome: String) -> Image:
@@ -281,16 +295,9 @@ const AUTORADAS: Dictionary = {
 	"chao_andar1_a.png": {&"familia": &"chao", &"tipo": &"andar1"},
 	"chao_andar1_b.png": {&"familia": &"chao", &"tipo": &"andar1"},
 	"chao_andar1_c.png": {&"familia": &"chao", &"tipo": &"andar1"},
-	"parede_andar1_a.png": {&"familia": &"parede", &"tipo": &"andar1"},
-	"parede_andar1_b.png": {&"familia": &"parede", &"tipo": &"andar1"},
-	"parede_andar1_c2.png": {&"familia": &"parede", &"tipo": &"andar1"},
-	"parede_andar1_d.png": {&"familia": &"parede", &"tipo": &"andar1"},
 	"chao_boss.png": {&"familia": &"chao", &"tipo": &"boss"},
-	"parede_boss.png": {&"familia": &"parede", &"tipo": &"boss"},
 	"chao_arma.png": {&"familia": &"chao", &"tipo": &"arma"},
-	"parede_arma.png": {&"familia": &"parede", &"tipo": &"arma"},
 	"chao_item.png": {&"familia": &"chao", &"tipo": &"item"},
-	"parede_item.png": {&"familia": &"parede", &"tipo": &"item"},
 	# O atlas VOLUMETRICO (LTD 09). O chapado (`props_atlas.png`) continua
 	# GERADO e trancado pelo determinismo -- sao dois arquivos justamente
 	# para cada um ficar no regime que sabe provar o que ele e.
@@ -663,7 +670,9 @@ func _tipos_apontam_textura() -> void:
 			continue
 		conferidos += 1
 		ok(not dados.texturas_chao.is_empty(), "%s declara ao menos uma textura de chao" % etiqueta)
-		ok(not dados.texturas_parede.is_empty(), "%s declara ao menos uma textura de parede" % etiqueta)
+		# O TOPO nao e mais declarado por tipo (PAR 04): ele e neutro e vem de
+		# `Sala.TOPOS_NEUTROS`. Cobrar `texturas_parede` aqui manteria de pe um
+		# campo que ja nao existe.
 		# A FACE e a superficie que carrega a identidade do tipo (LTD 13). Lista
 		# vazia nao quebra nada -- a sala cai na face neutra -- e e exatamente
 		# por isso que precisa de portao: o sintoma de esquecer de declarar e o
@@ -673,8 +682,6 @@ func _tipos_apontam_textura() -> void:
 			ok(t != null, "%s: nenhuma entrada nula na lista de face" % etiqueta)
 		for t in dados.texturas_chao:
 			ok(t != null, "%s: nenhuma entrada nula na lista de chao" % etiqueta)
-		for t in dados.texturas_parede:
-			ok(t != null, "%s: nenhuma entrada nula na lista de parede" % etiqueta)
 		if dados.quantidade_props > 0:
 			ok(dados.atlas_props != null, "%s pede props e tem atlas" % etiqueta)
 			ok(not dados.regioes_props.is_empty(), "%s pede props e lista regioes" % etiqueta)

@@ -66,11 +66,12 @@ func _as_faixas_estao_em_ordem() -> void:
 func _a_sala_monta_cada_camada_na_sua_faixa() -> void:
 	var sala := _montar(CENA_SALA)
 
-	var topo := sala.get_node_or_null("ParedeTopo") as Polygon2D
-	ok(topo != null, "a sala monta a camada ParedeTopo")
-	if topo != null:
-		igual(topo.z_index, Sala.Z_PAREDE_TOPO, "ParedeTopo na faixa dela")
-		ok(topo.polygon.size() >= 3, "ParedeTopo tem poligono")
+	var fita := sala.get_node_or_null("ParedeModulos") as Node2D
+	ok(fita != null, "a sala monta a fita de parede")
+	if fita != null:
+		ok(fita.z_index < Sala.Z_MUNDO,
+			"a fita fica abaixo da faixa do mundo -- parede e arquitetura, e nao ator")
+		ok(fita.get_child_count() >= 8, "a fita tem pecas (%d)" % fita.get_child_count())
 
 	var chao := sala.get_node_or_null("Chao") as Polygon2D
 	ok(chao != null, "a sala monta a camada Chao")
@@ -82,17 +83,32 @@ func _a_sala_monta_cada_camada_na_sua_faixa() -> void:
 	sala.free()
 
 
-## O truque que faz a sala em L funcionar sem calcular anel com furo: o corpo
-## da parede e o contorno INFLADO e solido, e quem recorta a faixa de 24 px e o
-## chao desenhado por cima. Inverter isso cobre a sala inteira de parede.
+## A FITA NAO ENCOSTA NO CHAO, e por isso ela pode desenhar por cima dele.
+##
+## O truque antigo era outro: o corpo da parede era o contorno INFLADO e solido,
+## desenhado ATRAS do chao, e quem recortava a faixa visivel era o chao por cima.
+## Era isso que fazia a sala em L funcionar sem calcular anel com furo -- e era
+## fragil, porque dependia de duas camadas na ordem certa.
+##
+## A fita nao precisa do truque: toda celula dela mora na FAIXA, do contorno para
+## fora, e nenhuma toca area jogavel. Isso e afirmacao geometrica, e o portao que
+## a prova celula a celula vive em `teste_renderizador_paredes.gd`. Aqui se cobra
+## a consequencia visivel: a fita desenha ACIMA do chao e mesmo assim o chao
+## aparece inteiro.
 func _o_chao_fica_acima_do_topo_da_parede() -> void:
 	var sala := _montar(CENA_SALA)
-	var topo := sala.get_node_or_null("ParedeTopo") as Polygon2D
+	var fita := sala.get_node_or_null("ParedeModulos") as Node2D
 	var chao := sala.get_node_or_null("Chao") as Polygon2D
-	if topo != null and chao != null:
-		ok(topo.z_index < chao.z_index, "o chao recorta o topo da parede, e nao o contrario")
-		ok(_area_do(topo.polygon) > _area_do(chao.polygon),
-			"o topo e o contorno inflado, entao cobre mais area que o chao")
+	if fita != null and chao != null:
+		ok(fita.z_index > chao.z_index,
+			"a fita desenha acima do chao -- ela nao precisa mais do recorte")
+		var contorno := sala.contorno_local()
+		var dentro := 0
+		for filho in fita.get_children():
+			var sprite := filho as Sprite2D
+			if sprite != null and Geometry2D.is_point_in_polygon(sprite.position, contorno):
+				dentro += 1
+		igual(dentro, 0, "e mesmo assim nenhuma celula dela cai sobre o chao (%d)" % dentro)
 	sala.free()
 
 
@@ -136,14 +152,22 @@ func _o_obstaculo_cobre_o_chao() -> void:
 ## existe para salvar. Uma camada que funcione so no retangulo nao serve.
 func _a_sala_em_l_monta_as_camadas() -> void:
 	var sala := _montar(CENA_L)
-	var topo := sala.get_node_or_null("ParedeTopo") as Polygon2D
+	var fita := sala.get_node_or_null("ParedeModulos") as Node2D
 	var chao := sala.get_node_or_null("Chao") as Polygon2D
-	ok(topo != null, "a sala em L monta ParedeTopo")
+	ok(fita != null, "a sala em L monta a fita")
 	ok(chao != null, "a sala em L monta Chao")
-	if topo != null and chao != null:
-		ok(topo.polygon.size() >= 3, "o contorno inflado da sala em L nao degenerou")
-		ok(_area_do(topo.polygon) > _area_do(chao.polygon),
-			"na sala em L o inflado tambem cobre mais que o chao")
+	if fita != null:
+		# Seis lados e uma quina CONCAVA: e a forma que quebra sistema de parede
+		# escrito so para retangulo.
+		ok(fita.get_child_count() >= 8,
+			"a fita da sala em L nao degenerou (%d pecas)" % fita.get_child_count())
+		var contorno := sala.contorno_local()
+		var dentro := 0
+		for filho in fita.get_children():
+			var sprite := filho as Sprite2D
+			if sprite != null and Geometry2D.is_point_in_polygon(sprite.position, contorno):
+				dentro += 1
+		igual(dentro, 0, "e nenhuma celula dela invade a area jogavel da L (%d)" % dentro)
 	sala.free()
 
 
@@ -198,7 +222,7 @@ func _o_mundo_da_cena_principal_ordena_por_y() -> void:
 ## passar na frente do jogador se alguem os trouxesse para a faixa do mundo.
 func _as_camadas_de_cenario_ficam_fora_do_y_sort() -> void:
 	var sala := _montar(CENA_SALA)
-	for nome in ["Chao", "ParedeTopo", "Decoracao"]:
+	for nome in ["Chao", "ParedeModulos", "Decoracao"]:
 		var camada := sala.get_node_or_null(nome) as CanvasItem
 		if camada == null:
 			continue
@@ -462,8 +486,31 @@ func _a_face_sorteia_por_lado() -> void:
 	dados.texturas_face = [um, dois]
 
 	# 1. A sala veste a face que o TIPO manda, e nao a neutra em disco.
-	var usadas := _texturas_de_face(_montar_com(CENA_SALA, dados, Vector2i(3, 1)))
-	igual(usadas.size(), 1, "a sala retangular desenha uma face -- so o lado de fundo aparece")
+	#
+	# O numero de LADOS com face mudou, e a mudanca e deliberada: ate a fita, so
+	# o lado de fundo tinha face -- `LIMIAR_LADO_NORTE` recusava os outros tres --
+	# e as laterais ficavam faixas chapadas, tres vezes mais claras que o chao.
+	# Hoje o norte, o leste e o oeste tem face, e so o SUL fica so com topo. Isso
+	# nao e capricho: a face de uma parede ao sul olha para longe da camera,
+	# escondida pela propria parede.
+	var sala_um := _montar_com(CENA_SALA, dados, Vector2i(3, 1))
+	var faces_sul := 0
+	var caixa := Rect2(sala_um.contorno_local()[0], Vector2.ZERO)
+	for ponto in sala_um.contorno_local():
+		caixa = caixa.expand(ponto)
+	var fita := sala_um.get_node_or_null("ParedeModulos") as Node2D
+	if fita != null:
+		for filho in fita.get_children():
+			var sprite := filho as Sprite2D
+			if sprite == null or sprite.texture == null:
+				continue
+			if not sprite.texture.resource_path.get_file().begins_with("parede_face"):
+				continue
+			if sprite.position.y > caixa.end.y:
+				faces_sul += 1
+	igual(faces_sul, 0, "a parede SUL nao ganha face -- ela olha para longe da camera")
+	var usadas := _texturas_de_face(sala_um)
+	ok(not usadas.is_empty(), "a sala veste face nos lados que a camera enxerga")
 	if not usadas.is_empty():
 		ok(
 			usadas[0] != Sala.FACE_NEUTRA,
@@ -503,7 +550,7 @@ func _a_face_sorteia_por_lado() -> void:
 	# 4. Sem dados, a sala nao fica sem face -- ela cai na neutra. E o caso da
 	#    cena aberta sozinha no editor, e ele nao pode virar parede chapada.
 	var sem := _texturas_de_face(_montar_com(CENA_SALA, null, Vector2i(1, 1)))
-	igual(sem.size(), 1, "sala sem DadosSala ainda desenha a face")
+	ok(sem.size() >= 1, "sala sem DadosSala ainda desenha a face (%d)" % sem.size())
 	if not sem.is_empty():
 		igual(sem[0], Sala.FACE_NEUTRA, "e ela e a face neutra")
 
@@ -531,58 +578,76 @@ func _montar_com(cena: PackedScene, dados: DadosSala, celula: Vector2i) -> Sala:
 ## contagem de filhos era so um atalho que deixou de valer -- contar poligonos
 ## faria a resposta mudar quando uma sala ganhasse uma porta a mais, sem nada
 ## sobre a arte ter mudado.
-## QUE PARTE do modulo de face chega a tela.
+## QUE PARTE do modulo de face chega a tela -- e agora e ela INTEIRA.
 ##
-## A UV e escrita em PIXELS e ancorada no canto do contorno (`Sala._texturizar`),
-## e o quad de face tem `Sala.ALTURA_FACE` de altura. Se a textura for mais alta
-## que a faixa, parte dela simplesmente nao e amostrada -- e nada avisa: o
-## arquivo continua valido, o portao de densidade continua medindo o arquivo
-## INTEIRO, e quem desenhar o proximo modulo desenha as cegas na metade que nao
-## aparece.
+## Esta era uma das armadilhas mais caras do projeto: a UV do quad de face era
+## escrita em PIXELS e ancorada no canto do contorno, e o quad tinha
+## `ALTURA_FACE` = 32 px numa textura de 64. Com repeticao, isso amostrava as
+## linhas 32..63 -- **a metade de baixo**. A metade de cima nunca aparecia, o
+## portao de densidade media o arquivo INTEIRO, e quem desenhasse o proximo
+## modulo desenhava as cegas em metade dele.
 ##
-## Este caso mede a faixa de `uv.y` de fato usada e a compara com a altura da
-## textura. Ele nao exige que sejam iguais -- exige que a relacao esteja
-## DECLARADA aqui, para deixar de ser acidente.
+## A fita resolve por construcao e nao por conserto: a celula e um `region_rect`
+## de 32x32 dentro da textura de 64x64, e o quadrante sai do hash da celula. As
+## quatro partes sao alcancaveis, e numa parede longa as quatro aparecem.
+##
+## O caso mede isso: varre a fita de uma sala e conta quantos quadrantes
+## distintos foram amostrados. Um so significaria que o sorteio travou -- e a
+## armadilha teria voltado por outro caminho.
 func _a_faixa_de_uv_da_face_e_declarada() -> void:
 	var sala := CENA_SALA.instantiate() as Sala
+	sala.position = LONGE
 	Engine.get_main_loop().root.add_child(sala)
-	var raiz := sala.get_node_or_null("ParedeFace") as Node2D
+	var raiz := sala.get_node_or_null("ParedeModulos") as Node2D
 	if raiz == null or raiz.get_child_count() == 0:
-		ok(false, "a sala desenha face")
-		sala.free()
-		return
-	var quad := raiz.get_child(0) as Polygon2D
-	if quad == null or quad.texture == null:
-		ok(false, "o primeiro trecho de face tem textura")
+		ok(false, "a sala monta a fita")
 		sala.free()
 		return
 
-	var menor := INF
-	var maior := -INF
-	for p in quad.uv:
-		menor = minf(menor, p.y)
-		maior = maxf(maior, p.y)
-	var altura := float(quad.texture.get_height())
-	var usado := maior - menor
+	var quadrantes := {}
+	var celulas := 0
+	for filho in raiz.get_children():
+		var sprite := filho as Sprite2D
+		if sprite == null or sprite.texture == null or not sprite.region_enabled:
+			continue
+		celulas += 1
+		quadrantes[sprite.region_rect.position] = true
+	ok(celulas > 40, "a fita tem celulas para medir (%d)" % celulas)
 	ok(
-		true,
-		"MEDIDO -- uv.y de %.1f a %.1f (%.0f px) numa textura de %.0f px; ALTURA_FACE = %.0f"
-			% [menor, maior, usado, altura, Sala.ALTURA_FACE]
+		quadrantes.size() >= 4,
+		"a textura chega a tela INTEIRA: %d quadrantes distintos amostrados -- antes da fita so a metade de baixo aparecia"
+			% quadrantes.size()
 	)
-	perto(usado, Sala.ALTURA_FACE, "a faixa de uv da face tem a altura do quad", 0.5)
 	sala.free()
 
 
 func _texturas_de_face(sala: Sala) -> Array[String]:
 	var achados: Array[String] = []
-	var raiz := sala.get_node_or_null("ParedeFace") as Node2D
-	if raiz != null:
-		for filho in raiz.get_children():
-			var poly := filho as Polygon2D
-			if poly != null and poly.texture != null \
-					and not achados.has(poly.texture.resource_path):
-				achados.append(poly.texture.resource_path)
+	for caminho in _faces_da_fita(sala):
+		if not achados.has(caminho):
+			achados.append(caminho)
 	sala.free()
+	return achados
+
+
+## As texturas de FACE que a fita esta vestindo, pelo nome do arquivo.
+##
+## Pelo NOME e nao pela posicao na faixa: uma celula de fita e um sprite solto, e
+## nada nela diz se ela e topo ou face -- as duas sao 32x32 na mesma raiz. O
+## prefixo `parede_face` e a convencao que `teste_texturas.gd` ja cobra ao varrer
+## os modulos, entao ler por ele nao inventa um segundo contrato.
+func _faces_da_fita(sala: Sala) -> Array[String]:
+	var achados: Array[String] = []
+	var raiz := sala.get_node_or_null("ParedeModulos") as Node2D
+	if raiz == null:
+		return achados
+	for filho in raiz.get_children():
+		var sprite := filho as Sprite2D
+		if sprite == null or sprite.texture == null:
+			continue
+		var caminho := sprite.texture.resource_path
+		if caminho.get_file().begins_with("parede_face"):
+			achados.append(caminho)
 	return achados
 
 
@@ -629,11 +694,14 @@ func _so_o_trecho_pre_chefe_anuncia_o_chefe() -> void:
 		igual(pre.modulate, Color.WHITE,
 			"e o corredor inteiro NAO escurece -- so o chao dele")
 
-	var face_comum := comum.get_node_or_null("ParedeFace") as Polygon2D
-	var face_pre := pre.get_node_or_null("ParedeFace") as Polygon2D
-	if face_comum != null and face_pre != null:
-		ok(face_comum.texture != face_pre.texture,
-			"e a face tambem muda: a parede do trecho final e a do chefe")
+	var face_comum := _faces_de(comum)
+	var face_pre := _faces_de(pre)
+	ok(not face_comum.is_empty() and not face_pre.is_empty(),
+		"os dois corredores vestem face")
+	if not face_comum.is_empty() and not face_pre.is_empty():
+		ok(face_comum[0] != face_pre[0],
+			"e a face tambem muda: a parede do trecho final e a do chefe (%s contra %s)"
+				% [face_comum[0].get_file(), face_pre[0].get_file()])
 
 	comum.free()
 	pre.free()
@@ -657,37 +725,50 @@ func _o_corredor_usa_a_mesma_perspectiva_da_sala() -> void:
 	deitado.configurar(LONGE, LONGE + Vector2(480.0, 0.0), 80.0)
 	igual(deitado.z_index, 0, "o no raiz do corredor nao desloca as faixas dos filhos")
 
-	var face := deitado.get_node_or_null("ParedeFace") as Polygon2D
-	ok(face != null, "o corredor horizontal desenha a face da parede")
-	if face != null:
-		igual(face.z_index, Sala.Z_PAREDE_FACE, "a face do corredor usa a faixa da sala")
-		# A altura da face tem de ser a mesma da sala, senao a parede muda de
-		# altura no meio da travessia.
-		var caixa := _caixa_do_poligono(face.polygon)
-		perto(
-			caixa.size.y, Sala.ALTURA_FACE,
-			"a face do corredor tem a altura da face da sala"
-		)
-	var topo := deitado.get_node_or_null("ParedeTopo") as Polygon2D
-	ok(topo != null, "o corredor desenha o topo da parede")
-	if topo != null:
-		igual(topo.z_index, Sala.Z_PAREDE_TOPO, "o topo do corredor usa a faixa da sala")
+	var fita := deitado.get_node_or_null("ParedeModulos") as Node2D
+	ok(fita != null, "o corredor horizontal monta a fita")
+	if fita != null:
+		ok(fita.z_index < Sala.Z_MUNDO,
+			"a fita do corredor fica abaixo da faixa do mundo, como a da sala")
+		ok(fita.get_child_count() >= 8,
+			"o corredor veste celulas (%d)" % fita.get_child_count())
+	ok(not _faces_de(deitado).is_empty(), "e ele desenha FACE, e nao so topo")
 	var chao := deitado.get_node_or_null("Chao") as Polygon2D
 	if chao != null:
 		igual(chao.z_index, Sala.Z_CHAO, "o chao do corredor usa a faixa da sala")
 	deitado.free()
 
-	# VERTICAL: as laterais apontam para leste e oeste, nenhuma se qualifica.
-	# Nao desenhar face aqui e o resultado CERTO, e nao um caso faltando -- e a
-	# mesma geometria que faz a parede de baixo de uma sala mostrar so o topo.
+	# VERTICAL: as laterais dele apontam para leste e oeste.
+	#
+	# Ele NAO desenhava face nenhuma, e isso era consequencia da regra antiga --
+	# "so o lado voltado para o sul" --, nao uma decisao sobre corredor vertical.
+	# O resultado era uma faixa chapada, tres vezes mais clara que o chao, ao lado
+	# de salas com volume. Com a face nas laterais, ele passa a ter a mesma
+	# perspectiva do resto do andar, que e o que este caso existe para cobrar.
 	var em_pe := Corredor.new()
 	Engine.get_main_loop().root.add_child(em_pe)
 	em_pe.configurar(LONGE, LONGE + Vector2(0.0, 480.0), 80.0)
 	ok(
-		em_pe.get_node_or_null("ParedeFace") == null,
-		"o corredor vertical NAO desenha face: nenhum lado dele esta virado para a camera"
+		not _faces_de(em_pe).is_empty(),
+		"o corredor vertical tambem desenha face -- as laterais dele sao paredes como as da sala"
 	)
 	em_pe.free()
+
+
+## As texturas de face que um corredor esta vestindo.
+func _faces_de(corredor: Corredor) -> Array[String]:
+	var achados: Array[String] = []
+	var raiz := corredor.get_node_or_null("ParedeModulos") as Node2D
+	if raiz == null:
+		return achados
+	for filho in raiz.get_children():
+		var sprite := filho as Sprite2D
+		if sprite == null or sprite.texture == null:
+			continue
+		var caminho := sprite.texture.resource_path
+		if caminho.get_file().begins_with("parede_face") and not achados.has(caminho):
+			achados.append(caminho)
+	return achados
 
 
 func _caixa_do_poligono(pontos: PackedVector2Array) -> Rect2:
@@ -745,8 +826,8 @@ func _o_topo_cerca_a_sala_e_a_face_so_aparece_ao_norte() -> void:
 		var contorno := sala.contorno_local()
 		var caixa := _caixa_do_poligono(contorno)
 
-		var topo := sala.get_node_or_null("ParedeTopo") as Polygon2D
-		ok(topo != null, "%s monta ParedeTopo" % cena.resource_path.get_file())
+		var topo := sala.get_node_or_null("ParedeModulos") as Node2D
+		ok(topo != null, "%s monta a fita" % cena.resource_path.get_file())
 		if topo != null:
 			var caixa_topo := _caixa_do_poligono(topo.polygon)
 			ok(

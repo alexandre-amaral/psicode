@@ -119,7 +119,7 @@ func _o_clamp_cobre_a_parede_e_mais_nada(margem: float) -> void:
 		sala.position = LONGE
 		Engine.get_main_loop().root.add_child(sala)
 
-		var topo := sala.get_node_or_null("ParedeTopo") as Polygon2D
+		var topo := sala.get_node_or_null("ParedeModulos") as Node2D
 		if topo == null:
 			ok(false, "%s monta ParedeTopo" % caminho.get_file())
 			sala.free()

@@ -285,7 +285,7 @@ func _conferir_conteudo() -> void:
 		faltando.append("projeteis (%d de 2)" % projeteis)
 	if _sala.get_node_or_null("CameraDaCena") == null:
 		faltando.append("camera da cena")
-	if _sala.get_node_or_null("ParedeFace") == null:
+	if _sala.get_node_or_null("ParedeModulos") == null:
 		faltando.append("face da parede")
 	# AO MENOS TRES modulos de face em quadro (AND1 03). A sala desenha um so, e
 	# o mostruario e o unico jeito de ver os outros sem gerar andares ate um
@@ -299,7 +299,7 @@ func _conferir_conteudo() -> void:
 				modulos[sprite.texture.resource_path] = true
 	if modulos.size() < 3:
 		faltando.append("modulos de face em quadro (%d de 3)" % modulos.size())
-	if _sala.get_node_or_null("ParedeTopo") == null:
+	if _sala.get_node_or_null("ParedeModulos") == null:
 		faltando.append("topo da parede")
 	var tem_telegrafo := false
 	var tem_pickup := false

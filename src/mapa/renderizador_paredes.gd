@@ -43,6 +43,22 @@ extends RefCounted
 ## O tile visual do projeto, e o unico numero que divide toda dimensao de sala.
 const MODULO := 32.0
 
+## Quanto a fita desenha ALEM do contorno.
+##
+## Duas celulas: a de fora e topo, a de dentro e face. Este e o numero que a
+## camera precisa saber para mostrar a parede inteira e nem um pixel do vazio que
+## vem depois -- e ele nasce AQUI, de quem desenha, e nao de
+## `Sala.ESPESSURA_PAREDE`, que descreve a GEOMETRIA (colisao, corredor, camera
+## da parede antiga).
+##
+## Os dois valem 64 hoje, e e por isso que a divergencia seria silenciosa: quem
+## mudasse um so veria o sintoma como uma tira preta na borda -- ou meia parede
+## cortada -- e nao como erro. Por isso o portao de `teste_camera.gd` nao compara
+## as duas constantes: ele MEDE onde a fita chegou.
+static func alcance() -> float:
+	return float(CELULA) * 2.0
+
+
 ## Um lado curto demais nao recebe fita: com menos de um modulo nao ha o que
 ## colocar, e meio sprite mentiria sobre a grade.
 const LADO_MINIMO := MODULO

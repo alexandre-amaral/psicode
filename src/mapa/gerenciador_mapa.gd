@@ -1345,11 +1345,18 @@ func _clampar(limites: Rect2) -> void:
 
 ## Quanto a camera enxerga ALEM do contorno.
 ##
-## Sai de `Sala.ESPESSURA_PAREDE` em vez de ser um numero proprio: a faixa de
-## parede e desenhada exatamente essa distancia para fora, entao derivar dela
-## garante que a camera mostre a parede INTEIRA e nem um pixel do vazio que vem
-## depois. Um numero solto aqui descolaria no dia em que alguem engrossasse a
-## parede, e o sintoma seria uma tira preta na borda -- ou meia parede cortada.
+## Sai de QUEM DESENHA, e nao de `Sala.ESPESSURA_PAREDE`.
+##
+## A distincao passou a importar quando a parede virou fita: `ESPESSURA_PAREDE`
+## descreve a GEOMETRIA -- e dela que saem a colisao, o encaixe do corredor e a
+## faixa da parede antiga --, enquanto quem decide ate onde ha PIXEL e o
+## renderizador, que desenha duas celulas de 32. Os dois valem 64 hoje, e e
+## justamente por isso que a divergencia seria silenciosa: no dia em que a
+## parede sul ficar mais rasa, a camera tem de seguir o desenho e nao a
+## geometria.
+##
+## Um numero solto aqui descolaria de qualquer um dos dois, e o sintoma seria uma
+## tira preta na borda -- ou meia parede cortada.
 ##
 ## O custo, e ele e real e CRESCEU com a migracao Low Top-Down: a faixa passou
 ## de 24 para 64 px, entao numa sala do tamanho exato da tela (960x544) o quadro
@@ -1361,7 +1368,7 @@ func _clampar(limites: Rect2) -> void:
 ## sala de 832x416 fecharia 960x544 exato -- e mexe em tamanho de sala, que a
 ## Fase 25 do plano de migracao proibe alterar enquanto ela acontece.
 func margem_da_parede() -> float:
-	return Sala.ESPESSURA_PAREDE
+	return RenderizadorParedes.alcance()
 
 
 ## O clamp sozinho nao basta: Camera2D nao respeita limite menor que o proprio

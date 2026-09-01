@@ -49,12 +49,57 @@ func executar() -> void:
 	_o_clamp_cobre_a_parede_e_mais_nada(margem)
 
 
-## A margem nao pode virar numero proprio. Se alguem engrossar a parede e
-## esquecer daqui -- ou o contrario -- o quadro passa a mentir.
+## A margem tem de bater com onde a FITA CHEGOU, e nao com uma constante.
+##
+## Ela comparava `margem_da_parede()` com `Sala.ESPESSURA_PAREDE`, e as duas
+## derivavam uma da outra -- o portao provava que dois nomes do mesmo numero eram
+## iguais. Isso bastava enquanto a parede era um poligono inflado por aquela
+## constante. Com a fita, quem decide ate onde ha PIXEL e o renderizador, e
+## `ESPESSURA_PAREDE` passou a descrever so a GEOMETRIA: colisao, encaixe do
+## corredor, faixa da parede antiga.
+##
+## Entao o portao passa a MEDIR. Ele monta cada sala, procura a peca da fita que
+## foi mais longe em cada direcao, e exige que a margem da camera bata com ela
+## nos quatro lados. Assim ele continua valendo no dia em que a parede sul ficar
+## mais rasa -- o que o plano quer -- sem ninguem precisar lembrar de mexer aqui.
 func _a_margem_deriva_da_parede(margem: float) -> void:
-	perto(margem, Sala.ESPESSURA_PAREDE,
-		"a margem da camera e a espessura da parede, e nao um numero solto")
 	ok(margem > 0.0, "a margem e positiva (sem ela a parede nunca entra no quadro)")
+	var conferidas := 0
+	for caminho in CENAS:
+		var cena: PackedScene = load(caminho)
+		if cena == null:
+			continue
+		var sala := cena.instantiate() as Sala
+		sala.configurar_conexoes([])
+		Engine.get_main_loop().root.add_child(sala)
+		sala.global_position = Vector2(31000, 31000)
+		var fita := sala.get_node_or_null("ParedeModulos")
+		if fita == null:
+			sala.free()
+			continue
+		var contorno := sala.contorno_local()
+		var caixa := Rect2(contorno[0], Vector2.ZERO)
+		for ponto in contorno:
+			caixa = caixa.expand(ponto)
+		var alcance := 0.0
+		for filho in fita.get_children():
+			var sprite := filho as Sprite2D
+			if sprite == null or sprite.texture == null:
+				continue
+			var meia: Vector2 = (sprite.region_rect.size if sprite.region_enabled \
+				else sprite.texture.get_size()) * 0.5
+			alcance = maxf(alcance, caixa.position.y - (sprite.position.y - meia.y))
+			alcance = maxf(alcance, (sprite.position.y + meia.y) - caixa.end.y)
+			alcance = maxf(alcance, caixa.position.x - (sprite.position.x - meia.x))
+			alcance = maxf(alcance, (sprite.position.x + meia.x) - caixa.end.x)
+		conferidas += 1
+		perto(
+			margem, alcance,
+			"%s: a margem da camera bate com onde a fita chegou (%.0f contra %.0f)"
+				% [caminho.get_file(), margem, alcance]
+		)
+		sala.free()
+	ok(conferidas >= 5, "a varredura mediu a fita das salas (%d)" % conferidas)
 
 
 ## O portao de verdade: o retangulo que a camera usa tem de coincidir com o

@@ -42,7 +42,7 @@ func executar() -> void:
 	await _nenhuma_porta_desenha_arte_girada()
 	await _a_moldura_de_cada_lado_abre_no_vao()
 	_toda_moldura_CERCA_o_vao()
-	_a_carcaca_nao_le_como_buraco()
+	_a_moldura_e_mais_escura_que_a_parede()
 	await _a_face_abre_no_vao_da_porta()
 
 
@@ -679,21 +679,25 @@ func _toda_moldura_CERCA_o_vao() -> void:
 	raiz.free()
 
 
-## A CARCACA da porta nao pode ser mais escura que a parede em volta.
+## A MOLDURA E MAIS ESCURA QUE A PAREDE, e nao mais clara.
 ##
-## Este numero saiu de um erro que se via na tela e nao no console: as vistas de
-## cima nasceram em N5, que mede V 0,30 contra os 0,38 do topo da parede. Mais
-## escura que a superficie em volta, a carcaca lia como BURACO -- dois retangulos
-## sem desenho ao lado de um vao --, e nao como maquina. O que separa a porta da
-## parede tem de ser a ARESTA e o rebite, que e como a moldura autorada tambem se
-## separa; escurecer para "aparecer" faz o oposto do que se quer.
+## Este portao ja existiu ao contrario, e o erro foi meu: a primeira versao dele
+## exigia que a carcaca da porta NAO fosse mais escura que a parede, porque
+## naquele momento a parede era uma fita cinza-clara e a porta sumia nela. Com a
+## fita vestindo a arte autorada, a parede ficou escura -- e o portao passou a
+## defender exatamente o defeito, um bloco palido colado num muro escuro.
 ##
-## O teto existe pelo motivo espelhado: carcaca mais CLARA que a parede vira
-## sinal, e sinal na porta ja e a barra de trancada.
-func _a_carcaca_nao_le_como_buraco() -> void:
-	var parede := _mediana_de_valor("res://assets/texturas/parede_topo_a.png")
-	ok(parede > 0.0, "o topo da parede carrega (%.3f)" % parede)
-	if parede <= 0.0:
+## O numero vem da referencia de `docs/objetivo/`, medida: a moldura autorada da
+## porta norte fica em V 0,094 a 0,251, contra 0,294 da face e 0,380 do topo. **A
+## moldura e a coisa mais escura da parede, tirando o vao.** Ela nao se destaca
+## por brilhar: ela se destaca por ser um poco.
+##
+## O teto e a FACE e nao o topo, porque a face e o que fica ao lado da porta nos
+## tres lados que tem face -- e e contra o vizinho que o contraste se le.
+func _a_moldura_e_mais_escura_que_a_parede() -> void:
+	var face := _mediana_de_valor("res://assets/texturas/parede_face.png")
+	ok(face > 0.0, "a face da parede carrega (%.3f)" % face)
+	if face <= 0.0:
 		return
 	for nome in ["porta_topo.png", "porta_lado.png"]:
 		var v := _mediana_de_valor("res://assets/texturas/%s" % nome)
@@ -701,14 +705,14 @@ func _a_carcaca_nao_le_como_buraco() -> void:
 			ok(false, "%s carrega" % nome)
 			continue
 		ok(
-			v >= parede - 0.03,
-			"%s nao e mais escura que a parede em volta (V %.3f contra %.3f) -- senao le como buraco"
-				% [nome, v, parede]
+			v < face,
+			"%s e mais escura que a face da parede (V %.3f contra %.3f) -- moldura e poco, nao bloco"
+				% [nome, v, face]
 		)
+		# E nao pode desabar no vao: escuridao total apagaria a propria moldura.
 		ok(
-			v <= parede + 0.12,
-			"%s tambem nao vira sinal de tao clara (V %.3f contra %.3f)"
-				% [nome, v, parede]
+			v > 0.05,
+			"%s ainda e desenho e nao escuridao (V %.3f)" % [nome, v]
 		)
 
 

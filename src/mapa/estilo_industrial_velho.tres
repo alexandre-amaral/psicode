@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="EstiloDeParede" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://src/mapa/estilo_de_parede.gd" id="1_estilo"]
+[ext_resource type="Texture2D" path="res://assets/texturas/parede_topo_a.png" id="2_ta"]
+[ext_resource type="Texture2D" path="res://assets/texturas/parede_topo_b.png" id="3_tb"]
+[ext_resource type="Texture2D" path="res://assets/texturas/parede_topo_c.png" id="4_tc"]
+[ext_resource type="Texture2D" path="res://assets/texturas/parede_face.png" id="5_fn"]
+[ext_resource type="Texture2D" path="res://assets/texturas/modulo_canto_no.png" id="6_cno"]
+[ext_resource type="Texture2D" path="res://assets/texturas/modulo_canto_ne.png" id="7_cne"]
+
+[resource]
+script = ExtResource("1_estilo")
+id = &"industrial_velho"
+topos = Array[Texture2D]([ExtResource("2_ta"), ExtResource("3_tb"), ExtResource("4_tc")])
+face_neutra = ExtResource("5_fn")
+cantos = Array[Texture2D]([ExtResource("6_cno"), ExtResource("7_cne")])

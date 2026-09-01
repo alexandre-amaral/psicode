@@ -84,7 +84,7 @@ enum Lado { NORTE, SUL, LESTE, OESTE }
 static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 		semente: int, topos: Array[Texture2D], faces: Array[Texture2D],
 		cantos: Array[Texture2D], peso_comum: float = 0.65,
-		espacamento: int = 2) -> Node2D:
+		espacamento: int = 2, abertos: Array[Vector2] = []) -> Node2D:
 	var raiz := Node2D.new()
 	raiz.name = "ParedeModulos"
 	raiz.z_index = Z_FITA
@@ -96,6 +96,14 @@ static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 	for i in contorno.size():
 		var a := contorno[i]
 		var b := contorno[(i + 1) % contorno.size()]
+		# LADOS ABERTOS: a boca de um corredor nao e parede.
+		#
+		# Um corredor e um retangulo com as duas pontas abertas, e sem esta lista
+		# a fita fecharia as bocas dele -- uma parede no meio da passagem, que e
+		# exatamente o que a armadilha de `Porta.LARGURA` contra
+		# `largura_corredor` ja descreve por outro caminho.
+		if _e_aberto(normal_externa(contorno, a, b), abertos):
+			continue
 		_vestir_lado(raiz, contorno, a, b, portas, semente ^ (i * 0x9e3779b1),
 			topos, faces, peso_comum, espacamento)
 	_vestir_cantos(raiz, contorno, cantos)
@@ -258,6 +266,13 @@ static func _face_da_celula(faces: Array[Texture2D], chave: int,
 	if not especial or faces.size() < 2:
 		return faces[0]
 	return faces[1 + absi(chave ^ 0x165667b1) % (faces.size() - 1)]
+
+
+static func _e_aberto(normal: Vector2, abertos: Array[Vector2]) -> bool:
+	for lado in abertos:
+		if normal.dot(lado) > 0.5:
+			return true
+	return false
 
 
 static func _sorteia(lista: Array[Texture2D], chave: int) -> Texture2D:

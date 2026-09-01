@@ -107,6 +107,7 @@ func configurar(de: Vector2, para: Vector2, largura: float = 80.0) -> void:
 	_retangulo_local = Rect2(-(meio_comprimento + meia_largura), eixo * comprimento + lado * largura)
 	_montar_parede_corpo(eixo, lado, comprimento, largura)
 	_montar_face(eixo, lado, comprimento, largura, horizontal)
+	_montar_fita(eixo, lado, comprimento, largura)
 	_montar_chao()
 	_montar_lateral(-meio_comprimento - meia_largura, meio_comprimento - meia_largura)
 	_montar_lateral(-meio_comprimento + meia_largura, meio_comprimento + meia_largura)
@@ -227,6 +228,54 @@ func _montar_face(
 	])
 	_texturizar(quad, textura, _retangulo_local.position)
 	add_child(quad)
+
+
+## A FITA DE MODULOS do corredor -- o mesmo kit da sala (PAREDE 09).
+##
+## O corredor espelhava `Sala.ESPESSURA_PAREDE` e `Sala.ALTURA_FACE` de proposito,
+## "para parecer construido do mesmo material". Com a parede da sala virando fita
+## de modulos ele ficaria para tras: seria a unica superficie do andar ainda
+## desenhada como textura continua, e a emenda com a sala apareceria.
+##
+## Duas coisas nao mudam, e as duas sao decisao registrada:
+##
+## - **Ele fica na NOITE BASE.** O corredor nao veste a cor da sala vizinha:
+##   pintar cada metade anunciaria o que ha do outro lado antes de o jogador
+##   chegar. Por isso a face aqui e a NEUTRA, e nao a do tipo.
+## - **O trecho pre-chefe e a excecao, e ela e deliberada.** Ali anunciar E o
+##   objetivo, e so no ULTIMO trecho -- um andar que escurecesse a cada sala
+##   anunciaria o chefe desde a terceira porta.
+##
+## As duas PONTAS ficam abertas: elas sao a boca do corredor, e fechar uma seria
+## por parede no meio da passagem. E nao ha canto, porque um corredor nao tem
+## quina -- as pontas dele morrem dentro da parede da sala.
+func _montar_fita(eixo: Vector2, lado: Vector2, comprimento: float, largura: float) -> void:
+	if comprimento <= ESPESSURA_PAREDE * 2.0:
+		return
+	# O mesmo recuo nas pontas que o corpo e a face ja usam: a parede da sala ja
+	# cobre esses pixels nas bocas, e pintar duas vezes o mesmo lugar costura.
+	var meio := eixo * (comprimento * 0.5 - ESPESSURA_PAREDE)
+	var meia := lado * (largura * 0.5)
+	var contorno := PackedVector2Array([
+		-meio - meia, meio - meia, meio + meia, -meio + meia,
+	])
+
+	var topos: Array[Texture2D] = []
+	for caminho in Sala.TOPOS_NEUTROS:
+		var t := load(caminho) as Texture2D
+		if t != null:
+			topos.append(t)
+	var faces: Array[Texture2D] = []
+	var face := load(FACE_CHEFE if pre_chefe else Sala.FACE_NEUTRA) as Texture2D
+	if face != null:
+		faces.append(face)
+
+	var vazias: Array[Porta] = []
+	var sem_canto: Array[Texture2D] = []
+	var abertos: Array[Vector2] = [eixo, -eixo]
+	add_child(RenderizadorParedes.construir(
+		contorno, vazias, hash(_retangulo_local.position), topos, faces,
+		sem_canto, 0.65, 2, abertos))
 
 
 func _montar_chao() -> void:

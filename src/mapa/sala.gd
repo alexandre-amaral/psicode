@@ -127,6 +127,17 @@ const LIMIAR_LADO_NORTE := -0.5
 ## ordem sem erro no console.
 const Z_PAREDE_TOPO := -22
 const Z_CHAO := -20
+## A sombra que a parede projeta no chao (TOPO 02).
+##
+## Entre o chao e o detalhe de chao, e os dois lados importam: ela tem de
+## ESCURECER o piso, entao fica acima dele; e decalque, prop chapado, telegrafo,
+## projetil e ator tem de ler POR CIMA dela, entao fica abaixo de todo o resto.
+## Efeito que disputa a leitura de combate e efeito cortado, e aqui isso e
+## geometria e nao promessa.
+##
+## Ela coube sem renumerar nada -- e exatamente para isto que as faixas nascem
+## espacadas de 2.
+const Z_SOMBRA_PAREDE := -19
 const Z_CHAO_DETALHE := -18
 ## Reservada para a face vertical da parede (LTD 04). O obstaculo solido usa
 ## esta faixa desde ja: ele e parede no meio da sala e PRECISA cobrir o chao,
@@ -825,6 +836,7 @@ func _montar_visual() -> void:
 	_texturizar(chao, textura_chao, ancora)
 	add_child(chao)
 
+	_montar_sombra(contorno)
 	_montar_fita(contorno)
 	_montar_obstaculos_visuais(textura_parede, ancora)
 
@@ -837,6 +849,26 @@ func _montar_visual() -> void:
 	var linha_fonte := get_node_or_null("Parede") as Line2D
 	if linha_fonte != null:
 		linha_fonte.visible = false
+
+
+## A SOMBRA que a parede projeta no chao (TOPO 02).
+##
+## Os trechos saem de `_subtrechos()`, que e a MESMA fonte da colisao. Nao e
+## economia: quem sabe onde ha porta e esta cena, e recalcular dentro da
+## `SombraDeParede` criaria uma segunda resposta para "onde ha parede" -- a
+## divergencia exata que a PAR 01 pagou quando o visual e a colisao discordaram
+## sobre o vao, e o sintoma foi a face atravessando o batente.
+##
+## Uma faixa escura cruzando a soleira leria como degrau, e a porta e o lugar
+## onde o jogador menos pode hesitar.
+func _montar_sombra(contorno: PackedVector2Array) -> void:
+	var trechos: Array[PackedVector2Array] = []
+	var total := contorno.size()
+	for i in total:
+		trechos.append_array(_subtrechos(contorno[i], contorno[(i + 1) % total]))
+	if trechos.is_empty():
+		return
+	add_child(SombraDeParede.construir(trechos, contorno))
 
 
 ## A FITA DE MODULOS (PAREDE 04): a parede como pecas de 32 px.

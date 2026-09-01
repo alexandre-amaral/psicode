@@ -45,6 +45,7 @@ func executar() -> void:
 	_o_corredor_usa_a_mesma_perspectiva_da_sala()
 	_a_razao_face_topo_fica_em_um_para_um()
 	_o_topo_cerca_a_sala_e_a_face_nao_desce_para_o_sul()
+	_a_sombra_assenta_a_parede_sem_invadir_o_combate()
 	_a_deterioracao_visual_nunca_decresce()
 	_so_o_trecho_pre_chefe_anuncia_o_chefe()
 
@@ -53,6 +54,10 @@ func executar() -> void:
 ## Se alguem renumerar uma sem olhar as vizinhas, cai aqui.
 func _as_faixas_estao_em_ordem() -> void:
 	ok(Sala.Z_PAREDE_TOPO < Sala.Z_CHAO, "topo da parede fica ATRAS do chao (e o chao que recorta a faixa visivel)")
+	ok(Sala.Z_CHAO < Sala.Z_SOMBRA_PAREDE,
+		"a sombra da parede fica ACIMA do chao -- ela precisa escurece-lo")
+	ok(Sala.Z_SOMBRA_PAREDE < Sala.Z_CHAO_DETALHE,
+		"e ABAIXO do detalhe de chao -- decalque, telegrafo e ator leem por cima dela")
 	ok(Sala.Z_CHAO < Sala.Z_CHAO_DETALHE, "detalhe de chao fica acima do chao")
 	ok(Sala.Z_CHAO_DETALHE < Sala.Z_PAREDE_FACE, "face da parede fica acima do detalhe de chao")
 	ok(Sala.Z_PAREDE_FACE < Sala.Z_MUNDO, "o mundo ordenado por Y fica acima da face")
@@ -65,6 +70,13 @@ func _as_faixas_estao_em_ordem() -> void:
 
 func _a_sala_monta_cada_camada_na_sua_faixa() -> void:
 	var sala := _montar(CENA_SALA)
+
+	var sombra := sala.get_node_or_null("SombraDaParede") as Node2D
+	ok(sombra != null, "a sala monta a sombra da parede")
+	if sombra != null:
+		igual(sombra.z_index, Sala.Z_SOMBRA_PAREDE, "a sombra na faixa dela")
+		ok(sombra.get_child_count() >= 4, "a sombra tem tiras (%d)"
+			% sombra.get_child_count())
 
 	var fita := sala.get_node_or_null("ParedeModulos") as Node2D
 	ok(fita != null, "a sala monta a fita de parede")
@@ -222,7 +234,7 @@ func _o_mundo_da_cena_principal_ordena_por_y() -> void:
 ## passar na frente do jogador se alguem os trouxesse para a faixa do mundo.
 func _as_camadas_de_cenario_ficam_fora_do_y_sort() -> void:
 	var sala := _montar(CENA_SALA)
-	for nome in ["Chao", "ParedeModulos", "Decoracao"]:
+	for nome in ["Chao", "SombraDaParede", "ParedeModulos", "Decoracao"]:
 		var camada := sala.get_node_or_null(nome) as CanvasItem
 		if camada == null:
 			continue
@@ -804,6 +816,94 @@ func _a_razao_face_topo_fica_em_um_para_um() -> void:
 		razao >= 0.75 and razao <= 1.25,
 		"a razao face:topo fica em 1:1 +/-25%% (achado %.2f) -- e o que fixa a camera imaginaria" % razao
 	)
+
+
+## A SOMBRA ASSENTA A PAREDE, e nao invade o combate (TOPO 02).
+##
+## Ela e a unica peca deste epico que desenha DENTRO da area jogavel, e por isso
+## e a unica que precisa de teto. As tres afirmacoes:
+##
+## 1. **ela existe** -- em toda forma de sala, e no corredor tambem. Sem o
+##    corredor, atravessar uma porta trocaria a perspectiva no meio da passagem:
+##    a parede assenta de um lado e flutua do outro, que e o defeito que a LTD 12
+##    existiu para consertar;
+## 2. **ela cabe** -- nenhuma tira entra mais que `PROFUNDIDADE_MAXIMA`, e a area
+##    somada fica abaixo de 6% do chao. Efeito que disputa a leitura de combate e
+##    efeito cortado, e aqui isso e numero e nao promessa;
+## 3. **ela nao clareia nada** -- todo alfa abaixo do teto, e a cor e N0. Sombra
+##    que ilumina seria uma vinheta, que e efeito de camera, e nao uma afirmacao
+##    sobre altura.
+func _a_sombra_assenta_a_parede_sem_invadir_o_combate() -> void:
+	for cena: PackedScene in [CENA_SALA, CENA_L, CENA_PILAR]:
+		var sala := _montar(cena)
+		var nome := cena.resource_path.get_file()
+		var contorno := sala.contorno_local()
+		var sombra := sala.get_node_or_null("SombraDaParede") as Node2D
+		ok(sombra != null, "%s monta a sombra" % nome)
+		if sombra == null:
+			sala.free()
+			continue
+
+		var tiras := 0
+		var fundo := 0.0
+		var alfa_maximo := 0.0
+		var area := 0.0
+		for filho in sombra.get_children():
+			var poly := filho as Polygon2D
+			if poly == null or poly.polygon.size() < 4:
+				continue
+			tiras += 1
+			alfa_maximo = maxf(alfa_maximo, poly.color.a)
+			var caixa := Rect2(poly.polygon[0], Vector2.ZERO)
+			for ponto in poly.polygon:
+				caixa = caixa.expand(ponto)
+			area += caixa.size.x * caixa.size.y
+			# Quanto ela entrou: a distancia do vertice mais fundo ate o contorno.
+			for ponto in poly.polygon:
+				var mundo: Vector2 = poly.position + ponto
+				if Geometry2D.is_point_in_polygon(mundo, contorno):
+					fundo = maxf(fundo, _distancia_ao_contorno(mundo, contorno))
+
+		ok(tiras >= 4, "%s: a sombra tem tiras (%d)" % [nome, tiras])
+		ok(
+			fundo <= SombraDeParede.PROFUNDIDADE_MAXIMA + 0.5,
+			"%s: a sombra entra %.0f px, teto %.0f" % [nome, fundo,
+				SombraDeParede.PROFUNDIDADE_MAXIMA]
+		)
+		ok(
+			alfa_maximo <= SombraDeParede.ALFA_MAXIMO + 0.001,
+			"%s: o alfa maximo e %.2f, teto %.2f" % [nome, alfa_maximo,
+				SombraDeParede.ALFA_MAXIMO]
+		)
+		var area_do_chao := absf(_area_do(contorno))
+		ok(
+			area < area_do_chao * 0.06,
+			"%s: a sombra ocupa %.1f%% do chao, teto 6%%"
+				% [nome, 100.0 * area / maxf(area_do_chao, 1.0)]
+		)
+		sala.free()
+
+	# O CORREDOR tambem, senao a travessia troca de perspectiva no meio.
+	var corredor := Corredor.new()
+	Engine.get_main_loop().root.add_child(corredor)
+	corredor.configurar(LONGE, LONGE + Vector2(480.0, 0.0), 80.0)
+	var sombra_corredor := corredor.get_node_or_null("SombraDaParede") as Node2D
+	ok(sombra_corredor != null, "o corredor monta a sombra")
+	if sombra_corredor != null:
+		ok(sombra_corredor.get_child_count() >= 2,
+			"o corredor veste as duas laterais (%d tiras)"
+				% sombra_corredor.get_child_count())
+	corredor.free()
+
+
+## A distancia de um ponto ate o lado mais proximo do contorno.
+func _distancia_ao_contorno(ponto: Vector2, contorno: PackedVector2Array) -> float:
+	var perto := INF
+	var total := contorno.size()
+	for i in total:
+		perto = minf(perto, ponto.distance_to(Geometry2D.get_closest_point_to_segment(
+			ponto, contorno[i], contorno[(i + 1) % total])))
+	return perto
 
 
 ## A fita cerca a sala inteira, e a FACE nao desce para o sul (LTD 15).

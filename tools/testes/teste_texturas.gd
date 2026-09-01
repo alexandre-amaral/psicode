@@ -48,6 +48,7 @@ func nome() -> String:
 func executar() -> void:
 	_paleta()
 	_espelho_do_ator()
+	_espelho_da_rampa_no_renderizador()
 	_arquivos()
 	_determinismo()
 	_tipos_apontam_textura()
@@ -306,6 +307,55 @@ func _paleta() -> void:
 ## O espelho Paleta.ATOR precisa bater com as cenas e os .tres reais. Nao e a
 ## fonte deles -- e o que prova que ambiente e ator nao se cruzam, e uma prova
 ## sobre uma lista desatualizada nao prova nada.
+## As cores que o RENDERIZADOR desenha sao as mesmas da rampa.
+##
+## `RenderizadorParedes` desenha o acabamento da parede em codigo, e por isso
+## precisa das cores como `const` propria em vez de `Paleta.neutro()`. Nao e
+## preferencia: **`tools/` esta em `exclude_filter` do `export_presets.cfg`,
+## entao `Paleta` NAO EXISTE na build.** Um `Paleta.neutro()` em `src/` roda no
+## editor e some no jogo exportado -- o pior tipo de defeito, porque a maquina de
+## quem desenvolve nunca o mostra. O precedente ja estava em `Sombra.COR` e em
+## `Corredor.COR_CHAO_EMERGENCIA`.
+##
+## O preco de um espelho e divergir em silencio: alguem ajusta um degrau da rampa
+## em `paleta.gd`, todo PNG do jogo acompanha, e a linha desenhada por codigo
+## fica na cor velha. Nada no console, e a diferenca entre dois degraus vizinhos
+## e pequena o bastante para passar numa olhada.
+##
+## Mesmo desenho de `_espelho_do_ator()`: a copia e legitima, e o portao e o que
+## a mantem honesta.
+func _espelho_da_rampa_no_renderizador() -> void:
+	var espelhos := {
+		&"N1": RenderizadorParedes.N1,
+		&"N4": RenderizadorParedes.N4,
+		&"N7": RenderizadorParedes.N7,
+	}
+	for nome: StringName in espelhos:
+		var copia: Color = espelhos[nome]
+		var fonte := Paleta.neutro(nome)
+		ok(
+			copia.is_equal_approx(fonte),
+			"RenderizadorParedes.%s espelha Paleta.neutro(\"%s\") (%s contra %s)"
+				% [nome, nome, copia.to_html(false), fonte.to_html(false)]
+		)
+
+	# E as profundidades tem de caber na faixa que a camera enquadra. O
+	# acabamento e desenhado em `alcance()`; um valor maior aqui poria tira fora
+	# do quadro, e o sintoma seria uma tira de vazio na borda.
+	var alcance := RenderizadorParedes.alcance()
+	ok(
+		RenderizadorParedes.COSTURA < alcance,
+		"a costura cai dentro da faixa (%.0f de %.0f)"
+			% [RenderizadorParedes.COSTURA, alcance]
+	)
+	ok(
+		RenderizadorParedes.BISEL + RenderizadorParedes.LABIO < alcance,
+		"o bisel cabe na faixa (%.0f de %.0f)"
+			% [RenderizadorParedes.BISEL + RenderizadorParedes.LABIO, alcance]
+	)
+
+
+
 func _espelho_do_ator() -> void:
 	var ator := Paleta.ator()
 	var conferidos := 0

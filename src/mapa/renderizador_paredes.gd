@@ -85,6 +85,31 @@ enum Canto { NOROESTE, NORDESTE, SUDOESTE, SUDESTE }
 ## onde as duas sao topo.
 const CELULA := 32
 
+## A rampa neutra, ESPELHADA de `tools/texturas/paleta.gd`.
+##
+## Espelhada e nao lida: `tools/` esta em `exclude_filter` do export, entao
+## `Paleta` **nao existe na build**. Um `Paleta.neutro()` aqui roda no editor e
+## some no jogo exportado -- o pior tipo de defeito, porque a maquina de quem
+## desenvolve nunca o mostra. O precedente ja existe em `Sombra.COR` e em
+## `Corredor.COR_CHAO_EMERGENCIA`.
+##
+## O preco do espelho e divergencia silenciosa, e por isso ele e COBRADO:
+## `teste_texturas.gd` compara estas tres com `Paleta.neutro()`, no mesmo desenho
+## do espelho de `Paleta.ATOR`.
+const N1 := Color("0b0d16")
+const N4 := Color("242a3a")
+const N7 := Color("5a6480")
+
+## Onde o acabamento desenha, medido do contorno para FORA.
+##
+## Todos DENTRO de `alcance()` = 64. Um pixel alem e a camera passa a mostrar
+## vazio na borda do quadro, sem erro nenhum no console -- e por isso
+## `teste_camera.gd` mede toda peca da fita, e nao so os sprites.
+const COSTURA := 32.0
+const SOMBRA_DA_COSTURA := 2.0
+const LABIO := 1.0
+const BISEL := 2.0
+
 ## Como um lado e classificado, e o limiar e o MESMO de `Sala.LIMIAR_LADO_NORTE`.
 ##
 ## Ele nao e copiado: um segundo limiar aqui divergiria do que decide se um lado
@@ -182,6 +207,14 @@ static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 	# parede do jogo abrir com `espacamento` celulas comuns, que e um padrao
 	# regular nascido de um detalhe de implementacao.
 	var desde_especial := espacamento
+	# Os TRECHOS CONTINUOS do lado, para o acabamento.
+	#
+	# O acabamento e uma linha, e nao uma peca por celula: uma tira por celula
+	# seriam ~360 poligonos a mais por sala, e trinta retangulos encostados
+	# podem mostrar emenda onde a arte pede uma linha so. Acumular o que a
+	# celula ja decidiu -- ela sabe se caiu no vao de porta -- da uma tira por
+	# trecho, tipicamente uma ou duas por lado, e ela ABRE na porta de graca.
+	var trechos: Array[Vector2] = []
 	var c := floorf(inicio / CELULA) * CELULA
 	while c < fim - 0.5:
 		var p0 := maxf(c, inicio)
@@ -205,7 +238,107 @@ static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 					desde_especial = 0 if especial else desde_especial + 1
 				_peca(raiz, interna, ponto + normal * (CELULA * 0.5),
 					chave ^ 0x9e3779b1, recorte, direcao)
+				if not trechos.is_empty() and absf(trechos[-1].y - p0) < 0.5:
+					trechos[-1] = Vector2(trechos[-1].x, p1)
+				else:
+					trechos.append(Vector2(p0, p1))
 		c += CELULA
+
+	for t in trechos:
+		_vestir_acabamento(raiz, a + direcao * ((t.x - s0) * passo),
+			a + direcao * ((t.y - s0) * passo), normal, lado, so_topo)
+
+
+## O ACABAMENTO de um trecho: a costura onde a superficie vira, e o bisel da
+## aresta externa.
+##
+## **Isto e a banda que faltava, e ela faltava de forma literal.** Ate aqui NADA
+## desenhava em `n*32`: a celula de topo e a de face eram dois recortes de 32x32
+## de texturas diferentes coladas lado a lado, e o olho lia "a textura mudou
+## aqui" em vez de "a superficie virou aqui". Medido no perfil vertical da
+## captura, a passagem de topo para face acontecia em ZERO pixel de transicao.
+##
+## Na referencia (`docs/objetivo/isaac.png`) o que faz a faixa ler como parede
+## nao e a textura dela: e onde as bandas comecam e acabam. Medido la, do chao
+## para fora: 3 px de linha de contato a 0,85x o chao, a superficie, um labio
+## aceso de 3 px, e so entao a aresta externa.
+##
+## **Desenhado em CODIGO, e nao em arte, por uma razao de arquitetura e nao de
+## economia.** As duas bandas sao direcionais, e `_peca()` sorteia um dos quatro
+## quadrantes por hash: arte direcional cairia num lado aleatorio na orientacao
+## errada. Assar a costura no topo obrigaria o topo a ter versao por lado -- 3
+## variantes x 4 lados = 12 PNGs -- que e a explosao de arquivo que o
+## `EstiloDeParede` existe para evitar. E um retangulo nao tem orientacao para
+## violar: ele nasce de coordenadas, nao de uma arte girada, entao o portao de
+## giro nao precisa de excecao nenhuma.
+##
+## Cabe na regra que o cabecalho deste arquivo ja escreve: **a ESTRUTURA e
+## gerada, a SUPERFICIE e autorada.** Costura e bisel sao onde duas superficies
+## se encontram, e nao de que material elas sao.
+##
+## **A luz vem de cima e da esquerda** (`LOW_TOPDOWN_SQUARED.md` §18), e a tabela
+## abaixo nao e nova: e a mesma que `gerar_modulo_n/s/l/o()` ja aplica e ja
+## defende. Em especial o OESTE nao e o LESTE espelhado -- espelhar inverteria a
+## luz junto, que e o comentario que aquele gerador carrega desde que nasceu.
+##
+## | lado | aresta interna | costura em `n*32` | aresta externa |
+## |---|---|---|---|
+## | NORTE | -- (o pe da face ja traz sombra na arte) | sombra + labio | bisel |
+## | SUL | N4 e N7: o chanfro aceso virado para a sala | -- (sem face) | bisel |
+## | LESTE | N7: a aresta virada para a sala pega a luz | sombra + labio | bisel |
+## | OESTE | -- | sombra, SEM labio | bisel, e o labio vai AQUI |
+##
+## O par claro/escuro e mudanca de VALOR e nao brilho, e isso e deliberado: uma
+## linha clara e continua na borda da sala e exatamente o filete de neon que o
+## projeto ja removeu uma vez. O labio tem 1 px, e no meio da faixa.
+static func _vestir_acabamento(raiz: Node2D, de: Vector2, ate: Vector2,
+		normal: Vector2, lado: Lado, so_topo: bool) -> void:
+	# A COSTURA: onde o topo vira face. Nao existe no sul, que nao tem face.
+	if not so_topo:
+		_banda(raiz, de, ate, normal, COSTURA - SOMBRA_DA_COSTURA, COSTURA, N4)
+		if lado != Lado.OESTE:
+			_banda(raiz, de, ate, normal, COSTURA, COSTURA + LABIO, N7)
+
+	# A ARESTA INTERNA: so onde ela pega luz.
+	if lado == Lado.SUL:
+		_banda(raiz, de, ate, normal, 0.0, LABIO, N4)
+		_banda(raiz, de, ate, normal, LABIO, LABIO * 2.0, N7)
+	elif lado == Lado.LESTE:
+		_banda(raiz, de, ate, normal, LABIO, LABIO * 2.0, N7)
+
+	# O BISEL EXTERNO: a faixa cai de valor antes de encontrar o vazio.
+	#
+	# Contra o vazio ele quase nao aparece -- `default_clear_color` do projeto JA
+	# e N0 --, e nao e para ele que existe: e para a boca do corredor, onde duas
+	# faixas se encontram sem separacao, e para a quina, onde o canto encosta nos
+	# dois lados.
+	var alcance_total := float(CELULA) * 2.0
+	_banda(raiz, de, ate, normal, alcance_total - BISEL, alcance_total, N1)
+	if lado == Lado.OESTE:
+		_banda(raiz, de, ate, normal, alcance_total - BISEL - LABIO,
+			alcance_total - BISEL, N7)
+
+
+## Uma tira retangular ao longo de um trecho do contorno.
+##
+## `position` no meio e o poligono RELATIVO a ela: os portoes que medem onde a
+## fita chegou leem `position` mais a caixa local, e um poligono em coordenada
+## absoluta com `position` em zero faria todos eles medirem a origem da sala.
+static func _banda(raiz: Node2D, de: Vector2, ate: Vector2, normal: Vector2,
+		inicio: float, fim: float, cor: Color) -> void:
+	if fim - inicio < 0.5 or de.distance_to(ate) < 0.5:
+		return
+	var centro := (de + ate) * 0.5 + normal * ((inicio + fim) * 0.5)
+	var poly := Polygon2D.new()
+	poly.color = cor
+	poly.position = centro
+	poly.polygon = PackedVector2Array([
+		de + normal * inicio - centro,
+		ate + normal * inicio - centro,
+		ate + normal * fim - centro,
+		de + normal * fim - centro,
+	])
+	raiz.add_child(poly)
 
 
 ## Uma celula recortada da textura autorada, e ela pode ser MENOR que 32.

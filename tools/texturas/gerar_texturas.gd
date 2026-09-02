@@ -842,6 +842,47 @@ static func gerar_modulo_canto(fora: Vector2i) -> Image:
 		_ret(img, px, py, pilar, 2, n0)
 	else:
 		_ret(img, px, py + pilar - 2, pilar, 2, n0)
+
+	# A GRADE DE LAJES DA LAJE, no mesmo periodo do topo (TOPO 06).
+	#
+	# Ela entra por duas razoes, e a segunda so apareceu quando o portao de
+	# amplitude foi medir:
+	#
+	# 1. **Concordancia.** O topo ganhou lajes de 32 com junta na TOPO 05, e o
+	#    canto encosta nele nos dois lados. Sem a mesma grade, a quina seria o
+	#    unico lugar do perimetro onde a laje some -- e a peca de canto ja e a
+	#    que mais chama atencao, porque desenha POR CIMA das celulas vizinhas.
+	#
+	# 2. **O p10 do canto estava numa BORDA DE PERCENTIL.** As quatro pecas sao
+	#    estruturalmente identicas -- 88 px em N0, ~330 em N1, ~2140 em N2, ~1460
+	#    em N3 --, e a unica diferenca entre elas e a contagem de grao do
+	#    `_chapa`. Medido: NO 10,4% de pixels abaixo da mediana, NE **10,0%**, SO
+	#    10,6%, SE 10,8%. Com o p10 caindo exatamente ali, NOVE PIXELS de
+	#    diferenca decidiam se ele lia 0,086 ou 0,122 -- e a amplitude ia de 0,68
+	#    para 0,39. Nao havia assimetria no gerador; havia escuro DE MENOS, e uma
+	#    metrica lida em cima de um degrau. A junta resolve a causa: com recesso
+	#    de verdade, o p10 para de fazer equilibrio na borda.
+	#
+	# So na LAJE. A junta e o vao ENTRE pecas; atravessar o pilar com ela seria
+	# riscar um volume que sobe, e nao separar duas superficies.
+	var periodo := PLACA
+	for y in lado:
+		for x in lado:
+			var na_junta := (x % periodo) < 2 or (y % periodo) < 2
+			if not na_junta:
+				continue
+			if x >= px and x < px + pilar and y >= py and y < py + pilar:
+				continue
+			_pintar(img, x, y, n0)
+	# E o labio aceso logo depois dela, do lado que pega luz.
+	for y in lado:
+		for x in lado:
+			var no_labio := (x % periodo) == 2 or (y % periodo) == 2
+			if not no_labio:
+				continue
+			if x >= px and x < px + pilar and y >= py and y < py + pilar:
+				continue
+			_pintar(img, x, y, n4)
 	return img
 
 

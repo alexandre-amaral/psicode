@@ -836,14 +836,46 @@ func _caixa_do_poligono(pontos: PackedVector2Array) -> Rect2:
 ## A folga de 25% e do plano, e nao inventada aqui: ela permite ajuste fino sem
 ## permitir mudanca de perspectiva.
 func _a_razao_face_topo_fica_em_um_para_um() -> void:
-	var topo := Sala.ESPESSURA_PAREDE - Sala.ALTURA_FACE
-	ok(topo > 0.0, "sobra faixa de topo depois da face (%.0f de %.0f)" % [topo, Sala.ESPESSURA_PAREDE])
-	if topo <= 0.0:
-		return
-	var razao := Sala.ALTURA_FACE / topo
+	# ELE MEDIA DUAS CONSTANTES QUE NAO DESENHAM MAIS NADA.
+	#
+	# `ESPESSURA_PAREDE` e `ALTURA_FACE` descreviam a parede ate a MOLDURA 06.
+	# Hoje quem manda no que se desenha e o `PerfilDeParede`, e as duas constantes
+	# viraram numeros logicos -- colisao, encaixe de corredor, grade. Um portao
+	# lendo dali continuaria VERDE para sempre, medindo uma parede que nao existe.
+	# E o mesmo defeito que a #125 registrou, e ele voltaria por outra porta.
+	var perfil := PerfilDeParede.new()
+	ok(perfil.topo_norte > 0.0 and perfil.face_norte > 0.0,
+		"o norte desenha topo E face (%.0f e %.0f)"
+			% [perfil.topo_norte, perfil.face_norte])
+
+	# E A RAZAO 1:1 DA §24 FOI SUPERADA, de forma declarada.
+	#
+	# Ela era a forma operacional de "todo cenario compartilha a mesma camera
+	# imaginaria", e valia 1:1 +/-25%. O epico da moldura mediu que 32/32 nos
+	# quatro lados produz uma faixa que ocupa 28,6% do quadro contra os 10-20%
+	# que o plano pede -- e a saida foi assimetria, que quebra a razao por
+	# construcao.
+	#
+	# O que sobra da §24 e o que ela realmente protegia: **a face nao pode
+	# encolher junto com o resto.** Ela e a unica superficie vista de FRENTE, e e
+	# dela que vem a altura da sala. No perfil C ela e a maior das tres medidas
+	# do norte, e e isso que se cobra.
+	var razao := perfil.face_norte / perfil.topo_norte
 	ok(
-		razao >= 0.75 and razao <= 1.25,
-		"a razao face:topo fica em 1:1 +/-25%% (achado %.2f) -- e o que fixa a camera imaginaria" % razao
+		razao >= 1.0 and razao <= 2.0,
+		"a face norte e a superficie DOMINANTE do norte (razao %.2f, faixa 1,0-2,0)"
+			% razao
+	)
+	ok(
+		perfil.face_norte > perfil.topo_sul,
+		"e ela e maior que a parede sul inteira (%.0f contra %.0f) -- a norte carrega a altura, a sul so fecha o quadro"
+			% [perfil.face_norte, perfil.topo_sul]
+	)
+	ok(
+		perfil.topo_lateral + perfil.face_lateral < perfil.topo_norte + perfil.face_norte,
+		"as laterais sao mais rasas que a norte (%.0f contra %.0f) -- elas mostram a face de esguelha"
+			% [perfil.topo_lateral + perfil.face_lateral,
+				perfil.topo_norte + perfil.face_norte]
 	)
 
 

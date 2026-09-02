@@ -189,6 +189,14 @@ const CANTOS_NEUTROS: Array[String] = [
 	"res://assets/texturas/modulo_canto_se.png",
 ]
 
+## Valvula de FERRAMENTA: o perfil que a matriz de comparacao quer usar.
+##
+## Ela existe porque a sala monta a fita no proprio `_ready`, e nao ha janela
+## entre instanciar e desenhar para passar um parametro. Fica `static` e NULA em
+## jogo -- quem manda no perfil em runtime e o `EstiloDeParede`, como todo botao
+## de tuning do projeto.
+static var perfil_de_teste: PerfilDeParede = null
+
 const TOPOS_NEUTROS: Array[String] = [
 	"res://assets/texturas/parede_topo_a.png",
 	"res://assets/texturas/parede_topo_b.png",
@@ -949,9 +957,25 @@ func _montar_fita(contorno: PackedVector2Array) -> void:
 
 	var peso: float = estilo.peso_comum if estilo != null else 0.65
 	var espacamento: int = estilo.espacamento_minimo if estilo != null else 2
+	var abertos: Array[Vector2] = []
 	add_child(RenderizadorParedes.construir(
 		contorno, portas, hash(coordenadas_grid), topos, faces, cantos,
-		peso, espacamento))
+		peso, espacamento, abertos, _perfil()))
+
+
+## O perfil de espessura desta sala.
+##
+## Vem do `EstiloDeParede` -- o mesmo recurso que ja carrega topo, face neutra e
+## cantos --, porque espessura e botao de tuning e botao de tuning mora em
+## `.tres`. A valvula de teste ganha dele so quando esta ligada, e ela so liga
+## em ferramenta.
+func _perfil() -> PerfilDeParede:
+	if perfil_de_teste != null:
+		return perfil_de_teste
+	var estilo: EstiloDeParede = _dados_visual.estilo_de_parede if _dados_visual != null else null
+	if estilo == null:
+		return null
+	return estilo.perfil()
 
 
 ## Normal para FORA de um lado do contorno.

@@ -90,3 +90,36 @@ func canto(indice: int) -> Texture2D:
 	if indice < 0 or indice >= cantos.size():
 		return null
 	return cantos[indice]
+
+
+@export_group("Espessura desenhada")
+## Quanto cada lado DESENHA, do contorno para fora.
+##
+## Espessura e botao de tuning, entao ela mora aqui e nao no codigo -- e a mesma
+## regra que poe densidade de inimigo no `tipo_*.tres` e dano no `.tres` da arma.
+##
+## **Assimetria e o ponto.** 32 de topo mais 32 de face nos quatro lados produz
+## a moldura pesada que o epico da moldura existe para desfazer: a NORTE e a
+## unica que mostra a face de frente e e ela que carrega a altura; as laterais a
+## mostram de esguelha e podem ser bem mais estreitas; a SUL mostra so a
+## superficie de cima, e desenhar 64 px dela e o que mais engorda a moldura sem
+## dar nada em troca.
+##
+## A COLISAO nao muda: ela e um segmento sobre o contorno, e a grade logica
+## continua 32. Isto descreve so o que se desenha.
+@export var topo_norte: float = 16.0
+@export var face_norte: float = 24.0
+@export var topo_lateral: float = 16.0
+@export var face_lateral: float = 16.0
+@export var topo_sul: float = 16.0
+
+
+## O perfil que o renderizador consome.
+func perfil() -> PerfilDeParede:
+	var p := PerfilDeParede.new()
+	p.topo_norte = topo_norte
+	p.face_norte = face_norte
+	p.topo_lateral = topo_lateral
+	p.face_lateral = face_lateral
+	p.topo_sul = topo_sul
+	return p

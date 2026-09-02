@@ -61,8 +61,11 @@ func _o_lobby_monta_o_lugar_inteiro() -> void:
 	var fita := lobby.get_node_or_null("Mundo/ParedeModulos") as Node2D
 	ok(fita != null, "e a fita de parede")
 	if fita != null:
-		ok(fita.get_child_count() > 40,
-			"a fita veste o lobby inteiro (%d pecas)" % fita.get_child_count())
+		# 6 e o piso, e nao 40: com a MOLDURA 04 a superficie virou UMA faixa por
+		# trecho e por banda, entao uma sala retangular fecha em 8 pecas em vez
+		# das ~360 celulas de antes.
+		ok(fita.get_child_count() >= 6,
+			"a fita veste o lobby inteiro (%d faixas)" % fita.get_child_count())
 
 	var paredes := lobby.get_node_or_null("Paredes") as StaticBody2D
 	ok(paredes != null, "e a colisao")

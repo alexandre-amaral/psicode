@@ -513,12 +513,10 @@ func _a_face_sorteia_por_lado() -> void:
 	var fita := sala_um.get_node_or_null("ParedeModulos") as Node2D
 	if fita != null:
 		for filho in fita.get_children():
-			var sprite := filho as Sprite2D
-			if sprite == null or sprite.texture == null:
+			if not _textura_de(filho).get_file().begins_with("parede_face"):
 				continue
-			if not sprite.texture.resource_path.get_file().begins_with("parede_face"):
-				continue
-			if sprite.position.y > caixa.end.y:
+			var item := filho as Node2D
+			if item != null and item.position.y > caixa.end.y:
 				faces_sul += 1
 	igual(faces_sul, 0, "a parede SUL nao ganha face -- ela olha para longe da camera")
 	var usadas := _texturas_de_face(sala_um)
@@ -590,46 +588,66 @@ func _montar_com(cena: PackedScene, dados: DadosSala, celula: Vector2i) -> Sala:
 ## contagem de filhos era so um atalho que deixou de valer -- contar poligonos
 ## faria a resposta mudar quando uma sala ganhasse uma porta a mais, sem nada
 ## sobre a arte ter mudado.
-## QUE PARTE do modulo de face chega a tela -- e agora e ela INTEIRA.
+## A TEXTURA CORRE POR CIMA DA GRADE, e essa e a afirmacao da moldura.
 ##
-## Esta era uma das armadilhas mais caras do projeto: a UV do quad de face era
-## escrita em PIXELS e ancorada no canto do contorno, e o quad tinha
-## `ALTURA_FACE` = 32 px numa textura de 64. Com repeticao, isso amostrava as
-## linhas 32..63 -- **a metade de baixo**. A metade de cima nunca aparecia, o
-## portao de densidade media o arquivo INTEIRO, e quem desenhasse o proximo
-## modulo desenhava as cegas em metade dele.
+## Este caso ja mediu duas coisas diferentes, e as duas morreram por motivo bom.
 ##
-## A fita resolve por construcao e nao por conserto: a celula e um `region_rect`
-## de 32x32 dentro da textura de 64x64, e o quadrante sai do hash da celula. As
-## quatro partes sao alcancaveis, e numa parede longa as quatro aparecem.
+## **Primeiro** ele guardava a armadilha da UV: o quad de face tinha 32 px numa
+## textura de 64 e amostrava so as linhas 32..63 -- a metade de cima nunca
+## aparecia, e nada avisava. **Depois** a fita trocou aquilo por um
+## `region_rect` de 32x32 sorteado entre quatro quadrantes, e o caso passou a
+## contar quantos quadrantes distintos chegavam a tela.
 ##
-## O caso mede isso: varre a fita de uma sala e conta quantos quadrantes
-## distintos foram amostrados. Um so significaria que o sorteio travou -- e a
-## armadilha teria voltado por outro caminho.
+## A MOLDURA 04 acabou com os dois: nao ha mais recorte nenhum. A superficie e
+## um quad continuo por trecho, com `texture_repeat` ligado e a UV ancorada na
+## SALA -- entao a textura ladrilha por cima de qualquer grade, e duas faixas
+## vizinhas continuam o mesmo desenho em vez de cada uma recomecar do zero.
+##
+## Recomecar e exatamente o que produzia a emenda visivel. Por isso o que se
+## cobra agora e a ANCORA: `texture_offset` tem de compensar a `position` da
+## peca, senao cada faixa reinicia a textura no proprio inicio.
 func _a_faixa_de_uv_da_face_e_declarada() -> void:
 	var sala := CENA_SALA.instantiate() as Sala
 	sala.position = LONGE
 	Engine.get_main_loop().root.add_child(sala)
 	var raiz := sala.get_node_or_null("ParedeModulos") as Node2D
-	if raiz == null or raiz.get_child_count() == 0:
+	if raiz == null:
 		ok(false, "a sala monta a fita")
 		sala.free()
 		return
 
-	var quadrantes := {}
-	var celulas := 0
+	var texturizadas := 0
+	var sem_repeticao := 0
+	var ancoras: Array[Vector2] = []
 	for filho in raiz.get_children():
-		var sprite := filho as Sprite2D
-		if sprite == null or sprite.texture == null or not sprite.region_enabled:
+		var poly := filho as Polygon2D
+		if poly == null or poly.texture == null:
 			continue
-		celulas += 1
-		quadrantes[sprite.region_rect.position] = true
-	ok(celulas > 40, "a fita tem celulas para medir (%d)" % celulas)
-	ok(
-		quadrantes.size() >= 4,
-		"a textura chega a tela INTEIRA: %d quadrantes distintos amostrados -- antes da fita so a metade de baixo aparecia"
-			% quadrantes.size()
-	)
+		texturizadas += 1
+		if poly.texture_repeat != CanvasItem.TEXTURE_REPEAT_ENABLED:
+			sem_repeticao += 1
+		# A ANCORA EFETIVA desta peca.
+		#
+		# A UV de um vertice e `vertice + texture_offset`, em coordenada local; o
+		# ponto de mundo dele e `position + vertice`. Para as duas coincidirem a
+		# menos da ancora da sala, `position - texture_offset` tem de dar a
+		# ancora -- e e isso, e nao a soma, que se compara.
+		ancoras.append(poly.position - poly.texture_offset)
+
+	ok(texturizadas >= 4, "a fita veste textura em faixas (%d)" % texturizadas)
+	igual(sem_repeticao, 0,
+		"toda faixa tem `texture_repeat` -- sem ele a textura sai ESTICADA uma vez no trecho inteiro (%d)"
+			% sem_repeticao)
+	# A ancora tem de bater com o canto do contorno para TODAS: e o que faz duas
+	# faixas vizinhas serem a continuacao do mesmo desenho.
+	var caixa := _caixa_do_poligono(sala.contorno_local())
+	var descoladas := 0
+	for uv in ancoras:
+		if absf(uv.x - caixa.position.x) > 1.0 or absf(uv.y - caixa.position.y) > 1.0:
+			descoladas += 1
+	igual(descoladas, 0,
+		"e todas ancoram no mesmo canto da sala -- faixa que recomeca a textura e emenda visivel (%d)"
+			% descoladas)
 	sala.free()
 
 
@@ -654,13 +672,27 @@ func _faces_da_fita(sala: Sala) -> Array[String]:
 	if raiz == null:
 		return achados
 	for filho in raiz.get_children():
-		var sprite := filho as Sprite2D
-		if sprite == null or sprite.texture == null:
-			continue
-		var caminho := sprite.texture.resource_path
+		var caminho := _textura_de(filho)
 		if caminho.get_file().begins_with("parede_face"):
 			achados.append(caminho)
 	return achados
+
+
+## O caminho da textura de uma peca da fita, seja ela qual for.
+##
+## A peca deixou de ser `Sprite2D` na MOLDURA 04: a superficie virou um
+## `Polygon2D` continuo por trecho. Os coletores desta suite perguntavam pelo
+## TIPO do no, e por isso ficaram cegos de uma vez -- eles mediam a
+## implementacao e nao a pergunta. Ler a textura de qualquer `CanvasItem` que
+## tenha uma sobrevive a proxima troca de peca.
+func _textura_de(no: Node) -> String:
+	var sprite := no as Sprite2D
+	if sprite != null and sprite.texture != null:
+		return sprite.texture.resource_path
+	var poly := no as Polygon2D
+	if poly != null and poly.texture != null:
+		return poly.texture.resource_path
+	return ""
 
 
 ## O corredor usa EXATAMENTE a perspectiva da sala (LTD 12).
@@ -774,10 +806,7 @@ func _faces_de(corredor: Corredor) -> Array[String]:
 	if raiz == null:
 		return achados
 	for filho in raiz.get_children():
-		var sprite := filho as Sprite2D
-		if sprite == null or sprite.texture == null:
-			continue
-		var caminho := sprite.texture.resource_path
+		var caminho := _textura_de(filho)
 		if caminho.get_file().begins_with("parede_face") and not achados.has(caminho):
 			achados.append(caminho)
 	return achados
@@ -947,15 +976,29 @@ func _o_topo_cerca_a_sala_e_a_face_nao_desce_para_o_sul() -> void:
 		var faces_ao_sul := 0
 		var pecas := 0
 		for filho in fita.get_children():
-			var sprite := filho as Sprite2D
-			if sprite == null or sprite.texture == null:
+			var item := filho as Node2D
+			if item == null:
 				continue
+			var meia := Vector2.ZERO
+			var sprite := item as Sprite2D
+			if sprite != null and sprite.texture != null:
+				meia = sprite.texture.get_size() * 0.5
+			else:
+				var poly := item as Polygon2D
+				if poly == null or poly.polygon.is_empty():
+					continue
+				meia = _caixa_do_poligono(poly.polygon).size * 0.5
 			pecas += 1
-			var meia: Vector2 = (sprite.region_rect.size if sprite.region_enabled 				else sprite.texture.get_size()) * 0.5
-			folga = folga.merge(Rect2(sprite.position - meia, meia * 2.0))
-			if sprite.texture.resource_path.get_file().begins_with("parede_face") 					and sprite.position.y > caixa.end.y:
+			folga = folga.merge(Rect2(item.position - meia, meia * 2.0))
+			if _textura_de(item).get_file().begins_with("parede_face") and item.position.y > caixa.end.y:
 				faces_ao_sul += 1
-		ok(pecas > 40, "%s: a fita tem pecas para medir (%d)" % [nome, pecas])
+		# O PISO CAIU DE 40 PARA 6, e a queda e o proprio entregavel.
+		#
+		# A fita tinha ~360 pecas por sala -- duas por celula --, e era isso que o
+		# jogador via como `|tile|tile|tile|`. Com uma faixa por trecho e por banda,
+		# uma sala retangular fecha em 8. Cobrar "muitas pecas" aqui seria cobrar
+		# exatamente o defeito que este epico removeu.
+		ok(pecas >= 6, "%s: a fita tem faixas para medir (%d)" % [nome, pecas])
 		ok(
 			folga.position.x < caixa.position.x and folga.position.y < caixa.position.y 				and folga.end.x > caixa.end.x and folga.end.y > caixa.end.y,
 			"%s: a fita cerca a sala pelos QUATRO sentidos" % nome

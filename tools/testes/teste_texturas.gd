@@ -763,9 +763,6 @@ const PISO_AMPLITUDE := 0.58
 ## que o dono do projeto apontou como "nao parece parede". E a TOPO 05.
 const SEM_AMPLITUDE_AINDA: Array[String] = [
 	"modulo_canto_ne.png",
-	"parede_topo_a.png",
-	"parede_topo_b.png",
-	"parede_topo_c.png",
 ]
 
 

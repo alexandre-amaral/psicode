@@ -39,6 +39,13 @@ signal interagido(quem: Node2D)
 		habilitado = valor
 		monitorable = valor
 
+## A que altura o aviso flutua acima deste objeto.
+##
+## Por objeto e nao uma constante global: a capsula de operador tem um retrato de
+## 128 px ancorado na base, e um prompt na altura do terminal cairia DENTRO do
+## personagem. O numero certo depende de quao alta a peca e, e so ela sabe.
+@export var altura_do_prompt: float = 56.0
+
 ## O raio em que o jogador precisa entrar.
 @export var alcance: float = 48.0:
 	set(valor):

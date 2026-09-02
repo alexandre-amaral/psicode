@@ -55,7 +55,7 @@ const COR_APAGADA := Color("242a3a")
 @onready var _interativos: Node2D = $Mundo/Interativos
 @onready var _ui: CanvasLayer = $UI
 
-var _prompt: Label = null
+var _prompt: PromptDeInteracao = null
 var _plataformas: Dictionary = {}
 
 
@@ -243,6 +243,11 @@ func _montar_capsula(dados: DadosPersonagem, onde: Vector2) -> void:
 	gatilho.id = dados.id
 	gatilho.texto = tr("Selecionar") + " " + dados.nome
 	gatilho.alcance = 64.0
+	# Acima do RETRATO, e nao do chao: ele tem 128 px ancorados na base, entao um
+	# prompt na altura do terminal cairia dentro do personagem.
+	gatilho.altura_do_prompt = 152.0
+	if dados.miniatura != null:
+		gatilho.altura_do_prompt = dados.miniatura.get_height() + 24.0
 	gatilho.interagido.connect(func(_quem: Node2D) -> void:
 		_selecionar_personagem(String(dados.id))
 	)
@@ -260,6 +265,7 @@ func _montar_terminal(onde: Vector2) -> void:
 	gatilho.id = &"historico"
 	gatilho.texto = tr("Histórico de Runs")
 	gatilho.alcance = 64.0
+	gatilho.altura_do_prompt = 64.0
 	gatilho.interagido.connect(func(_quem: Node2D) -> void: _abrir_historico())
 	raiz.add_child(gatilho)
 
@@ -280,6 +286,7 @@ func _montar_elevador(onde: Vector2) -> void:
 	gatilho.id = &"andar_01"
 	gatilho.texto = tr("Iniciar Andar 1")
 	gatilho.alcance = 72.0
+	gatilho.altura_do_prompt = 80.0
 	gatilho.interagido.connect(func(_quem: Node2D) -> void: _confirmar_run())
 	raiz.add_child(gatilho)
 
@@ -335,18 +342,16 @@ func _montar_movel(raiz: Node2D, meia: Vector2, corpo: Color, painel: Color) -> 
 ## e isso nao e economia de tela, e leitura. Uma barra de Deterioracao parada em
 ## zero MENTE: ela diz que existe um relogio correndo. O HUD e onde o jogador le
 ## se esta em perigo, e o Lobby precisa dizer que nao esta.
+##
+## **Ele mora no MUNDO e nao na `CanvasLayer`.** A primeira versao era um rotulo
+## no rodape da tela, e ela falhava justamente com as duas capsulas lado a lado:
+## um texto na base obriga o jogador a ligar uma frase ali a um corpo no meio da
+## tela, e andar um passo troca a frase sem nada indicar qual das duas mudou. Em
+## cima do objeto nao ha o que ligar -- a tecla esta onde a coisa esta.
 func _montar_prompt() -> void:
-	_prompt = Label.new()
+	_prompt = PromptDeInteracao.new()
 	_prompt.name = "Prompt"
-	_prompt.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_prompt.offset_left = -240.0
-	_prompt.offset_right = 240.0
-	_prompt.offset_top = -72.0
-	_prompt.offset_bottom = -40.0
-	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_prompt.visible = false
-	_prompt.add_theme_color_override("font_color", COR_ACESA)
-	_ui.add_child(_prompt)
+	add_child(_prompt)
 
 
 func _equipar_detector() -> void:
@@ -356,22 +361,19 @@ func _equipar_detector() -> void:
 	var detector := DetectorDeInteracao.new()
 	detector.name = "DetectorDeInteracao"
 	detector.dono = player
-	# Layer 6 e `pickup`: o detector nao e um pickup, mas e uma Area2D que so
-	# precisa VER outras areas, e a mask dele e quem manda. Ele monitora tudo e
-	# filtra por tipo em `_ao_entrar`, que e mais barato de manter do que uma
-	# layer nova so para tres objetos.
+	# Ele nao ocupa layer nenhuma -- nao ha o que o detecte -- e VE a layer 1,
+	# que e onde o `Interativo` nasce. Filtrar por tipo em `_ao_entrar` cobre o
+	# resto: uma layer nova so para tres objetos seria mais uma linha na tabela
+	# de `project.godot` para todo mundo ter de conhecer.
 	detector.collision_layer = 0
-	detector.collision_mask = 0xFFFFFFFF
+	detector.collision_mask = 1
 	detector.alvo_mudou.connect(_ao_alvo_mudar)
 	player.add_child(detector)
 
 
-func _ao_alvo_mudar(texto: String) -> void:
-	if _prompt == null:
-		return
-	_prompt.visible = not texto.is_empty()
-	if not texto.is_empty():
-		_prompt.text = "[E] %s" % texto
+func _ao_alvo_mudar(alvo: Interativo) -> void:
+	if _prompt != null:
+		_prompt.apontar(alvo)
 
 
 ## Acende a plataforma de quem esta selecionado e apaga as outras.

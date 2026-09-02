@@ -13,7 +13,10 @@ func _ready() -> void:
 	await get_tree().process_frame
 	var p := get_tree().get_first_node_in_group("player") as Node2D
 	if p != null:
-		p.global_position = Vector2(0, -140)
+		# Colado na capsula da RAVEN, para o prompt aparecer.
+		p.global_position = Vector2(-88, -100)
+	await get_tree().process_frame
+	await get_tree().process_frame
 	await get_tree().process_frame
 	await get_tree().process_frame
 	await get_tree().create_timer(0.3).timeout

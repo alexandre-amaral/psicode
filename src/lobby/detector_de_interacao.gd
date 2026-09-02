@@ -11,8 +11,12 @@ extends Area2D
 ## que interagir, e um detector varrendo a cada frame durante o combate seria
 ## trabalho de fisica pago para sempre por uma resposta que e sempre `null`.
 
-## Emitido quando o alvo muda. `texto` vazio = nao ha nada por perto.
-signal alvo_mudou(texto: String)
+## Emitido quando o alvo muda. `null` = nao ha nada por perto.
+##
+## Entrega o OBJETO e nao o texto dele. Com o texto, quem escuta sabia o QUE
+## dizer e nao ONDE dizer -- e o prompt precisa das duas coisas para nascer em
+## cima da peca certa.
+signal alvo_mudou(alvo: Interativo)
 
 @export var dono: Node2D = null
 
@@ -20,7 +24,31 @@ var _perto: Array[Interativo] = []
 var _alvo: Interativo = null
 
 
+## O RAIO do detector, e ele e pequeno de proposito.
+##
+## Quem decide a que distancia se pode interagir e o OBJETO, pelo `alcance`
+## dele: um terminal encostado na parede e um elevador de dois metros nao pedem
+## a mesma aproximacao. Entao o detector representa so o CORPO do jogador, e o
+## encontro acontece quando esse corpo entra no circulo do objeto.
+##
+## Um detector grande inverteria a autoridade -- o alcance passaria a ser o
+## maior dos dois --, e o `alcance` de cada peca viraria enfeite.
+const RAIO := 8.0
+
+
 func _ready() -> void:
+	# A FORMA, e ela nasce aqui porque sem forma uma `Area2D` NAO DETECTA NADA.
+	#
+	# A primeira versao nao tinha: monitoring ligado, mask aberta, o objeto
+	# monitorable e a 44 px de um alcance de 64 -- e zero sobreposicoes. Nao ha
+	# erro no console para uma area sem forma; ela simplesmente nunca encontra
+	# ninguem, e o prompt nunca aparece.
+	var forma := CollisionShape2D.new()
+	var circulo := CircleShape2D.new()
+	circulo.radius = RAIO
+	forma.shape = circulo
+	add_child(forma)
+
 	monitoring = true
 	monitorable = false
 	area_entered.connect(_ao_entrar)
@@ -89,4 +117,4 @@ func _reavaliar() -> void:
 	if melhor == _alvo:
 		return
 	_alvo = melhor
-	alvo_mudou.emit(_alvo.texto if _alvo != null else "")
+	alvo_mudou.emit(_alvo)

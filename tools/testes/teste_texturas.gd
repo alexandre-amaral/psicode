@@ -750,20 +750,21 @@ const PISO_AMPLITUDE := 0.58
 ## continuar reprovando, senao a linha fica aqui para sempre depois que a arte
 ## chegar, cobrindo em silencio o dia em que ela se perder.
 ##
-## Os tres topos, e UM canto.
+## **Ela esta VAZIA, e o caminho ate aqui vale registrar.** Entraram sete nomes:
+## os quatro cantos e os tres topos. Tres cantos sairam na TOPO 04 sem ninguem
+## mexer neles -- rebaixar a rampa preservou a distancia entre os degraus
+## enquanto derrubava a mediana, e a amplitude subiu de 0,54 para 0,68 de graca.
+## Os tres topos sairam na TOPO 05, com arte nova. E o quarto canto, o `ne`,
+## saiu na TOPO 06 -- e ele e o mais interessante dos sete.
 ##
-## Os quatro cantos entraram na lista e TRES sairam na mesma issue: rebaixar a
-## rampa deles na TOPO 04 levou a amplitude de 0,54 para 0,68, porque a distancia
-## entre os degraus foi preservada enquanto a mediana caiu. O que a lista revelou
-## e que **o `ne` nao acompanhou: 0,39 contra 0,68 dos outros tres.** As quatro
-## pecas deviam ser a mesma peca em quatro orientacoes e nao sao -- ha assimetria
-## no gerador, e nenhum portao perguntava isso antes. E a TOPO 06.
-##
-## Os topos medem 0,20-0,27 contra 0,58 do piso, e sao exatamente a superficie
-## que o dono do projeto apontou como "nao parece parede". E a TOPO 05.
-const SEM_AMPLITUDE_AINDA: Array[String] = [
-	"modulo_canto_ne.png",
-]
+## O `ne` media 0,39 contra 0,68 dos irmaos, e a primeira leitura foi "ha
+## assimetria no gerador". **Estava errada.** As quatro pecas sao
+## estruturalmente identicas; o que mudava era a contagem de grao do `_chapa`:
+## NO 10,4% de pixels abaixo da mediana, NE 10,0%, SO 10,6%, SE 10,8%. Com o
+## p10 caindo exatamente nessa borda, NOVE PIXELS decidiam se ele lia 0,086 ou
+## 0,122. Nao havia assimetria -- havia escuro DE MENOS, e um percentil lido em
+## cima de um degrau do histograma. A junta consertou a causa.
+const SEM_AMPLITUDE_AINDA: Array[String] = []
 
 
 func _arquivos() -> void:

@@ -56,9 +56,12 @@ const MODULO := 32.0
 ## cortada -- e nao como erro. Por isso o portao de `teste_camera.gd` nao compara
 ## as duas constantes: ele MEDE onde a fita chegou.
 static func alcance(perfil: PerfilDeParede = null) -> float:
-	if perfil != null:
-		return perfil.alcance()
-	return PerfilDeParede.new().alcance()
+	return (perfil if perfil != null else PerfilDeParede.new()).alcance()
+
+
+## O alcance POR EIXO. Ver `PerfilDeParede.alcance_por_eixo()`.
+static func alcance_por_eixo(perfil: PerfilDeParede = null) -> Vector2:
+	return (perfil if perfil != null else PerfilDeParede.new()).alcance_por_eixo()
 
 
 ## Um lado curto demais nao recebe fita: com menos de um modulo nao ha o que
@@ -166,7 +169,7 @@ static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 			continue
 		_vestir_lado(raiz, contorno, a, b, portas, semente ^ (i * 0x9e3779b1),
 			topos, faces, peso_comum, espacamento, regra, ancora, silhueta)
-	_vestir_cantos(raiz, contorno, cantos)
+	_fechar_quinas(raiz, contorno, regra, topos, ancora, silhueta)
 	return raiz
 
 
@@ -494,27 +497,30 @@ static func _sorteia(lista: Array[Texture2D], chave: int) -> Texture2D:
 	return lista[absi(chave) % lista.size()]
 
 
-## O canto de cada quina CONVEXA, onde a face do norte termina.
+## A QUINA E FECHADA, e nao decorada.
 ##
-## Ele existe porque o norte tem topo e face e as laterais tem so topo: a quina e
-## um DEGRAU, e nao um encontro de dois retangulos. Hoje so as duas quinas de
-## cima tem peca -- as de baixo fazem a transicao inversa, de lateral alta para
-## parede sul baixa, e sao problema proprio (PAREDE 06).
+## Antes cada quina recebia um sprite de **64x64** desenhado POR CIMA das
+## celulas vizinhas: uma laje com um pilar, com aresta acesa, cinta e rebites.
+## Ele existia porque a quina era um DEGRAU entre um lado com face e outro sem,
+## e o pilar escondia o degrau.
 ##
-## O deslocamento sai da soma das duas normais externas, e nao de uma tabela: com
-## tabela, a sala em L entraria com o canto no lugar errado no dia em que uma
-## quina nova aparecesse.
-## O renderizador recebe LISTAS de textura, e nao o `EstiloDeParede`.
+## Com a faixa fina do perfil C -- 16 a 24 px -- aquela peca passou a ser tres
+## vezes maior que a parede que ela fecha, e virou o defeito mais visivel da
+## sala: **quatro blocos dominantes nos cantos fazem a sala inteira parecer
+## construida com cubos.** E a §28 do plano: o canto CONECTA superficies, ele
+## nao e um pilar.
 ##
-## Quem resolve o kit e a `Sala`, que sabe cair no neutro quando nao ha
-## `DadosSala` -- e isso acontece de verdade: sala aberta sozinha no editor, a
-## amostra que o catalogo instancia, e toda suite que monta uma sala sem visual.
-## Com o renderizador lendo o recurso, essas salas perdiam os cantos em silencio
-## enquanto a fita continuava desenhando, e o portao pegou exatamente isso.
-static func _vestir_cantos(raiz: Node2D, contorno: PackedVector2Array,
-		cantos: Array[Texture2D]) -> void:
-	if cantos.is_empty():
-		return
+## Entao ele deixa de ser arte e vira geometria: um quad do tamanho exato do vao
+## entre as duas faixas, com a MESMA textura de topo e a MESMA ancora de UV. Ele
+## nao se ve -- e esse e o ponto. A quina passa a ser o lugar onde duas
+## superficies se encontram, e nao uma peca em cima delas.
+##
+## O `cantos` continua na assinatura de `construir()` porque o kit ainda o
+## declara; ele so nao e mais desenhado. Tirar o campo e outra issue, e ela nao
+## tem pressa -- campo nao usado nao aparece na tela.
+static func _fechar_quinas(raiz: Node2D, contorno: PackedVector2Array,
+		perfil: PerfilDeParede, topos: Array[Texture2D], ancora: Vector2,
+		silhueta: bool) -> void:
 	var total := contorno.size()
 	for i in total:
 		var anterior := contorno[(i - 1 + total) % total]
@@ -524,17 +530,44 @@ static func _vestir_cantos(raiz: Node2D, contorno: PackedVector2Array,
 			continue
 		var n1 := normal_externa(contorno, anterior, v)
 		var n2 := normal_externa(contorno, v, proximo)
-		var indice := _canto_de(classificar(n1), classificar(n2))
-		var textura: Texture2D = cantos[indice] if indice >= 0 and indice < cantos.size() else null
-		if textura == null:
+		if n1 == Vector2.ZERO or n2 == Vector2.ZERO:
 			continue
-		var sprite := Sprite2D.new()
-		sprite.texture = textura
-		sprite.position = v + (n1 + n2) * (Sala.ESPESSURA_PAREDE * 0.5)
-		raiz.add_child(sprite)
+		# Quina reta: as duas normais sao perpendiculares. Num contorno
+		# degenerado elas podem ser iguais, e ai nao ha vao para fechar.
+		if absf(n1.dot(n2)) > 0.5:
+			continue
+		var d1 := perfil.profundidade(classificar(n1))
+		var d2 := perfil.profundidade(classificar(n2))
+		if d1 <= 0.0 or d2 <= 0.0:
+			continue
+		# O vao e o retangulo que os dois lados NAO alcancam: cada um cobre ao
+		# longo do proprio segmento, e sobra o quadrado na diagonal da quina.
+		var quad := Polygon2D.new()
+		var cantos_do_vao := PackedVector2Array([
+			v,
+			v + n1 * d1,
+			v + n1 * d1 + n2 * d2,
+			v + n2 * d2,
+		])
+		var centro := (cantos_do_vao[0] + cantos_do_vao[2]) * 0.5
+		quad.position = centro
+		var relativos := PackedVector2Array()
+		for ponto in cantos_do_vao:
+			relativos.append(ponto - centro)
+		quad.polygon = relativos
+		var textura := _sorteia(topos, hash(v))
+		if silhueta or textura == null:
+			quad.color = COR_TOPO
+		else:
+			quad.texture = textura
+			quad.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+			# A MESMA ancora das faixas: e isso que faz a quina ser a
+			# continuacao do desenho em vez de um remendo com textura propria.
+			quad.texture_offset = centro - ancora
+		raiz.add_child(quad)
 
 
-## Qual canto do kit cobre esta quina. -1 quando a quina nao e um encontro de um
+## Qual canto do kit cobre esta quina.## Qual canto do kit cobre esta quina. -1 quando a quina nao e um encontro de um
 ## lado horizontal com um vertical -- o que so acontece em contorno degenerado.
 ##
 ## As quinas CONCAVAS caem no mesmo mapa, de proposito. Medindo a geometria, as
@@ -597,3 +630,8 @@ static func _caixa(pontos: PackedVector2Array) -> Rect2:
 	for i in range(1, pontos.size()):
 		caixa = caixa.expand(pontos[i])
 	return caixa
+
+
+## As quatro margens da camera. Ver `PerfilDeParede.margens()`.
+static func margens(perfil: PerfilDeParede = null) -> Vector4:
+	return (perfil if perfil != null else PerfilDeParede.new()).margens()

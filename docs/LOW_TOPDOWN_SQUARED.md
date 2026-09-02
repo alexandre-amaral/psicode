@@ -531,6 +531,26 @@ Room
 
 ---
 
+> **SUPERADA PELO EPICO DA MOLDURA (#155), e a substituicao esta medida.**
+>
+> A razao 1:1 +/-25% era a forma operacional desta secao. O epico da moldura
+> mediu que 32/32 nos quatro lados produz uma faixa ocupando **28,6% do quadro**
+> contra os 10-20% que o plano da moldura pede, e que essa faixa e o que fazia a
+> sala ler como blocos em volta em vez de como sala. A saida foi **assimetria**,
+> que quebra a razao por construcao.
+>
+> O perfil em vigor e o C: norte 16 de topo e 24 de face, laterais 16/16, sul 16.
+> Moldura em 19,5%.
+>
+> **O que a §24 protegia continua protegido**, e virou o portao novo: a FACE
+> NORTE e a superficie dominante do norte (razao 1,0-2,0), ela e maior que a
+> parede sul inteira, e as laterais sao mais rasas que a norte. Ela e a unica
+> vista de FRENTE, e e dela que vem a altura da sala -- encolhe-la junto com o
+> resto era o unico jeito de perder volume, e e isso que o portao impede.
+>
+> Fica em aberto, e declarado: os PROPS continuam desenhados na razao antiga.
+> Enquanto forem poucos e pequenos isso nao aparece; num prop grande, vai.
+
 ## 24. Regra visual mais importante
 
 Todos os elementos precisam compartilhar aproximadamente a **mesma câmera

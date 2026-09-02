@@ -62,8 +62,12 @@ func executar() -> void:
 ## foi mais longe em cada direcao, e exige que a margem da camera bata com ela
 ## nos quatro lados. Assim ele continua valendo no dia em que a parede sul ficar
 ## mais rasa -- o que o plano quer -- sem ninguem precisar lembrar de mexer aqui.
-func _a_margem_deriva_da_parede(margem: float) -> void:
-	ok(margem > 0.0, "a margem e positiva (sem ela a parede nunca entra no quadro)")
+func _a_margem_deriva_da_parede(margem: Vector4) -> void:
+	ok(margem.x > 0.0 and margem.y > 0.0 and margem.z > 0.0 and margem.w > 0.0,
+		"as quatro margens sao positivas (sem elas a parede nunca entra no quadro)")
+	ok(margem.y > margem.w,
+		"e a de CIMA e maior que a de BAIXO -- e a assimetria que carrega a perspectiva (%.0f contra %.0f)"
+			% [margem.y, margem.w])
 	var conferidas := 0
 	for caminho in CENAS:
 		var cena: PackedScene = load(caminho)
@@ -73,7 +77,7 @@ func _a_margem_deriva_da_parede(margem: float) -> void:
 		sala.configurar_conexoes([])
 		Engine.get_main_loop().root.add_child(sala)
 		sala.global_position = Vector2(31000, 31000)
-		var fita := sala.get_node_or_null("ParedeModulos")
+		var fita := sala.get_node_or_null("ParedeModulos") as Node2D
 		if fita == null:
 			sala.free()
 			continue
@@ -81,25 +85,31 @@ func _a_margem_deriva_da_parede(margem: float) -> void:
 		var caixa := Rect2(contorno[0], Vector2.ZERO)
 		for ponto in contorno:
 			caixa = caixa.expand(ponto)
-		var alcance := 0.0
-		for filho in fita.get_children():
-			var sprite := filho as Sprite2D
-			if sprite == null or sprite.texture == null:
-				continue
-			var meia: Vector2 = (sprite.region_rect.size if sprite.region_enabled \
-				else sprite.texture.get_size()) * 0.5
-			alcance = maxf(alcance, caixa.position.y - (sprite.position.y - meia.y))
-			alcance = maxf(alcance, (sprite.position.y + meia.y) - caixa.end.y)
-			alcance = maxf(alcance, caixa.position.x - (sprite.position.x - meia.x))
-			alcance = maxf(alcance, (sprite.position.x + meia.x) - caixa.end.x)
-		conferidas += 1
-		perto(
-			margem, alcance,
-			"%s: a margem da camera bate com onde a fita chegou (%.0f contra %.0f)"
-				% [caminho.get_file(), margem, alcance]
+		var desenhado := caixa_das_pecas(fita)
+		# POR EIXO, porque a parede deixou de ser simetrica: as laterais sao mais
+		# estreitas que a norte, e um numero so usaria a maior nos dois lados --
+		# a camera passaria a mostrar vazio do lado estreito.
+		# POR LADO, porque a parede deixou de ser simetrica ate no eixo
+		# vertical: o norte desenha 40 px e o sul 16, e um numero unico faria a
+		# camera mostrar 24 px de vazio embaixo.
+		var alcance := Vector4(
+			caixa.position.x - desenhado.position.x,
+			caixa.position.y - desenhado.position.y,
+			desenhado.end.x - caixa.end.x,
+			desenhado.end.y - caixa.end.y
 		)
+		conferidas += 1
+		var nomes := ["esquerda", "cima", "direita", "baixo"]
+		var medidos := [alcance.x, alcance.y, alcance.z, alcance.w]
+		var esperados := [margem.x, margem.y, margem.z, margem.w]
+		for i in 4:
+			perto(
+				esperados[i], medidos[i],
+				"%s: a margem de %s bate com onde a parede chegou (%.0f contra %.0f)"
+					% [caminho.get_file(), nomes[i], esperados[i], medidos[i]], 2.0
+			)
 		sala.free()
-	ok(conferidas >= 5, "a varredura mediu a fita das salas (%d)" % conferidas)
+	ok(conferidas >= 5, "a varredura mediu a parede das salas (%d)" % conferidas)
 
 
 ## O portao de verdade: o retangulo que a camera usa tem de coincidir com o que a
@@ -117,7 +127,7 @@ func _a_margem_deriva_da_parede(margem: float) -> void:
 ## isso a caixa passou a sair de `caixa_das_pecas()`, compartilhada com o caso
 ## anterior -- uma funcao a mais e um lugar a menos onde o alvo pode envelhecer
 ## sozinho.
-func _o_clamp_cobre_a_parede_e_mais_nada(margem: float) -> void:
+func _o_clamp_cobre_a_parede_e_mais_nada(margem: Vector4) -> void:
 	var conferidas := 0
 	for caminho in CENAS:
 		var cena: PackedScene = load(caminho)
@@ -137,8 +147,9 @@ func _o_clamp_cobre_a_parede_e_mais_nada(margem: float) -> void:
 			sala.free()
 			continue
 
-		# O que a camera vai enquadrar: o contorno mais a margem.
-		var esperado := _caixa(sala.contorno_local()).grow(margem)
+		# O que a camera vai enquadrar: o contorno mais a margem, POR EIXO.
+		var esperado := _caixa(sala.contorno_local()).grow_individual(
+			margem.x, margem.y, margem.z, margem.w)
 		# O que a parede de fato desenhou.
 		var real := caixa_das_pecas(fita)
 
@@ -165,9 +176,9 @@ func _o_clamp_cobre_a_parede_e_mais_nada(margem: float) -> void:
 
 ## Instancia sem entrar na arvore: `_ready` do gerenciador chama iniciar_run(),
 ## e isso nao cabe numa suite unitaria. `new()` sozinho nao dispara `_ready`.
-func _margem() -> float:
+func _margem() -> Vector4:
 	var gerenciador := GerenciadorMapa.new()
-	var margem := gerenciador.margem_da_parede()
+	var margem: Vector4 = gerenciador.margem_da_parede()
 	gerenciador.free()
 	return margem
 

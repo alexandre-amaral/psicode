@@ -240,25 +240,49 @@ func _toda_quina_recebe_canto() -> void:
 		if fita == null:
 			sala.free()
 			continue
-		# A celula de fita e um RECORTE da textura autorada, entao ela tem
-		# `region_enabled`. O canto e a peca inteira, e nao tem. E a unica
-		# diferenca estrutural entre as duas, e ela nao depende de tamanho -- o
-		# dia em que um canto tiver outro lado, esta conta continua valendo.
+		# A QUINA NAO E MAIS UMA PECA, e a pergunta mudou junto.
+		#
+		# Antes o canto era um sprite inteiro (sem `region_enabled`) desenhado
+		# POR CIMA das celulas, e bastava conta-los. Com a MOLDURA 12 ele virou
+		# um quad de PREENCHIMENTO do tamanho exato do vao entre as duas faixas
+		# -- ele nao se ve, e esse e o ponto.
+		#
+		# Entao o que se cobra deixou de ser "ha uma peca ali" e passou a ser
+		# **nao ha buraco ali**: para cada vertice, alguma peca da fita cobre o
+		# ponto logo fora da quina, na diagonal das duas normais.
 		var deste := 0
-		for filho in fita.get_children():
-			var sprite := filho as Sprite2D
-			if sprite != null and not sprite.region_enabled:
+		var total_de_quinas := contorno.size()
+		for i in total_de_quinas:
+			var v: Vector2 = contorno[i]
+			var anterior: Vector2 = contorno[(i - 1 + total_de_quinas) % total_de_quinas]
+			var proximo: Vector2 = contorno[(i + 1) % total_de_quinas]
+			var n1 := RenderizadorParedes.normal_externa(contorno, anterior, v)
+			var n2 := RenderizadorParedes.normal_externa(contorno, v, proximo)
+			var diagonal := (n1 + n2)
+			if diagonal == Vector2.ZERO:
 				deste += 1
+				continue
+			var sonda: Vector2 = v + diagonal.normalized() * 6.0
+			for filho in fita.get_children():
+				var poly := filho as Polygon2D
+				if poly == null or poly.polygon.size() < 3:
+					continue
+				var absoluto := PackedVector2Array()
+				for ponto in poly.polygon:
+					absoluto.append(poly.position + ponto)
+				if Geometry2D.is_point_in_polygon(sonda, absoluto):
+					deste += 1
+					break
 		quinas += contorno.size()
 		cantos += deste
 		igual(
 			deste, contorno.size(),
-			"%s: as %d quinas receberam canto (%d)"
+			"%s: as %d quinas estao FECHADAS, sem buraco (%d)"
 				% [caminho.get_file(), contorno.size(), deste]
 		)
 		sala.free()
 	ok(quinas >= 38, "a varredura contou as quinas das nove formas (%d)" % quinas)
-	igual(cantos, quinas, "nenhuma quina ficou sem peca (%d de %d)" % [cantos, quinas])
+	igual(cantos, quinas, "nenhuma quina ficou com buraco (%d de %d)" % [cantos, quinas])
 
 
 ## A VARIANTE e deterministica, o comum domina, e o espacamento MORDE.
@@ -437,6 +461,11 @@ func _o_acabamento_existe_e_cabe_na_faixa() -> void:
 			sala.free()
 			continue
 		var contorno := sala.contorno_local()
+		var caixa_do_chao := Rect2(contorno[0], Vector2.ZERO)
+		for ponto in contorno:
+			caixa_do_chao = caixa_do_chao.expand(ponto)
+		var eixo := RenderizadorParedes.alcance_por_eixo()
+		var perfil := PerfilDeParede.new()
 		var tiras := 0
 		var fora := 0
 		var costuras_ao_sul := 0
@@ -446,17 +475,26 @@ func _o_acabamento_existe_e_cabe_na_faixa() -> void:
 			if poly == null or poly.polygon.is_empty():
 				continue
 			tiras += 1
-			# A profundidade de cada vertice, medida a partir do lado mais
-			# proximo do contorno. Fora de [0, 64] a peca saiu da faixa.
+			# POR EIXO, e nao por distancia ao segmento mais proximo.
+			#
+			# A distancia diagonal reprovava o quad que FECHA a quina: ele
+			# alcanca `dx` num eixo e `dy` no outro, e a hipotenusa passa dos
+			# dois. Isso nao e sair da faixa -- a camera tambem cresce por
+			# eixo, entao a pergunta certa e por eixo.
 			for ponto in poly.polygon:
 				var mundo: Vector2 = poly.position + ponto
-				var d := _profundidade(mundo, contorno)
-				if d < -0.5 or d > alcance + 0.5:
+				if mundo.x < caixa_do_chao.position.x - eixo.x - 0.5 \
+					or mundo.x > caixa_do_chao.end.x + eixo.x + 0.5 \
+					or mundo.y < caixa_do_chao.position.y - eixo.y - 0.5 \
+					or mundo.y > caixa_do_chao.end.y + eixo.y + 0.5:
 					fora += 1
 			if poly.color.is_equal_approx(RenderizadorParedes.N4) 					or poly.color.is_equal_approx(RenderizadorParedes.N7):
 				var meio := poly.position
 				var d := _profundidade(meio, contorno)
-				if absf(d - RenderizadorParedes.COSTURA) <= 2.0:
+				# A costura saiu da const e passou a vir do PERFIL: com a
+				# parede assimetrica ela cai em 24 no norte e em 16 nas
+				# laterais, e um numero unico so acharia a de um dos lados.
+				if absf(d - perfil.face_norte) <= 3.0 						or absf(d - perfil.face_lateral) <= 3.0:
 					costuras += 1
 					# Ao sul a fita e topo puro: costura ali e linha no meio de
 					# uma superficie continua.
@@ -464,8 +502,8 @@ func _o_acabamento_existe_e_cabe_na_faixa() -> void:
 						costuras_ao_sul += 1
 		var nome := caminho.get_file()
 		ok(tiras > 0, "%s: a fita monta acabamento (%d tiras)" % [nome, tiras])
-		igual(fora, 0, "%s: nenhum vertice do acabamento sai da faixa de %.0f px (%d)"
-			% [nome, alcance, fora])
+		igual(fora, 0, "%s: nenhum vertice sai da faixa (%.0fx%.0f px) (%d)"
+			% [nome, eixo.x, eixo.y, fora])
 		ok(costuras > 0, "%s: a costura existe onde ha face (%d)" % [nome, costuras])
 		igual(costuras_ao_sul, 0,
 			"%s: nenhuma costura na parede SUL -- la nao ha face para virar (%d)"

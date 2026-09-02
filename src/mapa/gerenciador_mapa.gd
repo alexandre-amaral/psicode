@@ -1335,7 +1335,14 @@ func _clampar(limites: Rect2) -> void:
 	var camera := player.get_node_or_null("Camera") as Camera2D
 	if camera == null:
 		return
-	var visivel := limites.grow(margem_da_parede())
+	# CRESCE POR EIXO, e nao por um numero so.
+	#
+	# Com a parede assimetrica -- laterais estreitas, norte mais funda -- um
+	# escalar unico usaria o maior dos dois nos dois eixos, e a camera mostraria
+	# vazio do lado estreito. Sao 8 px por lado no perfil C: pouco para notar de
+	# relance, e o suficiente para uma tira de nada aparecer na borda do quadro.
+	var margem := margem_da_parede()
+	var visivel := limites.grow_individual(margem.x, margem.y, margem.z, margem.w)
 	_ajustar_zoom(camera, visivel.size)
 	camera.limit_left = roundi(visivel.position.x)
 	camera.limit_top = roundi(visivel.position.y)
@@ -1367,8 +1374,8 @@ func _clampar(limites: Rect2) -> void:
 ## e e isso que `tools/testes/teste_camera.gd` trava. O conserto e geometrico --
 ## sala de 832x416 fecharia 960x544 exato -- e mexe em tamanho de sala, que a
 ## Fase 25 do plano de migracao proibe alterar enquanto ela acontece.
-func margem_da_parede() -> float:
-	return RenderizadorParedes.alcance()
+func margem_da_parede() -> Vector4:
+	return RenderizadorParedes.margens()
 
 
 ## O clamp sozinho nao basta: Camera2D nao respeita limite menor que o proprio

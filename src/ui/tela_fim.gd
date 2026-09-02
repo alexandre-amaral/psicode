@@ -134,8 +134,21 @@ func _recomecar() -> void:
 	_ir_para_o_menu()
 
 
+## Voltar do fim da run e voltar ao LOBBY, e nao ao menu.
+##
+## O Lobby passou a ser o centro da experiencia: mandar o jogador ao menu depois
+## de cada derrota o faria atravessar duas telas para tentar de novo, e a segunda
+## delas nao tem nada que ele queira. E e la que o resultado que ele acabou de
+## produzir aparece -- o terminal ja foi atualizado antes de esta cena existir.
+##
+## Sem perfil carregado (a run comecou direto pelo `main.tscn`, como no teste de
+## fumaca e ao abrir a cena no editor) ele cai no menu, que continua sendo o
+## lugar certo para quem nao tem para onde voltar.
 func _ir_para_o_menu() -> void:
 	get_tree().paused = false
+	if Progressao.carregado():
+		get_tree().change_scene_to_file(GameState.CENA_LOBBY)
+		return
 	get_tree().change_scene_to_file("res://src/ui/menu_inicial.tscn")
 
 

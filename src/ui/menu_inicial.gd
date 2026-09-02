@@ -28,11 +28,18 @@ var _chaves: Dictionary = {}
 func _ready() -> void:
 	_mostrar_versao()
 
+	# BOTAO APAGADO, e nao um dialogo dizendo que nao ha nada.
+	#
+	# Um botao que existe, aceita clique e depois explica que nao faz nada e
+	# pior que um botao apagado: o apagado responde ANTES de o jogador gastar o
+	# clique. E ele volta a acender no instante em que houver perfil.
+	btn_carregar.disabled = not Save.save_existe()
+
 	_botoes = [btn_jogar, btn_carregar, btn_opcoes, btn_sair]
 
 	btn_jogar.pressed.connect(_on_btn_jogar_pressed)
 	btn_sair.pressed.connect(_on_btn_sair_pressed)
-	btn_carregar.pressed.connect(func(): print("Carregar não implementado"))
+	btn_carregar.pressed.connect(_on_btn_carregar_pressed)
 	btn_opcoes.pressed.connect(_abrir_opcoes)
 	_opcoes.fechado.connect(_ao_fechar_opcoes)
 	_selecao.escolhido.connect(_ao_escolher_personagem)
@@ -82,9 +89,86 @@ func _notification(que: int) -> void:
 		_on_btn_focus(btn.has_focus(), btn)
 
 ## NEW GAME abre a selecao; quem entra no jogo e a confirmacao dela.
+## NOVO JOGO cria um PERFIL, e nunca inicia uma run.
+##
+## Antes ele abria a selecao de operador e caia direto no `main.tscn`. Agora a
+## escolha de personagem e um lugar dentro do Lobby, e o menu volta a ser so
+## menu -- o que o plano resume em uma frase: o menu deixa de ser o centro da
+## experiencia.
+##
+## A CONFIRMACAO EXISTE DESDE A PRIMEIRA VERSAO, e nao e polimento para depois.
+## Este e o unico momento em que o jogo pode destruir horas de progresso do
+## jogador com um clique, e "nunca apagar automaticamente" e regra do plano.
 func _on_btn_jogar_pressed() -> void:
-	_painel.visible = false
-	_selecao.abrir()
+	if Save.save_existe():
+		_confirmar_sobrescrita()
+		return
+	_criar_perfil_e_entrar()
+
+
+func _confirmar_sobrescrita() -> void:
+	var caixa := ConfirmationDialog.new()
+	caixa.title = tr("NOVO JOGO")
+	caixa.dialog_text = tr("Iniciar um novo jogo substituirá o progresso atual.")
+	caixa.ok_button_text = tr("SUBSTITUIR")
+	caixa.cancel_button_text = tr("CANCELAR")
+	caixa.confirmed.connect(_criar_perfil_e_entrar)
+	caixa.canceled.connect(func() -> void: btn_jogar.grab_focus())
+	add_child(caixa)
+	caixa.popup_centered()
+
+
+func _criar_perfil_e_entrar() -> void:
+	Progressao.criar_novo()
+	_entrar_no_lobby()
+
+
+## CARREGAR passa a ter funcao objetiva: ele recupera um PERFIL.
+##
+## Nao uma run interrompida -- isso e recurso futuro e separado, e o plano diz
+## com todas as letras que o botao nao precisa disso agora.
+func _on_btn_carregar_pressed() -> void:
+	if Progressao.carregar():
+		_entrar_no_lobby()
+		return
+	# Save corrompido NAO pode crashar, e a frase tem de separar os dois casos:
+	# "nao ha jogo salvo" e "seu progresso nao abriu" sao conversas diferentes.
+	if Save.ultima_falha != Save.Falha.NAO_EXISTE and Save.backup_existe():
+		# Ha copia anterior: OFERECER, e nunca restaurar sozinho. Recuperar o
+		# backup descarta o save atual, e essa e uma decisao do jogador -- ele
+		# pode preferir tentar consertar o arquivo.
+		var recuperar := ConfirmationDialog.new()
+		recuperar.title = tr("CARREGAR")
+		recuperar.dialog_text = tr("Não foi possível carregar o arquivo de progresso.") 			+ "
+" + tr("Recuperar a cópia anterior?")
+		recuperar.ok_button_text = tr("RECUPERAR BACKUP")
+		recuperar.cancel_button_text = tr("VOLTAR")
+		recuperar.confirmed.connect(func() -> void:
+			var dados := Save.restaurar_backup()
+			if dados == null:
+				return
+			Progressao.adotar(dados)
+			_entrar_no_lobby()
+		)
+		recuperar.canceled.connect(func() -> void: btn_carregar.grab_focus())
+		add_child(recuperar)
+		recuperar.popup_centered()
+		return
+
+	var caixa := AcceptDialog.new()
+	caixa.title = tr("CARREGAR")
+	if Save.ultima_falha == Save.Falha.NAO_EXISTE:
+		caixa.dialog_text = tr("Nenhum jogo salvo.")
+	else:
+		caixa.dialog_text = tr("Não foi possível carregar o arquivo de progresso.")
+	caixa.ok_button_text = tr("VOLTAR")
+	caixa.confirmed.connect(func() -> void: btn_carregar.grab_focus())
+	add_child(caixa)
+	caixa.popup_centered()
+
+
+func _entrar_no_lobby() -> void:
+	get_tree().change_scene_to_file(GameState.CENA_LOBBY)
 
 
 func _ao_escolher_personagem(dados: DadosPersonagem) -> void:

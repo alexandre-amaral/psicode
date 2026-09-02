@@ -25,9 +25,11 @@ func executar() -> void:
 	_o_save_escreve_e_le_do_disco()
 	_o_save_nao_estoura_com_arquivo_corrompido()
 	_a_escrita_e_segura()
+	_o_backup_guarda_a_versao_ANTERIOR()
 	_o_historico_tem_teto_e_o_teto_morde()
 	_o_registro_de_run_so_conta_dentro_da_run()
 	_o_lobby_nao_liga_os_sistemas_da_run()
+	_o_CICLO_INTEIRO_sobrevive_a_fechar_o_jogo()
 
 
 ## Ida e volta pelo dicionario preserva os valores.
@@ -199,6 +201,49 @@ func _a_escrita_e_segura() -> void:
 	Save._caminho = antes
 
 
+## O backup guarda a versao ANTERIOR, e ele recupera.
+##
+## As duas travas cobrem falhas DIFERENTES, e por isso as duas existem: o
+## temporario protege contra a gravacao ser interrompida; o backup protege
+## contra a gravacao ter dado certo com conteudo ruim -- o caso que nenhuma
+## trava de arquivo pega. Um bug que zere o historico e grave com sucesso passa
+## limpo pelo temporario.
+func _o_backup_guarda_a_versao_ANTERIOR() -> void:
+	var antes := Save._caminho
+	Save._caminho = CAMINHO_DE_TESTE
+	Save.apagar_save()
+
+	var primeira := DadosSave.novo()
+	primeira.total_runs = 10
+	Save.salvar(primeira)
+	ok(not Save.backup_existe(),
+		"a primeira gravacao nao gera backup -- nao havia nada anterior")
+
+	var segunda := DadosSave.novo()
+	segunda.total_runs = 20
+	Save.salvar(segunda)
+	ok(Save.backup_existe(), "a segunda gravacao guarda a primeira")
+
+	# O backup e a versao ANTERIOR e nao a atual. Copiar depois de escrever
+	# faria as duas serem o mesmo arquivo, e um backup identico ao original nao
+	# recupera de nada.
+	var arquivo := FileAccess.open(CAMINHO_DE_TESTE, FileAccess.WRITE)
+	arquivo.store_string("{corrompido")
+	arquivo.close()
+	ok(Save.carregar() == null, "o save atual esta corrompido")
+
+	var recuperado := Save.restaurar_backup()
+	ok(recuperado != null, "o backup recupera")
+	if recuperado != null:
+		igual(recuperado.total_runs, 10,
+			"e o que volta e a versao ANTERIOR, nao a que quebrou")
+
+	Save.apagar_save()
+	ok(Save.restaurar_backup() == null,
+		"sem backup, restaurar devolve null em vez de prometer o que nao tem")
+	Save._caminho = antes
+
+
 ## O historico tem teto, e o teto MORDE.
 ##
 ## Teto que nunca e alcancado e teto que nunca foi testado -- a licao que
@@ -287,3 +332,95 @@ func _o_lobby_nao_liga_os_sistemas_da_run() -> void:
 	ok(GameState.Modo.RUN != GameState.Modo.LOBBY, "MODO tem valor proprio para RUN")
 	ok(GameState.Estado.PAUSADO != GameState.Estado.JOGANDO,
 		"e ESTADO continua descrevendo a run")
+
+
+## O CICLO INTEIRO, que e o criterio de pronto do epico.
+##
+## ```
+## NOVO JOGO -> Lobby -> selecionar Nova -> FECHAR -> abrir -> CARREGAR
+## -> Nova continua selecionada -> iniciar run -> morrer -> Lobby
+## -> o terminal mostra a derrota -> FECHAR -> carregar -> o historico esta la
+## ```
+##
+## O plano e explicito: **se esse fluxo funcionar, o sistema basico esta
+## correto.** Ele existe como um caso so, e nao dividido em seis, porque o que
+## ele prova nao esta em nenhum dos passos -- esta na CORRENTE. Cada elo ja tem
+## portao proprio nesta suite; o que falta e provar que nenhum deles perde o
+## anterior.
+##
+## "Fechar o jogo" aqui e reler do disco: o processo continua vivo, entao o que
+## se testa e o unico canal que sobreviveria a um fechamento de verdade -- o
+## arquivo. Um teste que reaproveitasse o objeto em memoria passaria com o save
+## quebrado, que e exatamente o defeito que ele existe para pegar.
+func _o_CICLO_INTEIRO_sobrevive_a_fechar_o_jogo() -> void:
+	var antes := Save._caminho
+	Save._caminho = CAMINHO_DE_TESTE
+	Save.apagar_save()
+
+	# --- NOVO JOGO -------------------------------------------------------
+	Progressao.criar_novo()
+	ok(Progressao.carregado(), "NOVO JOGO cria um perfil")
+	ok(Save.save_existe(), "e ele ja esta em disco antes de o jogador fazer nada")
+	igual(Progressao.personagem_selecionado(), "raven", "que comeca na Raven")
+
+	# --- escolher a NOVA no lobby ----------------------------------------
+	ok(Progressao.selecionar_personagem("nova"), "a selecao aceita a Nova")
+
+	# --- FECHAR e abrir de novo ------------------------------------------
+	Progressao.adotar(null)
+	ok(not Progressao.carregado(), "fechar o jogo esvazia o perfil em memoria")
+	ok(Progressao.carregar(), "CARREGAR le o perfil de volta")
+	igual(Progressao.personagem_selecionado(), "nova",
+		"e a NOVA continua selecionada -- veio do DISCO")
+
+	# --- iniciar a run ---------------------------------------------------
+	GameState.personagem = null
+	GameState.iniciar_run()
+	igual(GameState.modo, GameState.Modo.RUN, "iniciar a run muda o modo para RUN")
+	ok(Deterioracao.passiva_ativa,
+		"e AGORA a Deterioracao passiva liga -- e no lobby ela nao tinha ligado")
+	ok(RegistroRun.ativo(), "e ha run em curso")
+	if RegistroRun.run() != null:
+		igual(RegistroRun.run().personagem, "nova",
+			"a run entra com quem o perfil dizia")
+
+	EventBus.inimigo_morreu.emit(Vector2.ZERO, 1)
+	EventBus.inimigo_morreu.emit(Vector2.ZERO, 1)
+	EventBus.inimigo_morreu.emit(Vector2.ZERO, 1)
+
+	# --- morrer ----------------------------------------------------------
+	GameState.terminar_run(false)
+	igual(GameState.modo, GameState.Modo.RESULTADO, "terminar leva ao RESULTADO")
+	ok(not Deterioracao.passiva_ativa, "e desliga a passiva")
+	ok(not RegistroRun.ativo(), "e fecha a run")
+
+	# --- o terminal ja mostra a derrota ----------------------------------
+	var ultima := Progressao.ultima_run()
+	ok(ultima != null, "o historico ja tem a run")
+	if ultima != null:
+		ok(not ultima.venceu, "e ela e uma derrota")
+		igual(ultima.kills, 3, "com os abates que a run produziu")
+		igual(ultima.personagem, "nova", "e o personagem certo")
+		igual(ultima.id, 1, "e ela e a run numero 1")
+	igual(int(Progressao.estatisticas().get("total_derrotas", 0)), 1,
+		"e a derrota entrou no total")
+
+	# --- FECHAR de novo, e o historico continua la -----------------------
+	Progressao.adotar(null)
+	ok(Progressao.carregar(), "o perfil abre de novo")
+	var depois := Progressao.ultima_run()
+	ok(depois != null, "e o historico sobreviveu ao fechamento")
+	if depois != null:
+		igual(depois.kills, 3, "com os numeros intactos")
+		igual(depois.personagem, "nova", "e o personagem intacto")
+
+	# --- e o LOBBY continua sendo lobby ----------------------------------
+	GameState.entrar_lobby()
+	igual(GameState.modo, GameState.Modo.LOBBY, "voltar ao lobby fecha o ciclo")
+	ok(not Deterioracao.passiva_ativa, "sem a passiva ligada")
+
+	Save.apagar_save()
+	Save._caminho = antes
+	Progressao.adotar(null)
+	GameState.estado = GameState.Estado.MENU
+	GameState.modo = GameState.Modo.MENU

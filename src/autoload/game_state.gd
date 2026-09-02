@@ -1,8 +1,26 @@
 extends Node
-## Estado da run atual. Nao guarda meta-progressao ainda (fica para o pos-MVP).
+## Estado da run atual, e MODO do jogo. Sao dois eixos, e nao um.
+##
+## `Estado` descreve a RUN: ela esta rolando, pausada, perdida ou ganha. `Modo`
+## descreve ONDE o jogador esta: menu, lobby, run.
+##
+## **Fundir os dois num campo so seria o erro obvio**, e ele quebraria na
+## primeira pergunta util: "pausado" e "no lobby" nao sao alternativas, sao
+## respostas a perguntas diferentes -- da para estar no lobby com a arvore
+## pausada por um painel aberto. Com um campo so, abrir o terminal de historico
+## apagaria a informacao de que o jogador esta no lobby.
+##
+## A meta-progressao NAO mora aqui: quem guarda perfil e `Progressao`, quem le e
+## escreve o arquivo e `Save`, e quem conta a run enquanto ela acontece e
+## `RegistroRun`. Este autoload conduz o fluxo e nao guarda nada permanente.
 
 enum Estado { MENU, JOGANDO, PAUSADO, GAME_OVER, VITORIA }
 
+## Onde o jogador esta. RESULTADO e um instante, e nao uma cena: o plano diz com
+## todas as letras que nao e necessaria cena propria na primeira implementacao.
+enum Modo { MENU, LOBBY, RUN, RESULTADO }
+
+var modo: int = Modo.MENU
 var estado: int = Estado.MENU
 ## A run e medida em SALAS. Havia aqui um par onda_atual/total_ondas, de quando
 ## cada sala rodava uma sequencia de ondas; com a composicao decidida na
@@ -36,6 +54,20 @@ const CENA_MAIN := "res://src/main/main.tscn"
 ## default do player.tscn.
 var personagem: DadosPersonagem = null
 
+## A semente do andar em curso. Zero fora de uma run.
+var semente_da_run: int = 0
+
+
+## O `id` do personagem escolhido, como texto.
+##
+## O `RegistroRun` e o save guardam `id` e nunca o recurso: uma string nao muda
+## de caminho quando alguem reorganiza `src/player/`, e um `.tres` referenciado
+## de dentro do save levaria o historico inteiro junto numa refatoracao de pasta.
+func id_do_personagem() -> String:
+	if personagem == null:
+		return Progressao.personagem_selecionado()
+	return str(personagem.id)
+
 
 ## Pedido de quem carregou o menu para que ele abra a selecao de operador direto,
 ## sem o menu piscar antes.
@@ -68,7 +100,27 @@ func _process(delta: float) -> void:
 		tempo_run += delta
 
 
+## Entra no LOBBY, e o ponto e tudo que ele NAO faz.
+##
+## Nao liga a Deterioracao passiva, nao zera contador de run, nao mexe em
+## `Modificadores`, nao gera mapa, nao spawna. O Lobby e um estado persistente
+## separado, e a primeira regra do plano e essa.
+##
+## Ele DESLIGA a passiva de proposito em vez de so nao ligar: quem chega aqui
+## pode estar vindo de uma run que terminou, e uma barra que continua subindo no
+## lobby seria a mesma falha silenciosa que o projeto ja pagou uma vez -- so que
+## ao contrario.
+func entrar_lobby() -> void:
+	modo = Modo.LOBBY
+	estado = Estado.MENU
+	Deterioracao.passiva_ativa = false
+	RegistroRun.descartar()
+	get_tree().paused = false
+	Engine.time_scale = 1.0
+
+
 func iniciar_run() -> void:
+	modo = Modo.RUN
 	estado = Estado.JOGANDO
 	salas_limpas = 0
 	total_salas = 0
@@ -86,6 +138,11 @@ func iniciar_run() -> void:
 	Deterioracao.passiva_ativa = true
 	get_tree().paused = false
 	Engine.time_scale = 1.0
+	# A semente e guardada na run e nao usada aqui: e por ela que uma run
+	# interessante podera ser repetida, e que a geracao voltara identica quando
+	# houver save no meio da run.
+	semente_da_run = randi()
+	RegistroRun.comecar(id_do_personagem(), semente_da_run)
 
 
 func terminar_run(venceu: bool) -> void:
@@ -96,6 +153,19 @@ func terminar_run(venceu: bool) -> void:
 	# todos para o tuning: e a luta que passou do ponto.
 	_fechar_cronometro_do_chefe()
 	Deterioracao.passiva_ativa = false
+	modo = Modo.RESULTADO
+
+	# REGISTRA ANTES DE EMITIR, e a ordem importa.
+	#
+	# Quem escuta `run_terminada` troca de cena. Se o registro viesse depois, o
+	# terminal de historico do Lobby poderia abrir antes de a run ter entrado no
+	# perfil -- e o jogador veria a tela que existe para provar que o save
+	# funciona sem o resultado que ele acabou de produzir.
+	var resultado := RegistroRun.terminar(
+		venceu, "chefe" if venceu else "morte", tempo_run)
+	if resultado != null and Progressao.carregado():
+		Progressao.registrar_run(resultado)
+
 	EventBus.run_terminada.emit(venceu, estatisticas())
 
 

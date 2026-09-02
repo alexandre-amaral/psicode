@@ -263,6 +263,7 @@ func receber_dano(quantidade: int, impulso: Vector2 = Vector2.ZERO) -> bool:
 	if morto:
 		return false
 	vida -= quantidade
+	EventBus.dano_a_inimigo.emit(quantidade)
 	_knockback += impulso
 	_flash()
 	EventBus.pedido_hitstop.emit(0.025, 0.25)

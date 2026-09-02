@@ -26,6 +26,16 @@ signal recarga_iniciada(duracao: float)
 signal recarga_concluida()
 
 # --- Inimigos ---
+## Dano ENTREGUE a um inimigo, para quem conta estatistica de run.
+##
+## Existe para o `RegistroRun` nao precisar perguntar nada ao inimigo, e para o
+## inimigo nao precisar conhecer o save. E a regra 1 do projeto aplicada a
+## persistencia: quem faz algo emite, quem se importa escuta.
+##
+## Sem ele, a alternativa seria `inimigo_base.gd` incrementando um contador do
+## perfil -- e ai a arma faria o mesmo, e a sala tambem, e a persistencia
+## estaria espalhada por dez arquivos que nao tem nada a ver com ela.
+signal dano_a_inimigo(quantidade: int)
 signal inimigo_morreu(posicao: Vector2, creditos: int)
 signal inimigo_spawnou(inimigo: Node2D)
 

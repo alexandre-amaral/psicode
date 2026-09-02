@@ -55,8 +55,10 @@ const MODULO := 32.0
 ## mudasse um so veria o sintoma como uma tira preta na borda -- ou meia parede
 ## cortada -- e nao como erro. Por isso o portao de `teste_camera.gd` nao compara
 ## as duas constantes: ele MEDE onde a fita chegou.
-static func alcance() -> float:
-	return float(CELULA) * 2.0
+static func alcance(perfil: PerfilDeParede = null) -> float:
+	if perfil != null:
+		return perfil.alcance()
+	return PerfilDeParede.new().alcance()
 
 
 ## Um lado curto demais nao recebe fita: com menos de um modulo nao ha o que
@@ -105,6 +107,14 @@ const N7 := Color("5a6480")
 ## Todos DENTRO de `alcance()` = 64. Um pixel alem e a camera passa a mostrar
 ## vazio na borda do quadro, sem erro nenhum no console -- e por isso
 ## `teste_camera.gd` mede toda peca da fita, e nao so os sprites.
+## As cores do MODO SILHUETA, e elas nao sao arte.
+##
+## Chapadas de proposito: o teste que elas servem e "a sala tem forma de sala?".
+## Textura nenhuma, detalhe nenhum. Se a silhueta ler como grade de construcao,
+## nao ha arte que conserte -- o problema esta na geometria, e e ela que muda.
+const COR_TOPO := Color("31384c")
+const COR_FACE := Color("1a1e2b")
+
 const COSTURA := 32.0
 const SOMBRA_DA_COSTURA := 2.0
 const LABIO := 1.0
@@ -125,14 +135,23 @@ enum Lado { NORTE, SUL, LESTE, OESTE }
 static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 		semente: int, topos: Array[Texture2D], faces: Array[Texture2D],
 		cantos: Array[Texture2D], peso_comum: float = 0.65,
-		espacamento: int = 2, abertos: Array[Vector2] = []) -> Node2D:
+		espacamento: int = 2, abertos: Array[Vector2] = [],
+		perfil: PerfilDeParede = null, silhueta: bool = false) -> Node2D:
 	var raiz := Node2D.new()
 	raiz.name = "ParedeModulos"
 	raiz.z_index = Z_FITA
 	if contorno.size() < 3:
 		return raiz
 
-	if topos.is_empty():
+	var regra := perfil if perfil != null else PerfilDeParede.new()
+	# A ANCORA da textura e o canto da sala, e nao o inicio de cada faixa.
+	#
+	# E ela que faz duas faixas vizinhas continuarem o mesmo desenho em vez de
+	# cada uma recomecar a textura do zero -- e recomecar e exatamente o que
+	# produz a costura visivel que este epico existe para apagar.
+	var ancora := _caixa(contorno).position
+
+	if topos.is_empty() and not silhueta:
 		return raiz
 	for i in contorno.size():
 		var a := contorno[i]
@@ -146,107 +165,153 @@ static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 		if _e_aberto(normal_externa(contorno, a, b), abertos):
 			continue
 		_vestir_lado(raiz, contorno, a, b, portas, semente ^ (i * 0x9e3779b1),
-			topos, faces, peso_comum, espacamento)
+			topos, faces, peso_comum, espacamento, regra, ancora, silhueta)
 	_vestir_cantos(raiz, contorno, cantos)
 	return raiz
 
 
-## Um lado vira N celulas de 32 px.
+## Um lado vira UMA FAIXA CONTINUA por trecho, e nao N celulas de 32.
 ##
-## A celula que ENCOSTA num vao de porta fica de fora, e nao meio de fora: a
-## parede antiga aparece por baixo dela. O motivo e um numero que o plano nao
-## previu -- `Porta.LARGURA` e 80, e 80 nao e multiplo de 32, entao a porta ocupa
-## 2,5 celulas e as das pontas ficam meio dentro e meio fora. Resolver isso e a
-## PAREDE 07; aqui o desalinhamento fica VISIVEL em vez de disfarcado.
+## **Esta e a mudanca que o epico da moldura existe para fazer.** Antes, cada
+## lado instanciava dois `Sprite2D` por celula -- cerca de 360 por sala --, e
+## cada um deles recomecava a textura do zero. O resultado era o defeito que o
+## dono do projeto descreveu: a parede lia como `|tile|tile|tile|`, uma fileira
+## de blocos em volta da sala, e nao como uma superficie que a delimita.
+##
+## A grade de 32 NAO morreu -- ela so parou de ser desenhada. Colisao, geracao,
+## porta, mapa e posicionamento continuam nela. **Grade logica nao e grade
+## visual**, e separar as duas e o plano inteiro.
+##
+## O trecho vem PRIMEIRO agora. Antes ele era acumulado dentro do laco de
+## celulas, para o acabamento; agora ele e a primeira etapa e a superficie nasce
+## dele. E isso traz de graca o corte da porta: um vao parte a faixa em duas em
+## vez de abrir um buraco de celulas puladas.
 static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 		b: Vector2, portas: Array[Porta], semente: int, topos: Array[Texture2D],
-		faces: Array[Texture2D], peso_comum: float, espacamento: int) -> void:
+		faces: Array[Texture2D], peso_comum: float, espacamento: int,
+		perfil: PerfilDeParede, ancora: Vector2, silhueta: bool) -> void:
 	var comprimento := a.distance_to(b)
 	if comprimento < LADO_MINIMO:
 		return
-	var direcao := (b - a) / comprimento
 	var normal := normal_externa(contorno, a, b)
 	var lado := classificar(normal)
 
-	# O SUL mostra so o topo, e isso e fisica e nao economia: a face de uma
-	# parede ao sul olha para longe da camera, escondida pela propria parede. Nos
-	# outros tres lados ela aparece -- de frente no norte, de esguelha no leste e
-	# no oeste --, e e ela que faz a faixa ler escura.
-	var so_topo := lado == Lado.SUL
+	var fim_face := perfil.fim_da_face(lado)
+	var fundo := perfil.profundidade(lado)
+	if fundo <= 0.0:
+		return
 
-	# A GRADE E ANCORADA NA SALA, e nao no vertice de cada lado.
+	# A textura de cada superficie e sorteada UMA VEZ por lado, e nao por celula.
 	#
-	# Andar a partir do vertice fazia cada lado ter a propria grade, e a mesma
-	# porta caia em lugares diferentes dela conforme a paridade da meia dimensao
-	# daquela sala: nos lados de 960 o centro batia numa borda de celula e nos de
-	# 544 no MEIO de uma. O sintoma era a porta reservar 2 celulas num lado e 3 no
-	# outro para o mesmo vao de 64 -- e os 32 px de sobra apareciam como parede
-	# antiga ao lado do batente.
+	# Sortear por celula era o que produzia a variedade -- e tambem o que
+	# denunciava a celula. Com uma escolha por lado, a variedade passa a
+	# acontecer entre SALAS e entre LADOS, que e onde o jogador consegue le-la
+	# como material e nao como grade.
+	var textura_topo := _sorteia(topos, semente)
+	var textura_face := _face_da_celula(faces, semente,
+		_quer_especial(semente, peso_comum))
+
+	for trecho in trechos_livres(contorno, a, b, portas):
+		var de: Vector2 = trecho[0]
+		var ate: Vector2 = trecho[1]
+		if de.distance_to(ate) < 1.0:
+			continue
+		if fim_face > 0.0:
+			_superficie(raiz, de, ate, normal, 0.0, fim_face, textura_face,
+				ancora, silhueta, COR_FACE)
+		_superficie(raiz, de, ate, normal, fim_face, fundo, textura_topo,
+			ancora, silhueta, COR_TOPO)
+		_vestir_acabamento(raiz, de, ate, normal, lado, fim_face <= 0.0, fundo,
+			fim_face)
+
+
+## OS TRECHOS de um lado: ele inteiro, menos os vaos de porta.
+##
+## Cortado no vao EXATO e nao em celulas inteiras. A regra antiga tirava toda
+## celula que ENCOSTAVA no vao -- 128 px de buraco para 64 px de passagem --, e
+## ela existia porque a peca era uma celula: meia celula nao podia ser desenhada.
+## Uma faixa pode acabar em qualquer lugar, entao o buraco passa a ter o tamanho
+## da porta.
+##
+## E isso alinha o visual com a COLISAO, que ja cortava assim em
+## `Sala._subtrechos()`. Eram duas respostas para "onde ha parede", e a
+## divergencia entre elas ja custou uma issue.
+static func trechos_livres(contorno: PackedVector2Array, a: Vector2, b: Vector2,
+		portas: Array[Porta]) -> Array[PackedVector2Array]:
+	var achados: Array[PackedVector2Array] = []
+	var comprimento := a.distance_to(b)
+	if comprimento < LADO_MINIMO:
+		return achados
+	var direcao := (b - a) / comprimento
+	var normal := normal_externa(contorno, a, b)
+
+	# Os vaos, medidos AO LONGO do lado.
+	var vaos: Array[Vector2] = []
+	for porta in portas:
+		if porta == null or porta.esta_selada():
+			continue
+		if porta.vetor().dot(normal) < 0.5:
+			continue
+		var onde := (porta.position - a).dot(direcao)
+		var meia := Porta.LARGURA * 0.5
+		vaos.append(Vector2(onde - meia, onde + meia))
+	vaos.sort_custom(func(x: Vector2, y: Vector2) -> bool: return x.x < y.x)
+
+	var cursor := 0.0
+	for vao in vaos:
+		var borda := clampf(vao.x, 0.0, comprimento)
+		if borda - cursor > 1.0:
+			achados.append(PackedVector2Array([a + direcao * cursor, a + direcao * borda]))
+		cursor = maxf(cursor, clampf(vao.y, 0.0, comprimento))
+	if comprimento - cursor > 1.0:
+		achados.append(PackedVector2Array([a + direcao * cursor, b]))
+	return achados
+
+
+## Uma SUPERFICIE continua: um quad texturizado que cobre o trecho inteiro.
+##
+## `Polygon2D` com `texture_repeat` e nao um sprite por celula, e a diferenca
+## nao e de desempenho: um sprite por celula so sabe desenhar a textura inteira,
+## entao cada celula recomeca o desenho e a emenda aparece. Um quad longo com UV
+## ancorada na SALA deixa a textura correr por cima da grade -- ela continua
+## ladrilhando de 64 em 64, mas nao ha nada dizendo onde uma peca acaba.
+##
+## `silhueta` desenha em cor CHAPADA, sem textura. E o modo de diagnostico do
+## plano: se a sala parecer uma grade de construcao mesmo sem textura nenhuma, o
+## problema e a geometria, e nao a arte -- e nao adianta avancar.
+static func _superficie(raiz: Node2D, de: Vector2, ate: Vector2, normal: Vector2,
+		inicio: float, fim: float, textura: Texture2D, ancora: Vector2,
+		silhueta: bool, cor: Color) -> void:
+	if fim - inicio < 0.5:
+		return
+	# `position` no MEIO da faixa e o poligono relativo a ela.
 	#
-	# Ancorada em multiplos de 32 nas coordenadas da sala, a borda de celula cai
-	# no centro da porta em TODO lado, e o vao de 64 reserva 2 celulas exatas em
-	# qualquer forma de sala. O preco e a ponta de cada lado poder sobrar menos que
-	# uma celula -- e ela nao fica descoberta: a peca da ponta e recortada na
-	# medida, o que a arte permite porque a celula ja e um `region_rect`.
-	var eixo := Vector2(absf(direcao.x), absf(direcao.y))
-	if eixo.x < 0.99 and eixo.y < 0.99:
-		# Lado diagonal: nao ha eixo em que ancorar, entao ele volta a andar do
-		# vertice. Nenhuma sala em disco tem um, e a saida existe para nao virar
-		# buraco no dia em que uma tiver.
-		eixo = Vector2(1.0, 0.0) if absf(direcao.x) >= absf(direcao.y) else Vector2(0.0, 1.0)
-
-	var s0 := a.dot(eixo)
-	var s1 := b.dot(eixo)
-	var passo := direcao.dot(eixo)
-	var inicio := minf(s0, s1)
-	var fim := maxf(s0, s1)
-	var centro_da_faixa := normal * (Sala.ESPESSURA_PAREDE * 0.5)
-
-	# Quantas celulas passaram desde a ultima ESPECIAL. Comeca alto para a
-	# primeira celula do lado poder ser especial -- comecar em zero faria toda
-	# parede do jogo abrir com `espacamento` celulas comuns, que e um padrao
-	# regular nascido de um detalhe de implementacao.
-	var desde_especial := espacamento
-	# Os TRECHOS CONTINUOS do lado, para o acabamento.
-	#
-	# O acabamento e uma linha, e nao uma peca por celula: uma tira por celula
-	# seriam ~360 poligonos a mais por sala, e trinta retangulos encostados
-	# podem mostrar emenda onde a arte pede uma linha so. Acumular o que a
-	# celula ja decidiu -- ela sabe se caiu no vao de porta -- da uma tira por
-	# trecho, tipicamente uma ou duas por lado, e ela ABRE na porta de graca.
-	var trechos: Array[Vector2] = []
-	var c := floorf(inicio / CELULA) * CELULA
-	while c < fim - 0.5:
-		var p0 := maxf(c, inicio)
-		var p1 := minf(c + CELULA, fim)
-		var largura := p1 - p0
-		if largura > 0.5:
-			var meio := (p0 + p1) * 0.5
-			var ponto := a + direcao * ((meio - s0) * passo)
-			if not _cai_em_vao_escalar(p0, p1, portas, normal, eixo):
-				var chave := semente ^ (int(c / CELULA) * 0x85ebca6b)
-				var recorte := Vector2(p0 - c, largura)
-				_peca(raiz, _sorteia(topos, chave), ponto + normal * (CELULA * 1.5),
-					chave, recorte, direcao)
-				var interna: Texture2D = null
-				if so_topo:
-					interna = _sorteia(topos, chave ^ 0x27d4eb2f)
-				else:
-					var especial := _quer_especial(chave, peso_comum) \
-						and desde_especial >= espacamento
-					interna = _face_da_celula(faces, chave, especial)
-					desde_especial = 0 if especial else desde_especial + 1
-				_peca(raiz, interna, ponto + normal * (CELULA * 0.5),
-					chave ^ 0x9e3779b1, recorte, direcao)
-				if not trechos.is_empty() and absf(trechos[-1].y - p0) < 0.5:
-					trechos[-1] = Vector2(trechos[-1].x, p1)
-				else:
-					trechos.append(Vector2(p0, p1))
-		c += CELULA
-
-	for t in trechos:
-		_vestir_acabamento(raiz, a + direcao * ((t.x - s0) * passo),
-			a + direcao * ((t.y - s0) * passo), normal, lado, so_topo)
+	# Nao e arrumacao: os portoes que perguntam "onde a parede chegou" e "nenhuma
+	# peca cai na area jogavel" leem `position`. Com o poligono em coordenada
+	# absoluta e a posicao em zero, toda peca responderia a ORIGEM da sala -- que
+	# fica dentro do contorno, e faria o portao acusar invasao em todas elas.
+	var centro := (de + ate) * 0.5 + normal * ((inicio + fim) * 0.5)
+	var quad := Polygon2D.new()
+	quad.position = centro
+	quad.polygon = PackedVector2Array([
+		de + normal * inicio - centro,
+		ate + normal * inicio - centro,
+		ate + normal * fim - centro,
+		de + normal * fim - centro,
+	])
+	if silhueta or textura == null:
+		quad.color = cor
+	else:
+		quad.texture = textura
+		# Sem isto a textura sai esticada UMA vez no tamanho do quad: o projeto
+		# nao define `default_texture_repeat`, entao o padrao e Disabled.
+		quad.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+		# A UV anda com a peca: o deslocamento compensa a `position` para o
+		# desenho continuar ancorado na SALA. Sem o `+ centro`, cada faixa
+		# recomecaria a textura no proprio inicio -- que e a emenda visivel que
+		# este epico existe para apagar.
+		quad.texture_offset = centro - ancora
+	raiz.add_child(quad)
 
 
 ## O ACABAMENTO de um trecho: a costura onde a superficie vira, e o bisel da
@@ -292,12 +357,13 @@ static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 ## linha clara e continua na borda da sala e exatamente o filete de neon que o
 ## projeto ja removeu uma vez. O labio tem 1 px, e no meio da faixa.
 static func _vestir_acabamento(raiz: Node2D, de: Vector2, ate: Vector2,
-		normal: Vector2, lado: Lado, so_topo: bool) -> void:
+		normal: Vector2, lado: Lado, so_topo: bool, fundo: float,
+		costura: float) -> void:
 	# A COSTURA: onde o topo vira face. Nao existe no sul, que nao tem face.
-	if not so_topo:
-		_banda(raiz, de, ate, normal, COSTURA - SOMBRA_DA_COSTURA, COSTURA, N4)
+	if not so_topo and costura > SOMBRA_DA_COSTURA:
+		_banda(raiz, de, ate, normal, costura - SOMBRA_DA_COSTURA, costura, N4)
 		if lado != Lado.OESTE:
-			_banda(raiz, de, ate, normal, COSTURA, COSTURA + LABIO, N7)
+			_banda(raiz, de, ate, normal, costura, costura + LABIO, N7)
 
 	# A ARESTA INTERNA: so onde ela pega luz.
 	if lado == Lado.SUL:
@@ -312,11 +378,9 @@ static func _vestir_acabamento(raiz: Node2D, de: Vector2, ate: Vector2,
 	# e N0 --, e nao e para ele que existe: e para a boca do corredor, onde duas
 	# faixas se encontram sem separacao, e para a quina, onde o canto encosta nos
 	# dois lados.
-	var alcance_total := float(CELULA) * 2.0
-	_banda(raiz, de, ate, normal, alcance_total - BISEL, alcance_total, N1)
+	_banda(raiz, de, ate, normal, fundo - BISEL, fundo, N1)
 	if lado == Lado.OESTE:
-		_banda(raiz, de, ate, normal, alcance_total - BISEL - LABIO,
-			alcance_total - BISEL, N7)
+		_banda(raiz, de, ate, normal, fundo - BISEL - LABIO, fundo - BISEL, N7)
 
 
 ## Uma tira retangular ao longo de um trecho do contorno.
@@ -524,3 +588,12 @@ static func normal_externa(contorno: PackedVector2Array, a: Vector2,
 	if Geometry2D.is_point_in_polygon(meio + candidata * 4.0, contorno):
 		return -candidata
 	return candidata
+
+
+static func _caixa(pontos: PackedVector2Array) -> Rect2:
+	if pontos.is_empty():
+		return Rect2()
+	var caixa := Rect2(pontos[0], Vector2.ZERO)
+	for i in range(1, pontos.size()):
+		caixa = caixa.expand(pontos[i])
+	return caixa

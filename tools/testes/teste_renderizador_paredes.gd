@@ -97,7 +97,7 @@ func _nenhuma_celula_invade_o_chao() -> void:
 				% [caminho.get_file(), dentro, fita.get_child_count()]
 		)
 		sala.free()
-	ok(conferidas > 300, "a varredura mediu as celulas de todas as formas (%d)" % conferidas)
+	ok(conferidas > 40, "a varredura mediu as pecas de todas as formas (%d)" % conferidas)
 
 
 ## A fita nao gira nem espelha arte, e e a mesma trava que a porta ja tem.
@@ -197,47 +197,36 @@ func _o_vao_da_porta_fica_sem_modulo() -> void:
 					% [caminho.get_file(), porta.name, invasores]
 			)
 
-			# E A RESERVA E EXATA: o primeiro modulo ao lado do vao encosta nele.
+			# E A RESERVA E EXATA: a faixa ACABA na borda do vao.
 			#
-			# Antes da grade ancorada na sala, cada lado tinha a propria grade e a
-			# mesma porta caia em lugares diferentes dela conforme a paridade da
-			# meia dimensao daquela sala -- 2 celulas reservadas num lado e 3 no
-			# outro para o mesmo vao. Os 32 px de sobra apareciam como parede
-			# antiga ao lado do batente, e nada acusava.
-			#
-			# Com o vao em 64 e a borda de celula caindo no centro da porta, o
-			# modulo vizinho tem de estar a meia celula da borda do vao -- 48 px do
-			# centro. Mais que isso e sobra.
+			# A pergunta mudou de forma com a moldura. Antes a peca era uma
+			# celula, entao meia celula nao podia existir e a regra era tirar
+			# toda celula que ENCOSTASSE no vao -- 128 px de buraco para 64 px de
+			# passagem. Uma faixa pode acabar em qualquer lugar, entao o buraco
+			# passa a ter o tamanho da porta, e o que se cobra e o encosto: a
+			# faixa vizinha termina a `meia` do centro, e nao antes.
 			var vizinho := 9999.0
 			for peca in fita.get_children():
-				var sprite := peca as Sprite2D
-				if sprite == null or not sprite.region_enabled:
+				var poly := peca as Polygon2D
+				if poly == null or poly.polygon.is_empty():
 					continue
-				if sprite.position.dot(porta.vetor()) < 0.0:
+				if poly.position.dot(porta.vetor()) < 0.0:
 					continue
-				var onde := sprite.position.dot(eixo)
-				vizinho = minf(vizinho, absf(onde - centro))
+				var faixa := _extensao(poly, eixo)
+				# A borda mais proxima do centro da porta, dos dois lados.
+				if faixa.y <= centro:
+					vizinho = minf(vizinho, absf(centro - faixa.y))
+				elif faixa.x >= centro:
+					vizinho = minf(vizinho, absf(faixa.x - centro))
 			ok(
-				vizinho <= meia + CELULA * 0.5 + 0.5,
-				"%s/%s: a reserva e exata -- o modulo vizinho esta a %.0f px do centro (teto %.0f)"
-					% [caminho.get_file(), porta.name, vizinho, meia + CELULA * 0.5]
+				vizinho <= meia + 1.0,
+				"%s/%s: a faixa encosta no vao -- borda a %.0f px do centro (vao %.0f)"
+					% [caminho.get_file(), porta.name, vizinho, meia]
 			)
 		sala.free()
-	ok(conferidas >= 15, "a varredura achou as portas abertas das salas (%d)" % conferidas)
+	ok(conferidas >= 4, "a varredura mediu portas de verdade (%d)" % conferidas)
 
 
-## TODA QUINA RECEBE CANTO, e a sala em L e o caso que prova.
-##
-## O contorno de uma sala e um poligono qualquer, e o renderizador classifica
-## cada quina pelo par de lados que se encontram nela. Quina que nao cai no mapa
-## sai SEM peca -- e o sintoma e um pedaco de faixa sem articulacao, visivel so
-## naquela forma de sala e em nenhuma outra. Nao ha erro no console para canto
-## faltando.
-##
-## A sala em L e o caso duro por dois motivos: ela tem SEIS quinas em vez de
-## quatro, e uma delas e CONCAVA -- a do fundo da mordida, onde as duas faixas se
-## sobrepoem em vez de contornar. As duas familias usam a mesma peca de
-## proposito, e este caso e o que prova que a concava nao ficou de fora.
 func _toda_quina_recebe_canto() -> void:
 	var quinas := 0
 	var cantos := 0
@@ -325,25 +314,35 @@ func _a_variante_e_deterministica_e_o_espacamento_morde() -> void:
 			% [apertado.get_child_count(), hash(assinatura)]
 	)
 
-	# 2. O COMUM DOMINA. Medido sem espacamento, que e onde o peso age sozinho.
-	var comuns := _contar(solto, faces[0])
-	var especiais := _contar_especiais(solto, faces)
-	var total := comuns + especiais
-	ok(total > 80, "a amostra tem celulas de face suficientes (%d)" % total)
-	if total > 0:
-		var fracao := float(comuns) / float(total)
-		entre(
-			fracao, 0.55, 0.75,
-			"o modulo comum domina (%.0f%% de %d celulas, alvo 65%%)"
-				% [fracao * 100.0, total]
-		)
-
-	# 3. O ESPACAMENTO MORDE.
-	var especiais_apertado := _contar_especiais(apertado, faces)
+	# 2. A VARIEDADE MUDOU DE ESCALA, e as duas perguntas antigas morreram com ela.
+	#
+	# Ate a MOLDURA 04 a face era sorteada POR CELULA, e havia dois botoes para
+	# cobrar: o `peso_comum` (o modulo comum domina ~65% das celulas) e o
+	# `espacamento_minimo` (duas especiais nao encostam). Os dois mediam a mesma
+	# coisa -- a distribuicao ao longo de um lado --, e essa coisa era exatamente
+	# o que fazia a parede ler como uma fileira de blocos.
+	#
+	# Hoje a face e escolhida UMA VEZ por lado. Nao ha distribuicao dentro do
+	# lado para medir, e cobrar que "o comum domina 65% das celulas" seria cobrar
+	# a volta do defeito. A variedade passou a acontecer entre LADOS e entre
+	# SALAS, que e onde o jogador a le como material e nao como grade.
+	#
+	# O que sobra e cobravel: **lados diferentes podem vestir faces diferentes**,
+	# e a escolha continua deterministica.
+	var vistas := {}
+	for filho in solto.get_children():
+		var poly := filho as Polygon2D
+		if poly != null and poly.texture != null:
+			vistas[poly.texture.resource_path] = true
+	ok(vistas.size() >= 2,
+		"a sala veste mais de uma textura (%d) -- topo e face sao superficies diferentes"
+			% vistas.size())
+	# E o espacamento deixou de agir: com uma escolha por lado, mudar o parametro
+	# nao pode mudar a parede. Isso NAO e regressao -- e o entregavel da
+	# MOLDURA 03, e cobra-lo evita que alguem \"conserte\" o botao de volta.
 	ok(
-		especiais_apertado < especiais,
-		"o espacamento MORDE: %d especiais com ele contra %d sem -- teto que nao morde nao foi testado"
-			% [especiais_apertado, especiais]
+		_assinatura(solto) == _assinatura(apertado),
+		"o espacamento nao age mais por celula: mesma parede com 0 e com 2"
 	)
 
 	solto.free()

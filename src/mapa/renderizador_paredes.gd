@@ -123,6 +123,13 @@ const SOMBRA_DA_COSTURA := 2.0
 const LABIO := 1.0
 const BISEL := 2.0
 
+## A LINHA DE CONTATO parede/chao, em px.
+##
+## Dois e nao um: a 1 px ela some contra a textura da face em metade dos
+## trechos, e uma linha que aparece as vezes nao ensina nada. Tres ja le como
+## uma faixa propria e comeca a competir com a costura, que fica logo acima.
+const CONTATO := 2.0
+
 ## Como um lado e classificado, e o limiar e o MESMO de `Sala.LIMIAR_LADO_NORTE`.
 ##
 ## Ele nao e copiado: um segundo limiar aqui divergiria do que decide se um lado
@@ -368,12 +375,26 @@ static func _vestir_acabamento(raiz: Node2D, de: Vector2, ate: Vector2,
 		if lado != Lado.OESTE:
 			_banda(raiz, de, ate, normal, costura, costura + LABIO, N7)
 
-	# A ARESTA INTERNA: so onde ela pega luz.
+	# A LINHA DE CONTATO: onde a parede encontra o chao, e ela e CONTINUA.
+	#
+	# Ela e a peca mais barata do epico e uma das que mais paga. Sem ela o olho
+	# tem de deduzir onde a arena comeca a partir da textura; com ela, a resposta
+	# esta desenhada. O plano a chama de `inner_wall_line` e pede 1 a 3 px
+	# acompanhando **todo** o contorno interno.
+	#
+	# **Em todos os quatro lados**, e nao so nos que pegam luz. Uma linha que
+	# aparece em tres lados e some no quarto e pior que nenhuma: ela ensina uma
+	# regra e depois a quebra, e o lado sem ela passa a ler como um vao. E ela e
+	# ESCURA e nao acesa -- o contato entre duas superficies e sombra, e uma
+	# linha clara continua na borda da sala e o filete de neon que o projeto ja
+	# removeu uma vez.
+	_banda(raiz, de, ate, normal, 0.0, CONTATO, N1)
+
+	# A ARESTA ACESA, logo depois dela e so onde a luz bate.
 	if lado == Lado.SUL:
-		_banda(raiz, de, ate, normal, 0.0, LABIO, N4)
-		_banda(raiz, de, ate, normal, LABIO, LABIO * 2.0, N7)
+		_banda(raiz, de, ate, normal, CONTATO, CONTATO + LABIO, N7)
 	elif lado == Lado.LESTE:
-		_banda(raiz, de, ate, normal, LABIO, LABIO * 2.0, N7)
+		_banda(raiz, de, ate, normal, CONTATO, CONTATO + LABIO, N7)
 
 	# O BISEL EXTERNO: a faixa cai de valor antes de encontrar o vazio.
 	#

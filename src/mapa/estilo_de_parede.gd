@@ -61,7 +61,18 @@ extends Resource
 ## modulo (painel 12%, tubo 10%, desgaste 8%, ventilacao 5%) entra quando o kit
 ## industrial trouxer a biblioteca nomeada; inventar os quatro numeros agora seria
 ## cravar uma tabela que ninguem consegue girar.
-@export_range(0.0, 1.0, 0.01) var peso_comum: float = 0.65
+## 0,80 e nao 0,65, e a mudanca vem da MOLDURA 15.
+##
+## Ate a faixa continua, este numero era a fracao de CELULAS que vestiam o
+## modulo comum -- 65% delas, com as especiais salpicadas ao longo do lado.
+## Agora ele e a fracao de LADOS: uma escolha por lado, tiladada no trecho
+## inteiro. Um lado que sorteia `ventilada` vira uma parede de grades de ponta a
+## ponta, e nao uma parede com uma grade.
+##
+## O plano pede **80% parede limpa, 20% detalhe**, com grandes regioes vazias --
+## e com a escolha por lado, 0,80 entrega literalmente isso: em cinco lados,
+## um veste especial.
+@export_range(0.0, 1.0, 0.01) var peso_comum: float = 0.80
 
 ## Quantas celulas COMUNS tem de haver entre duas especiais.
 ##

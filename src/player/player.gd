@@ -194,8 +194,16 @@ func _processar_normal(delta: float) -> void:
 	if Input.is_action_just_pressed("recarregar"):
 		_arma.recarregar()
 
-	_arma.atualizar_gatilho(Input.is_action_pressed("atirar"))
-	if Input.is_action_pressed("atirar"):
+	# SEM DISPARO NO LOBBY.
+	#
+	# Nao e so "nao ha em quem atirar": e leitura. Um jogo em que o botao de
+	# tiro funciona diz que ha perigo, e o Lobby precisa dizer o contrario --
+	# pela mesma razao que a barra de Deterioracao nao aparece la. E de quebra
+	# simplifica a interacao: `atirar` e `interagir` deixam de disputar a
+	# atencao do jogador no mesmo espaco.
+	var pode_atirar := GameState.modo != GameState.Modo.LOBBY
+	_arma.atualizar_gatilho(pode_atirar and Input.is_action_pressed("atirar"))
+	if pode_atirar and Input.is_action_pressed("atirar"):
 		_arma.atirar(_direcao_mira())
 
 

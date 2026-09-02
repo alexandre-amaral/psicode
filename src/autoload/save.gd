@@ -15,7 +15,6 @@ extends Node
 
 ## O `class_name` da forma dos dados vive em `src/save/`; aqui so o arquivo.
 const CAMINHO := "user://save_01.json"
-const CAMINHO_TEMPORARIO := "user://save_01.json.tmp"
 
 ## Motivos de falha, para quem chamou poder dizer a coisa certa ao jogador.
 enum Falha { NENHUMA, NAO_EXISTE, ILEGIVEL, CORROMPIDO }
@@ -36,6 +35,17 @@ var _caminho: String = CAMINHO
 
 func _caminho_temporario() -> String:
 	return _caminho + ".tmp"
+
+
+## O backup: a copia do save ANTERIOR, guardada antes de cada gravacao boa.
+##
+## Nao e redundancia da escrita segura -- as duas cobrem falhas diferentes. O
+## temporario protege contra a gravacao ser INTERROMPIDA; o backup protege
+## contra a gravacao ter dado certo com conteudo ruim, que e o caso que nenhuma
+## trava de arquivo pega. Um bug que zere o historico e grave com sucesso passa
+## limpo pelo temporario.
+func _caminho_de_backup() -> String:
+	return _caminho + ".bak"
 
 
 ## Ha um perfil em disco?
@@ -104,6 +114,13 @@ func salvar(dados: DadosSave) -> bool:
 	if acesso == null:
 		return false
 	if acesso.file_exists(_caminho.get_file()):
+		# O backup e a versao ANTERIOR, e nao a que esta sendo escrita. Copiar
+		# depois faria as duas serem o mesmo arquivo -- e um backup identico ao
+		# original nao recupera de nada.
+		# Caminho ABSOLUTO, e nao relativo ao `DirAccess`: com nome solto a copia
+		# falha em silencio quando o diretorio corrente nao e o que se espera, e
+		# um backup que nao existe so se descobre no dia em que ele e preciso.
+		DirAccess.copy_absolute(_caminho, _caminho_de_backup())
 		acesso.remove(_caminho.get_file())
 	var erro := acesso.rename(temporario.get_file(), _caminho.get_file())
 	if erro != OK:
@@ -116,8 +133,35 @@ func apagar_save() -> void:
 	var acesso := DirAccess.open(_caminho.get_base_dir())
 	if acesso == null:
 		return
+	for caminho in [_caminho, _caminho_de_backup(), _caminho_temporario()]:
+		if acesso.file_exists(caminho.get_file()):
+			acesso.remove(caminho.get_file())
+
+
+## Ha uma copia anterior para oferecer?
+func backup_existe() -> bool:
+	return FileAccess.file_exists(_caminho_de_backup())
+
+
+## Promove o backup a save e o le.
+##
+## `null` se nao havia backup ou se ele tambem nao abre -- dois saves ruins
+## seguidos e uma situacao real, e nela o jogo tem de dizer isso em vez de
+## prometer uma recuperacao que nao aconteceu.
+func restaurar_backup() -> DadosSave:
+	if not backup_existe():
+		ultima_falha = Falha.NAO_EXISTE
+		return null
+	var acesso := DirAccess.open(_caminho.get_base_dir())
+	if acesso == null:
+		ultima_falha = Falha.ILEGIVEL
+		return null
 	if acesso.file_exists(_caminho.get_file()):
 		acesso.remove(_caminho.get_file())
+	if DirAccess.copy_absolute(_caminho_de_backup(), _caminho) != OK:
+		ultima_falha = Falha.ILEGIVEL
+		return null
+	return carregar()
 
 
 ## Traz um perfil antigo para o formato de hoje.

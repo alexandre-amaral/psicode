@@ -41,6 +41,7 @@ var tempo_chefe: float = 0.0
 var _chefe_comecou: float = -1.0
 
 const CENA_MAIN := "res://src/main/main.tscn"
+const CENA_LOBBY := "res://src/lobby/lobby.tscn"
 
 ## Quem o jogador escolheu na tela de selecao.
 ##

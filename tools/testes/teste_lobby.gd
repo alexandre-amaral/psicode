@@ -24,6 +24,7 @@ func executar() -> void:
 	await _as_tres_estacoes_existem_e_sao_acionaveis()
 	await _o_detector_escolhe_o_MAIS_PROXIMO()
 	await _selecionar_personagem_grava_e_acende_a_plataforma()
+	await _o_prompt_aparece_EM_CIMA_do_objeto()
 	await _o_lobby_nao_mostra_hud_de_run()
 
 
@@ -238,8 +239,14 @@ func _o_lobby_nao_mostra_hud_de_run() -> void:
 					or nome_do_no.contains("Minimapa"):
 				proibidos += 1
 		igual(proibidos, 0, "e nela nao ha barra, HUD nem minimapa (%d)" % proibidos)
-		ok(ui.get_node_or_null("Prompt") != null,
-			"o que ha e o prompt de interacao, e so")
+	# O PROMPT MORA NO MUNDO, e nao na UI: ele precisa aparecer EM CIMA do
+	# objeto. Um rotulo no rodape obriga o jogador a ligar uma frase na base da
+	# tela a um corpo no meio dela, e com duas capsulas lado a lado andar um
+	# passo troca a frase sem nada indicar qual das duas mudou.
+	var prompt := lobby.get_node_or_null("Prompt") as PromptDeInteracao
+	ok(prompt != null, "o prompt existe, e no MUNDO e nao na CanvasLayer")
+	if prompt != null:
+		ok(not prompt.visible, "e nasce escondido -- nao ha nada por perto ainda")
 
 	igual(GameState.modo, GameState.Modo.LOBBY, "o modo e LOBBY")
 	ok(not Deterioracao.passiva_ativa, "e a Deterioracao passiva esta desligada")
@@ -254,3 +261,76 @@ func _interativos_de(raiz: Node) -> Array[Interativo]:
 			achados.append(interativo)
 		achados.append_array(_interativos_de(filho))
 	return achados
+
+
+## O PROMPT APARECE EM CIMA DO OBJETO, e diz a tecla de verdade.
+##
+## Duas coisas que a primeira versao errava:
+##
+## 1. **Onde.** Um rotulo no rodape da tela nao diz em QUE se vai interagir. Com
+##    as duas capsulas lado a lado o jogador tem de ligar uma frase na base da
+##    tela a um corpo no meio dela, e andar um passo troca a frase sem nada
+##    indicar qual das duas mudou.
+## 2. **Qual tecla.** "[E]" estava cravado no texto. O jogo tem tela de opcoes,
+##    entao remapear a acao e questao de quando -- e um prompt que ensina a tecla
+##    errada e pior que nenhum prompt.
+func _o_prompt_aparece_EM_CIMA_do_objeto() -> void:
+	var lobby := _nascer()
+	await Engine.get_main_loop().process_frame
+
+	var prompt := lobby.get_node_or_null("Prompt") as PromptDeInteracao
+	ok(prompt != null, "o lobby monta o prompt")
+	if prompt == null:
+		lobby.free()
+		return
+	ok(not prompt.visible, "e ele nasce escondido")
+
+	var capsula: Interativo = null
+	for interativo in _interativos_de(lobby):
+		if interativo.id == &"raven":
+			capsula = interativo
+			break
+	ok(capsula != null, "achou a capsula da Raven")
+	if capsula == null:
+		lobby.free()
+		return
+
+	# ANDAR ATE A CAPSULA, e nao chamar `apontar()` na mao.
+	#
+	# A primeira versao deste caso chamava `apontar()` direto, e por isso passou
+	# verde com o detector sem FORMA DE COLISAO -- uma `Area2D` sem forma nunca
+	# encontra ninguem, e nao ha erro no console para isso. O portao media a
+	# APRESENTACAO e nunca a deteccao, que e a metade que estava quebrada.
+	var player := lobby.get_node_or_null("Mundo/Player") as Node2D
+	player.global_position = capsula.global_position + Vector2(0.0, 40.0)
+	for i in 4:
+		await Engine.get_main_loop().physics_frame
+	var detector := player.get_node_or_null("DetectorDeInteracao") as DetectorDeInteracao
+	ok(detector != null and detector.alvo() == capsula,
+		"andar ate a capsula faz o detector encontra-la")
+	ok(prompt.visible, "e o prompt aparece sozinho")
+	# ACIMA, e o quanto vem do proprio objeto: a capsula tem um retrato de 128 px
+	# ancorado na base, e um prompt na altura do terminal cairia dentro dele.
+	ok(
+		prompt.global_position.y < capsula.global_position.y,
+		"e ele fica ACIMA do objeto (%.0f contra %.0f)"
+			% [prompt.global_position.y, capsula.global_position.y]
+	)
+	perto(
+		capsula.global_position.y - prompt.global_position.y,
+		capsula.altura_do_prompt,
+		"na altura que a peca declara", 1.0
+	)
+	ok(capsula.altura_do_prompt > 128.0,
+		"e a capsula pede mais alto que o retrato dela (%.0f)" % capsula.altura_do_prompt)
+
+	prompt.apontar(null)
+	ok(not prompt.visible, "e apontar para null esconde")
+
+	# A TECLA VEM DO `InputMap`. Cravada no texto, ela vira mentira no primeiro
+	# remapeamento -- e o jogo tem tela de opcoes.
+	igual(PromptDeInteracao.tecla_de(&"interagir"), "E",
+		"a tecla lida do InputMap e a que esta mapeada")
+	igual(PromptDeInteracao.tecla_de(&"acao_que_nao_existe"), "?",
+		"acao inexistente devolve `?` -- moldura vazia pareceria defeito")
+	lobby.free()

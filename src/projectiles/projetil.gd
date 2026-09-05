@@ -83,6 +83,9 @@ var _alongamento: float = 1.0
 var _rastro_comprimento: float = 0.0
 var _rastro_alfa: float = 0.35
 var _familia_impacto: int = Impactos.Familia.FAISCA
+## A arte, ou `null` enquanto ela nao chega. `var` com default proprio pela mesma
+## razao dos outros: no `_ready` o `_dados` ainda e nulo.
+var _textura: Texture2D = null
 
 
 func _ready() -> void:
@@ -120,7 +123,8 @@ func _aplicar_aparencia() -> void:
 	# nunca os dois nem nenhum -- e o fallback nao apodrece, porque no `_ready`
 	# `_dados` e sempre `null` e TODO projetil do jogo passa por ele no frame em
 	# que nasce.
-	var tem_arte := _sprite.texture != null
+	_sprite.texture = _textura
+	var tem_arte := _textura != null
 	_sprite.visible = tem_arte
 	_poligono.visible = not tem_arte
 
@@ -177,6 +181,7 @@ func configurar(
 	_rastro_comprimento = dados.rastro_comprimento
 	_rastro_alfa = dados.rastro_alfa
 	_familia_impacto = dados.familia_impacto
+	_textura = dados.textura_projetil
 
 	var vel := dados.velocidade_projetil * multiplicador_velocidade
 	velocidade = direcao.normalized() * vel

@@ -29,6 +29,33 @@ const CENA_PROJETIL := "res://src/projectiles/projetil.tscn"
 ## art precisa, e o aperto que ele cria vira pressao sobre a SILHUETA.
 const LARGURA_MATIZ := 15.0
 
+## As armas que ainda nao tem arte, DECLARADAS.
+##
+## Ela encolhe conforme o epico #172 anda, e tem de chegar a vazia -- ou ao que
+## sobrar por decisao, e nao por atraso. Ver
+## `_o_buraco_de_arte_esta_DECLARADO()` para as duas metades da regra.
+const SEM_ARTE_AINDA: Array[String] = [
+	"boomer",
+	"gravity_gun",
+	"nanite_rifle",
+	"phase_blaster",
+	"pistola",
+	"pistola_cipher",
+	"plasma_arc",
+	"rail_x",
+	"salva_diretora",
+	"shotgun",
+	"smg_mantis",
+	"sucata_guardiao",
+	"swarm",
+	"tiro_diretora",
+	"tiro_drone",
+	"tiro_neon",
+	"tiro_sentinela",
+	"tiro_vigia",
+	"volt_caster",
+]
+
 ## Alongamentos varridos em todo caso de coerencia.
 ##
 ## Um leque e nao o default: uma implementacao que vaze o alongamento para o eixo
@@ -73,6 +100,46 @@ func executar() -> void:
 	_o_rastro_cabe_no_vao_entre_dois_tiros()
 	_so_a_Forma_tem_colisao()
 	_toda_familia_de_impacto_existe()
+	_o_buraco_de_arte_esta_DECLARADO()
+
+
+## O buraco de arte e declarado, e a lista morde dos DOIS lados.
+##
+## `textura_projetil` nulo nao da erro nenhum: o projetil cai no losango e o jogo
+## segue. Sem esta lista as 21 nulas passariam para sempre, e o portao de par
+## (cor, silhueta) ficaria provando uma promessa em vez de uma tela.
+##
+## As duas metades importam igual, e e a segunda que costuma faltar:
+##
+##   nome FORA da lista  -> tem de ter textura, e ela tem de CARREGAR
+##   nome DENTRO da lista -> tem de continuar nulo
+##
+## Sem a segunda, a linha fica aqui depois de a arte chegar e cobre em silencio o
+## dia em que aquele PNG se perder. Mesmo desenho de `SEM_ARTE_AINDA` no
+## `teste_sprite_direcional.gd` e de `SEM_CLIPE_AINDA` no `teste_boss_animacao.gd`.
+##
+## Tirar um nome daqui e o interruptor de "a arte chegou".
+func _o_buraco_de_arte_esta_DECLARADO() -> void:
+	var pendentes := 0
+	for nome in _armas():
+		var dados := _arma(nome)
+		if dados == null:
+			continue
+		if SEM_ARTE_AINDA.has(nome):
+			pendentes += 1
+			ok(
+				dados.textura_projetil == null,
+				"%s esta declarada SEM arte, e continua sem -- senao a lista mente" % nome
+			)
+			continue
+		ok(
+			dados.textura_projetil != null,
+			"%s nao esta na lista de pendentes, entao tem de ter arte" % nome
+		)
+	igual(
+		pendentes, SEM_ARTE_AINDA.size(),
+		"toda arma listada como pendente foi encontrada no disco"
+	)
 
 
 ## Toda arma declara uma silhueta que a biblioteca sabe desenhar.

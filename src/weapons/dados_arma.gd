@@ -108,6 +108,18 @@ enum Comportamento {
 ## Nao se deriva do `comportamento`: 13 das 21 armas sao `NENHUM`, entao derivar
 ## daria a mesma forma a treze armas, que e o estado que este campo existe para
 ## desfazer.
+## A ARTE deste projetil. **Nulo = a arte ainda nao chegou**, e o projetil cai no
+## losango de `FormasProjetil`.
+##
+## O fallback e DECLARADO e nao acidental: `SEM_ARTE_AINDA`, em
+## `teste_linguagem_projetil.gd`, morde dos DOIS lados -- arma fora da lista tem
+## de ter textura que carrega, arma dentro tem de continuar nula. Tirar o nome da
+## lista e o interruptor de "a arte chegou", como em `SEM_ARTE_AINDA` do sprite
+## direcional e `SEM_CLIPE_AINDA` do chefe.
+##
+## A `familia_silhueta` continua valendo COM arte: ela e o eixo que o portao mede
+## contra a cor, e e o que uma arma declara antes de existir PNG para ela.
+@export var textura_projetil: Texture2D = null
 @export var familia_silhueta: FormasProjetil.Familia = FormasProjetil.Familia.LOSANGO
 ## Estica a silhueta no eixo do VOO, e so nele.
 ##

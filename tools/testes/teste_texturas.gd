@@ -57,6 +57,189 @@ func executar() -> void:
 	_os_modulos_de_face_ficam_na_faixa_da_base()
 	_a_familia_parede_tem_faixa_dinamica()
 	_nenhum_png_fica_fora_de_regime()
+	_a_arte_de_projetil_e_de_ATOR()
+
+
+## Pastas de PNG e o regime que mede cada uma.
+##
+## `assets/texturas/` e AMBIENTE; `assets/projeteis/` e ATOR, e a regra dele e a
+## INVERSA. Ver `_a_arte_de_projetil_e_de_ATOR()`.
+const PASTAS_MEDIDAS: Dictionary = {
+	"res://assets/texturas/": &"ambiente",
+	"res://assets/projeteis/": &"ator",
+}
+
+## As pastas que AINDA nao tem regime, declaradas.
+##
+## `assets/personagens/` e `assets/inimigos/` sao 160+ PNGs de ator sem portao
+## nenhum, e ja estavam nesse ponto cego antes deste epico -- so que em SILENCIO,
+## porque a varredura antiga olhava uma pasta so e nada dizia que havia outras.
+##
+## Nao as traga de carona: e outro epico, e um portao que reprova 160 arquivos de
+## uma vez e um portao que alguem desliga. O que esta linha faz e trocar um ponto
+## cego silencioso por um DECLARADO.
+const PASTAS_SEM_REGIME_AINDA: Array[String] = [
+	"res://assets/personagens/",
+	"res://assets/inimigos/",
+]
+
+const PASTA_PROJETEIS := "res://assets/projeteis/"
+const ARMAS_PARA_ARTE := "res://src/weapons/"
+
+## Quanto do MIOLO tem de competir com ator.
+##
+## Aqui a regra e o INVERSO do gamut de ambiente, e o limiar tambem muda de
+## natureza. Em ambiente a pergunta e "existe UM pixel que parece um tiro?", e
+## por isso o teto e ZERO -- um disco de 4 px de `N7` no chao ja e uma bala falsa.
+## Em ator a pergunta e "isto some no cenario?", que e de PROPORCAO.
+##
+## E a proporcao e medida no MIOLO, e nao no sprite inteiro. Pixel art tem
+## contorno escuro, e o contorno e justamente o que separa o sprite do fundo --
+## cobrar brilho dele seria proibir contorno, ou seja, proibir pixel art. Medido
+## na primeira arte: 47% dos pixels de um sprite de 32 px eram contorno, e um
+## piso sobre o total reprovava arte legitima pelo motivo errado.
+##
+## Miolo = pixel opaco cujos quatro vizinhos tambem sao opacos. O que ele
+## responde e a pergunta certa: o CORPO do projetil e aceso o bastante para ser
+## achado contra um chao cujo teto de valor e 0,30?
+const PISO_COMPETE := 0.7
+
+## Gemea de `teste_linguagem_projetil.LARGURA_MATIZ`.
+const LARGURA_MATIZ_ATOR := 15.0
+
+
+## A arte de PROJETIL e de ATOR, e o portao dela e o INVERSO do de ambiente.
+##
+## `_regra_de_gamut()` exige `compete == 0`: nenhum pixel de chao, parede ou prop
+## pode ser saturado E claro ao mesmo tempo, porque essa combinacao e a linguagem
+## de "isto e um tiro". Projetil E um tiro. Rodar a arte dele por aquela funcao
+## reprovaria exatamente a arte certa.
+##
+## Quatro das cinco asercoes daquela funcao invertem, entao esta e funcao IRMA e
+## nao uma bandeira: uma bandeira faria `_regra_de_gamut` afirmar duas coisas
+## opostas conforme o argumento.
+##
+## | | ambiente | ator |
+## |---|---|---|
+## | competir | `== 0` | maioria |
+## | valor | teto | piso |
+## | matiz | faixa do TIPO DE SALA | faixa da `cor_projetil` DAQUELA ARMA |
+## | alfa parcial | `== 0` | idem -- a unica que sobrevive intacta |
+## | costura | medida | nao se aplica: projetil nao ladrilha |
+##
+## E o matiz e cobrado contra a arma que APONTA o PNG, e nao contra uma tabela:
+## a cor ja mora no `.tres` ao lado da textura, e uma segunda tabela seria o
+## `MATIZ_POR_TIPO` gemeo de novo, com a mesma obrigacao de mudar junto.
+func _a_arte_de_projetil_e_de_ATOR() -> void:
+	var dono := _dono_de_cada_arte()
+	var pasta := DirAccess.open(PASTA_PROJETEIS)
+	if pasta == null:
+		# Pasta ainda nao existe: nenhuma arma tem arte. Isso e legitimo enquanto
+		# `SEM_ARTE_AINDA` as declarar, e quem cobra isso e a suite de linguagem.
+		ok(dono.is_empty(), "sem pasta de projeteis, nenhuma arma aponta arte")
+		return
+	var medidos := 0
+	for arquivo in pasta.get_files():
+		if not arquivo.ends_with(".png"):
+			continue
+		var caminho := PASTA_PROJETEIS + arquivo
+		ok(dono.has(arquivo), "%s e apontado por alguma arma" % arquivo)
+		if not dono.has(arquivo):
+			continue
+		var imagem := _carregar_png(caminho)
+		if imagem == null:
+			ok(false, "%s carrega" % arquivo)
+			continue
+		medidos += 1
+		_regra_de_ator(imagem, arquivo, dono[arquivo] as Color)
+	igual(
+		medidos, dono.size(),
+		"toda arte apontada por uma arma foi medida (%d de %d)" % [medidos, dono.size()]
+	)
+
+
+## Que arma aponta que PNG, e com que cor. Lido do disco, nunca de lista fixa.
+func _dono_de_cada_arte() -> Dictionary:
+	var fora := {}
+	var pasta := DirAccess.open(ARMAS_PARA_ARTE)
+	if pasta == null:
+		return fora
+	for arquivo in pasta.get_files():
+		if not arquivo.ends_with(".tres"):
+			continue
+		var dados := load(ARMAS_PARA_ARTE + arquivo) as DadosArma
+		if dados == null or dados.textura_projetil == null:
+			continue
+		fora[dados.textura_projetil.resource_path.get_file()] = dados.cor_projetil
+	return fora
+
+
+## Pixel opaco cercado de opacos nos quatro sentidos: o corpo, e nao a borda.
+func _e_miolo(imagem: Image, x: int, y: int) -> bool:
+	if x <= 0 or y <= 0 or x >= imagem.get_width() - 1 or y >= imagem.get_height() - 1:
+		return false
+	return (
+		imagem.get_pixel(x - 1, y).a >= 0.5
+		and imagem.get_pixel(x + 1, y).a >= 0.5
+		and imagem.get_pixel(x, y - 1).a >= 0.5
+		and imagem.get_pixel(x, y + 1).a >= 0.5
+	)
+
+
+func _regra_de_ator(imagem: Image, nome: String, cor_declarada: Color) -> void:
+	var alvo := cor_declarada.h * 360.0
+	var opacos := 0
+	var miolo := 0
+	var compete := 0
+	var alpha_parcial := 0
+	var fora_da_faixa := 0
+	var pior := ""
+	for y in imagem.get_height():
+		for x in imagem.get_width():
+			var cor := imagem.get_pixel(x, y)
+			if cor.a > 0.001 and cor.a < 0.999:
+				alpha_parcial += 1
+				continue
+			if cor.a < 0.5:
+				continue
+			opacos += 1
+			if _e_miolo(imagem, x, y):
+				miolo += 1
+				if Paleta.compete_com_ator(cor):
+					compete += 1
+			# So pixel com cor de verdade tem matiz para conferir: cinza e preto
+			# tem matiz indefinido, e o contorno e quase sempre um dos dois.
+			if cor.s > 0.20 and cor.v > PISO_MATIZ_LEGIVEL:
+				var d: float = fmod(absf(cor.h * 360.0 - alvo), 360.0)
+				d = minf(d, 360.0 - d)
+				if d > LARGURA_MATIZ_ATOR:
+					fora_da_faixa += 1
+					if pior.is_empty():
+						pior = "%s (%.0f graus, alvo %.0f) em (%d, %d)" % [
+							cor.to_html(false), cor.h * 360.0, alvo, x, y
+						]
+
+	igual(alpha_parcial, 0, "%s nao tem alfa parcial" % nome)
+	ok(opacos > 0, "%s tem ao menos um pixel opaco" % nome)
+	if opacos == 0:
+		return
+	# Miolo vazio quer dizer sprite fino demais: so contorno, sem corpo. Ele nao
+	# passa por omissao -- ele reprova, porque um projetil que e so borda nao tem
+	# o que acender.
+	ok(miolo > 0, "%s tem miolo, e nao so contorno" % nome)
+	if miolo == 0:
+		return
+	var fracao := float(compete) / float(miolo)
+	ok(
+		fracao >= PISO_COMPETE,
+		"%s: o MIOLO compete com ator (%.0f%% de %d px, piso %.0f%%)"
+			% [nome, fracao * 100.0, miolo, PISO_COMPETE * 100.0]
+	)
+	igual(
+		fora_da_faixa, 0,
+		"%s: todo pixel colorido fica a menos de %.0f graus da cor_projetil (%s)"
+			% [nome, LARGURA_MATIZ_ATOR, pior]
+	)
 
 
 ## Mesmo limiar do `preparar_textura.py`: dois pixels vizinhos contam como

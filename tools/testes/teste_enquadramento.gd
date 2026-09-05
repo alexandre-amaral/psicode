@@ -44,7 +44,6 @@ const CENAS := "res://src/mapa/"
 ## Sem ela o portao entraria vermelho e seria desligado antes de servir para
 ## alguma coisa. Com ela ele entra verde e ja morde qualquer sala NOVA.
 const PENDENTES: Array[String] = [
-	"sala_6_boss",
 ]
 
 

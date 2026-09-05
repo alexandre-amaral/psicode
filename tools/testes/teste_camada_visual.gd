@@ -877,10 +877,23 @@ func _a_razao_face_topo_fica_em_um_para_um() -> void:
 	# encolher junto com o resto.** Ela e a unica superficie vista de FRENTE, e e
 	# dela que vem a altura da sala. No perfil C ela e a maior das tres medidas
 	# do norte, e e isso que se cobra.
+	# O TETO SUBIU DE 2,0 PARA 3,0, e o motivo e o mesmo que ja tinha superado a
+	# razao 1:1: o que a §24 realmente protegia e a face nao encolher.
+	#
+	# O teto de 2,0 vinha do perfil C (24/16 = 1,5) e nao de uma medicao. A matriz
+	# de ENQUADRAMENTO -- a que mede quanto da TELA vira parede, com a camera no
+	# regime real -- mostrou que gastar os px extras no TOPO sobe a fracao de
+	# moldura sem subir a leitura, porque o topo e visto de cima e nao carrega
+	# altura. O perfil E gasta na FACE: mesma area jogavel do C (76,9% de piso) e
+	# 40% mais altura de parede, com a razao indo a 40/16 = 2,5.
+	#
+	# O teto continua existindo, e nao e decoracao: acima de 3,0 o topo vira um
+	# fio e a parede passa a ler como vista quase de LADO -- camera baixa, e ai os
+	# props, desenhados para uma camera so, deixam de pertencer a mesma cena.
 	var razao := perfil.face_norte / perfil.topo_norte
 	ok(
-		razao >= 1.0 and razao <= 2.0,
-		"a face norte e a superficie DOMINANTE do norte (razao %.2f, faixa 1,0-2,0)"
+		razao >= 1.0 and razao <= 3.0,
+		"a face norte e a superficie DOMINANTE do norte (razao %.2f, faixa 1,0-3,0)"
 			% razao
 	)
 	ok(

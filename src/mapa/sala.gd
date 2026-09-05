@@ -969,6 +969,16 @@ func _montar_fita(contorno: PackedVector2Array) -> void:
 ## cantos --, porque espessura e botao de tuning e botao de tuning mora em
 ## `.tres`. A valvula de teste ganha dele so quando esta ligada, e ela so liga
 ## em ferramenta.
+## O perfil que ESTA sala desenha.
+##
+## Publico porque a CAMERA precisa dele: a margem do clamp tem de sair do mesmo
+## perfil que desenhou a parede. Enquanto ela lia o default, um andar com
+## espessura propria desenharia parede que a camera nao mostra -- sem erro no
+## console, so a moldura saindo do quadro.
+func perfil_de_parede() -> PerfilDeParede:
+	return _perfil()
+
+
 func _perfil() -> PerfilDeParede:
 	if perfil_de_teste != null:
 		return perfil_de_teste

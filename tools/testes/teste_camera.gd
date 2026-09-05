@@ -47,6 +47,60 @@ func executar() -> void:
 	var margem := _margem()
 	_a_margem_deriva_da_parede(margem)
 	_o_clamp_cobre_a_parede_e_mais_nada(margem)
+	_a_margem_segue_o_perfil_DA_SALA()
+
+
+## A margem sai do perfil DAQUELA SALA, e nao do default.
+##
+## `margem_da_parede()` chamava `RenderizadorParedes.margens()` sem argumento, e
+## a funcao cai em `PerfilDeParede.new()` -- o default, sempre. Quem DESENHA, no
+## entanto, usa `Sala._perfil()`, que le o `EstiloDeParede` do tipo de sala.
+##
+## Passava por coincidencia: nenhum `.tres` de estilo grava os cinco campos de
+## espessura, entao o estilo devolvia exatamente o default. O dia em que um andar
+## tivesse perfil proprio -- que e a razao de o campo existir -- a parede
+## desenharia mais fundo e a camera pararia no mesmo lugar, cortando a moldura
+## fora do quadro. Sem erro no console.
+##
+## O caso usa a valvula `Sala.perfil_de_teste` para dar a sala um perfil
+## claramente diferente do default e exigir que a margem acompanhe.
+func _a_margem_segue_o_perfil_DA_SALA() -> void:
+	var cena: PackedScene = load(CENAS[0])
+	if cena == null:
+		ok(false, "a cena de sala carrega")
+		return
+	var sala := cena.instantiate() as Sala
+	Engine.get_main_loop().root.add_child(sala)
+
+	var gerenciador := GerenciadorMapa.new()
+	var padrao: Vector4 = gerenciador.margem_da_parede([sala])
+
+	var fundo := PerfilDeParede.new()
+	fundo.topo_norte = 40.0
+	fundo.face_norte = 48.0
+	Sala.perfil_de_teste = fundo
+	var maior: Vector4 = gerenciador.margem_da_parede([sala])
+	Sala.perfil_de_teste = null
+
+	ok(
+		maior.y > padrao.y,
+		"perfil mais fundo empurra a margem NORTE (%.0f contra %.0f)" % [maior.y, padrao.y]
+	)
+	perto(
+		maior.y, fundo.topo_norte + fundo.face_norte,
+		"e ela vale exatamente o que aquele perfil desenha ao norte"
+	)
+
+	# E o outro lado: sem sala nenhuma ela cai no default, que e o que a
+	# assinatura antiga fazia sempre.
+	var vazia: Vector4 = gerenciador.margem_da_parede([])
+	var base := PerfilDeParede.new()
+	perto(vazia.y, base.topo_norte + base.face_norte,
+		"sem sala, a margem e a do perfil default")
+
+	gerenciador.free()
+	sala.get_parent().remove_child(sala)
+	sala.free()
 
 
 ## A margem tem de bater com onde a FITA CHEGOU, e nao com uma constante.

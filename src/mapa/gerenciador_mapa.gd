@@ -1240,7 +1240,7 @@ func _sair(direcao: Vector2, destino: Sala) -> void:
 	_revelar(destino.coordenadas_grid)
 	# Enquanto atravessa, a camera enxerga origem + corredor + destino; e o que
 	# faz o deslize parecer intencional em vez de um corte.
-	_clampar(_uniao_da_travessia(sala_atual, destino))
+	_clampar(_uniao_da_travessia(sala_atual, destino), [sala_atual, destino])
 	EventBus.transicao_iniciada.emit(direcao, destino)
 	_ocupado = false
 
@@ -1261,7 +1261,7 @@ func _chegar(celula: Vector2i, direcao: Vector2) -> void:
 	_sala_destino = null
 	_direcao_travessia = Vector2.ZERO
 
-	_clampar(destino.obter_limites())
+	_clampar(destino.obter_limites(), [destino])
 	_forcar_deterioracao_de(celula)
 	# ativar() e idempotente: reentrar numa sala ja limpa nao recomeca o combate.
 	destino.ativar()
@@ -1274,7 +1274,7 @@ func _cancelar_travessia() -> void:
 	_sala_destino = null
 	_direcao_travessia = Vector2.ZERO
 	if sala_atual != null:
-		_clampar(sala_atual.obter_limites())
+		_clampar(sala_atual.obter_limites(), [sala_atual])
 
 
 ## `direcao` e o sentido da caminhada, nao o lado da porta que avisou: quem
@@ -1326,7 +1326,7 @@ func _player() -> Node2D:
 ## com ele), entao inflar na origem afastaria as salas umas das outras e
 ## desalinharia os corredores. O clamp e o unico lugar onde "quanto a camera
 ## mostra" e a pergunta.
-func _clampar(limites: Rect2) -> void:
+func _clampar(limites: Rect2, salas: Array = []) -> void:
 	if limites.size == Vector2.ZERO:
 		return
 	var player := _player()
@@ -1341,7 +1341,7 @@ func _clampar(limites: Rect2) -> void:
 	# escalar unico usaria o maior dos dois nos dois eixos, e a camera mostraria
 	# vazio do lado estreito. Sao 8 px por lado no perfil C: pouco para notar de
 	# relance, e o suficiente para uma tira de nada aparecer na borda do quadro.
-	var margem := margem_da_parede()
+	var margem := margem_da_parede(salas)
 	var visivel := limites.grow_individual(margem.x, margem.y, margem.z, margem.w)
 	_ajustar_zoom(camera, visivel.size)
 	camera.limit_left = roundi(visivel.position.x)
@@ -1374,8 +1374,21 @@ func _clampar(limites: Rect2) -> void:
 ## e e isso que `tools/testes/teste_camera.gd` trava. O conserto e geometrico --
 ## sala de 832x416 fecharia 960x544 exato -- e mexe em tamanho de sala, que a
 ## Fase 25 do plano de migracao proibe alterar enquanto ela acontece.
-func margem_da_parede() -> Vector4:
-	return RenderizadorParedes.margens()
+func margem_da_parede(salas: Array = []) -> Vector4:
+	# O MAIOR de cada lado, e nao o da primeira sala.
+	#
+	# Durante a travessia a camera enxerga duas salas e o corredor entre elas. Se
+	# elas tiverem perfis diferentes -- que e a razao de o campo existir --, usar
+	# o de uma delas cortaria a parede da outra bem no meio do deslize.
+	var maior := RenderizadorParedes.margens(null) if salas.is_empty() else Vector4.ZERO
+	for sala in salas:
+		var s := sala as Sala
+		if s == null:
+			continue
+		var m := RenderizadorParedes.margens(s.perfil_de_parede())
+		maior = Vector4(maxf(maior.x, m.x), maxf(maior.y, m.y),
+			maxf(maior.z, m.z), maxf(maior.w, m.w))
+	return maior
 
 
 ## O clamp sozinho nao basta: Camera2D nao respeita limite menor que o proprio

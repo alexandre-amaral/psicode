@@ -205,6 +205,24 @@ const TOPOS_NEUTROS: Array[String] = [
 ## Cor de emergencia do chao quando a textura nao carrega: o N1 da paleta, que
 ## e o chao que o jogo sempre teve. Sala invisivel seria pior que sala lisa.
 const COR_CHAO_EMERGENCIA := Color("0b0d16")
+
+## O VAZIO ALEM DA SALA, e ele e uma decisao e nao um ajuste de viewport.
+##
+## O §5 do plano de profundidade pede uma camada de exterior atras de toda a
+## arquitetura: sem ela a parede perde profundidade, porque nao ha contraste
+## entre "mundo jogavel", "arquitetura" e "nada alem da sala".
+##
+## Ela JA EXISTE, e por acidente feliz: o `default_clear_color` do
+## `project.godot` e este mesmo N0. O que faltava era ela ser DECLARADA aqui,
+## onde quem le a sala a encontra -- e nao so numa linha de configuracao de
+## render, que a proxima pessoa pode mudar por um motivo que nada tem a ver com
+## sala (um menu, uma transicao) e apagar a moldura inteira sem tocar em
+## `src/mapa/`.
+##
+## `teste_profundidade.gd` cobra que as duas continuem iguais. Nao ha nó de
+## exterior porque nao e preciso: o clear color ja desenha atras de tudo, e um nó
+## seria uma segunda fonte da mesma verdade.
+const COR_DO_VAZIO := Color("05060b")
 ## Lado de uma celula do atlas de props e passo da grade em que eles assentam.
 const PROP_LADO := 32.0
 const PROP_GRADE := 8.0

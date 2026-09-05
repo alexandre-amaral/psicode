@@ -75,6 +75,42 @@ func executar() -> void:
 	_e_os_passos_sao_grandes_o_bastante_para_serem_vistos()
 	_a_arquitetura_nao_cabe_num_punhado_de_niveis()
 	_o_piso_e_a_superficie_mais_calma_da_sala()
+	_o_vazio_alem_da_sala_e_declarado()
+
+
+## O exterior e uma DECISAO da sala, e nao um ajuste de viewport.
+##
+## O §5 do plano pede a camada de vazio atras de toda a arquitetura -- sem ela a
+## parede perde profundidade, porque some o contraste entre mundo jogavel,
+## arquitetura e nada. Ela ja existia, e por acidente feliz: o
+## `default_clear_color` e o N0 da paleta.
+##
+## O risco de deixar assim e que ninguem lendo `src/mapa/` descobre que ha um
+## exterior, e nada impede a proxima pessoa de mudar aquela linha por um motivo
+## que nada tem a ver com sala -- um menu, uma transicao -- e apagar a moldura
+## inteira sem tocar num arquivo de mapa.
+##
+## O portao e barato e e o que transforma o acidente em decisao: as duas pontas
+## tem de continuar dizendo a mesma cor, e ela tem de ser o N0.
+func _o_vazio_alem_da_sala_e_declarado() -> void:
+	var do_render: Color = ProjectSettings.get_setting(
+		"rendering/environment/defaults/default_clear_color", Color.BLACK)
+	ok(
+		Paleta.mesma_cor(do_render, Sala.COR_DO_VAZIO),
+		"o clear color e o vazio declarado pela Sala (%s contra %s)"
+			% [do_render.to_html(false), Sala.COR_DO_VAZIO.to_html(false)]
+	)
+	ok(
+		Paleta.mesma_cor(Sala.COR_DO_VAZIO, Paleta.neutro(&"N0")),
+		"e o vazio e o N0 da paleta -- o mais escuro que o jogo tem"
+	)
+	# E ele e mais escuro que a sombra de contato, senao a sombra desenharia mais
+	# clara que o nada e a parede pareceria flutuar sobre o exterior.
+	ok(
+		Sala.COR_DO_VAZIO.v <= _sombra_sobre(_valor(CHAO)) + 0.001,
+		"e ele nao e mais claro que a sombra (%.3f contra %.3f)"
+			% [Sala.COR_DO_VAZIO.v, _sombra_sobre(_valor(CHAO))]
+	)
 
 
 ## O piso e a area visualmente MAIS CALMA da sala.

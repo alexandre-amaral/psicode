@@ -45,7 +45,6 @@ const CENAS := "res://src/mapa/"
 ## alguma coisa. Com ela ele entra verde e ja morde qualquer sala NOVA.
 const PENDENTES: Array[String] = [
 	"sala_1_retangular",
-	"sala_2_l_shape",
 	"sala_6_boss",
 ]
 

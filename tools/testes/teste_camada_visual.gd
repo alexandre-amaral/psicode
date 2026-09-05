@@ -966,10 +966,27 @@ func _a_sombra_assenta_a_parede_sem_invadir_o_combate() -> void:
 			"%s: o alfa maximo e %.2f, teto %.2f" % [nome, alfa_maximo,
 				SombraDeParede.ALFA_MAXIMO]
 		)
+		# O TETO SUBIU DE 6% PARA 8%, e o motivo nao e a sombra ter crescido.
+		#
+		# Ela e um efeito de PERIMETRO medido contra uma AREA. Quando as salas
+		# encolheram de 960x544 para 896x448, a area caiu 23% e o perimetro so
+		# ~8% -- entao a fracao subiu por construcao, com a sombra desenhando
+		# exatamente os mesmos 12 px de sempre. A sala em L foi a primeira a
+		# passar do teto, com 6,2%, porque ela e a de menor area do jogo.
+		#
+		# Baixar a sombra para caber nos 6% seria mexer na arte para agradar um
+		# proxy. Quem guarda o que este teto existe para guardar -- "a sombra nao
+		# invade o combate" -- e a assercao ACIMA, `fundo <= PROFUNDIDADE_MAXIMA`:
+		# ela mede o quanto a sombra entra, que e o que o jogador sente, e nao
+		# muda com o tamanho da sala.
+		#
+		# O teto de area continua existindo como rede contra alguem multiplicar a
+		# sombra por dez, e 8% e o que deixa a menor sala do jogo passar com folga
+		# sem deixar passar o dobro dela.
 		var area_do_chao := absf(_area_do(contorno))
 		ok(
-			area < area_do_chao * 0.06,
-			"%s: a sombra ocupa %.1f%% do chao, teto 6%%"
+			area < area_do_chao * 0.08,
+			"%s: a sombra ocupa %.1f%% do chao, teto 8%%"
 				% [nome, 100.0 * area / maxf(area_do_chao, 1.0)]
 		)
 		sala.free()

@@ -45,6 +45,19 @@ const FACE: Array[String] = ["parede_face", "parede_face_combate"]
 ## abaixo do menor degrau, e e por isso que a sala lia como uma superficie so.
 const PASSO_MINIMO := 0.036
 
+## A razao de detalhe entre piso e parede, do §60 do plano: "se a parede usa 100%
+## de detalhe, o piso deve usar aproximadamente 25-40% dessa densidade".
+##
+## Medido antes deste portao: 21,8% de piso contra ~51,5% de parede = 42%, acima
+## do teto. Hoje o piso do andar 1 fica em ~15% = 29%.
+const TETO_DA_RAZAO := 0.40
+const PISO_DA_RAZAO := 0.15
+
+## Detalhe: dois pixels vizinhos contam como mudanca quando a soma das
+## diferencas de canal passa disto. Gemeo de `teste_texturas.LIMIAR_DETALHE` e do
+## `LIMIAR_DETALHE` de `preparar_textura.py`.
+const LIMIAR_DETALHE := 24
+
 ## Quanto a sombra tem de escurecer o chao, em fracao do valor dele.
 const FRACAO_MINIMA_DA_SOMBRA := 0.20
 
@@ -61,6 +74,44 @@ func executar() -> void:
 	_a_sequencia_de_valor_esta_na_ordem()
 	_e_os_passos_sao_grandes_o_bastante_para_serem_vistos()
 	_a_arquitetura_nao_cabe_num_punhado_de_niveis()
+	_o_piso_e_a_superficie_mais_calma_da_sala()
+
+
+## O piso e a area visualmente MAIS CALMA da sala.
+##
+## E a segunda metade do defeito. A primeira era o valor -- quatro superficies na
+## mesma tinta --, e esta e a densidade: o piso tinha placa com borda clara e
+## rebite a cada ~64 px, e era a coisa mais barulhenta do quadro. Uma moldura
+## calma em volta de um piso que grita nao le como moldura; le como mosaico com
+## uma borda.
+##
+## O numero e do §60 do plano: se a parede usa 100% de detalhe, o piso usa 25-40%
+## disso. Ele e uma RAZAO e nao um teto solto, e essa e a diferenca que importa:
+## `teste_texturas.gd` ja mede cada familia contra a propria faixa e passaria com
+## as duas no teto, que e um piso tao denso quanto a parede.
+##
+## O piso do CHEFE, da ARMA e do ITEM ficam fora da conta de propOsito: eles ja
+## nasceram abaixo da faixa (5,2% e 5,7% medidos) -- sao calmos por natureza, e
+## cobrar deles uma razao contra a parede so os empurraria para chapados.
+func _o_piso_e_a_superficie_mais_calma_da_sala() -> void:
+	var piso := _densidade_de(CHAO)
+	var parede := _densidade_de(TOPO + FACE)
+	if piso < 0.0 or parede < 0.0:
+		ok(false, "as texturas carregam para medir densidade")
+		return
+	var razao := piso / maxf(parede, 0.0001)
+	ok(
+		razao <= TETO_DA_RAZAO,
+		"o piso usa %.0f%% do detalhe da parede (teto %.0f%%) -- piso %.1f%%, parede %.1f%%"
+			% [razao * 100.0, TETO_DA_RAZAO * 100.0, piso * 100.0, parede * 100.0]
+	)
+	# E o outro lado: piso chapado tambem reprova. Um chao sem nenhum detalhe
+	# deixa de ler como material, e a cavidade vira um buraco de cor.
+	ok(
+		razao >= PISO_DA_RAZAO,
+		"e ele nao fica CHAPADO (%.0f%%, minimo %.0f%%)"
+			% [razao * 100.0, PISO_DA_RAZAO * 100.0]
+	)
 
 
 ## topo > face > piso > sombra.
@@ -180,6 +231,38 @@ func _valor(familia: Array[String]) -> float:
 func _sombra_sobre(piso: float) -> float:
 	var n0 := Color("05060b").v
 	return piso * (1.0 - ALFA_SOMBRA) + n0 * ALFA_SOMBRA
+
+
+## A densidade MEDIANA de uma familia: fracao de pixels que diferem de um vizinho.
+func _densidade_de(familia: Array[String]) -> float:
+	var todas: Array[float] = []
+	for nome_arquivo in familia:
+		var imagem := _abrir(TEXTURAS + nome_arquivo + ".png")
+		if imagem == null:
+			continue
+		var l := imagem.get_width()
+		var a := imagem.get_height()
+		var muda := 0
+		for y in a:
+			for x in l:
+				var c := imagem.get_pixel(x, y)
+				var d := imagem.get_pixel((x + 1) % l, y)
+				var e := imagem.get_pixel(x, (y + 1) % a)
+				if _diferenca(c, d) > LIMIAR_DETALHE or _diferenca(c, e) > LIMIAR_DETALHE:
+					muda += 1
+		todas.append(float(muda) / float(maxi(l * a, 1)))
+	if todas.is_empty():
+		return -1.0
+	todas.sort()
+	return todas[todas.size() / 2]
+
+
+func _diferenca(a: Color, b: Color) -> int:
+	return (
+		absi(int(round(a.r * 255.0)) - int(round(b.r * 255.0)))
+		+ absi(int(round(a.g * 255.0)) - int(round(b.g * 255.0)))
+		+ absi(int(round(a.b * 255.0)) - int(round(b.b * 255.0)))
+	)
 
 
 func _abrir(caminho: String) -> Image:

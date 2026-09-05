@@ -445,6 +445,22 @@ def forcar_gamut(im, familia, tipo="andar1"):
         atual = float(np.median(v[alpha > 0.5])) if (alpha > 0.5).any() else 0.0
         if atual > 1e-4:
             v = v * (alvo / atual)
+
+    # COMPRESSAO DE FAIXA: puxa cada pixel para a mediana, sem mover uma aresta.
+    #
+    # Ela existe para o PISO. O plano manda reduzir "linhas, parafusos, bordas,
+    # diferencas de valor" ate o chao virar uma superficie unica -- e a ultima
+    # dessas quatro e exatamente isto.
+    #
+    # NAO CONFUNDA COM BORRAR. Um filtro de mediana ja derrubou a densidade de
+    # uma familia de 41% para 24% e MATOU a arte: os topos viraram borroes sem
+    # aresta, porque um filtro espacial MOVE a informacao. A compressao de faixa
+    # e pontual: cada aresta continua exatamente onde estava, com menos
+    # amplitude. E a diferenca entre baixar o volume e desafinar.
+    compressao: float = regra.get("compressao_v", 0.0)
+    if compressao > 0.0:
+        centro = float(np.median(v[alpha > 0.5])) if (alpha > 0.5).any() else 0.0
+        v = centro + (v - centro) * (1.0 - compressao)
     v = np.minimum(v, regra["teto_v"])
     s = np.minimum(s, regra["teto_s"])
     if regra["matiz"] is not None:
@@ -660,6 +676,11 @@ def main():
     pr.add_argument("--grampear-matiz", nargs=2, type=float, default=None,
                     metavar=("LO", "HI"),
                     help="grampeia o matiz na origem, com folga maior que a do funil")
+    pr.add_argument("--compressao-v", type=float, default=None, metavar="F",
+                    help="puxa o valor de cada pixel para a mediana (0=nada, "
+                         "0.4=tira 40%% da amplitude). E o botao de 'o piso "
+                         "para de gritar' -- pontual, nao espacial: nenhuma "
+                         "aresta sai do lugar")
     pr.add_argument("--alvo-v", type=float, default=None, metavar="V",
                     help="sobrescreve a mediana de valor alvo da familia")
 
@@ -694,6 +715,8 @@ def main():
             im = costurar(im)
         if a.alvo_v is not None:
             FAMILIAS[familia] = dict(FAMILIAS[familia], alvo_v=a.alvo_v)
+        if a.compressao_v is not None:
+            FAMILIAS[familia] = dict(FAMILIAS[familia], compressao_v=a.compressao_v)
         im = forcar_gamut(im, familia, tipo)
         im = cravar_alpha(im)
         os.makedirs(os.path.dirname(os.path.abspath(a.destino)), exist_ok=True)

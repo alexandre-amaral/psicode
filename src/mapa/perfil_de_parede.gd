@@ -47,6 +47,18 @@ var face_lateral: float = 16.0
 ## 16 e nao 64: desenhar 64 px de superficie chapada ali era o que mais engordava
 ## a moldura sem dar nada em troca.
 var topo_sul: float = 16.0
+## A BORDA EXTERNA do sul: a espessura que escurece do topo ate o vazio.
+##
+## O §15 do plano de profundidade pede que a sul seja construida ao contrario da
+## norte -- chao, topo, e entao altura para BAIXO, em direcao ao exterior. E o
+## que faz o piso parecer encaixado numa caixa em vez de terminar numa linha.
+##
+## Ela NAO e uma face, e a distincao nao e de nome. Face e superficie vista de
+## FRENTE, e o lado sul olha para longe da camera: desenhar `parede_face` ali
+## seria pintar o que o jogador nao ve, e e por isso que
+## `teste_camada_visual.gd` proibe textura de face abaixo da borda sul. Isto e
+## espessura em degraus de VALOR, na mesma lingua da `SombraDeParede`.
+var borda_externa_sul: float = 12.0
 
 
 ## Os quatro perfis da matriz de comparacao do plano.
@@ -64,24 +76,28 @@ static func de_nome(nome: String) -> PerfilDeParede:
 			p.topo_lateral = 32.0
 			p.face_lateral = 32.0
 			p.topo_sul = 64.0
+			p.borda_externa_sul = 0.0
 		"B":
 			p.topo_norte = 24.0
 			p.face_norte = 24.0
 			p.topo_lateral = 24.0
 			p.face_lateral = 24.0
 			p.topo_sul = 24.0
+			p.borda_externa_sul = 0.0
 		"C":
 			p.topo_norte = 16.0
 			p.face_norte = 24.0
 			p.topo_lateral = 16.0
 			p.face_lateral = 16.0
 			p.topo_sul = 16.0
+			p.borda_externa_sul = 12.0
 		"D":
 			p.topo_norte = 16.0
 			p.face_norte = 16.0
 			p.topo_lateral = 12.0
 			p.face_lateral = 12.0
 			p.topo_sul = 12.0
+			p.borda_externa_sul = 0.0
 		_:
 			pass
 	return p
@@ -90,7 +106,7 @@ static func de_nome(nome: String) -> PerfilDeParede:
 ## Quanto este lado desenha ao todo.
 func profundidade(lado: int) -> float:
 	if lado == RenderizadorParedes.Lado.SUL:
-		return topo_sul
+		return topo_sul + borda_externa_sul
 	if lado == RenderizadorParedes.Lado.NORTE:
 		return topo_norte + face_norte
 	return topo_lateral + face_lateral
@@ -115,7 +131,8 @@ func fim_da_face(lado: int) -> float:
 ## lado mais fundo, e nem um pixel do vazio depois dela. Com a assimetria, os
 ## lados rasos ficam com folga -- e isso e aceitavel, porque o quadro e um so.
 func alcance() -> float:
-	return maxf(maxf(topo_norte + face_norte, topo_lateral + face_lateral), topo_sul)
+	return maxf(maxf(topo_norte + face_norte, topo_lateral + face_lateral),
+		topo_sul + borda_externa_sul)
 
 
 ## O alcance POR EIXO: o maior dos dois lados de cada eixo.
@@ -125,7 +142,7 @@ func alcance() -> float:
 func alcance_por_eixo() -> Vector2:
 	return Vector2(
 		topo_lateral + face_lateral,
-		maxf(topo_norte + face_norte, topo_sul)
+		maxf(topo_norte + face_norte, topo_sul + borda_externa_sul)
 	)
 
 
@@ -142,4 +159,5 @@ func alcance_por_eixo() -> Vector2:
 ## e nao depende da forma da sala.
 func margens() -> Vector4:
 	var lateral := topo_lateral + face_lateral
-	return Vector4(lateral, topo_norte + face_norte, lateral, topo_sul)
+	return Vector4(lateral, topo_norte + face_norte, lateral,
+		topo_sul + borda_externa_sul)

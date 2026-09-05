@@ -33,7 +33,80 @@ func executar() -> void:
 	_a_intensidade_cresce_e_pisca()
 	_apagar_devolve_o_pulsante()
 	_os_tres_inimigos_migrados_avisam()
+	_os_avisos_ad_hoc_tambem_usam_o_componente()
+	_a_duracao_do_aviso_e_fixada_na_ENTRADA()
 	_o_aviso_apaga_quando_o_inimigo_morre_mirando()
+
+
+## Os tres que avisavam POR FORA do componente agora avisam por dentro.
+##
+## Drone Aranha, Hacker Parasita e Cyber-Besta tinham aviso proprio -- dois
+## `Polygon2D` com tween e um `Line2D` -- e ficavam fora de tudo que o componente
+## garante: as quatro fases, a faixa `z` ABSOLUTA, o `top_level`, e sobretudo
+## `InimigoBase._apagar_telegrafos()`, que so varre filhos do tipo `Telegrafo`.
+##
+## O AGACHAMENTO da Besta continua FORA, e de proposito: `pulsar()` escreve
+## escala uniforme, e o agachamento e anisotropico -- e ele que diz para onde ela
+## vai. Este caso cobra o rastro dela, e nao a pose.
+func _os_avisos_ad_hoc_tambem_usam_o_componente() -> void:
+	var cenas: Array[String] = [
+		"res://src/enemies/drone_aranha.tscn",
+		"res://src/enemies/hacker_parasita.tscn",
+		"res://src/enemies/cyber_besta.tscn",
+	]
+	for caminho in cenas:
+		var cena: PackedScene = load(caminho)
+		var bicho := _nascer(cena)
+		var t: Telegrafo = bicho.get("_telegrafo")
+		var quem := caminho.get_file().get_basename()
+		ok(t != null, "%s usa o componente Telegrafo" % quem)
+		if t != null:
+			ok(
+				t.cor.is_equal_approx(bicho.cor_base),
+				"%s tinge o aviso com a propria cor_base, e nao com um literal" % quem
+			)
+		bicho.free()
+
+
+## A duracao do aviso e fixada na ENTRADA do estado, e nao recalculada por frame.
+##
+## A barra SOBE durante a propria carga. Recalculada todo frame, a duracao
+## encolhe enquanto o jogador le o aviso -- o oposto do que o telegrafo existe
+## para fazer, e a armadilha ja registrada ("o Drone guarda isso em
+## `_aviso_atual`").
+##
+## Ela estava viva em DOIS inimigos: `hacker_parasita.gd` e `cyber_besta.gd`
+## chamavam `duracao_do_telegrafo()` dentro do `_processar` do estado, enquanto o
+## tween do desenho rodava no valor CRU. Dois relogios que so concordavam com a
+## barra em zero -- acima disso a area era plantada com o aviso pela metade.
+##
+## O caso mede o que importa: acender, subir a barra ao MAXIMO, e conferir que a
+## duracao daquele aviso nao mudou.
+func _a_duracao_do_aviso_e_fixada_na_ENTRADA() -> void:
+	var antes := Deterioracao.valor
+	Deterioracao.valor = 0.0
+	var t := Telegrafo.anexar(Node2D.new())
+	var dono := t.get_parent()
+	Engine.get_main_loop().root.add_child(dono)
+
+	var pedida := 1.0
+	t.acender(pedida)
+	var duracao_no_acender: float = t.duracao
+	t.avancar(0.2)
+	Deterioracao.valor = 100.0
+	t.avancar(0.2)
+	perto(
+		t.duracao, duracao_no_acender,
+		"a barra indo a 100 no meio do aviso NAO encurta o aviso em curso"
+	)
+	ok(
+		t.progresso() < 1.0,
+		"e ele continua em curso (progresso %.2f)" % t.progresso()
+	)
+
+	Deterioracao.valor = antes
+	dono.get_parent().remove_child(dono)
+	dono.free()
 
 
 ## Invariantes 1 e 2: faixa `Z` absoluta e transformada propria.

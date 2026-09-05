@@ -46,6 +46,9 @@ extends InimigoBase
 ## segundo depois de o drone ja ter travado no lugar.
 const VELOCIDADE_ANDANDO := 12.0
 
+## Raio do disco de aviso, herdado do `Polygon2D Aviso` que ele substituiu.
+const RAIO_AVISO := 72.0
+
 const PERSEGUIR := &"PERSEGUIR"
 const POSICIONAR := &"POSICIONAR"
 const CARREGAR := &"CARREGAR"
@@ -54,7 +57,15 @@ const RECUPERAR := &"RECUPERAR"
 
 var _maquina: MaquinaEstados
 var _arma: Arma
-var _aviso: Polygon2D
+## O aviso do anel.
+##
+## Era um `Polygon2D` proprio na cena com um tween de escala e alfa. Virou o
+## componente por tres razoes que o tween nao dava: as QUATRO fases (o tween era
+## uma rampa so, entao o jogador lia "vem coisa" e nunca "vem AGORA"), a faixa
+## `z` ABSOLUTA, e `InimigoBase._apagar_telegrafos()` -- que so varre filhos do
+## tipo `Telegrafo`, entao um drone morto no meio da carga deixava o circulo na
+## tela no frame diferido do `queue_free()`.
+var _telegrafo: Telegrafo
 var _sprite: SpriteDirecional
 var _t_intervalo: float = 0.0
 ## Para que lado ele contorna enquanto posiciona. Sorteado no nascimento, como o
@@ -75,8 +86,11 @@ func _ready() -> void:
 	super._ready()
 	_arma = $Visual/Arma
 	_arma.hostil = true
-	_aviso = $Aviso
-	_aviso.visible = false
+	_telegrafo = Telegrafo.anexar(self)
+	# A cor vem de `cor_base` e nao de um literal: o literal do `.tscn` antigo
+	# era invisivel para `teste_texturas._espelho_do_ator()`, que so le a
+	# propriedade da RAIZ.
+	_telegrafo.cor = cor_base
 	_sprite = $Visual/Corpo
 	# Espalha o primeiro anel do grupo: quatro drones nascendo juntos e
 	# disparando no mesmo frame seria uma parede de projeteis, nao um padrao.
@@ -197,22 +211,25 @@ func _pronto_para_o_anel() -> bool:
 ## sinal que se le de longe, antes mesmo de o circulo ficar visivel.
 func _carregar_entrar() -> void:
 	_aviso_atual = duracao_do_telegrafo(tempo_carga)
-	_aviso.visible = true
-	_aviso.scale = Vector2(0.2, 0.2)
-	_aviso.modulate.a = 0.0
-	var t := create_tween()
-	t.tween_property(_aviso, "scale", Vector2.ONE, _aviso_atual)
-	t.parallel().tween_property(_aviso, "modulate:a", 0.55, _aviso_atual * 0.8)
+	_telegrafo.circulo(global_position, RAIO_AVISO)
+	_telegrafo.acender(_aviso_atual)
 
 
 func _carregar(delta: float) -> void:
 	Movimento.frear(self, delta, 1600.0)
-	if _maquina.passou(_aviso_atual):
+	# O circulo SEGUE o drone, e isso nao e descuido: o anel nasce de onde ele
+	# estiver no instante do disparo, entao um aviso parado enquanto o knockback
+	# o empurra e que seria a mentira.
+	_telegrafo.circulo(global_position, RAIO_AVISO)
+	# UM relogio so. Deixar `_maquina.passou(_aviso_atual)` ao lado de
+	# `avancar()` daria dois, e o dia em que eles divergissem o aviso terminaria
+	# num instante e o tiro noutro.
+	if _telegrafo.avancar(delta) >= 1.0:
 		_maquina.trocar(DISPARAR)
 
 
 func _carregar_sair() -> void:
-	_aviso.visible = false
+	_telegrafo.apagar()
 
 
 ## O anel inteiro numa salva so.

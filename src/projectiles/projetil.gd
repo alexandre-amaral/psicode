@@ -60,12 +60,40 @@ var _semeia_nanite: bool = false
 var _alvo: Node2D = null
 var _rastro: Line2D
 var _forma: CollisionShape2D
-var _visual: Polygon2D
+## O EMBRULHO, e nao o desenho. `_aplicar_glitch()` escreve a posicao dele, e e
+## isso que faz o corpo, o halo e a arte tremerem JUNTOS -- irmaos, o projetil se
+## partiria em pedacos na Deterioracao alta.
+##
+## Tipado `Node2D` e nao `Polygon2D` pela mesma razao que `InimigoBase._corpo` e
+## `CanvasItem`: aqui embaixo mora um poligono OU um sprite, e tipar de volta
+## como `Polygon2D` falha o cast em runtime.
+var _visual: Node2D
+var _poligono: Polygon2D
+var _sprite: Sprite2D
+var _halo: Polygon2D
+
+## A silhueta, cacheada de `configurar()`.
+##
+## Sao `var` com default proprio e nao leitura de `_dados` porque o `_ready` roda
+## ANTES de `configurar()` -- a Arma faz `add_child` primeiro. Ler
+## `_dados.familia_silhueta` dentro de `_aplicar_aparencia()` estoura na primeira
+## chamada, onde `_dados` ainda e `null`.
+var _familia: int = FormasProjetil.Familia.LOSANGO
+var _alongamento: float = 1.0
+var _rastro_comprimento: float = 0.0
+var _rastro_alfa: float = 0.35
+var _familia_impacto: int = Impactos.Familia.FAISCA
+## A arte, ou `null` enquanto ela nao chega. `var` com default proprio pela mesma
+## razao dos outros: no `_ready` o `_dados` ainda e nulo.
+var _textura: Texture2D = null
 
 
 func _ready() -> void:
 	_forma = $Forma
 	_visual = $Visual
+	_poligono = $Visual/Poligono
+	_sprite = $Visual/Sprite
+	_halo = $Visual/Halo
 	_rastro = $Rastro
 	_rastro.top_level = true          # ignora a rotacao do pai
 
@@ -91,14 +119,35 @@ func _aplicar_aparencia() -> void:
 	forma_circulo.radius = raio
 	_forma.shape = forma_circulo
 
-	_visual.color = cor
-	_visual.polygon = _montar_polygon(raio)
+	# A ARTE quando ela existe, o poligono quando nao. Exatamente um aceso,
+	# nunca os dois nem nenhum -- e o fallback nao apodrece, porque no `_ready`
+	# `_dados` e sempre `null` e TODO projetil do jogo passa por ele no frame em
+	# que nasce.
+	_sprite.texture = _textura
+	var tem_arte := _textura != null
+	_sprite.visible = tem_arte
+	_poligono.visible = not tem_arte
 
-	_rastro.default_color = Color(cor.r, cor.g, cor.b, 0.35)
-	_rastro.width = maxf(raio * 1.5, 4.0)
-	_rastro.clear_points()
-	_rastro.add_point(global_position)
-	_rastro.add_point(global_position)
+	_poligono.color = Color(cor.r, cor.g, cor.b, cor.a * FormasProjetil.alfa(_familia))
+	_poligono.polygon = FormasProjetil.contorno(_familia, raio, _alongamento)
+	_poligono.polygons = FormasProjetil.ilhas(_familia, raio, _alongamento)
+
+	var contorno_halo := FormasProjetil.halo(_familia, raio)
+	_halo.visible = not contorno_halo.is_empty()
+	if _halo.visible:
+		_halo.polygon = contorno_halo
+		_halo.color = Color(cor.r, cor.g, cor.b, FormasProjetil.HALO_ALFA)
+
+	# Rastro DESLIGADO por padrao: antes deste campo ele era cravado e as 21
+	# armas tinham um, inclusive as em que uma trilha longa emenda com o tiro
+	# seguinte e apaga a contagem de projeteis.
+	_rastro.visible = _rastro_comprimento > 0.0
+	if _rastro.visible:
+		_rastro.default_color = Color(cor.r, cor.g, cor.b, _rastro_alfa)
+		_rastro.width = maxf(raio * 1.5, 4.0)
+		_rastro.clear_points()
+		_rastro.add_point(global_position)
+		_rastro.add_point(global_position)
 
 
 func configurar(
@@ -127,6 +176,12 @@ func configurar(
 	perfuracao_restante = dados.perfuracao
 	cor = dados.cor_projetil
 	raio = dados.raio_projetil
+	_familia = dados.familia_silhueta
+	_alongamento = dados.alongamento_silhueta
+	_rastro_comprimento = dados.rastro_comprimento
+	_rastro_alfa = dados.rastro_alfa
+	_familia_impacto = dados.familia_impacto
+	_textura = dados.textura_projetil
 
 	var vel := dados.velocidade_projetil * multiplicador_velocidade
 	velocidade = direcao.normalized() * vel
@@ -249,11 +304,15 @@ func _ao_bater_na_parede(batida: Dictionary) -> void:
 
 
 func _atualizar_rastro() -> void:
-	if _rastro == null:
+	if _rastro == null or not _rastro.visible:
 		return
 	_rastro.set_point_position(0, global_position)
-	# O ponto de tras fica sempre alguns frames atras, na direcao oposta.
-	_rastro.set_point_position(1, global_position - velocidade.normalized() * maxf(raio * 6.0, 16.0))
+	# O ponto de tras fica sempre alguns frames atras, na direcao oposta. O
+	# comprimento e MULTIPLO do raio e vem do `.tres`: quem tem rastro e quem
+	# pediu um.
+	_rastro.set_point_position(
+		1, global_position - velocidade.normalized() * (raio * _rastro_comprimento)
+	)
 
 
 ## Identidade visual da Deterioracao alta: os projeteis inimigos passam a
@@ -502,16 +561,10 @@ func _tentar_fragmentar() -> void:
 func _impacto() -> void:
 	var fx := preload("res://src/fx/impacto.tscn").instantiate()
 	fx.global_position = global_position
-	fx.modulate = cor
+	# VESTIR ANTES do add_child, ao contrario da convencao da casa: o `_ready` de
+	# `fx_autodestroi.gd` liga a emissao e agenda a liberacao com o `lifetime`
+	# DAQUELE instante. Vestido depois, a particula morre no tempo errado.
+	Impactos.vestir(fx, _familia_impacto, cor, maxf(raio / 4.0, 0.6))
 	get_tree().current_scene.add_child(fx)
 
 
-func _montar_polygon(r: float) -> PackedVector2Array:
-	# Losango alongado no eixo X -- parece um dardo de energia e le bem
-	# a direcao do tiro sem precisar de sprite.
-	return PackedVector2Array([
-		Vector2(r * 2.4, 0.0),
-		Vector2(0.0, -r),
-		Vector2(-r * 1.6, 0.0),
-		Vector2(0.0, r),
-	])

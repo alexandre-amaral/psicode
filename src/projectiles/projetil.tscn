@@ -21,6 +21,16 @@ default_color = Color(0.43, 0.9, 1, 0.35)
 begin_cap_mode = 2
 end_cap_mode = 2
 
-[node name="Visual" type="Polygon2D" parent="."]
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Halo" type="Polygon2D" parent="Visual"]
+visible = false
+z_index = -1
+color = Color(0.43, 0.9, 1, 0.3)
+
+[node name="Poligono" type="Polygon2D" parent="Visual"]
 polygon = PackedVector2Array(10, 0, 0, -4, -6, 0, 0, 4)
 color = Color(0.43, 0.9, 1, 1)
+
+[node name="Sprite" type="Sprite2D" parent="Visual"]
+visible = false

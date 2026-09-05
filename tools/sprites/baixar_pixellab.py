@@ -128,7 +128,36 @@ def _escrever(dado, caminho):
     return baixar(dado, caminho)
 
 
+## PROJETIL nao tem direcao, e por isso ele tem um modo proprio.
+##
+## Um ator tem oito vistas que sao DESENHOS diferentes -- voce ve o rosto, depois
+## as costas. Um projetil e visto de cima e voa em angulo arbitrario: as "oito
+## vistas" dele seriam o mesmo desenho girado, e girar em runtime custa menos que
+## assar oito arquivos e ainda quantizar o angulo (a Swarm e TELEGUIADA -- um
+## dardo quantizado em 45 graus estalaria no meio da curva).
+##
+## Entao aqui nao ha `DIRECOES`: uma pasta so, quadros numerados, e o
+## `gerar_projeteis.py` faz o resto.
+def _objeto(id_arma, fontes):
+    base = os.path.join(DESTINO, "projeteis", id_arma)
+    if not os.path.isdir(base):
+        os.makedirs(base)
+    total = 0
+    for i, fonte in enumerate(fontes):
+        alvo = os.path.join(base, "%02d.png" % i)
+        if os.path.isfile(fonte):
+            with io.open(fonte, "rb") as f:
+                total += _escrever(f.read(), alvo)
+        else:
+            total += _escrever(fonte, alvo)
+    print("projeteis/%s: %d quadro(s), %.1f KB" % (id_arma, len(fontes), total / 1024.0))
+    print("agora: python tools/sprites/gerar_projeteis.py %s <raio>" % id_arma)
+    return 0
+
+
 def main():
+    if len(sys.argv) >= 4 and sys.argv[1] == "--objeto":
+        return _objeto(sys.argv[2], sys.argv[3:])
     if len(sys.argv) not in (4, 5):
         sys.exit(__doc__)
     ator, clipe, fonte = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -187,4 +216,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main() or 0)

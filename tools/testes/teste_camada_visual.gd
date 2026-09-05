@@ -114,13 +114,30 @@ func _o_chao_fica_acima_do_topo_da_parede() -> void:
 	if fita != null and chao != null:
 		ok(fita.z_index > chao.z_index,
 			"a fita desenha acima do chao -- ela nao precisa mais do recorte")
+		# VARRE `Node2D`, E NAO `Sprite2D`.
+		#
+		# Ate aqui este laco fazia `filho as Sprite2D`, e o renderizador nao cria
+		# um unico `Sprite2D` desde a MOLDURA -- ele so monta `Polygon2D`. O caso
+		# contava ZERO DE ZERO e passava por vacuidade: um portao que nao olha
+		# nada, do mesmo jeito que a #125 registrou para a PAREDE 13.
+		#
+		# Ele continua valendo ao lado de
+		# `teste_renderizador_paredes.gd:_nenhuma_celula_invade_o_chao()`, que
+		# cobra a mesma invariante com mais amostras: o que ESTE caso acrescenta e
+		# medir a invasao na MESMA cena em que se afirma `fita.z_index > chao`, e
+		# sao as duas juntas que autorizam a fita a desenhar acima do chao.
 		var contorno := sala.contorno_local()
 		var dentro := 0
+		var conferidas := 0
 		for filho in fita.get_children():
-			var sprite := filho as Sprite2D
-			if sprite != null and Geometry2D.is_point_in_polygon(sprite.position, contorno):
+			var peca := filho as Node2D
+			if peca == null:
+				continue
+			conferidas += 1
+			if Geometry2D.is_point_in_polygon(peca.position, contorno):
 				dentro += 1
-		igual(dentro, 0, "e mesmo assim nenhuma celula dela cai sobre o chao (%d)" % dentro)
+		ok(conferidas > 0, "e ha pecas para conferir (%d) -- senao o portao nao olha nada" % conferidas)
+		igual(dentro, 0, "e nenhuma delas cai sobre o chao (%d de %d)" % [dentro, conferidas])
 	sala.free()
 
 
@@ -860,10 +877,23 @@ func _a_razao_face_topo_fica_em_um_para_um() -> void:
 	# encolher junto com o resto.** Ela e a unica superficie vista de FRENTE, e e
 	# dela que vem a altura da sala. No perfil C ela e a maior das tres medidas
 	# do norte, e e isso que se cobra.
+	# O TETO SUBIU DE 2,0 PARA 3,0, e o motivo e o mesmo que ja tinha superado a
+	# razao 1:1: o que a §24 realmente protegia e a face nao encolher.
+	#
+	# O teto de 2,0 vinha do perfil C (24/16 = 1,5) e nao de uma medicao. A matriz
+	# de ENQUADRAMENTO -- a que mede quanto da TELA vira parede, com a camera no
+	# regime real -- mostrou que gastar os px extras no TOPO sobe a fracao de
+	# moldura sem subir a leitura, porque o topo e visto de cima e nao carrega
+	# altura. O perfil E gasta na FACE: mesma area jogavel do C (76,9% de piso) e
+	# 40% mais altura de parede, com a razao indo a 40/16 = 2,5.
+	#
+	# O teto continua existindo, e nao e decoracao: acima de 3,0 o topo vira um
+	# fio e a parede passa a ler como vista quase de LADO -- camera baixa, e ai os
+	# props, desenhados para uma camera so, deixam de pertencer a mesma cena.
 	var razao := perfil.face_norte / perfil.topo_norte
 	ok(
-		razao >= 1.0 and razao <= 2.0,
-		"a face norte e a superficie DOMINANTE do norte (razao %.2f, faixa 1,0-2,0)"
+		razao >= 1.0 and razao <= 3.0,
+		"a face norte e a superficie DOMINANTE do norte (razao %.2f, faixa 1,0-3,0)"
 			% razao
 	)
 	ok(
@@ -936,10 +966,27 @@ func _a_sombra_assenta_a_parede_sem_invadir_o_combate() -> void:
 			"%s: o alfa maximo e %.2f, teto %.2f" % [nome, alfa_maximo,
 				SombraDeParede.ALFA_MAXIMO]
 		)
+		# O TETO SUBIU DE 6% PARA 8%, e o motivo nao e a sombra ter crescido.
+		#
+		# Ela e um efeito de PERIMETRO medido contra uma AREA. Quando as salas
+		# encolheram de 960x544 para 896x448, a area caiu 23% e o perimetro so
+		# ~8% -- entao a fracao subiu por construcao, com a sombra desenhando
+		# exatamente os mesmos 12 px de sempre. A sala em L foi a primeira a
+		# passar do teto, com 6,2%, porque ela e a de menor area do jogo.
+		#
+		# Baixar a sombra para caber nos 6% seria mexer na arte para agradar um
+		# proxy. Quem guarda o que este teto existe para guardar -- "a sombra nao
+		# invade o combate" -- e a assercao ACIMA, `fundo <= PROFUNDIDADE_MAXIMA`:
+		# ela mede o quanto a sombra entra, que e o que o jogador sente, e nao
+		# muda com o tamanho da sala.
+		#
+		# O teto de area continua existindo como rede contra alguem multiplicar a
+		# sombra por dez, e 8% e o que deixa a menor sala do jogo passar com folga
+		# sem deixar passar o dobro dela.
 		var area_do_chao := absf(_area_do(contorno))
 		ok(
-			area < area_do_chao * 0.06,
-			"%s: a sombra ocupa %.1f%% do chao, teto 6%%"
+			area < area_do_chao * 0.08,
+			"%s: a sombra ocupa %.1f%% do chao, teto 8%%"
 				% [nome, 100.0 * area / maxf(area_do_chao, 1.0)]
 		)
 		sala.free()

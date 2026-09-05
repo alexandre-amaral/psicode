@@ -40,6 +40,7 @@ func executar() -> void:
 	_nenhum_efeito_de_fase_cobre_telegrafo_ou_projetil()
 	_a_duracao_de_cada_estado_vive_num_lugar_so()
 	Deterioracao.valor = _barra_original
+	_o_cerco_do_reator_CABE_na_arena()
 
 
 ## As fases saem da FRACAO e nao do valor absoluto: mexer na vida do chefe na
@@ -442,3 +443,55 @@ func _nascer() -> Node:
 	chefe.position = LONGE
 	Engine.get_main_loop().root.add_child(chefe)
 	return chefe
+
+
+## O CERCO DO REATOR CABE NA ARENA, e ele quase nao cabia.
+##
+## A Falha do Reator semeia `areas_do_reator` em anel a `raio_do_cerco`, cada uma
+## com `raio_da_area_do_reator`. O alcance dela e a soma dos dois -- 276 px hoje
+## --, e ela e a unica coisa do jogo cujo TAMANHO precisa caber na sala.
+##
+## Medido quando as salas encolheram: na arena de 544 px de altura o cerco ja
+## estourava a parede em 4 px, e ninguem sabia. Numa de 448 estouraria em 52 --
+## um quarto do raio de cada area enterrado na parede, com o VAO que o jogador
+## deveria usar caindo do lado de fora.
+##
+## E nao havia tuning que resolvesse. Com 6 areas o vao so existe se
+## `raio_do_cerco > 2 * raio_da_area` (a corda do hexagono e o proprio raio),
+## entao o menor cerco com saida mede `152 + 76 = 228` -- maior que os 224 de meia
+## altura de uma sala de 448. **Foi por isso que a sala do chefe cresceu na
+## vertical em vez de encolher**, virando fechada em x e aberta em y.
+##
+## O portao cobra as duas coisas, porque uma sem a outra nao significa nada: o
+## cerco cabe na sala, E ele deixa vao.
+func _o_cerco_do_reator_CABE_na_arena() -> void:
+	var cena: PackedScene = load("res://src/mapa/sala_6_boss.tscn")
+	var chefe_cena: PackedScene = load("res://src/enemies/boss_guardiao_01.tscn")
+	if cena == null or chefe_cena == null:
+		ok(false, "a arena e o chefe carregam")
+		return
+	var sala := cena.instantiate() as Sala
+	Engine.get_main_loop().root.add_child(sala)
+	var chefe := chefe_cena.instantiate()
+
+	var alcance: float = chefe.raio_do_cerco + chefe.raio_da_area_do_reator
+	var limites := sala.obter_limites()
+	var meia := limites.size * 0.5
+	ok(
+		alcance <= meia.x,
+		"o cerco cabe na largura da arena (%.0f px contra %.0f de meia largura)"
+			% [alcance, meia.x]
+	)
+	ok(
+		alcance <= meia.y,
+		"e na altura (%.0f px contra %.0f de meia altura)" % [alcance, meia.y]
+	)
+	# E ele continua deixando saida: cerco que cabe e nao tem vao e uma parede.
+	ok(
+		chefe.vao_do_cerco() > 0.0,
+		"e ele deixa vao entre as areas (%.0f px)" % chefe.vao_do_cerco()
+	)
+
+	chefe.free()
+	sala.get_parent().remove_child(sala)
+	sala.free()

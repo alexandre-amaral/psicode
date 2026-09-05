@@ -5,28 +5,28 @@
 
 [node name="Sala_1_Retangular" type="Node2D" unique_id=806821674]
 script = ExtResource("1_s")
-area_spawn = Rect2(-352, -176, 704, 352)
+area_spawn = Rect2(-320, -128, 640, 256)
 
 [node name="Parede" type="Line2D" parent="." unique_id=1113909504]
-points = PackedVector2Array(-480, -272, 480, -272, 480, 272, -480, 272, -480, -272)
+points = PackedVector2Array(-448, -224, 448, -224, 448, 224, -448, 224, -448, -224)
 width = 8.0
 default_color = Color(0.3, 0.9, 1, 0.55)
 
 [node name="Portas" type="Node2D" parent="." unique_id=207695415]
 
 [node name="Porta_Norte" parent="Portas" unique_id=608271649 instance=ExtResource("2_p")]
-position = Vector2(0, -272)
+position = Vector2(0, -224)
 
 [node name="Porta_Sul" parent="Portas" unique_id=1575769679 instance=ExtResource("2_p")]
-position = Vector2(0, 272)
+position = Vector2(0, 224)
 direcao = 1
 
 [node name="Porta_Leste" parent="Portas" unique_id=1410723305 instance=ExtResource("2_p")]
-position = Vector2(480, 0)
+position = Vector2(448, 0)
 direcao = 2
 
 [node name="Porta_Oeste" parent="Portas" unique_id=1651728435 instance=ExtResource("2_p")]
-position = Vector2(-480, 0)
+position = Vector2(-448, 0)
 direcao = 3
 
 [node name="ContainerInimigos" type="Node2D" parent="." unique_id=846726411]

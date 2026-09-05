@@ -11,14 +11,14 @@ tipo = &"boss"
 area_spawn = Rect2(-16, -16, 32, 32)
 
 [node name="Parede" type="Line2D" parent="."]
-points = PackedVector2Array(-480, -272, 480, -272, 480, 272, -480, 272, -480, -272)
+points = PackedVector2Array(-448, -368, 448, -368, 448, 368, -448, 368, -448, -368)
 width = 8.0
 default_color = Color(1, 0.2, 0.4, 0.8)
 
 [node name="Portas" type="Node2D" parent="."]
 
 [node name="Porta_Sul" parent="Portas" instance=ExtResource("2_p")]
-position = Vector2(0, 272)
+position = Vector2(0, 368)
 direcao = 1
 
 [node name="ContainerInimigos" type="Node2D" parent="."]

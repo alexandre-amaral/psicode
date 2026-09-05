@@ -19,7 +19,12 @@ extends RefCounted
 ## plano inteiro: dimensao logica nao e dimensao desenhada.
 
 ## Quanto entra em cada lado, do contorno para FORA.
-## O DEFAULT E O PERFIL C, e ele foi ESCOLHIDO na matriz de comparacao.
+## O DEFAULT E O PERFIL E, escolhido na matriz de ENQUADRAMENTO
+## (`tools/matriz_de_sala.tscn`) -- a que mede quanto da TELA vira parede, com a
+## camera no regime real do jogo.
+##
+## Ele nasceu do C e muda dois numeros: a face norte vai de 24 para 40 e a borda
+## externa do sul de 12 para 24. Os dois px extras vao para onde LEEM.
 ##
 ## `tools/matriz_paredes.tscn` monta a mesma sala nos quatro perfis com o mesmo
 ## zoom e imprime quanto do quadro vira moldura:
@@ -40,13 +45,25 @@ extends RefCounted
 ## Os tres numeros caem dentro das faixas que o plano sugere: norte topo 16-24 e
 ## face 20-28, laterais 12-20, sul 8-16.
 var topo_norte: float = 16.0
-var face_norte: float = 24.0
+var face_norte: float = 40.0
 var topo_lateral: float = 16.0
 var face_lateral: float = 16.0
 ## O sul mostra so a superficie de cima -- a face dele olha para longe da camera.
 ## 16 e nao 64: desenhar 64 px de superficie chapada ali era o que mais engordava
 ## a moldura sem dar nada em troca.
 var topo_sul: float = 16.0
+## A BORDA EXTERNA do sul: a espessura que escurece do topo ate o vazio.
+##
+## O §15 do plano de profundidade pede que a sul seja construida ao contrario da
+## norte -- chao, topo, e entao altura para BAIXO, em direcao ao exterior. E o
+## que faz o piso parecer encaixado numa caixa em vez de terminar numa linha.
+##
+## Ela NAO e uma face, e a distincao nao e de nome. Face e superficie vista de
+## FRENTE, e o lado sul olha para longe da camera: desenhar `parede_face` ali
+## seria pintar o que o jogador nao ve, e e por isso que
+## `teste_camada_visual.gd` proibe textura de face abaixo da borda sul. Isto e
+## espessura em degraus de VALOR, na mesma lingua da `SombraDeParede`.
+var borda_externa_sul: float = 24.0
 
 
 ## Os quatro perfis da matriz de comparacao do plano.
@@ -64,24 +81,46 @@ static func de_nome(nome: String) -> PerfilDeParede:
 			p.topo_lateral = 32.0
 			p.face_lateral = 32.0
 			p.topo_sul = 64.0
+			p.borda_externa_sul = 0.0
 		"B":
 			p.topo_norte = 24.0
 			p.face_norte = 24.0
 			p.topo_lateral = 24.0
 			p.face_lateral = 24.0
 			p.topo_sul = 24.0
+			p.borda_externa_sul = 0.0
 		"C":
 			p.topo_norte = 16.0
 			p.face_norte = 24.0
 			p.topo_lateral = 16.0
 			p.face_lateral = 16.0
 			p.topo_sul = 16.0
+			p.borda_externa_sul = 12.0
+		"E":
+			# O PERFIL QUE RODA. Ele gasta os px extras na FACE, e nao no topo.
+			#
+			# A face e a UNICA superficie vista de frente -- e dela que vem a
+			# altura da sala. Engordar o topo sobe a fracao de moldura sem subir a
+			# leitura, e foi isso que fez o perfil A parecer pesado: 64 px de topo
+			# SUL, superficie chapada vista de cima que nao carrega volume nenhum.
+			#
+			# Medido na matriz de enquadramento, na sala de 896x448:
+			#
+			#     C   norte  7,4% da tela   moldura 18,0%   piso 76,9%   vazio 5,1%
+			#     E   norte 10,3% da tela   moldura 23,1%   piso 76,9%   vazio 0,0%
+			#
+			# MESMA area jogavel, 40% mais altura de parede -- ele converte em
+			# moldura o vazio que o C desperdicava. E as margens verticais dele
+			# somam 96, entao 448 + 96 = 544 EXATO.
+			p.face_norte = 40.0
+			p.borda_externa_sul = 24.0
 		"D":
 			p.topo_norte = 16.0
 			p.face_norte = 16.0
 			p.topo_lateral = 12.0
 			p.face_lateral = 12.0
 			p.topo_sul = 12.0
+			p.borda_externa_sul = 0.0
 		_:
 			pass
 	return p
@@ -90,7 +129,7 @@ static func de_nome(nome: String) -> PerfilDeParede:
 ## Quanto este lado desenha ao todo.
 func profundidade(lado: int) -> float:
 	if lado == RenderizadorParedes.Lado.SUL:
-		return topo_sul
+		return topo_sul + borda_externa_sul
 	if lado == RenderizadorParedes.Lado.NORTE:
 		return topo_norte + face_norte
 	return topo_lateral + face_lateral
@@ -115,7 +154,8 @@ func fim_da_face(lado: int) -> float:
 ## lado mais fundo, e nem um pixel do vazio depois dela. Com a assimetria, os
 ## lados rasos ficam com folga -- e isso e aceitavel, porque o quadro e um so.
 func alcance() -> float:
-	return maxf(maxf(topo_norte + face_norte, topo_lateral + face_lateral), topo_sul)
+	return maxf(maxf(topo_norte + face_norte, topo_lateral + face_lateral),
+		topo_sul + borda_externa_sul)
 
 
 ## O alcance POR EIXO: o maior dos dois lados de cada eixo.
@@ -125,7 +165,7 @@ func alcance() -> float:
 func alcance_por_eixo() -> Vector2:
 	return Vector2(
 		topo_lateral + face_lateral,
-		maxf(topo_norte + face_norte, topo_sul)
+		maxf(topo_norte + face_norte, topo_sul + borda_externa_sul)
 	)
 
 
@@ -142,4 +182,5 @@ func alcance_por_eixo() -> Vector2:
 ## e nao depende da forma da sala.
 func margens() -> Vector4:
 	var lateral := topo_lateral + face_lateral
-	return Vector4(lateral, topo_norte + face_norte, lateral, topo_sul)
+	return Vector4(lateral, topo_norte + face_norte, lateral,
+		topo_sul + borda_externa_sul)

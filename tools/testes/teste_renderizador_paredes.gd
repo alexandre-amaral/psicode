@@ -35,6 +35,7 @@ func executar() -> void:
 	await _o_acabamento_existe_e_cabe_na_faixa()
 	await _toda_quina_recebe_canto()
 	_a_variante_e_deterministica_e_o_espacamento_morde()
+	_as_duas_contas_de_onde_ha_parede_coincidem()
 
 
 ## Toda forma de sala em disco monta a fita, e nenhuma monta vazia.
@@ -408,6 +409,76 @@ func _contar_especiais(raiz: Node2D, faces: Array[Texture2D]) -> int:
 
 
 # ------------------------------------------------------------- helpers ------
+
+## AS DUAS RESPOSTAS PARA "ONDE HA PAREDE" TEM DE COINCIDIR.
+##
+## Existem duas implementacoes do mesmo corte, e elas alimentam coisas
+## diferentes:
+##
+##   `Sala._subtrechos()`               -> a SOMBRA e a colisao
+##   `RenderizadorParedes.trechos_livres()` -> a parede DESENHADA
+##
+## As duas cortam o lado nos vaos de porta, e as duas usam numeros diferentes: a
+## primeira descarta trecho abaixo de 8 px e exige encaixe perpendicular de 24;
+## a segunda descarta abaixo de 1 px e filtra so pela direcao da porta.
+##
+## O sintoma de elas divergirem e silencioso e visual: um trecho recebe parede
+## desenhada e nao recebe sombra, ou o contrario -- a faixa termina num lugar e a
+## sombra noutro. Perto de uma quina, ou numa sala em L, e onde isso apareceria
+## primeiro. E a mesma licao que o vocabulario de `Movimento` ja carrega: duas
+## copias divergem, e o sintoma aparece em TELA e nunca no console.
+##
+## Este caso nao unifica as duas -- ele MEDE se elas ja discordam. Enquanto
+## coincidirem, ele e a guarda que avisa no dia em que uma das duas mudar
+## sozinha.
+func _as_duas_contas_de_onde_ha_parede_coincidem() -> void:
+	var divergentes := 0
+	var conferidos := 0
+	for caminho in _cenas():
+		var sala := _nascer(caminho)
+		if sala == null:
+			continue
+		var contorno := sala.contorno_local()
+		var portas: Array[Porta] = []
+		var raiz_portas := sala.get_node_or_null("Portas")
+		if raiz_portas != null:
+			for filho in raiz_portas.get_children():
+				var porta := filho as Porta
+				if porta != null:
+					portas.append(porta)
+
+		for i in contorno.size():
+			var a: Vector2 = contorno[i]
+			var b: Vector2 = contorno[(i + 1) % contorno.size()]
+			var da_sala: Array = sala._subtrechos(a, b)
+			var do_render := RenderizadorParedes.trechos_livres(contorno, a, b, portas)
+			conferidos += 1
+			# Compara a COBERTURA, e nao a lista: as duas podem partir o lado em
+			# numeros diferentes de pedacos e ainda cobrir o mesmo comprimento.
+			# O que importa e se a sombra e a parede param no mesmo lugar.
+			var c1 := _comprimento_coberto(da_sala)
+			var c2 := _comprimento_coberto(do_render)
+			if absf(c1 - c2) > 8.0:
+				divergentes += 1
+				ok(
+					false,
+					"%s lado %d: a sombra cobre %.0f px e a parede %.0f"
+						% [caminho.get_file(), i, c1, c2]
+				)
+		sala.free()
+
+	ok(conferidos >= 20, "houve lado para conferir (%d)" % conferidos)
+	igual(divergentes, 0, "as duas contas de onde ha parede concordam")
+
+
+func _comprimento_coberto(trechos: Array) -> float:
+	var total := 0.0
+	for t in trechos:
+		var par: PackedVector2Array = t
+		if par.size() >= 2:
+			total += par[0].distance_to(par[1])
+	return total
+
 
 func _cenas() -> Array[String]:
 	var lista: Array[String] = []

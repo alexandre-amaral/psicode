@@ -31,6 +31,10 @@ extends Node
 ## Sai em user://capturas/paredes_*.png
 
 const SAIDA := "user://capturas"
+
+
+
+
 const CENA_SALA := preload("res://src/mapa/sala_1_retangular.tscn")
 const CENA_PLAYER := preload("res://src/player/player.tscn")
 const CENA_DRONE := preload("res://src/enemies/drone_aranha.tscn")
@@ -231,3 +235,19 @@ func _conferir() -> void:
 		print("a caixa esta montada: chao, fita de parede, duas portas e dois projeteis")
 	else:
 		print("teste_paredes: FALTANDO %s" % ", ".join(faltando))
+
+	_medir_profundidade()
+
+
+## As duas reguas do plano, medidas na propria captura.
+##
+## A conta mora em `ReguaDeProfundidade` porque `formas_paredes.tscn` faz a mesma
+## pergunta sobre as nove formas. Duas copias divergiriam, e a divergencia
+## apareceria como uma forma passando numa ferramenta e reprovando na outra sem
+## arte nenhuma ter mudado -- que e o defeito que a #221 registrou para os
+## trechos de parede.
+func _medir_profundidade() -> void:
+	var medida := ReguaDeProfundidade.medir(get_viewport().get_texture().get_image())
+	print(ReguaDeProfundidade.relatar("sala_1_retangular", medida))
+	if not medida["passou"]:
+		print("teste_paredes: REPROVA -- a sala nao le como cavidade")

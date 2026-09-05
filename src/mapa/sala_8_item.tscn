@@ -7,28 +7,28 @@
 [node name="Sala_8_Item" type="Node2D"]
 script = ExtResource("1_s")
 tipo = &"item"
-area_spawn = Rect2(-352, -176, 704, 352)
+area_spawn = Rect2(-320, -128, 640, 256)
 
 [node name="Parede" type="Line2D" parent="."]
-points = PackedVector2Array(-480, -272, 480, -272, 480, 272, -480, 272, -480, -272)
+points = PackedVector2Array(-448, -224, 448, -224, 448, 224, -448, 224, -448, -224)
 width = 8.0
 default_color = Color(0.49, 0.97, 0.77, 0.6)
 
 [node name="Portas" type="Node2D" parent="."]
 
 [node name="Porta_Norte" parent="Portas" instance=ExtResource("2_p")]
-position = Vector2(0, -272)
+position = Vector2(0, -224)
 
 [node name="Porta_Sul" parent="Portas" instance=ExtResource("2_p")]
-position = Vector2(0, 272)
+position = Vector2(0, 224)
 direcao = 1
 
 [node name="Porta_Leste" parent="Portas" instance=ExtResource("2_p")]
-position = Vector2(480, 0)
+position = Vector2(448, 0)
 direcao = 2
 
 [node name="Porta_Oeste" parent="Portas" instance=ExtResource("2_p")]
-position = Vector2(-480, 0)
+position = Vector2(-448, 0)
 direcao = 3
 
 [node name="PickupItem" parent="." instance=ExtResource("3_pick")]

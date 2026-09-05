@@ -17,12 +17,21 @@ const CENAS := [
 ]
 
 
+## As formas que nao leem como cavidade. Vazia = todas passaram.
+var _reprovadas: Array[String] = []
+
+
 func _ready() -> void:
 	for caminho in CENAS:
 		await _fotografar(caminho)
 	await _fotografar_corredor()
 	print("formas: %d fotos em user://capturas" % (CENAS.size() + 1))
-	get_tree().quit()
+	if _reprovadas.is_empty():
+		print("formas: todas leem como cavidade")
+		get_tree().quit()
+		return
+	print("formas: REPROVOU em %s" % ", ".join(_reprovadas))
+	get_tree().quit(1)
 
 
 func _fotografar(caminho: String) -> void:
@@ -70,6 +79,16 @@ func _fotografar_no(alvo: Node2D, contorno: PackedVector2Array, nome: String) ->
 	await get_tree().create_timer(0.25).timeout
 
 	DirAccess.make_dir_recursive_absolute("user://capturas")
-	get_viewport().get_texture().get_image().save_png("user://capturas/forma_%s.png" % nome)
-	print("  %s" % nome)
+	var imagem := get_viewport().get_texture().get_image()
+	imagem.save_png("user://capturas/forma_%s.png" % nome)
+	# A MESMA regua da sala retangular, forma a forma.
+	#
+	# O criterio 12 do plano diz que o sistema tem de funcionar na sala em L, e o
+	# §49 e o §50 dizem COMO conferir. Sem medir aqui, "funciona em L" continuaria
+	# sendo uma foto que alguem olhou uma vez -- e a sala em L e justamente a que
+	# tem quina concava, onde as duas faixas se sobrepoem.
+	var medida := ReguaDeProfundidade.medir(imagem)
+	print(ReguaDeProfundidade.relatar(nome, medida))
+	if not medida["passou"]:
+		_reprovadas.append(nome)
 	camera.queue_free()

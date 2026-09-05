@@ -47,6 +47,133 @@ func executar() -> void:
 	var margem := _margem()
 	_a_margem_deriva_da_parede(margem)
 	_o_clamp_cobre_a_parede_e_mais_nada(margem)
+	_a_margem_segue_o_perfil_DA_SALA()
+	_o_zoom_nunca_e_fracionario()
+
+
+## O zoom da camera nunca sai de um valor INTEIRO.
+##
+## `_ajustar_zoom()` adaptava o zoom quando o clamp ficava menor que a viewport,
+## para nao mostrar o vazio. A premissa expirou: o exterior virou camada
+## declarada (`Sala.COR_DO_VAZIO`) e ha parede desenhada entre o chao e ele --
+## vazio depois de uma PAREDE nao le como area alcancavel.
+##
+## O preco era invisivel e caro: `sala_4_corredor` tem 768 px de largura, entao o
+## fator saia `960/832 = 1,15` e a sala inteira era reamostrada em zoom
+## fracionario. Mesma armadilha do "64 para 96 borra" que o projeto ja registra
+## para escala de sprite, aplicada a sala toda -- e nada no console.
+##
+## O caso tem TRES metades, e a terceira e a que morde: sem ela o portao passaria
+## se alguem simplesmente cravasse `zoom = 1` e voltasse a adaptar por outro
+## caminho.
+func _o_zoom_nunca_e_fracionario() -> void:
+	var gerenciador := GerenciadorMapa.new()
+	var conferidas := 0
+	for caminho in CENAS:
+		var cena: PackedScene = load(caminho)
+		if cena == null:
+			continue
+		var sala := cena.instantiate() as Sala
+		Engine.get_main_loop().root.add_child(sala)
+		var camera := Camera2D.new()
+		camera.zoom = Vector2.ONE
+		Engine.get_main_loop().root.add_child(camera)
+
+		var limites := sala.obter_limites()
+		var m: Vector4 = gerenciador.margem_da_parede([sala])
+		gerenciador._ajustar_zoom(camera, limites.grow_individual(m.x, m.y, m.z, m.w).size)
+		conferidas += 1
+		var z: float = camera.zoom.x
+		ok(
+			is_equal_approx(z, roundf(z)) and z >= 1.0,
+			"%s: zoom inteiro (%.3f)" % [caminho.get_file(), z]
+		)
+
+		camera.get_parent().remove_child(camera)
+		camera.free()
+		sala.get_parent().remove_child(sala)
+		sala.free()
+	igual(conferidas, CENAS.size(), "todas as salas foram conferidas")
+
+	# A ENTRADA da regra: se `_zoom_base` nao for inteiro, a regra confere a si
+	# mesma e nao o jogo.
+	var cena_player: PackedScene = load("res://src/player/player.tscn")
+	var player := cena_player.instantiate()
+	var cam_player := player.get_node_or_null("Camera") as Camera2D
+	ok(
+		cam_player != null and is_equal_approx(cam_player.zoom.x, roundf(cam_player.zoom.x)),
+		"e o zoom da camera do jogador ja nasce inteiro (%.2f)"
+			% (cam_player.zoom.x if cam_player != null else -1.0)
+	)
+	player.free()
+
+	# O LADO QUE MORDE: numa area MENOR que o campo, o desenho certo e mostrar o
+	# vazio -- nao crescer o zoom. E o que trava contra a proxima pessoa que
+	# reintroduzir a adaptacao.
+	var estreita := Camera2D.new()
+	estreita.zoom = Vector2.ONE
+	Engine.get_main_loop().root.add_child(estreita)
+	gerenciador._ajustar_zoom(estreita, Vector2(640.0, 320.0))
+	perto(
+		estreita.zoom.x, 1.0,
+		"area menor que o campo NAO aumenta o zoom -- o vazio aparece, e e ele que faz a moldura ler"
+	)
+	estreita.get_parent().remove_child(estreita)
+	estreita.free()
+	gerenciador.free()
+
+
+## A margem sai do perfil DAQUELA SALA, e nao do default.
+##
+## `margem_da_parede()` chamava `RenderizadorParedes.margens()` sem argumento, e
+## a funcao cai em `PerfilDeParede.new()` -- o default, sempre. Quem DESENHA, no
+## entanto, usa `Sala._perfil()`, que le o `EstiloDeParede` do tipo de sala.
+##
+## Passava por coincidencia: nenhum `.tres` de estilo grava os cinco campos de
+## espessura, entao o estilo devolvia exatamente o default. O dia em que um andar
+## tivesse perfil proprio -- que e a razao de o campo existir -- a parede
+## desenharia mais fundo e a camera pararia no mesmo lugar, cortando a moldura
+## fora do quadro. Sem erro no console.
+##
+## O caso usa a valvula `Sala.perfil_de_teste` para dar a sala um perfil
+## claramente diferente do default e exigir que a margem acompanhe.
+func _a_margem_segue_o_perfil_DA_SALA() -> void:
+	var cena: PackedScene = load(CENAS[0])
+	if cena == null:
+		ok(false, "a cena de sala carrega")
+		return
+	var sala := cena.instantiate() as Sala
+	Engine.get_main_loop().root.add_child(sala)
+
+	var gerenciador := GerenciadorMapa.new()
+	var padrao: Vector4 = gerenciador.margem_da_parede([sala])
+
+	var fundo := PerfilDeParede.new()
+	fundo.topo_norte = 40.0
+	fundo.face_norte = 48.0
+	Sala.perfil_de_teste = fundo
+	var maior: Vector4 = gerenciador.margem_da_parede([sala])
+	Sala.perfil_de_teste = null
+
+	ok(
+		maior.y > padrao.y,
+		"perfil mais fundo empurra a margem NORTE (%.0f contra %.0f)" % [maior.y, padrao.y]
+	)
+	perto(
+		maior.y, fundo.topo_norte + fundo.face_norte,
+		"e ela vale exatamente o que aquele perfil desenha ao norte"
+	)
+
+	# E o outro lado: sem sala nenhuma ela cai no default, que e o que a
+	# assinatura antiga fazia sempre.
+	var vazia: Vector4 = gerenciador.margem_da_parede([])
+	var base := PerfilDeParede.new()
+	perto(vazia.y, base.topo_norte + base.face_norte,
+		"sem sala, a margem e a do perfil default")
+
+	gerenciador.free()
+	sala.get_parent().remove_child(sala)
+	sala.free()
 
 
 ## A margem tem de bater com onde a FITA CHEGOU, e nao com uma constante.

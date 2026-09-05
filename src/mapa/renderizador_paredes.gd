@@ -229,8 +229,14 @@ static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 		if fim_face > 0.0:
 			_superficie(raiz, de, ate, normal, 0.0, fim_face, textura_face,
 				ancora, silhueta, COR_FACE)
-		_superficie(raiz, de, ate, normal, fim_face, fundo, textura_topo,
+		var fim_topo := fundo
+		var borda := perfil.borda_externa_sul if lado == Lado.SUL else 0.0
+		if borda > 0.0:
+			fim_topo = fundo - borda
+		_superficie(raiz, de, ate, normal, fim_face, fim_topo, textura_topo,
 			ancora, silhueta, COR_TOPO)
+		if borda > 0.0:
+			_borda_externa_do_sul(raiz, de, ate, normal, fim_topo, fundo)
 		_vestir_acabamento(raiz, de, ate, normal, lado, fim_face <= 0.0, fundo,
 			fim_face)
 
@@ -276,6 +282,28 @@ static func trechos_livres(contorno: PackedVector2Array, a: Vector2, b: Vector2,
 	if comprimento - cursor > 1.0:
 		achados.append(PackedVector2Array([a + direcao * cursor, b]))
 	return achados
+
+
+## A ESPESSURA DO SUL, em dois degraus de valor ate o vazio.
+##
+## O §15 do plano pede que a sul seja construida ao contrario da norte: chao,
+## topo, e entao altura para BAIXO, em direcao ao exterior. E o que faz o piso
+## parecer encaixado numa caixa em vez de terminar numa linha.
+##
+## Ela NAO usa textura de face, e a distincao nao e de nome. Face e superficie
+## vista de FRENTE, e o lado sul olha para longe da camera -- desenhar
+## `parede_face` ali seria pintar o que o jogador nao ve, e e por isso que
+## `teste_camada_visual.gd` proibe textura de face abaixo da borda sul. O que a
+## espessura precisa dizer nao e "material": e "isto continua, e acaba".
+##
+## Dois degraus e nao um gradiente, pela mesma razao da `SombraDeParede`: e pixel
+## art, e o §64 pede passos de valor claros em vez de rampa suave que pareca 3D
+## pre-renderizado.
+static func _borda_externa_do_sul(raiz: Node2D, de: Vector2, ate: Vector2,
+		normal: Vector2, inicio: float, fim: float) -> void:
+	var meio := inicio + (fim - inicio) * 0.5
+	_banda(raiz, de, ate, normal, inicio, meio, N1)
+	_banda(raiz, de, ate, normal, meio, fim, Color("05060b"))
 
 
 ## Uma SUPERFICIE continua: um quad texturizado que cobre o trecho inteiro.

@@ -72,6 +72,7 @@ func executar() -> void:
 	_cor_proxima_obriga_silhueta_diferente()
 	_o_rastro_cabe_no_vao_entre_dois_tiros()
 	_so_a_Forma_tem_colisao()
+	_toda_familia_de_impacto_existe()
 
 
 ## Toda arma declara uma silhueta que a biblioteca sabe desenhar.
@@ -174,6 +175,37 @@ func _o_rastro_cabe_no_vao_entre_dois_tiros() -> void:
 		"ao menos uma arma tem rastro (%d) -- senao este portao e um carimbo"
 			% com_rastro
 	)
+
+
+## Toda familia de impacto declarada existe na tabela de perfis.
+##
+## Mesmo defeito silencioso da silhueta: o valor e INT no `.tres`, um numero fora
+## da faixa carrega sem erro, e `vestir()` cairia no perfil default -- o projetil
+## bateria como bala sem ninguem ter pedido isso. O eixo e SEPARADO do da
+## silhueta de proposito: a forma diz o que voa, o impacto diz o que aquilo fez.
+func _toda_familia_de_impacto_existe() -> void:
+	var usadas: Array[int] = []
+	for nome in _armas():
+		var dados := _arma(nome)
+		if dados == null:
+			continue
+		ok(
+			Impactos.existe(dados.familia_impacto),
+			"%s declara um impacto que existe (%d = %s)"
+				% [nome, dados.familia_impacto, Impactos.nome(dados.familia_impacto)]
+		)
+		if not usadas.has(dados.familia_impacto):
+			usadas.append(dados.familia_impacto)
+	ok(
+		usadas.size() >= 3,
+		"e o elenco usa mais de uma familia de impacto (%d) -- senao a tabela e enfeite"
+			% usadas.size()
+	)
+	for familia in Impactos.Familia.values():
+		ok(
+			Impactos.existe(familia),
+			"a tabela tem perfil para %s" % Impactos.nome(familia)
+		)
 
 
 ## A colisao do projetil mora num lugar so.

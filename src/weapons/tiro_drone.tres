@@ -18,6 +18,7 @@ velocidade_projetil = 240.0
 alcance = 620.0
 raio_projetil = 6.0
 cor_projetil = Color(1, 0.55, 0.2, 1)
+familia_impacto = 6
 familia_silhueta = 3
 municao_maxima = -1
 shake_intensidade = 0.0

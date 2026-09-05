@@ -82,6 +82,7 @@ var _familia: int = FormasProjetil.Familia.LOSANGO
 var _alongamento: float = 1.0
 var _rastro_comprimento: float = 0.0
 var _rastro_alfa: float = 0.35
+var _familia_impacto: int = Impactos.Familia.FAISCA
 
 
 func _ready() -> void:
@@ -175,6 +176,7 @@ func configurar(
 	_alongamento = dados.alongamento_silhueta
 	_rastro_comprimento = dados.rastro_comprimento
 	_rastro_alfa = dados.rastro_alfa
+	_familia_impacto = dados.familia_impacto
 
 	var vel := dados.velocidade_projetil * multiplicador_velocidade
 	velocidade = direcao.normalized() * vel
@@ -554,7 +556,10 @@ func _tentar_fragmentar() -> void:
 func _impacto() -> void:
 	var fx := preload("res://src/fx/impacto.tscn").instantiate()
 	fx.global_position = global_position
-	fx.modulate = cor
+	# VESTIR ANTES do add_child, ao contrario da convencao da casa: o `_ready` de
+	# `fx_autodestroi.gd` liga a emissao e agenda a liberacao com o `lifetime`
+	# DAQUELE instante. Vestido depois, a particula morre no tempo errado.
+	Impactos.vestir(fx, _familia_impacto, cor, maxf(raio / 4.0, 0.6))
 	get_tree().current_scene.add_child(fx)
 
 

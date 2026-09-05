@@ -23,6 +23,7 @@ velocidade_projetil = 1000.0
 alcance = 640.0
 raio_projetil = 3.0
 cor_projetil = Color(0.28, 0.33, 1, 1)
+familia_impacto = 7
 familia_silhueta = 5
 raio_explosao = 84.0
 dano_explosao = 7

@@ -129,6 +129,16 @@ enum Comportamento {
 @export var rastro_comprimento: float = 0.0
 @export_range(0.0, 1.0, 0.01) var rastro_alfa: float = 0.35
 
+@export_group("Impacto")
+## A familia de impacto: o que este projetil FAZ ao chegar.
+##
+## Eixo SEPARADO da silhueta de proposito -- a forma diz o que esta voando, o
+## impacto diz o que aquilo fez. Duas armas podem dividir um e diferir no outro.
+##
+## FAISCA e zero, e reproduz o `impacto.tscn` de sempre numero a numero: arma que
+## nao declara nada continua batendo exatamente como batia.
+@export var familia_impacto: Impactos.Familia = Impactos.Familia.FAISCA
+
 @export_group("Explosao")
 ## Valem para EXPLOSIVO (a granada) e PLASMA (o estouro na parede). Sao quatro
 ## numeros separados de proposito, e nao um "poder de explosao": assim um item

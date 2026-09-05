@@ -145,6 +145,12 @@ docs/
 | Dano, cadencia, municao, spread | `src/weapons/*.tres` |
 | **Arma que faz algo alem de tiro reto** | `comportamento` em `src/weapons/*.tres` (enum `DadosArma.Comportamento`) |
 | **Quanto a rajada da escopeta varia** | `projeteis_extra` em `src/weapons/*.tres`; zero = contagem fixa |
+| **A SILHUETA de um projetil** | `familia_silhueta` em `src/weapons/*.tres`; o desenho de cada familia em `src/util/formas_projetil.gd` |
+| **O IMPACTO de um projetil** | `familia_impacto` em `src/weapons/*.tres`; os nove perfis em `src/fx/impactos.gd` |
+| **O RASTRO de uma arma** | `rastro_comprimento` em `src/weapons/*.tres` -- **zero desliga, e zero e o default** |
+| **A ARTE de um projetil** | `assets/projeteis/`, escrita por `tools/sprites/gerar_projeteis.py`. **Nunca** por `preparar_textura.py` |
+| **Ver os projeteis lado a lado** | `godot --path . tools/laboratorio_projeteis.tscn --resolution 960x544`; sem janela ele MEDE e lista colisoes de leitura |
+| **A ficha de todo ataque do jogo** | `docs/ATAQUES.md` |
 | **Personagem novo** | criar `src/player/personagem_*.tres` e por na lista `personagens` do no `SelecaoPersonagem` |
 | **Sprite, miniatura, escala e offset de um personagem** | grupo `Sprite` do `src/player/personagem_*.tres`; os PNGs em `assets/personagens/<id>/` |
 | **Moldura chanfrada de qualquer painel** | `@export` do no com `src/ui/moldura_hud.gd` (chanfro, cor, colchetes, margem) |
@@ -566,6 +572,49 @@ em qualquer erro de script.
   conseguir passar; quem fica paga no tique de `intervalo_residual`, que fica
   uma ordem de grandeza acima de `Juice.INTERVALO_HITSTOP` para dano continuo
   nunca encadear hitstop.
+- **Duas armas com a mesma COR e a mesma FORMA sao a mesma arma.** As 21 armas
+  desenhavam o mesmo losango, e dez dos 210 pares estavam a menos de 15 graus de
+  matiz -- dois com RGB identico (`rail_x`/`gravity_gun`,
+  `onda_guardiao`/`sucata_guardiao`). O portao compara MATIZ e nao canal:
+  `Paleta.mesma_cor()` tem tolerancia de 1,5/255 por canal e deixaria passar
+  `pistola` contra `volt_caster`, a 2,2 graus, que sao os dois o mesmo ciano.
+- **`LARGURA_MATIZ` nao sai da distancia entre vizinhos.** A formula obvia --
+  metade da menor distancia -- foi medida e da **+-1,1 grau**, o que obrigaria
+  arte chapada sem rampa de sombra. O numero e o que a ARTE precisa, e o aperto
+  vira pressao sobre a silhueta. Alargar a faixa depois para um PNG passar e o
+  "suavizar para caber num numero" que ja matou uma familia de textura.
+- **O portao de paleta INVERTE para projetil, e por isso e funcao irma.**
+  `_regra_de_gamut()` exige `compete == 0`; `_regra_de_ator()` exige o
+  contrario. Quatro das cinco asercoes invertem -- uma bandeira faria a mesma
+  funcao afirmar duas coisas opostas. E ele mede o **MIOLO** e nao o sprite
+  inteiro: pixel art tem contorno escuro, e cobrar brilho do contorno e proibir
+  contorno.
+- **Reduzir arte paletizada com BOX inventa cor.** A media entre o contorno e o
+  corpo e uma cor que a fonte nao tem, e ela derrubou a fracao que compete de
+  52% para 41% na primeira arte de projetil. `gerar_projeteis.py` reduz e depois
+  GRUDA na paleta da fonte.
+- **Arte de projetil ancora no CENTRO; a de ator ancora na BASE.** Um projetil
+  que herde `Direcoes.BASE_NO_QUADRO` desenha 36 px acima de onde fere, sem uma
+  linha no console.
+- **Girar arte de TOPO e legitimo; girar arte de FACE nao.** O projetil voa acima
+  do chao e e visto de cima -- e topo, como `porta_topo.png`, que o projeto ja
+  gira. A regra da secao 28 do `LOW_TOPDOWN_SQUARED.md` continua valendo para
+  FACE, e as duas varreduras nunca se cruzam. `flip_h` e `flip_v` continuam
+  proibidos nos dois: espelhar REFLETE onde girar TRANSPOE.
+- **O rastro cravado emendava com o tiro seguinte.** Ele era
+  `maxf(raio * 6, 16)` para as 21 armas, e reprovava a conta
+  `rastro * raio < velocidade / cadencia` em tres: `onda_guardiao` desenhava
+  96 px de trilha sobre um vao de 26 px, `sucata_guardiao` 42 sobre 21. Trilha
+  maior que o vao vira um risco solido e o jogador perde a CONTAGEM de
+  projeteis.
+- **`Impactos.vestir()` roda ANTES do `add_child`**, ao contrario da convencao da
+  casa: `fx_autodestroi.gd._ready()` liga a emissao e agenda a liberacao com o
+  `lifetime` DAQUELE instante.
+- **`_nenhum_png_fica_fora_de_regime()` so via `assets/texturas/`.** Arte numa
+  pasta nova nao reprovava -- ela SUMIA da conta, que e pior. Hoje ha
+  `PASTAS_MEDIDAS` e `PASTAS_SEM_REGIME_AINDA`, e `assets/personagens/` e
+  `assets/inimigos/` (160+ PNGs de ator sem portao) sao ponto cego DECLARADO em
+  vez de silencioso.
 - **`Array[Node].filter()` devolve `Array` sem tipo.** Atribuir de volta a uma
   variavel tipada explode em runtime. Use loop explicito.
 - **Referencia de no exportada nao resolve.** Use `NodePath` explicito e

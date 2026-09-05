@@ -46,7 +46,6 @@ const CENAS := "res://src/mapa/"
 const PENDENTES: Array[String] = [
 	"sala_1_retangular",
 	"sala_2_l_shape",
-	"sala_5_pilar",
 	"sala_6_boss",
 	"sala_7_arma",
 	"sala_8_item",

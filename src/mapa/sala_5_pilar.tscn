@@ -7,10 +7,10 @@ size = Vector2(128, 128)
 
 [node name="Sala_5_Pilar" type="Node2D"]
 script = ExtResource("1_s")
-area_spawn = Rect2(-352, -384, 704, 768)
+area_spawn = Rect2(-320, -384, 640, 768)
 
 [node name="Parede" type="Line2D" parent="."]
-points = PackedVector2Array(-480, -480, 480, -480, 480, 480, -480, 480, -480, -480)
+points = PackedVector2Array(-448, -480, 448, -480, 448, 480, -448, 480, -448, -480)
 width = 8.0
 default_color = Color(0.3, 0.9, 1, 0.55)
 
@@ -33,11 +33,11 @@ position = Vector2(0, 480)
 direcao = 1
 
 [node name="Porta_Leste" parent="Portas" instance=ExtResource("2_p")]
-position = Vector2(480, 0)
+position = Vector2(448, 0)
 direcao = 2
 
 [node name="Porta_Oeste" parent="Portas" instance=ExtResource("2_p")]
-position = Vector2(-480, 0)
+position = Vector2(-448, 0)
 direcao = 3
 
 [node name="ContainerInimigos" type="Node2D" parent="."]

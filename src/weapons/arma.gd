@@ -90,7 +90,22 @@ func pode_atirar() -> bool:
 		return false
 	if municao_pente <= 0:
 		return false
-	if not dados.automatica and not _gatilho_solto:
+	# Gatilho e coisa de quem tem DEDO.
+	#
+	# O Player aperta e solta um botao de verdade, e e para ele que
+	# `atualizar_gatilho()` existe. Um inimigo nao aperta nada: ele decide atirar
+	# dentro de uma maquina de estados, e cada decisao ja E um tiro novo -- nao
+	# ha "segurar" para impedir. Sem esta excecao, `atirar()` poe
+	# `_gatilho_solto = false` e ninguem o devolve: o PRIMEIRO tiro sai e todos
+	# os seguintes sao recusados em silencio, sem erro no console e sem nada em
+	# tela, so um inimigo que carrega o aviso e nao dispara.
+	#
+	# Pegou quatro de uma vez (#171): Sentinela Orbital, Atirador Neon, Vigia e
+	# Diretora -- todos com arma semiautomatica. A Diretora era a unica
+	# parcialmente protegida, porque chamava `atualizar_gatilho(false)` a mao, e
+	# so num estado. Uma chamada que precisa ser lembrada em cada inimigo novo e
+	# uma chamada que sera esquecida, e foi: o conserto mora aqui e nao la.
+	if not hostil and not dados.automatica and not _gatilho_solto:
 		return false
 	return true
 

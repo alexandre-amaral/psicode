@@ -29,6 +29,16 @@ const CENA_PROJETIL := "res://src/projectiles/projetil.tscn"
 ## art precisa, e o aperto que ele cria vira pressao sobre a SILHUETA.
 const LARGURA_MATIZ := 15.0
 
+## Quanto dois projeteis da mesma familia precisam diferir para nao serem o mesmo
+## desenho em tons de cinza.
+##
+## O raio em px, porque e ele que da o tamanho; o alongamento em fracao, porque
+## ele estica no eixo do voo. Os dois numeros sao o menor passo que ainda se ve:
+## meio pixel de raio nao se distingue num sprite de 8 px, e 5% de alongamento
+## some no primeiro frame de movimento.
+const DIFERENCA_DE_RAIO := 0.6
+const DIFERENCA_DE_ALONGAMENTO := 0.15
+
 ## As armas que ainda nao tem arte, DECLARADAS.
 ##
 ## Ela encolhe conforme o epico #172 anda, e tem de chegar a vazia -- ou ao que
@@ -101,6 +111,70 @@ func executar() -> void:
 	_so_a_Forma_tem_colisao()
 	_toda_familia_de_impacto_existe()
 	_o_buraco_de_arte_esta_DECLARADO()
+	_nenhum_par_e_identico_em_GRAYSCALE()
+
+
+## Em GRAYSCALE a cor some, e o que resta tem de bastar.
+##
+## E o §50 do plano aplicado ao elenco: se duas armas so se distinguem por MATIZ,
+## elas nao se distinguem para quem tem daltonismo, nem numa captura em tons de
+## cinza, nem no canto do olho durante o combate -- que e onde um projetil e
+## lido. A cor e a ultima pista, e nao a primeira.
+##
+## O portao de cor proxima ja obriga silhueta diferente entre armas de matiz
+## vizinho. Este e o complemento e ele morde noutro lugar: duas armas de matiz
+## DISTANTE, que por isso passam la, e que desenham exatamente a mesma coisa.
+##
+## Sem cor, o desenho e a familia, o raio e o alongamento. Iguais os tres, sao a
+## mesma arma. Medido quando este caso foi escrito: SETE pares, e tres deles
+## cruzando a fronteira que mais importa -- `rail_x` contra `tiro_neon`,
+## `pistola_cipher` e `shotgun` contra `tiro_sentinela`. O
+## `IDENTIDADE_VISUAL.md` diz com todas as letras que *"a distincao que importa e
+## tiro-do-jogador contra tiro-de-inimigo"*.
+##
+## O `alongamento_silhueta` existe para isto: ele estica no eixo do VOO, que e o
+## eixo livre, entao duas armas da mesma familia se separam sem nenhuma delas
+## mentir sobre a hitbox.
+func _nenhum_par_e_identico_em_GRAYSCALE() -> void:
+	var nomes := _armas()
+	var identicos := 0
+	for i in nomes.size():
+		for j in range(i + 1, nomes.size()):
+			var a := _arma(nomes[i])
+			var b := _arma(nomes[j])
+			if a == null or b == null:
+				continue
+			if a.familia_silhueta != b.familia_silhueta:
+				continue
+			if absf(a.raio_projetil - b.raio_projetil) >= DIFERENCA_DE_RAIO:
+				continue
+			if absf(a.alongamento_silhueta - b.alongamento_silhueta) >= DIFERENCA_DE_ALONGAMENTO:
+				continue
+			identicos += 1
+			ok(
+				false,
+				"%s e %s desenham a MESMA coisa sem cor (%s, raio %.1f, alongamento %.2f)"
+					% [nomes[i], nomes[j], FormasProjetil.nome(a.familia_silhueta),
+						a.raio_projetil, a.alongamento_silhueta]
+			)
+	igual(identicos, 0, "nenhum par de armas e identico em grayscale")
+
+	# E o outro lado: se NENHUMA arma dividisse familia com outra, este portao
+	# nunca teria olhado nada. Ele so tem sentido porque as familias sao oito e as
+	# armas sao vinte -- dividir familia e o normal, e o que se cobra e o que
+	# separa duas que dividem.
+	var compartilham := 0
+	for i in nomes.size():
+		for j in range(i + 1, nomes.size()):
+			var a := _arma(nomes[i])
+			var b := _arma(nomes[j])
+			if a != null and b != null and a.familia_silhueta == b.familia_silhueta:
+				compartilham += 1
+	ok(
+		compartilham > 0,
+		"ha pares que dividem familia (%d) -- senao este portao mede o vazio"
+			% compartilham
+	)
 
 
 ## O buraco de arte e declarado, e a lista morde dos DOIS lados.

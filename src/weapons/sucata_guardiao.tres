@@ -18,6 +18,7 @@ velocidade_projetil = 250.0
 alcance = 700.0
 raio_projetil = 7.0
 cor_projetil = Color(0.82, 1, 0.15, 1)
+alongamento_silhueta = 0.70
 familia_impacto = 6
 familia_silhueta = 5
 municao_maxima = -1

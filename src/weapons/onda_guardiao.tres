@@ -22,6 +22,7 @@ cor_projetil = Color(0.82, 1, 0.15, 1)
 textura_projetil = ExtResource("2_arte")
 familia_impacto = 6
 familia_silhueta = 7
+alongamento_silhueta = 0.70
 municao_maxima = -1
 shake_intensidade = 0.0
 shake_duracao = 0.0

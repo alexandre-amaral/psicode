@@ -1007,14 +1007,32 @@ em qualquer erro de script.
   `GerenciadorMapa._clampar()` e nunca em `Sala.obter_limites()`: aquele
   retangulo tambem posiciona as celulas em `_montar_andar()`, entao inflar na
   origem afastaria as salas e desalinharia os corredores.
-- **Numa sala do tamanho exato da tela, a parede so entra no quadro quando o
-  jogador anda ate a borda.** Contorno 960x544 mais 24 px de cada lado da
-  1008x592 contra uma tela de 960x544: sobram 24 px de deslize por eixo, e com o
-  jogador no centro nenhuma parede aparece. Nao ha conserto por zoom -- as
-  proporcoes nao batem (1.70 contra 1.76), entao encolher para caber deixaria
-  faixa de vazio na lateral. O unico conserto completo seria geometrico: parede
-  de 16 px e salas de 928x512 fecham exatamente 960x544, e ambos caem na grade
-  de 32. Isso mexe em todas as cenas de sala e ainda nao foi feito.
+- **Sala do tamanho exato da tela e o pior caso, e o conserto NAO foi encolher.**
+  Contorno 960x544 mais a faixa de parede sobrava 64 px de deslize por eixo: com
+  o jogador no centro, nenhuma parede aparecia, e ele passava o combate olhando
+  para uma tela 100% de chao. A primeira tentativa foi fechar a sala -- 896x384,
+  para `contorno + margens` caber em 960x544 --, e ela esta errada por
+  ARITMETICA: as margens verticais somam 136, entao o contorno teria de ter 408
+  px, que nao cai na grade de 32. Com 384, o clamp sai 520 contra 544 e a camera
+  recebe um limite MENOR que o proprio quadro. Cinco cenas ficaram assim uma
+  entrega inteira sem nada acusar, porque o portao de regime respondia FECHADO --
+  `folga <= 0` nao distingue "encaixa exato" de "falta um pedaco".
+  O conserto e o **regime do Lobby**, que o dono apontou como certo: 896x640, X
+  fechado (as duas laterais sempre em quadro) e Y aberto na altura dele (a parede
+  norte entra quando o jogador sobe), como as salas grandes do Isaac. De quebra a
+  area sobe para 573k px2, ACIMA dos 522k originais, entao o orcamento de
+  inimigos nao precisa reagir a nada. Quem cobra os dois lados hoje sao
+  `teste_enquadramento.gd` (o regime, com corte em um terco do eixo) e
+  `teste_camera.gd:_o_clamp_nunca_e_menor_que_o_quadro`.
+- **Sala mais estreita que a tela nao e defeito: e vazio.** O corredor tem 768 px
+  de largura contra 960 de tela. Antes o `_ajustar_zoom` dava zoom para dentro
+  ate a sala preencher o quadro -- e reamostrava aquela sala inteira em zoom
+  1,15, que e o "64 para 96 borra" aplicado a uma sala. Hoje o zoom e sempre
+  inteiro e quem resolve e `GerenciadorMapa._cabendo_a_tela()`, crescendo o
+  retangulo do clamp ate o quadro, CENTRADO. O que aparece nos 96 px de cada lado
+  e o vazio alem da parede, e isso e desejado: e ele que diz que a sala e
+  cavidade escavada em algo. Crescer para um lado so encostaria a sala numa borda
+  -- exatamente o que o motor faz sozinho quando o limite e impossivel.
 - **O nucleo do chefe fica APAGADO enquanto ele dorme na baia.** A apresentacao
   dele e o jogador acreditar que o robo e CENARIO, e um chefe que pulsa antes de
   acordar entrega o truque no primeiro quadro. E a partida FALHA duas vezes

@@ -49,6 +49,7 @@ func executar() -> void:
 	_o_clamp_cobre_a_parede_e_mais_nada(margem)
 	_a_margem_segue_o_perfil_DA_SALA()
 	_o_zoom_nunca_e_fracionario()
+	_o_clamp_nunca_e_menor_que_o_quadro()
 
 
 ## O zoom da camera nunca sai de um valor INTEIRO.
@@ -120,6 +121,72 @@ func _o_zoom_nunca_e_fracionario() -> void:
 	)
 	estreita.get_parent().remove_child(estreita)
 	estreita.free()
+	gerenciador.free()
+
+
+## O retangulo do clamp nunca e MENOR que o quadro.
+##
+## E a outra metade do conserto do zoom. `_ajustar_zoom` parou de dar zoom para
+## dentro justamente para nao reamostrar a sala; o efeito colateral e que uma sala
+## mais estreita que a tela passa a entregar a camera um `limit_*` que nao cabe no
+## proprio quadro. Nao existe posicao que satisfaca um retangulo de 832 px dentro
+## de uma tela de 960: o motor escolhe sozinho a que borda encostar, e o quadro
+## sai com a sala num canto.
+##
+## `_cabendo_a_tela()` cresce o retangulo ate o quadro, CENTRADO. O que aparece de
+## cada lado e o vazio alem da parede, que o plano quer a vista.
+##
+## O caso tem os dois lados: as nove cenas de verdade, e um retangulo minusculo
+## sintetico. Sem o segundo, o dia em que alguem trocasse o crescimento por um
+## `if` que nunca dispara passaria verde -- as nove cenas de hoje ja cabem em Y.
+func _o_clamp_nunca_e_menor_que_o_quadro() -> void:
+	var gerenciador := GerenciadorMapa.new()
+	var tela := Vector2(
+		float(ProjectSettings.get_setting("display/window/size/viewport_width", 960)),
+		float(ProjectSettings.get_setting("display/window/size/viewport_height", 544))
+	)
+	var estreitas := 0
+	for caminho in CENAS:
+		var cena: PackedScene = load(caminho)
+		if cena == null:
+			continue
+		var sala := cena.instantiate() as Sala
+		Engine.get_main_loop().root.add_child(sala)
+		var limites := sala.obter_limites()
+		var m: Vector4 = gerenciador.margem_da_parede([sala])
+		var cru := limites.grow_individual(m.x, m.y, m.z, m.w)
+		var final_ := gerenciador._cabendo_a_tela(cru)
+		if cru.size.x < tela.x or cru.size.y < tela.y:
+			estreitas += 1
+		ok(
+			final_.size.x >= tela.x - FOLGA and final_.size.y >= tela.y - FOLGA,
+			"%s: o clamp cabe o quadro (%.0fx%.0f)"
+				% [caminho.get_file(), final_.size.x, final_.size.y]
+		)
+		# Centrado: crescer para um lado so encostaria a sala numa borda, que e
+		# exatamente o defeito que isto existe para evitar.
+		perto(
+			final_.get_center().x, cru.get_center().x,
+			"%s: o crescimento e centrado em x" % caminho.get_file(), FOLGA
+		)
+		perto(
+			final_.get_center().y, cru.get_center().y,
+			"%s: e em y" % caminho.get_file(), FOLGA
+		)
+		sala.get_parent().remove_child(sala)
+		sala.free()
+
+	ok(estreitas > 0, "ha sala mais estreita que o quadro para exercitar (%d)" % estreitas)
+
+	# O LADO QUE MORDE, sintetico: um retangulo que nao cabe em NENHUM eixo.
+	var minusculo := gerenciador._cabendo_a_tela(Rect2(-50.0, -50.0, 100.0, 100.0))
+	perto(minusculo.size.x, tela.x, "um retangulo de 100 px cresce ate a largura do quadro", FOLGA)
+	perto(minusculo.size.y, tela.y, "e ate a altura", FOLGA)
+	perto(minusculo.get_center().x, 0.0, "sem sair do centro", FOLGA)
+	# E o que JA cabe nao se mexe -- crescer sempre esconderia parede.
+	var grande := Rect2(-800.0, -600.0, 1600.0, 1200.0)
+	var mesma := gerenciador._cabendo_a_tela(grande)
+	ok(mesma == grande, "um retangulo que ja cabe passa intacto")
 	gerenciador.free()
 
 

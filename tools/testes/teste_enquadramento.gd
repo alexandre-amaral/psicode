@@ -24,13 +24,55 @@ extends TesteBase
 ## o jogador percorre a vertical. E a melhor forma que existe para mostrar
 ## parede, e barra-la seria barrar a forma certa por amor a um binario.
 ##
-## O corte de meia tela nao e palpite: ele foi calibrado no unico exemplo
-## aprovado. A `sala_3_grande` fica acima dele nos dois eixos, com folga
-## confortavel e nao absurda -- ou seja, a regra afirma algo cobravel, *"ela e a
-## menor sala aberta aceitavel"*, e isso e falsificavel. Se um dia uma sala cair
-## no meio e a captura convencer, o corte se move COM a captura anexada. E o
-## padrao do `MedidorEscape`: a regua tem os dois lados, e mover o limiar exige
-## evidencia e nao gosto.
+## O corte nao e palpite, e ele JA SE MOVEU UMA VEZ -- que era a condicao escrita
+## aqui desde o inicio: *"se um dia uma sala cair no meio e a captura convencer,
+## o corte se move COM a captura anexada"*. A captura chegou.
+##
+## Ele nascia em meia tela, calibrado na `sala_3_grande`. O dono entao apontou a
+## parede norte do **Lobby** como precisamente o que ele quer, e o Lobby cai no
+## meio termo por aquele corte: 1024x640, folga **272 x 304**, e 272 e menos que
+## os 480 de meia tela em x. Ou o Lobby estava errado, ou o corte estava -- e
+## quem foi olhado e aprovado foi o Lobby.
+##
+## O corte novo e **um terco do eixo** (320 x 181), e ele nao foi escolhido: ele e
+## o unico intervalo que separa o que precisa ser separado. Em Y, que e o eixo
+## apertado, ha exatamente dois numeros de cada lado:
+##
+##   REPROVAR   68   as seis salas do defeito original (960x544, perfil C)
+##   REPROVAR  136   uma sala da altura da tela com o perfil de hoje
+##   ------------------------------------------------------ o corte cai aqui
+##   PASSAR    232   as cinco salas de hoje, na altura do Lobby
+##   PASSAR    328   a do chefe
+##   PASSAR    392   a `sala_3_grande`, que sempre funcionou
+##
+## Meia tela (272) reprovava as cinco de 232 junto com o defeito; um quarto (136)
+## aprovava a sala do tamanho da tela junto com as boas. Um terco e o meio do vao
+## real, com folga para os dois lados -- e continua sendo uma afirmacao
+## falsificavel: mover qualquer sala para 200 px de folga reprova.
+##
+## E o padrao do `MedidorEscape`: a regua tem os dois lados, e mover o limiar
+## exige evidencia e nao gosto. A evidencia do REGIME e
+## `user://capturas/norte_lobby.png`, que `tools/comparar_norte.tscn` regenera.
+##
+## **O que o Lobby ensina alem do numero**: fechar a sala em Y nao e o ideal, e
+## tambem quase nao e possivel. As margens verticais somam 136, entao um eixo Y
+## FECHADO exigiria um contorno de no maximo 408 px -- e 408 nao cai na grade de
+## 32. O multiplo abaixo, 384, produz um clamp de 520 px contra uma tela de 544,
+## e ai quem resolve e `GerenciadorMapa._cabendo_a_tela()`, mostrando 12 px de
+## vazio em cima e embaixo. Funciona, mas e uma sala esmagada para caber num
+## numero -- 384 px de altura util contra os 640 do Lobby.
+##
+## Por isso as cinco salas foram para 896x640: X FECHADO, com as duas laterais
+## permanentemente em quadro, e Y ABERTO na altura do Lobby, com a parede norte
+## entrando quando o jogador sobe. E de quebra a area volta a 573k px2 -- acima
+## dos 522k de antes de tudo isto --, entao o orcamento de inimigos nao precisa de
+## sessao de tuning para reagir a uma sala menor.
+##
+## **Folga NEGATIVA continua sendo FECHADO, e nao um erro.** Uma sala mais estreita
+## que a tela (o corredor, 768 px) recebe o vazio simetrico dos dois lados por
+## `_cabendo_a_tela()`, e a parede daquele eixo fica sempre inteira em quadro --
+## que e o que FECHADO afirma. Quem cobra aquele crescimento e
+## `teste_camera.gd:_o_clamp_nunca_e_menor_que_o_quadro`, junto do resto da camera.
 
 
 const CENAS := "res://src/mapa/"
@@ -156,13 +198,19 @@ func _uma_sala_do_tamanho_da_tela_REPROVA() -> void:
 # -- helpers ----------------------------------------------------------------
 
 
-## O regime de UM eixo. O corte de meia tela esta explicado no cabecalho.
+## Quanto do eixo a camera precisa percorrer para o eixo contar como ABERTO.
+##
+## Um terco. A tabela que produz esse numero esta no cabecalho.
+const FRACAO_ABERTA := 1.0 / 3.0
+
+
+## O regime de UM eixo. O corte esta explicado no cabecalho.
 func _regime(folga: float, eixo: int) -> String:
 	if folga <= 0.0:
 		return "FECHADO"
 	var tela := _viewport()
-	var meia: float = (tela.x if eixo == 0 else tela.y) * 0.5
-	return "ABERTO" if folga >= meia else "PROIBIDO"
+	var corte: float = (tela.x if eixo == 0 else tela.y) * FRACAO_ABERTA
+	return "ABERTO" if folga >= corte else "PROIBIDO"
 
 
 ## `contorno + margens - viewport`, por eixo.

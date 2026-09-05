@@ -1343,11 +1343,49 @@ func _clampar(limites: Rect2, salas: Array = []) -> void:
 	# relance, e o suficiente para uma tira de nada aparecer na borda do quadro.
 	var margem := margem_da_parede(salas)
 	var visivel := limites.grow_individual(margem.x, margem.y, margem.z, margem.w)
+	visivel = _cabendo_a_tela(visivel)
 	_ajustar_zoom(camera, visivel.size)
 	camera.limit_left = roundi(visivel.position.x)
 	camera.limit_top = roundi(visivel.position.y)
 	camera.limit_right = roundi(visivel.end.x)
 	camera.limit_bottom = roundi(visivel.end.y)
+
+
+## O retangulo do clamp, garantido NAO MENOR que o quadro.
+##
+## Um `limit_*` menor que a viewport nao e um clamp apertado: e um clamp
+## impossivel. Nao existe posicao de camera em que um retangulo de 832 px caiba
+## dentro de uma tela de 960 -- e o que o motor faz nesse caso e escolher sozinho
+## a que borda encostar, entao o quadro sai deslocado, com a sala num canto.
+##
+## Isso deixou de ser hipotetico quando o zoom parou de compensar. `_ajustar_zoom`
+## dava zoom para DENTRO ate a sala preencher a tela, e era isso que escondia o
+## caso -- ao custo de renderizar aquela sala inteira em zoom fracionario, que e a
+## armadilha do "64 -> 96 borra" aplicada a uma sala em vez de a um sprite. Tirado
+## o zoom, o caso ficou exposto: a `sala_4_corredor` tem 768 px de largura contra
+## os 960 da tela.
+##
+## A saida e crescer o retangulo ate o tamanho do quadro, CENTRADO no que ele ja
+## era. O que aparece nos 96 px de cada lado e o vazio alem da parede -- e isso e
+## desejado e nao tolerado: e ele que diz que a sala e uma cavidade escavada em
+## algo, e nao uma tela. Crescer para um lado so encostaria a sala numa borda pelo
+## mesmo motivo que o motor faria, so que de proposito.
+##
+## Cresce SEMPRE pelos dois eixos independentemente: uma sala pode ser mais
+## estreita que a tela e mais alta que ela ao mesmo tempo, que e exatamente o
+## corredor.
+func _cabendo_a_tela(visivel: Rect2) -> Rect2:
+	var tela := Vector2(
+		float(ProjectSettings.get_setting("display/window/size/viewport_width", 960)),
+		float(ProjectSettings.get_setting("display/window/size/viewport_height", 544))
+	)
+	var falta := Vector2(
+		maxf(0.0, tela.x - visivel.size.x),
+		maxf(0.0, tela.y - visivel.size.y)
+	)
+	if falta == Vector2.ZERO:
+		return visivel
+	return Rect2(visivel.position - falta * 0.5, visivel.size + falta)
 
 
 ## Quanto a camera enxerga ALEM do contorno.

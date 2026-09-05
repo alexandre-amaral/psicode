@@ -114,13 +114,30 @@ func _o_chao_fica_acima_do_topo_da_parede() -> void:
 	if fita != null and chao != null:
 		ok(fita.z_index > chao.z_index,
 			"a fita desenha acima do chao -- ela nao precisa mais do recorte")
+		# VARRE `Node2D`, E NAO `Sprite2D`.
+		#
+		# Ate aqui este laco fazia `filho as Sprite2D`, e o renderizador nao cria
+		# um unico `Sprite2D` desde a MOLDURA -- ele so monta `Polygon2D`. O caso
+		# contava ZERO DE ZERO e passava por vacuidade: um portao que nao olha
+		# nada, do mesmo jeito que a #125 registrou para a PAREDE 13.
+		#
+		# Ele continua valendo ao lado de
+		# `teste_renderizador_paredes.gd:_nenhuma_celula_invade_o_chao()`, que
+		# cobra a mesma invariante com mais amostras: o que ESTE caso acrescenta e
+		# medir a invasao na MESMA cena em que se afirma `fita.z_index > chao`, e
+		# sao as duas juntas que autorizam a fita a desenhar acima do chao.
 		var contorno := sala.contorno_local()
 		var dentro := 0
+		var conferidas := 0
 		for filho in fita.get_children():
-			var sprite := filho as Sprite2D
-			if sprite != null and Geometry2D.is_point_in_polygon(sprite.position, contorno):
+			var peca := filho as Node2D
+			if peca == null:
+				continue
+			conferidas += 1
+			if Geometry2D.is_point_in_polygon(peca.position, contorno):
 				dentro += 1
-		igual(dentro, 0, "e mesmo assim nenhuma celula dela cai sobre o chao (%d)" % dentro)
+		ok(conferidas > 0, "e ha pecas para conferir (%d) -- senao o portao nao olha nada" % conferidas)
+		igual(dentro, 0, "e nenhuma delas cai sobre o chao (%d de %d)" % [dentro, conferidas])
 	sala.free()
 
 

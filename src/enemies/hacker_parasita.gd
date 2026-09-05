@@ -19,6 +19,10 @@ extends InimigoBase
 ## nao mata; ela impede o jogador de VOLTAR para onde estava, que e a coisa
 ## inteira que este inimigo existe para fazer.
 
+## Raio da aura, herdado do `Polygon2D` que ela substituiu: 40 de desenho
+## vezes o 1,4 que o tween alcancava no pico.
+const RAIO_AURA := 56.0
+
 const CENA_AREA := preload("res://src/enemies/area_de_perigo.tscn")
 
 @export_group("Semeadura")
@@ -56,7 +60,19 @@ const SEMEAR := &"SEMEAR"
 const ESPERAR := &"ESPERAR"
 
 var _maquina: MaquinaEstados
-var _aura: Polygon2D
+## O aviso de "estou semeando".
+##
+## Era um `Polygon2D` filho de `Visual` com um tween, e carregava DOIS relogios
+## divergentes: o tween rodava em `tempo_semear` CRU e o portao do estado em
+## `duracao_do_telegrafo(tempo_semear)`, que aplica o piso e o multiplicador da
+## barra. Com a barra alta o estado acabava ANTES de a aura terminar de crescer
+## -- a area era plantada com o aviso pela metade.
+##
+## Filho de `Visual` ele ainda herdava a transformada dele, que e exatamente o
+## caso que o cabecalho do `Telegrafo` cita.
+var _telegrafo: Telegrafo
+## Duracao do aviso DESTA semeadura, fixada na ENTRADA do estado.
+var _aviso_atual: float = 0.0
 var _t_intervalo: float = 0.0
 ## Areas que ESTE parasita semeou e que ainda vivem. Ver `morrer()`.
 var _areas: Array[Node] = []
@@ -64,8 +80,8 @@ var _areas: Array[Node] = []
 
 func _ready() -> void:
 	super._ready()
-	_aura = $Visual/Aura
-	_aura.visible = false
+	_telegrafo = Telegrafo.anexar(self)
+	_telegrafo.cor = cor_base
 	_t_intervalo = randf_range(0.5, intervalo)
 
 	_maquina = MaquinaEstados.new(name)
@@ -104,24 +120,24 @@ func _reposicionar(delta: float) -> void:
 ## Ele para e acende a aura. E o unico momento em que da para alcanca-lo sem
 ## correr atras -- o preco do ataque dele.
 func _semear_entrar() -> void:
-	_aura.visible = true
-	_aura.scale = Vector2(0.3, 0.3)
-	_aura.modulate.a = 0.0
-	var t := create_tween()
-	t.tween_property(_aura, "scale", Vector2(1.4, 1.4), tempo_semear)
-	t.parallel().tween_property(_aura, "modulate:a", 0.7, tempo_semear * 0.6)
+	_aviso_atual = duracao_do_telegrafo(tempo_semear)
+	_telegrafo.circulo(global_position, RAIO_AURA)
+	_telegrafo.acender(_aviso_atual)
 
 
 func _semear(delta: float) -> void:
 	Movimento.frear(self, delta, 1400.0)
-	if _maquina.passou(duracao_do_telegrafo(tempo_semear)):
+	_telegrafo.circulo(global_position, RAIO_AURA)
+	# UM relogio. Antes eram dois -- o tween no valor cru e o portao no valor com
+	# piso --, e eles so concordavam com a barra em zero.
+	if _telegrafo.avancar(delta) >= 1.0:
 		_plantar()
 		_t_intervalo = intervalo
 		_maquina.trocar(ESPERAR)
 
 
 func _semear_sair() -> void:
-	_aura.visible = false
+	_telegrafo.apagar()
 
 
 func _esperar(delta: float) -> void:

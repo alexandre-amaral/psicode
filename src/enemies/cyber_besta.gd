@@ -67,16 +67,34 @@ var _maquina: MaquinaEstados
 ## Guardada em `_investir_entrar` e lida sem reescrever ate o fim do ataque.
 var _direcao_travada: Vector2 = Vector2.RIGHT
 var _sprite: SpriteDirecional = null
-var _rastro: Line2D
+## A faixa que a investida vai cobrir.
+##
+## Era um `Line2D` proprio com um `lerpf` de alfa e largura a mao -- uma versao
+## caseira de duas das quatro fases que o componente ja tem. Migrado, ele ganha
+## as quatro, a faixa `z` ABSOLUTA e o `_apagar_telegrafos()` da base, o que
+## APAGA o `morrer()` que existia so para esconde-lo.
+##
+## O AGACHAMENTO nao migra, e isso e decisao. `Telegrafo.pulsar()` escreve escala
+## UNIFORME; o agachamento e anisotropico e direcional -- e ele que diz PARA ONDE.
+## E a Besta escreve `_visual.scale` tambem em RECUPERAR e ATORDOADO, estados que
+## o `Telegrafo` nao conhece: um `apagar()` no meio de uma recuperacao devolveria
+## a escala guardada e estalaria o corpo. Dois donos no mesmo canal e a armadilha
+## dos dois tints, num lugar novo.
+var _telegrafo: Telegrafo
+## Duracao do aviso DESTA investida, fixada na ENTRADA do estado.
+var _aviso_atual: float = 0.0
 
 
 func _ready() -> void:
 	super._ready()
-	_rastro = $Rastro
 	# Sem isto o rastro herdaria a rotacao e a posicao do corpo, e desenharia
 	# uma linha girando junto com ele em vez de ficar no chao.
-	_rastro.top_level = true
-	_rastro.visible = false
+	_telegrafo = Telegrafo.anexar(self)
+	# Sai o literal `Color(1.0, 0.45, 0.2, ...)`, que era a quarta copia do
+	# `cor_base` e invisivel para `teste_texturas._espelho_do_ator()`.
+	_telegrafo.cor = cor_base
+	_telegrafo.largura_min = 2.0
+	_telegrafo.largura_max = 6.0
 	_sprite = $Visual/Corpo
 
 	_maquina = MaquinaEstados.new(name)
@@ -167,7 +185,8 @@ func _encarar(delta: float) -> void:
 
 
 func _preparar_entrar() -> void:
-	_rastro.visible = true
+	_aviso_atual = duracao_do_telegrafo(tempo_preparo)
+	_telegrafo.acender(_aviso_atual)
 	# Atualiza a direcao ANTES de montar o agachamento. `_preparar` reescreve
 	# isto todo frame, mas no frame da ENTRADA ela ainda guarda a investida
 	# ANTERIOR -- e o agachamento sairia no eixo da corrida passada.
@@ -183,12 +202,15 @@ func _preparar(delta: float) -> void:
 	# e nao so ao momento. A trava so acontece na transicao.
 	_direcao_travada = direcao_para_alvo()
 	_desenhar_rastro()
-	if _maquina.passou(duracao_do_telegrafo(tempo_preparo)):
+	# UM relogio. Antes `duracao_do_telegrafo()` era recalculado AQUI, todo
+	# frame: a barra sobe durante a propria carga, entao o aviso encolhia
+	# enquanto o jogador o lia -- o oposto do que o telegrafo existe para fazer.
+	if _telegrafo.avancar(delta) >= 1.0:
 		_maquina.trocar(INVESTIR)
 
 
 func _preparar_sair() -> void:
-	_rastro.visible = false
+	_telegrafo.apagar()
 	if _visual != null:
 		var t := create_tween()
 		t.tween_property(_visual, "scale", Vector2.ONE, 0.12)
@@ -314,16 +336,15 @@ func _agachar(ao_longo: float, atravessado: float) -> Vector2:
 	return Vector2(atravessado, ao_longo)
 
 
+## A linha vai ate onde a investida PARA, e nao ate o jogador: e a distancia que
+## ela cobre que o jogador precisa ler para saber se esta dentro dela.
 func _desenhar_rastro() -> void:
-	_rastro.clear_points()
-	_rastro.add_point(global_position)
-	_rastro.add_point(global_position + _direcao_travada * velocidade_investida * duracao_investida)
-	var progresso := clampf(_maquina.tempo_no_estado / maxf(tempo_preparo, 0.01), 0.0, 1.0)
-	_rastro.default_color = Color(1.0, 0.45, 0.2, lerpf(0.15, 0.6, progresso))
-	_rastro.width = lerpf(2.0, 6.0, progresso)
+	_telegrafo.linha(
+		global_position,
+		global_position + _direcao_travada * velocidade_investida * duracao_investida
+	)
 
 
-func morrer() -> void:
-	if _rastro != null:
-		_rastro.visible = false
-	super.morrer()
+## Sem override de `morrer()`: `InimigoBase._apagar_telegrafos()` ja varre os
+## filhos do tipo `Telegrafo`, e agora o aviso e um deles. Era essa linha que
+## faltava aos tres avisos ad-hoc.

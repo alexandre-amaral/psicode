@@ -45,8 +45,3 @@ quadros_andando = 9
 fps_andando = 12.0
 velocidade_referencia = 88.0
 
-[node name="Rastro" type="Line2D" parent="."]
-z_index = -2
-points = PackedVector2Array(0, 0, 1, 0)
-width = 4.0
-default_color = Color(1, 0.45, 0.2, 0.35)

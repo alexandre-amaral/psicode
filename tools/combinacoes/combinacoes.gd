@@ -92,6 +92,9 @@ const BARRAS := [0.0, 35.0, 70.0, 100.0]
 ## nascer e semear, e a area dele vive quase 3,5 s entre aviso, estouro e brasa.
 const SEGUNDOS_POR_CENARIO := 8.0
 
+## Quantas vezes cada cenario e medido. Ver `_medir_varias()`.
+const AMOSTRAS := 5
+
 ## Raio do corpo do jogador e velocidade dele. Saem da cena do Player, e nao de
 ## um numero copiado: um Player mais gordo ou mais lento muda a resposta.
 var _raio_jogador: float = 11.0
@@ -136,10 +139,61 @@ func _rodar() -> void:
 		print("  %s" % combinacao["nome"])
 		print("    (%s)" % combinacao["cria"])
 		for barra: float in BARRAS:
-			await _medir(combinacao, barra)
+			await _medir_varias(combinacao, barra)
 		print("")
 
 	_relatorio()
+
+
+## O PIOR DE `AMOSTRAS`, e nao uma amostra so.
+##
+## A regua reportava UMA execucao, e a variancia dela era maior que a folga que
+## ela mede. Tres execucoes seguidas do mesmo cenario, com o mesmo codigo, deram
+## 0,13 s, 0,32 s e 0,13 s -- e o teto e 0,28. **Uma delas reprovaria e as outras
+## duas passariam**, e nada no relatorio dizia que aquilo era sorte.
+##
+## Isso importa porque ela e o instrumento que arbitra tuning de dificuldade. Uma
+## decisao de balanceamento tomada em cima de uma execucao dessas e uma decisao
+## tomada em cima de sorte.
+##
+## PIOR e nao media, porque a pergunta e de SEGURANCA: "existe um momento em que
+## o jogador fica sem saida?". A media esconderia exatamente o momento procurado.
+## O preco e conhecido e aceito -- com mais amostras a regua acha mais casos
+## ruins, entao ela fica mais dura que a versao de uma amostra. Ela nao ficou
+## mais rigorosa: ela parou de ter sorte.
+##
+## E cada amostra e SEMEADA, entao a varredura inteira e reproduzivel. Sem isso a
+## regua continuaria respondendo diferente a cada rodada e ninguem conseguiria
+## conferir um resultado alheio -- que e a metade do problema que a repeticao
+## sozinha nao resolve.
+func _medir_varias(combinacao: Dictionary, barra: float) -> void:
+	var pior_saidas := MedidorEscape.DIRECOES + 1
+	var pior_janela := 0.0
+	var menor_janela := 999.0
+	for amostra in AMOSTRAS:
+		seed(hash("%s|%f|%d" % [combinacao["nome"], barra, amostra]))
+		var r := await _medir(combinacao, barra)
+		pior_saidas = mini(pior_saidas, int(r.x))
+		pior_janela = maxf(pior_janela, r.y)
+		menor_janela = minf(menor_janela, r.y)
+
+	print("    barra %3.0f%%: pior momento deixou %d saidas de %d; maior janela sem saida a pe %.2f s (teto %.2f, %d amostras, faixa %.2f-%.2f)" % [
+		barra, pior_saidas, MedidorEscape.DIRECOES + 1, pior_janela,
+		_iframes_rolamento, AMOSTRAS, menor_janela, pior_janela,
+	])
+	_linhas.append("%s @ %.0f%%" % [combinacao["nome"], barra])
+	# Margem fina nao reprova, mas nao pode passar calada.
+	if pior_janela <= _iframes_rolamento and pior_janela > _iframes_rolamento * 0.8:
+		_avisos.append(
+			"%s a %.0f%%: %.2f s sem saida a pe contra %.2f s de i-frames -- so %.2f s de folga"
+				% [combinacao["nome"], barra, pior_janela, _iframes_rolamento,
+					_iframes_rolamento - pior_janela]
+		)
+	if pior_janela > _iframes_rolamento:
+		_erros.append(
+			"%s a %.0f%% de Deterioracao: %.2f s sem saida a pe, mais que os %.2f s de i-frames do rolamento"
+				% [combinacao["nome"], barra, pior_janela, _iframes_rolamento]
+		)
 
 
 ## Monta a sala, poe a combinacao dentro, e conta as saidas a cada frame.
@@ -148,7 +202,7 @@ func _rodar() -> void:
 ## saida?", nao "o boneco acha a saida". Um boneco que se mexe mediria a IA dele,
 ## e a IA dele nao existe. Parado, ele e o pior caso -- todo inimigo converge
 ## para ele -- e a resposta continua sendo sobre o campo.
-func _medir(combinacao: Dictionary, barra: float) -> void:
+func _medir(combinacao: Dictionary, barra: float) -> Vector2:
 	Deterioracao.valor = barra
 
 	var raiz := Node2D.new()
@@ -193,27 +247,9 @@ func _medir(combinacao: Dictionary, barra: float) -> void:
 		else:
 			janela = 0.0
 
-	print("    barra %3.0f%%: pior momento deixou %d saidas de %d; maior janela sem saida a pe %.2f s (teto %.2f)" % [
-		barra, pior, MedidorEscape.DIRECOES + 1, pior_janela, _iframes_rolamento,
-	])
-	_linhas.append("%s @ %.0f%%" % [combinacao["nome"], barra])
-	# Margem fina nao reprova, mas nao pode passar calada: 0,01 s de folga e um
-	# numero que a proxima mudanca de tuning derruba sem ninguem perceber, e a
-	# sessao de tuning precisa saber onde ela esta pisando.
-	if pior_janela <= _iframes_rolamento and pior_janela > _iframes_rolamento * 0.8:
-		_avisos.append(
-			"%s a %.0f%%: %.2f s sem saida a pe contra %.2f s de i-frames -- so %.2f s de folga"
-				% [combinacao["nome"], barra, pior_janela, _iframes_rolamento,
-					_iframes_rolamento - pior_janela]
-		)
-	if pior_janela > _iframes_rolamento:
-		_erros.append(
-			"%s a %.0f%% de Deterioracao: %.2f s sem saida a pe, mais que os %.2f s de i-frames do rolamento"
-				% [combinacao["nome"], barra, pior_janela, _iframes_rolamento]
-		)
-
 	raiz.queue_free()
 	await get_tree().process_frame
+	return Vector2(float(pior), pior_janela)
 
 
 ## Um corpo minimo no grupo "player": os inimigos precisam de alvo, e o alvo

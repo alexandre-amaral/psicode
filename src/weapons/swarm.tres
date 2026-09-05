@@ -23,6 +23,7 @@ velocidade_projetil = 380.0
 alcance = 620.0
 raio_projetil = 3.0
 cor_projetil = Color(0.57, 1, 0.28, 1)
+familia_silhueta = 2
 raio_busca = 260.0
 curva_graus = 260.0
 municao_maxima = -1

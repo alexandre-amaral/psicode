@@ -92,6 +92,43 @@ enum Comportamento {
 @export var raio_projetil: float = 4.0
 @export var cor_projetil: Color = Color("6ee7ff")
 
+@export_group("Silhueta")
+## A familia de silhueta deste projetil.
+##
+## Mora aqui, e nao num Resource separado, porque o portao mede o PAR
+## (cor, familia) -- e `cor_projetil` ja esta neste arquivo. Separados, um portao
+## teria de abrir dois arquivos para conferir uma invariante, que e exatamente o
+## custo que a armadilha do `MATIZ_POR_TIPO` ja registra.
+##
+## **Valor novo entra sempre NO FIM**, e LOSANGO tem de continuar sendo ZERO: os
+## `.tres` que nao tem esta propriedade carregam o default do script, entao um
+## default diferente de zero trocaria a forma de todas eles de uma vez -- sem uma
+## linha no console.
+##
+## Nao se deriva do `comportamento`: 13 das 21 armas sao `NENHUM`, entao derivar
+## daria a mesma forma a treze armas, que e o estado que este campo existe para
+## desfazer.
+@export var familia_silhueta: FormasProjetil.Familia = FormasProjetil.Familia.LOSANGO
+## Estica a silhueta no eixo do VOO, e so nele.
+##
+## Nunca na lateral: e a lateral que o jogador usa para esquivar, e e ela que o
+## portao de coerencia amarra ao raio da hitbox.
+@export_range(0.25, 6.0, 0.05) var alongamento_silhueta: float = 1.0
+
+@export_group("Rastro")
+## Comprimento do rastro, em MULTIPLOS do raio. **Zero desliga.**
+##
+## E zero e o default de proposito: o default diz o que o desenho quer, e nao o
+## que o codigo fazia. Antes deste campo o rastro era cravado em
+## `maxf(raio * 6.0, 16.0)` e as 21 armas tinham um -- inclusive a Mantis, a
+## Riot-12 e a Swarm, em que o plano o proibe.
+##
+## O portao correspondente e `rastro * raio < velocidade / cadencia`: trilha mais
+## longa que o vao entre dois tiros vira um risco solido, e o jogador perde a
+## CONTAGEM de projeteis -- que e a leitura que o bullet hell cobra.
+@export var rastro_comprimento: float = 0.0
+@export_range(0.0, 1.0, 0.01) var rastro_alfa: float = 0.35
+
 @export_group("Explosao")
 ## Valem para EXPLOSIVO (a granada) e PLASMA (o estouro na parede). Sao quatro
 ## numeros separados de proposito, e nao um "poder de explosao": assim um item

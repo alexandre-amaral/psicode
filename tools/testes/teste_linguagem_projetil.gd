@@ -20,6 +20,14 @@ extends TesteBase
 
 
 const ARMAS := "res://src/weapons/"
+const CENA_PROJETIL := "res://src/projectiles/projetil.tscn"
+
+## A faixa de matiz dentro da qual duas armas leem como a MESMA cor.
+##
+## Nao sai da distancia entre vizinhos: aquela conta foi medida e da +-1,1 grau,
+## que obrigaria arte chapada. Este numero e o que a rampa de sombra de um pixel
+## art precisa, e o aperto que ele cria vira pressao sobre a SILHUETA.
+const LARGURA_MATIZ := 15.0
 
 ## Alongamentos varridos em todo caso de coerencia.
 ##
@@ -60,6 +68,134 @@ func executar() -> void:
 	_o_halo_nao_vira_corpo()
 	_a_moldura_lateral_cabe_o_raio()
 	_familia_invalida_e_reconhecida_como_invalida()
+	_toda_familia_declarada_existe_na_biblioteca()
+	_cor_proxima_obriga_silhueta_diferente()
+	_o_rastro_cabe_no_vao_entre_dois_tiros()
+	_so_a_Forma_tem_colisao()
+
+
+## Toda arma declara uma silhueta que a biblioteca sabe desenhar.
+##
+## O enum e gravado como INT no `.tres`. Um valor digitado a mao, ou o
+## sobrevivente de um enum que encolheu, **carrega sem erro nenhum** -- e o
+## projetil nasce com poligono vazio: invisivel, com a hitbox intacta. E o pior
+## defeito possivel num bullet hell, e nao ha uma linha no console.
+func _toda_familia_declarada_existe_na_biblioteca() -> void:
+	var vistas := 0
+	for nome in _armas():
+		var dados := _arma(nome)
+		if dados == null:
+			continue
+		vistas += 1
+		ok(
+			FormasProjetil.existe(dados.familia_silhueta),
+			"%s declara uma familia que existe (%d = %s)"
+				% [nome, dados.familia_silhueta, FormasProjetil.nome(dados.familia_silhueta)]
+		)
+	ok(vistas >= 15, "a varredura achou as armas do jogo (%d)" % vistas)
+
+
+## Cor PROXIMA obriga silhueta DIFERENTE.
+##
+## Cor repetida continua PERMITIDA, e tem de continuar: a `Paleta` mediu quatro
+## faixas de matiz livres para 21 armas -- proibir repeticao de cor seria proibir
+## armas. O que se proibe e cor proxima com a MESMA silhueta.
+##
+## Compara MATIZ, e nao canal. `Paleta.mesma_cor()` responde a outra pergunta --
+## "e o mesmo valor gravado?" -- com tolerancia de 1,5/255 por canal, e deixaria
+## passar `pistola` contra `volt_caster`, que estao a 2,2 graus e sao os dois o
+## mesmo ciano. Medido antes deste epico: DEZ dos 210 pares estavam a menos de
+## `LARGURA_MATIZ`, dois deles com RGB identico, e as 21 armas desenhavam a mesma
+## forma.
+##
+## `LARGURA_MATIZ` nao sai da distancia entre vizinhos. A formula obvia -- metade
+## da menor distancia -- foi medida e da +-1,1 grau, o que obrigaria arte chapada,
+## sem rampa de sombra (rampa de pixel art desloca matiz). O numero e o que a
+## ARTE precisa, e o aperto vira pressao sobre a SILHUETA, que e o objetivo.
+func _cor_proxima_obriga_silhueta_diferente() -> void:
+	var nomes := _armas()
+	var colisoes := 0
+	var proximos := 0
+	for i in nomes.size():
+		for j in range(i + 1, nomes.size()):
+			var a := _arma(nomes[i])
+			var b := _arma(nomes[j])
+			if a == null or b == null:
+				continue
+			var d := _distancia_de_matiz(a.cor_projetil, b.cor_projetil)
+			if d >= LARGURA_MATIZ:
+				continue
+			proximos += 1
+			if a.familia_silhueta != b.familia_silhueta:
+				continue
+			colisoes += 1
+			ok(
+				false,
+				"%s e %s estao a %.1f graus e desenham a MESMA silhueta (%s)"
+					% [nomes[i], nomes[j], d, FormasProjetil.nome(a.familia_silhueta)]
+			)
+	igual(colisoes, 0, "nenhum par de cor proxima divide silhueta")
+	ok(
+		proximos > 0,
+		"a regua encontrou pares proximos de verdade (%d) -- senao ela mede o vazio"
+			% proximos
+	)
+
+
+## O rastro nao emenda com o tiro seguinte.
+##
+## Trilha mais longa que o vao entre dois tiros (`velocidade / cadencia`) vira um
+## risco SOLIDO na tela, e o jogador perde a CONTAGEM de projeteis -- que e a
+## leitura que o bullet hell cobra.
+##
+## Antes deste campo o rastro era cravado em `raio * 6` para as 21 armas, e tres
+## reprovavam esta conta: `onda_guardiao` desenhava 96 px de trilha sobre um vao
+## de 26, `sucata_guardiao` 42 sobre 21, `salva_diretora` 36 sobre 32. Os dois
+## primeiros sao do CHEFE, na sala mais densa de projetil do jogo.
+##
+## O piso do outro lado importa tanto quanto: sem ao menos uma arma com rastro, o
+## caso mede o conjunto vazio e vira carimbo.
+func _o_rastro_cabe_no_vao_entre_dois_tiros() -> void:
+	var com_rastro := 0
+	for nome in _armas():
+		var dados := _arma(nome)
+		if dados == null or dados.rastro_comprimento <= 0.0:
+			continue
+		com_rastro += 1
+		var trilha := dados.rastro_comprimento * dados.raio_projetil
+		var vao := dados.velocidade_projetil / maxf(dados.cadencia, 0.001)
+		ok(
+			trilha < vao,
+			"%s: a trilha de %.0f px cabe no vao de %.0f px entre dois tiros"
+				% [nome, trilha, vao]
+		)
+	ok(
+		com_rastro > 0,
+		"ao menos uma arma tem rastro (%d) -- senao este portao e um carimbo"
+			% com_rastro
+	)
+
+
+## A colisao do projetil mora num lugar so.
+##
+## Nem o rastro, nem o halo, nem a arte, nem o no que alguem pendurar amanha. E
+## assim que "rastro nunca tem hitbox" deixa de ser promessa e vira portao.
+##
+## Le a cena por `PackedScene.get_state()`, sem instanciar -- a mesma receita que
+## `teste_texturas` usa para ler `cor_base` sem subir inimigo.
+func _so_a_Forma_tem_colisao() -> void:
+	var cena: PackedScene = load(CENA_PROJETIL)
+	if cena == null:
+		ok(false, "a cena do projetil carrega")
+		return
+	var estado := cena.get_state()
+	var formas: Array[String] = []
+	for i in estado.get_node_count():
+		if estado.get_node_type(i) == &"CollisionShape2D":
+			formas.append(String(estado.get_node_name(i)))
+	igual(formas.size(), 1, "o projetil tem exatamente uma colisao (%s)" % str(formas))
+	if formas.size() == 1:
+		igual(formas[0], "Forma", "e ela se chama Forma")
 
 
 ## Toda familia declarada desenha alguma coisa.
@@ -250,6 +386,40 @@ func _raios_da_roster() -> Array[float]:
 		if not fora.has(dados.raio_projetil):
 			fora.append(dados.raio_projetil)
 	return fora
+
+
+## Os `.tres` de arma do disco, sem o FEIXE.
+##
+## O Laser Cutter nao instancia projetil -- ele desenha um `Line2D` --, entao
+## silhueta, rastro e moldura nao querem dizer nada nele. Varre a pasta em vez de
+## uma lista fixa: lista fixa apodrece nas duas direcoes.
+func _armas() -> Array[String]:
+	var fora: Array[String] = []
+	var pasta := DirAccess.open(ARMAS)
+	if pasta == null:
+		return fora
+	var arquivos := pasta.get_files()
+	arquivos.sort()
+	for arquivo in arquivos:
+		if not arquivo.ends_with(".tres"):
+			continue
+		var dados := load(ARMAS + arquivo) as DadosArma
+		if dados == null or dados.e_feixe():
+			continue
+		fora.append(arquivo.get_basename())
+	return fora
+
+
+func _arma(nome: String) -> DadosArma:
+	return load(ARMAS + nome + ".tres") as DadosArma
+
+
+## Distancia angular entre dois matizes, em graus.
+##
+## Circular: 350 e 10 estao a 20 graus, e nao a 340.
+func _distancia_de_matiz(a: Color, b: Color) -> float:
+	var d: float = fmod(absf(a.h - b.h), 1.0)
+	return minf(d, 1.0 - d) * 360.0
 
 
 ## O poligono em que os dois pontos laterais tem de morar.

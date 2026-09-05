@@ -59,6 +59,10 @@ const CASOS := [
 		"diz": "os px extras na FACE e nao no topo: mesma moldura do C, mais altura"},
 	{"nome": "7_864x416_F", "w": 864, "h": 416, "perfil": "F",
 		"diz": "o mesmo raciocinio, um degrau acima"},
+	{"nome": "8_896x416_G", "w": 896, "h": 416, "perfil": "G",
+		"diz": "norte 88 e laterais FINAS: elas leem de esguelha e custam piso"},
+	{"nome": "9_896x384_H", "w": 896, "h": 384, "perfil": "H",
+		"diz": "norte 104, o mais grosso que ainda deixa 66% de piso"},
 ]
 
 var _linhas: Array[String] = []
@@ -224,6 +228,36 @@ func _perfil_de(nome: String) -> PerfilDeParede:
 		f.topo_sul = 24.0
 		f.borda_externa_sul = 16.0
 		return f
+	# G e H concentram TUDO na norte e deixam as laterais em 16/16.
+	#
+	# A lateral e vista de esguelha: engorda-la custa piso e quase nao da altura
+	# lida. Medido, contra o N96, que engorda os quatro lados por igual:
+	#
+	#     N96   norte 17,6% da tela   piso 61,2%
+	#     G     norte 16,2% da tela   piso 71,4%
+	#     H     norte 19,1% da tela   piso 65,9%
+	#
+	# O G perde 1,4 ponto de altura e ganha DEZ de piso; o H ganha nos dois. Ou
+	# seja, engordar os quatro lados por igual e dominado -- e era o que o perfil
+	# A fazia.
+	if nome == "G":
+		var g := PerfilDeParede.new()
+		g.topo_norte = 24.0
+		g.face_norte = 64.0
+		g.topo_lateral = 16.0
+		g.face_lateral = 16.0
+		g.topo_sul = 16.0
+		g.borda_externa_sul = 16.0
+		return g
+	if nome == "H":
+		var h := PerfilDeParede.new()
+		h.topo_norte = 32.0
+		h.face_norte = 72.0
+		h.topo_lateral = 16.0
+		h.face_lateral = 16.0
+		h.topo_sul = 16.0
+		h.borda_externa_sul = 16.0
+		return h
 	if nome == "N80":
 		var p := PerfilDeParede.new()
 		p.topo_norte = 32.0

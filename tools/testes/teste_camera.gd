@@ -149,8 +149,10 @@ func _a_margem_segue_o_perfil_DA_SALA() -> void:
 	var padrao: Vector4 = gerenciador.margem_da_parede([sala])
 
 	var fundo := PerfilDeParede.new()
-	fundo.topo_norte = 40.0
-	fundo.face_norte = 48.0
+	# Claramente mais fundo que o default, seja ele qual for -- um literal
+	# escolhido perto do default de hoje empata com ele amanha.
+	fundo.topo_norte = PerfilDeParede.new().topo_norte * 2.0
+	fundo.face_norte = PerfilDeParede.new().face_norte * 2.0
 	Sala.perfil_de_teste = fundo
 	var maior: Vector4 = gerenciador.margem_da_parede([sala])
 	Sala.perfil_de_teste = null

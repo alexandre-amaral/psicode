@@ -6,20 +6,20 @@
 [node name="Sala_9_Inicial" type="Node2D"]
 script = ExtResource("1_s")
 tipo = &"inicial"
-area_spawn = Rect2(-320, -128, 640, 256)
+area_spawn = Rect2(-320, -96, 640, 192)
 
 [node name="Parede" type="Line2D" parent="."]
-points = PackedVector2Array(-448, -224, 448, -224, 448, 224, -448, 224, -448, -224)
+points = PackedVector2Array(-448, -192, 448, -192, 448, 192, -448, 192, -448, -192)
 width = 8.0
 default_color = Color(0.3, 0.9, 1, 0.55)
 
 [node name="Portas" type="Node2D" parent="."]
 
 [node name="Porta_Norte" parent="Portas" instance=ExtResource("2_p")]
-position = Vector2(0, -224)
+position = Vector2(0, -192)
 
 [node name="Porta_Sul" parent="Portas" instance=ExtResource("2_p")]
-position = Vector2(0, 224)
+position = Vector2(0, 192)
 direcao = 1
 
 [node name="Porta_Leste" parent="Portas" instance=ExtResource("2_p")]

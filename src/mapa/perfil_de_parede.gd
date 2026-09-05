@@ -19,12 +19,25 @@ extends RefCounted
 ## plano inteiro: dimensao logica nao e dimensao desenhada.
 
 ## Quanto entra em cada lado, do contorno para FORA.
-## O DEFAULT E O PERFIL E, escolhido na matriz de ENQUADRAMENTO
+## O DEFAULT E O PERFIL H, escolhido na matriz de ENQUADRAMENTO
 ## (`tools/matriz_de_sala.tscn`) -- a que mede quanto da TELA vira parede, com a
 ## camera no regime real do jogo.
 ##
-## Ele nasceu do C e muda dois numeros: a face norte vai de 24 para 40 e a borda
-## externa do sul de 12 para 24. Os dois px extras vao para onde LEEM.
+## Ele concentra TUDO na norte -- 32 de topo mais 72 de face -- e deixa as
+## laterais em 16/16.
+##
+## A lateral e vista de ESGUELHA: engorda-la custa piso e quase nao da altura
+## lida. Medido na matriz, contra um perfil que engorda os quatro lados por igual:
+##
+##     quatro lados iguais   norte 17,6% da tela   piso 61,2%
+##     so a norte (este)     norte 19,1% da tela   piso 65,9%
+##
+## Ele ganha nos DOIS eixos. Engordar os quatro por igual e dominado, e era
+## exatamente o que o perfil A fazia.
+##
+## A norte ocupa 19,1% da altura do quadro, que e a faixa em que a parede do
+## Isaac vive. Nos perfis anteriores ela ocupava 7,4% (C) e 10,3% (E), e o dono
+## olhou os dois no jogo e disse que a parede continuava pequena.
 ##
 ## `tools/matriz_paredes.tscn` monta a mesma sala nos quatro perfis com o mesmo
 ## zoom e imprime quanto do quadro vira moldura:
@@ -44,8 +57,8 @@ extends RefCounted
 ##
 ## Os tres numeros caem dentro das faixas que o plano sugere: norte topo 16-24 e
 ## face 20-28, laterais 12-20, sul 8-16.
-var topo_norte: float = 16.0
-var face_norte: float = 40.0
+var topo_norte: float = 32.0
+var face_norte: float = 72.0
 var topo_lateral: float = 16.0
 var face_lateral: float = 16.0
 ## O sul mostra so a superficie de cima -- a face dele olha para longe da camera.
@@ -63,7 +76,7 @@ var topo_sul: float = 16.0
 ## seria pintar o que o jogador nao ve, e e por isso que
 ## `teste_camada_visual.gd` proibe textura de face abaixo da borda sul. Isto e
 ## espessura em degraus de VALOR, na mesma lingua da `SombraDeParede`.
-var borda_externa_sul: float = 24.0
+var borda_externa_sul: float = 16.0
 
 
 ## Os quatro perfis da matriz de comparacao do plano.

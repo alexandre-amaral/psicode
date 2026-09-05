@@ -1391,29 +1391,35 @@ func margem_da_parede(salas: Array = []) -> Vector4:
 	return maior
 
 
-## O clamp sozinho nao basta: Camera2D nao respeita limite menor que o proprio
-## campo de visao, entao numa sala mais estreita que a tela ela desenha o vazio
-## de fora da sala nas bordas e o jogador le aquilo como area que deveria
-## alcancar. Aproximar o zoom ate o campo caber e o unico remedio que nao passa
-## por desenhar coisa nova.
+## O ZOOM NUNCA SAI DO BASE, e o base e inteiro.
 ##
-## Nas salas de hoje, em janela 16:9, isto nao muda nada. Ele existe porque o
-## stretch "expand" do project.godot alarga o campo em janela ultrawide -- e ai
-## a sala mais estreita do andar volta a nao caber, sem ninguem ter mexido em
-## .tscn nenhum.
-func _ajustar_zoom(camera: Camera2D, area: Vector2) -> void:
+## Esta funcao adaptava o zoom quando o clamp ficava menor que a viewport, para
+## nao mostrar o vazio -- *"o jogador le aquilo como area que deveria alcancar"*.
+##
+## **A premissa dela expirou.** Aquilo era verdade quando o vazio era um nada
+## indiferenciado logo depois da borda do chao. Hoje o exterior e camada
+## DECLARADA (`Sala.COR_DO_VAZIO`, o N0 da paleta, com portao proprio cobrando
+## que ela nao seja mais clara que a sombra de contato) e ha **parede desenhada
+## entre o chao e ele**. Vazio depois de uma parede nao le como area alcancavel;
+## vazio depois de uma borda de chao lia.
+##
+## E o preco era alto e invisivel: `sala_4_corredor` tem 768 px de largura, entao
+## o fator saia `960/832 = 1,15` e a sala inteira era **reamostrada em zoom
+## fracionario**. E a mesma armadilha do "64 para 96 borra" que o projeto ja
+## registra para escala de sprite, so que aplicada a sala toda.
+##
+## Nao ha meio-termo possivel: `floor(1,15)` e 1, e `ceil` daria 2x. Clampar em
+## inteiro E nao adaptar -- entao a funcao diz o que a coisa e.
+##
+## No regime que este epico constroi, **vazio em quadro passa a ser o caso normal
+## e nao a falha**: toda sala fechada sobra alguma coisa.
+func _ajustar_zoom(camera: Camera2D, _area: Vector2) -> void:
 	if _zoom_base <= 0.0:
 		_zoom_base = maxf(camera.zoom.x, camera.zoom.y)
+	var mesmo := is_equal_approx(camera.zoom.x, _zoom_base) and is_equal_approx(camera.zoom.y, _zoom_base)
+	if not mesmo:
+		camera.zoom = Vector2(_zoom_base, _zoom_base)
 
-	var vista := camera.get_viewport_rect().size
-	var fator := _zoom_base
-	if area.x > 0.0:
-		fator = maxf(fator, vista.x / area.x)
-	if area.y > 0.0:
-		fator = maxf(fator, vista.y / area.y)
-
-	if not is_equal_approx(camera.zoom.x, fator) or not is_equal_approx(camera.zoom.y, fator):
-		camera.zoom = Vector2(fator, fator)
 
 
 # ----------------------------------------------------------- ciclo da run ---

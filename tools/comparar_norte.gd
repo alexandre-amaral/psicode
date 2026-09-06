@@ -28,16 +28,25 @@ func _fotografar_lobby() -> void:
 	await get_tree().process_frame
 	var p := get_tree().get_first_node_in_group("player") as Node2D
 	if p != null:
-		# Colado no contorno norte: e a unica posicao em que a faixa inteira entra.
 		p.global_position = Vector2(0.0, -Lobby.ALTURA * 0.5 + 24.0)
 	await _assentar()
 	_salvar("norte_lobby.png")
+	# O SUL e a QUINA, que e onde os defeitos apontados moram.
+	if p != null:
+		p.global_position = Vector2(0.0, Lobby.ALTURA * 0.5 - 24.0)
+	await _assentar()
+	_salvar("sul_lobby.png")
+	if p != null:
+		p.global_position = Vector2(-Lobby.LARGURA * 0.5 + 24.0, -Lobby.ALTURA * 0.5 + 24.0)
+	await _assentar()
+	_salvar("quina_lobby.png")
 	lobby.queue_free()
 	await get_tree().process_frame
 
 
 func _fotografar_sala() -> void:
 	var sala: Sala = (load(SALA) as PackedScene).instantiate()
+	sala.definir_visual(_dados_do_tipo("sala_1_retangular"))
 	add_child(sala)
 	await get_tree().process_frame
 	sala.ativar()
@@ -65,6 +74,12 @@ func _fotografar_sala() -> void:
 		camera.limit_bottom = int(visivel.end.y)
 	await _assentar()
 	_salvar("norte_sala.png")
+	p.global_position = Vector2(0.0, limites.end.y - 24.0)
+	await _assentar()
+	_salvar("sul_sala.png")
+	p.global_position = Vector2(limites.position.x + 24.0, limites.position.y + 24.0)
+	await _assentar()
+	_salvar("quina_sala.png")
 
 
 func _assentar() -> void:
@@ -76,3 +91,26 @@ func _assentar() -> void:
 func _salvar(nome: String) -> void:
 	get_viewport().get_texture().get_image().save_png("user://capturas/" + nome)
 	print("  %s" % nome)
+
+
+## O `DadosSala` do tipo daquela cena, para a sala vestir o ESTILO de verdade.
+##
+## Sem isto a sala nasce com `_dados_visual` nulo, `_perfil()` devolve `null` e
+## quem mede cai no `PerfilDeParede` default -- que e justamente o perfil que o
+## jogo NAO usava. Uma ferramenta de medicao que se engana assim mede a regra e
+## afirma que mediu o jogo, e foi o que aconteceu: a moldura foi medida em 18%
+## enquanto a sala real desenhava o perfil C.
+##
+## `definir_visual()` roda ANTES do `add_child`, como `configurar_conexoes`: e o
+## `_ready` que monta as camadas.
+func _dados_do_tipo(nome_cena: String) -> DadosSala:
+	var tipo := "combate"
+	if nome_cena.ends_with("_boss"):
+		tipo = "boss"
+	elif nome_cena.ends_with("_arma"):
+		tipo = "arma"
+	elif nome_cena.ends_with("_item"):
+		tipo = "item"
+	elif nome_cena.ends_with("_inicial"):
+		tipo = "inicial"
+	return load("res://src/mapa/tipo_%s.tres" % tipo) as DadosSala

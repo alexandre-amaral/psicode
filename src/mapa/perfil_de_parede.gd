@@ -69,24 +69,33 @@ var topo_norte: float = 32.0
 var face_norte: float = 72.0
 var topo_lateral: float = 24.0
 var face_lateral: float = 72.0
-## O sul mostra so a superficie de cima -- a face dele olha para longe da camera.
+## O SUL desenha face e topo como os outros tres. **Esta regra foi INVERTIDA.**
 ##
-## 88 e nao 16: a profundidade tem de igualar a do norte para o quadro nao ter
-## borda preta embaixo, e como nao ha face para desenhar ali, ela vai toda em
-## topo. Era 16, e com o clamp crescido isso deixava o eixo Y assimetrico.
-var topo_sul: float = 88.0
-## A BORDA EXTERNA do sul: a espessura que escurece do topo ate o vazio.
+## Ela dizia que o sul nao ganha face porque a face dele "olha para longe da
+## camera, escondida pela propria parede", e o argumento e geometricamente
+## correto: num solido real, a superficie interna da parede sul fica atras do
+## topo dela do ponto de vista de quem olha de cima.
 ##
-## O §15 do plano de profundidade pede que a sul seja construida ao contrario da
-## norte -- chao, topo, e entao altura para BAIXO, em direcao ao exterior. E o
-## que faz o piso parecer encaixado numa caixa em vez de terminar numa linha.
+## O que ele nao previu e o que o jogador ve. Sem face, o sul desenha um campo
+## liso da textura de TOPO -- um padrao de blocos de pedra -- enquanto os outros
+## tres lados mostram a face estriada. Tres paredes de um material, uma de outro:
+## a sala deixa de ler como uma cavidade e passa a ler como um chao de pedra
+## colado embaixo. O dono apontou isso tres vezes, em duas profundidades
+## diferentes (16 e 88), e nas duas o sintoma foi o mesmo.
 ##
-## Ela NAO e uma face, e a distincao nao e de nome. Face e superficie vista de
-## FRENTE, e o lado sul olha para longe da camera: desenhar `parede_face` ali
-## seria pintar o que o jogador nao ve, e e por isso que
-## `teste_camada_visual.gd` proibe textura de face abaixo da borda sul. Isto e
-## espessura em degraus de VALOR, na mesma lingua da `SombraDeParede`.
-var borda_externa_sul: float = 16.0
+## A consistencia de MATERIAL entre os quatro lados vale mais aqui que a
+## fidelidade do solido, e essa e a decisao. A faixa abaixo da linha do chao le
+## como "a parede continua", e o que faz a sala parecer escavada e ela continuar
+## com a mesma cara nos quatro sentidos.
+##
+## `borda_externa_sul` vai a ZERO junto: ela existia como SUBSTITUTA da face --
+## era ela que dava ao sul alguma espessura em degraus de valor. Com a face de
+## verdade ali, manter as duas somaria 120 px de um lado so e quebraria a
+## simetria que a mudanca existe para produzir. O codigo dela fica, guardado por
+## `> 0`, porque um andar futuro pode querer o degrau sem a face.
+var topo_sul: float = 32.0
+var face_sul: float = 72.0
+var borda_externa_sul: float = 0.0
 
 
 ## Os quatro perfis da matriz de comparacao do plano.
@@ -152,7 +161,7 @@ static func de_nome(nome: String) -> PerfilDeParede:
 ## Quanto este lado desenha ao todo.
 func profundidade(lado: int) -> float:
 	if lado == RenderizadorParedes.Lado.SUL:
-		return topo_sul + borda_externa_sul
+		return topo_sul + face_sul + borda_externa_sul
 	if lado == RenderizadorParedes.Lado.NORTE:
 		return topo_norte + face_norte
 	return topo_lateral + face_lateral
@@ -160,12 +169,13 @@ func profundidade(lado: int) -> float:
 
 ## Onde a FACE deste lado acaba, medindo do contorno para fora. Zero = sem face.
 ##
-## O sul nao tem face de proposito: ela olharia para longe da camera, escondida
-## pela propria parede. Desenha-la seria pintar uma superficie que nao existe do
-## ponto de vista de quem olha.
+## Os QUATRO lados tem face desde que a regra do sul foi invertida -- o porque
+## esta no bloco de `face_sul`. Zero continua sendo um valor valido e util: um
+## estilo pode zerar a face de um lado, e o renderizador simplesmente nao a
+## desenha.
 func fim_da_face(lado: int) -> float:
 	if lado == RenderizadorParedes.Lado.SUL:
-		return 0.0
+		return face_sul
 	if lado == RenderizadorParedes.Lado.NORTE:
 		return face_norte
 	return face_lateral
@@ -178,7 +188,7 @@ func fim_da_face(lado: int) -> float:
 ## lados rasos ficam com folga -- e isso e aceitavel, porque o quadro e um so.
 func alcance() -> float:
 	return maxf(maxf(topo_norte + face_norte, topo_lateral + face_lateral),
-		topo_sul + borda_externa_sul)
+		topo_sul + face_sul + borda_externa_sul)
 
 
 ## O alcance POR EIXO: o maior dos dois lados de cada eixo.
@@ -188,7 +198,7 @@ func alcance() -> float:
 func alcance_por_eixo() -> Vector2:
 	return Vector2(
 		topo_lateral + face_lateral,
-		maxf(topo_norte + face_norte, topo_sul + borda_externa_sul)
+		maxf(topo_norte + face_norte, topo_sul + face_sul + borda_externa_sul)
 	)
 
 
@@ -206,4 +216,4 @@ func alcance_por_eixo() -> Vector2:
 func margens() -> Vector4:
 	var lateral := topo_lateral + face_lateral
 	return Vector4(lateral, topo_norte + face_norte, lateral,
-		topo_sul + borda_externa_sul)
+		topo_sul + face_sul + borda_externa_sul)

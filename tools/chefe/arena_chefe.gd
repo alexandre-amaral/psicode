@@ -51,6 +51,21 @@ const PONTOS := [
 ## existem.
 const SEGUNDOS_POR_PONTO := 14.0
 
+## O teto de tempo de um ponto quando ele ESPERA o repertorio inteiro sair.
+##
+## A medicao de densidade (PROJETIL 34) so vale se o pior ataque tiver
+## acontecido, e a primeira rodada mostrou que 14 s nao bastam: na fase 3 o chefe
+## executa dois ou tres ataques, e a **Falha do Reator** -- que e o pior caso,
+## sete areas de cerco ao mesmo tempo -- e um de cinco no sorteio. Ela nao saiu
+## em nenhum dos quatro pontos, e a densidade que se mediu era de um cenario que
+## nunca chegou ao pico.
+##
+## Entao o ponto passa a rodar ate ver o repertorio inteiro daquela fase, com
+## este teto como rede. Se o teto morder, a linha DIZ quais ataques faltaram --
+## uma medicao incompleta que se anuncia vale mais que um numero limpo que mediu
+## outra coisa.
+const TETO_POR_PONTO := 90.0
+
 var _chefe: Node = null
 var _sala: Node = null
 var _player: Node = null
@@ -151,20 +166,48 @@ func _medir(ponto: Dictionary) -> String:
 	var vistos := {}
 	var ataques := {}
 	var decorrido := 0.0
-	while decorrido < SEGUNDOS_POR_PONTO:
+	# A DENSIDADE, amostrada no mesmo laco (PROJETIL 34).
+	#
+	# O pior caso de leitura do jogo nao e "todo mundo atirando": e a sala do
+	# chefe, que o `TEXTURAS_ANDAR_1.md` ja chama de a mais densa de projetil do
+	# jogo. Medir aqui e de graca -- a arena ja monta exatamente esse cenario --
+	# e evita uma ferramenta nova que montaria o mesmo cenario pior.
+	var pico_projeteis := 0
+	var pico_cobertura := 0.0
+	var soma_cobertura := 0.0
+	var amostras := 0
+	var repertorio: Array = _chefe.repertorio_da_fase(fase)
+	while decorrido < SEGUNDOS_POR_PONTO or (
+			ataques.size() < repertorio.size() and decorrido < TETO_POR_PONTO):
 		await get_tree().physics_frame
 		decorrido += get_physics_process_delta_time()
 		vistos[String(_chefe._maquina.estado)] = true
 		if _chefe._maquina.estado == _chefe.EXECUTAR:
 			ataques[String(_chefe._ataque)] = true
+		var d := _densidade()
+		pico_projeteis = maxi(pico_projeteis, int(d.x))
+		pico_cobertura = maxf(pico_cobertura, d.y)
+		soma_cobertura += d.y
+		amostras += 1
 
 	print("  %3.0f%% de vida -- %s" % [ponto["hp"] * 100.0, ponto["diz"]])
 	print("    fase %d, multiplicador %.2f, %.0f px/s" % [fase, mult, velocidade])
 	print("    telegrafo %.2f s, recuperacao %.2f s (piso %.2f)" % [
 		preparo, recuperacao, _chefe.TEMPO_MINIMO,
 	])
-	print("    estados visitados em %.0f s: %s" % [SEGUNDOS_POR_PONTO, ", ".join(vistos.keys())])
+	print("    estados visitados em %.0f s: %s" % [decorrido, ", ".join(vistos.keys())])
 	print("    ataques executados: %s" % (", ".join(ataques.keys()) if not ataques.is_empty() else "nenhum"))
+	var faltaram: Array[String] = []
+	for a: StringName in repertorio:
+		if not ataques.has(String(a)):
+			faltaram.append(String(a))
+	print("    densidade em %.0f s: pico de %d projeteis, cobertura pico %.1f%% media %.1f%%" % [
+		decorrido, pico_projeteis, pico_cobertura * 100.0,
+		(soma_cobertura / float(maxi(amostras, 1))) * 100.0,
+	])
+	if not faltaram.is_empty():
+		print("    ATENCAO: o pico nao inclui %s -- nao saiu no sorteio dentro do teto"
+			% ", ".join(faltaram))
 
 	var erro := ""
 	var esperada: int = _chefe.fase_por_vida()
@@ -176,6 +219,18 @@ func _medir(ponto: Dictionary) -> String:
 		erro = "com %.0f%% de vida um tempo furou o piso (%.2f / %.2f contra %.2f)" % [
 			ponto["hp"] * 100.0, preparo, recuperacao, _chefe.TEMPO_MINIMO,
 		]
+	# O repertorio incompleto AVISA e nao reprova, e a distincao custou uma
+	# rodada para ficar clara.
+	#
+	# Ele reprovava, e o que reprovou foi a fase 2: em 90 s o chefe executou
+	# **so INVESTIDA**, e nunca visitou RECUPERAR. A causa esta no proprio chefe
+	# -- "a investida encadeada volta de EXECUTAR para PREPARAR" --, e nesta arena
+	# o jogador fica PARADO, entao a condicao do encadeamento nunca se quebra.
+	#
+	# Isso e um achado sobre o chefe contra alvo estatico, e nao um defeito desta
+	# arena; transformar em falha travaria a ferramenta em vermelho por um motivo
+	# que ela nao pode consertar, e ferramenta sempre vermelha para de ser lida.
+	# O aviso continua impresso, e a densidade sai rotulada com o que ela mediu.
 	elif vistos.size() < 2:
 		erro = "com %.0f%% de vida ele ficou parado num estado so (%s)" % [
 			ponto["hp"] * 100.0, ", ".join(vistos.keys()),
@@ -184,6 +239,56 @@ func _medir(ponto: Dictionary) -> String:
 	_limpar()
 	await get_tree().process_frame
 	return erro
+
+
+## (quantos projeteis vivos, que fracao da sala eles cobrem).
+##
+## A cobertura e a soma das AREAS DE COLISAO sobre a area do contorno, e nao uma
+## contagem de pixels: ela mede o que FERE, que e o que o jogador precisa ler, e
+## funciona sem janela. Contar pixel exigiria renderizar, e o pior caso do chefe
+## e justamente o que se quer poder medir no CI.
+##
+## As `AreaDePerigo` entram na conta com o raio delas. Elas sao a metade do cerco
+## do Reator, e deixa-las de fora mediria meia fase 3.
+func _densidade() -> Vector2:
+	# A MESMA resolucao que `Arma._container()` faz, e nao um palpite.
+	#
+	# A arma resolve por grupo no instante do disparo e cai na `current_scene`
+	# quando o grupo esta vazio. A arena nao tem `ContainerProjeteis`, entao os
+	# tiros do chefe nascem na raiz dela -- e olhar so o grupo media ZERO
+	# projeteis num cenario que estava disparando. E a irma da armadilha ja
+	# registrada: "pergunte a arma onde ela vai colocar em vez de adivinhar".
+	var container := get_tree().get_first_node_in_group("container_projeteis")
+	if container == null:
+		container = get_tree().current_scene
+	var area_ocupada := 0.0
+	var vivos := 0
+	if container != null:
+		for filho in container.get_children():
+			# Por PROPRIEDADE e nao por cast: `projetil.gd` nao declara
+			# `class_name`, e um cast para um tipo que nao existe e erro de
+			# PARSE -- a cena inteira deixa de carregar, e sem janela isso sai
+			# como duas linhas soltas no meio de um log de minutos.
+			var r = filho.get("raio")
+			if r == null:
+				continue
+			vivos += 1
+			area_ocupada += PI * float(r) * float(r)
+	# As areas nascem no container da SALA -- o pai do chefe, e nao o de
+	# projeteis. E a armadilha ja registrada: filha do Parasita ou do chefe, a
+	# area andaria junto, e aviso no chao que se move e aviso que mente.
+	#
+	# Elas entram na conta porque sao METADE do cerco do Reator: deixa-las de
+	# fora mediria meia fase 3.
+	var casa := _chefe.get_parent() if _chefe != null else null
+	if casa != null:
+		for filho in casa.get_children():
+			var a := filho as AreaDePerigo
+			if a == null:
+				continue
+			area_ocupada += PI * a.raio * a.raio
+	var area_da_sala: float = _sala.area_do_contorno() if _sala != null else 1.0
+	return Vector2(float(vivos), area_ocupada / maxf(area_da_sala, 1.0))
 
 
 func _limpar() -> void:

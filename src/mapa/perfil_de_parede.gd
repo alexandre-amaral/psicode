@@ -81,10 +81,25 @@ extends RefCounted
 ## 32 + 64 = 96 nos quatro lados fecha a grade: `contorno + margens` da 960 exato
 ## num contorno de 768. Com 32 + 72 o lado curto teria de ter 752, que nao cai na
 ## grade de 32, e o multiplo abaixo devolve vazio preto na borda.
-var topo_norte: float = 32.0
-var face_norte: float = 64.0
-var topo_lateral: float = 32.0
-var face_lateral: float = 64.0
+##
+## **56 de face e nao 64, e quem manda nisso e a PORTA.** `porta_moldura.png` tem
+## 62 px de conteudo opaco, dos quais **58 ficam acima do contorno** -- o resto
+## desce para o chao como soleira. A face abre no vao da porta, entao o que cobre
+## a face ali e a moldura: uma face mais funda que 58 deixa uma tira de nada
+## entre o alto da moldura e o comeco do topo. Com 64 sobravam 6 px, e o dono os
+## viu como "um espaco vazio acima da porta, com uma cor parecida mas nao igual a
+## da moldura".
+##
+## 56 fica dois pixels abaixo do teto de 58, e a moldura passa a AVANCAR 2 px
+## sobre o topo -- que le como verga, e nao como sobra.
+##
+## Isto e uma restricao de ARTE virada numero, e ela sobe junto no dia em que a
+## moldura crescer: `teste_porta.gd` mede os 58 no alfa do arquivo, entao o teto
+## nao e um literal que envelhece.
+var topo_norte: float = 40.0
+var face_norte: float = 56.0
+var topo_lateral: float = 40.0
+var face_lateral: float = 56.0
 ## O SUL desenha face e topo como os outros tres. **Esta regra foi INVERTIDA.**
 ##
 ## Ela dizia que o sul nao ganha face porque a face dele "olha para longe da
@@ -109,8 +124,8 @@ var face_lateral: float = 64.0
 ## verdade ali, manter as duas somaria 120 px de um lado so e quebraria a
 ## simetria que a mudanca existe para produzir. O codigo dela fica, guardado por
 ## `> 0`, porque um andar futuro pode querer o degrau sem a face.
-var topo_sul: float = 32.0
-var face_sul: float = 64.0
+var topo_sul: float = 40.0
+var face_sul: float = 56.0
 var borda_externa_sul: float = 0.0
 
 

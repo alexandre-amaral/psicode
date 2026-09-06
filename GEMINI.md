@@ -589,6 +589,30 @@ em qualquer erro de script.
   funcao afirmar duas coisas opostas. E ele mede o **MIOLO** e nao o sprite
   inteiro: pixel art tem contorno escuro, e cobrar brilho do contorno e proibir
   contorno.
+- **Paleta forcada para projetil precisa ter TODOS os degraus competindo.** Com
+  um degrau escuro na rampa, o gerador o usa para SOMBREAR -- e num sprite de
+  16 px o sombreado ocupa quase todo o miolo. Medido: a fonte nasce em 15% de
+  miolo competindo contra o piso de 70%, e **nao e a reducao que derruba**, a
+  fonte ja nasce assim. Num projetil desse tamanho o que carrega a leitura e a
+  silhueta mais a cor; sombra e ruido, e a paleta tem de recusa-la.
+- **O ASPECTO de um projetil nao se obtem por prompt.** Cinco reformulacoes --
+  "exatamente duas vezes mais largo que alto", "encostando nos quatro lados",
+  tela na proporcao alvo -- deram bbox entre 3:1 e 8:1 onde o alvo era 2:1. Quem
+  resolve e `gerar_projeteis.py --comprimento=N`, que apara a CAUDA ate o
+  comprimento que `FormasProjetil` declara. Apara pela cauda e nunca pela frente:
+  a frente e o que le direcao.
+- **Abaixo de 64 px de MIOLO a arte perde para o poligono.** O portao de paleta
+  cobra que o miolo COMPETE; ele nao cobra que o miolo EXISTE, e sao perguntas
+  diferentes -- `sucata_guardiao` media 100% de miolo competindo com DOZE pixels
+  de miolo. A separacao medida nao tem caso no meio (206, 144, 91, 88, 75, 67
+  contra 54 e 12), e por isso `POLIGONO_POR_DECISAO` e uma decisao e nao um
+  atraso.
+- **O FEIXE tambem pode mentir sobre a hitbox, e mentia.** Ele desenhava 6 px e
+  feria numa linha de espessura ZERO -- e escapava do portao de silhueta inteiro,
+  porque nao instancia projetil. Hoje a consulta tem a largura desenhada, e a
+  ordem importa: o DESENHO para na fracao SEGURA do `cast_motion`, a pergunta de
+  QUEM e feita na INSEGURA. Perguntando na segura, `intersect_shape` volta vazia
+  justo no frame do acerto.
 - **Reduzir arte paletizada com BOX inventa cor.** A media entre o contorno e o
   corpo e uma cor que a fonte nao tem, e ela derrubou a fracao que compete de
   52% para 41% na primeira arte de projetil. `gerar_projeteis.py` reduz e depois

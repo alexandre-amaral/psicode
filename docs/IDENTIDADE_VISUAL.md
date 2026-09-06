@@ -288,6 +288,131 @@ par lê como uma sala repetida sete vezes.
 
 ---
 
+## A linguagem dos projéteis
+
+Vinte e uma armas desenhavam **o mesmo losango**. Dez dos 210 pares estavam a
+menos de 15 graus de matiz um do outro, e dois tinham RGB idêntico
+(`rail_x`/`gravity_gun`, `onda_guardiao`/`sucata_guardiao`). Duas armas com a
+mesma cor e a mesma forma são a mesma arma.
+
+O que separa hoje é, em ordem de prioridade:
+**LEITURA → SILHUETA → HITBOX → COR → ANIMAÇÃO → PARTÍCULAS.**
+
+### As oito famílias de silhueta
+
+Elas moram em `src/util/formas_projetil.gd` — em `src/util/` e **nunca** em
+`tools/`, que é excluída do export. `familia_silhueta` no `.tres` da arma
+escolhe; `alongamento_silhueta` estica no eixo do voo.
+
+| Família | Desenho | Quem usa |
+|---|---|---|
+| `LOSANGO` | o de sempre, ponta à frente | `pistola`, `salva_diretora` |
+| `CAPSULA` | núcleo aceso, nariz rombudo | `smg_mantis`, `shotgun`, `pistola_cipher`, `tiro_sentinela`, `tiro_vigia` |
+| `AGULHA` | longa e fina, perfurante | `rail_x`, `swarm`, `tiro_neon` |
+| `ESFERA` | redonda | `boomer`, `plasma_arc`, `volt_caster`, `tiro_drone`, `tiro_diretora` |
+| `ORBE` | núcleo denso com anel | `gravity_gun` |
+| `CLUSTER` | pedaços soltos, por `Polygon2D.polygons` | `nanite_rifle`, `sucata_guardiao` |
+| `ETEREO` | contorno vazado | `phase_blaster` |
+| `ARCO` | crescente, atravessa tudo | `onda_guardiao` |
+
+Duas invariantes que a biblioteca inteira respeita: o contorno **contém
+`(0, ±raio)`** e **`max|y| ≤ raio`**. O eixo do voo é livre — é de lado que o
+jogador esquiva, e é lá que a silhueta não pode mentir.
+
+### O terceiro regime de paleta: ATOR
+
+O documento descrevia AMBIENTE contra ATOR como uma regra de *cor*. Há um
+regime **medido por pixel**, e ele é o **inverso exato** do de ambiente:
+
+| | AMBIENTE (`_regra_de_gamut`) | ATOR (`_regra_de_ator`) |
+|---|---|---|
+| pixels que competem | **zero** | **≥ 70% do miolo** |
+| o que se mede | a imagem inteira | o **miolo**, não o sprite |
+
+São funções irmãs e quatro das cinco asserções invertem — uma bandeira faria a
+mesma função afirmar duas coisas opostas.
+
+**Mede o miolo e não o sprite inteiro**, e isso não é detalhe: pixel art tem
+contorno escuro, e cobrar brilho do contorno é proibir contorno. Miolo é o pixel
+cujos quatro vizinhos são opacos.
+
+### As molduras
+
+A **lateral** sai do raio; o **comprimento** é livre. A colisão é um círculo de
+`raio`, e o portão de coerência só amarra o eixo lateral.
+
+A arte ancora no **CENTRO do bbox**, que é a inversão exata do funil de ator —
+lá `Direcoes.BASE_NO_QUADRO` põe os pés 36 px abaixo da origem. Um projétil que
+herde aquela âncora desenha 36 px acima de onde fere, sem uma linha no console.
+
+### A exceção de giro, escrita ao lado da regra
+
+A seção 28 do `LOW_TOPDOWN_SQUARED.md` proíbe girar arte de **FACE**: ela é
+desenhada para ser vista de frente, e girada 90 graus a perspectiva morre. É a
+regra da porta.
+
+**Projétil é outra coisa, e gira.** Ele voa acima do chão e é visto de cima —
+é arte de **TOPO**, como `porta_topo.png`, que o projeto já gira. O runtime faz
+`rotation = velocidade.angle()` sessenta vezes por segundo.
+
+As duas varreduras nunca se cruzam. E `flip_h`/`flip_v` continuam proibidos nos
+dois: **espelhar REFLETE onde girar TRANSPÕE.**
+
+### Onde a arte autorada para, e por quê
+
+Seis armas têm arte; catorze desenham o polígono **por decisão medida**. O
+critério é o **miolo**, e a separação não tem caso no meio:
+
+```
+gravity_gun 206   onda_guardiao 144   tiro_vigia     91
+tiro_diretora 88  boomer         75   salva_diretora 67
+-------------------------------------------- MIOLO_MINIMO = 64
+tiro_drone     54   sucata_guardiao 12
+```
+
+Abaixo do corte a arte é um borrão e o polígono — exato, já cobrado por dois
+portões — lê melhor. `tiro_drone` sai um disco cortado; `sucata_guardiao`, um
+CLUSTER feito de pedaços soltos, vira poeira.
+
+### A receita, para quando a próxima arte for feita
+
+1. **Paleta forçada com TODOS os degraus competindo** (s > 0,35 e v > 0,55). Com
+   um degrau escuro o gerador o usa para *sombrear*, e num sprite de 16 px o
+   sombreado ocupa quase todo o miolo: a fonte nasce em 15% contra o piso de 70%.
+   Não é a redução que derruba — a fonte já nasce assim.
+2. Gerar **grande** e reduzir no funil. `gerar_projeteis.py` reduz e depois
+   **gruda na paleta da fonte**: o BOX medeia cor, e a média entre o contorno e o
+   corpo é uma cor que a fonte não tem.
+3. **`--comprimento=N`**, com o número que `FormasProjetil` mede para aquela arma.
+   O aspecto **não se obtém por prompt** — cinco reformulações deram bbox entre
+   3:1 e 8:1 onde o alvo era 2:1.
+4. **Nunca** passe projétil por `preparar_textura.py`. Aquele funil empurra a arte
+   para o regime de AMBIENTE: dessatura, chapa o valor e grampeia o matiz —
+   produz exatamente o arquivo que o regime de ATOR recusa, e o nome convida ao
+   erro.
+
+### O rastro e o impacto
+
+`rastro_comprimento` nasce **zero, e zero desliga**. Cravado em
+`maxf(raio * 6, 16)` ele reprovava `rastro * raio < velocidade / cadencia` em três
+armas: `onda_guardiao` desenhava 96 px de trilha sobre um vão de 26. Trilha maior
+que o vão vira um risco sólido e o jogador perde a **contagem** de projéteis.
+
+`familia_impacto` escolhe entre os nove perfis de `src/fx/impactos.gd`.
+`Impactos.vestir()` roda **antes** do `add_child`, ao contrário da convenção da
+casa: o `_ready` de `fx_autodestroi.gd` liga a emissão e agenda a liberação com o
+`lifetime` daquele instante.
+
+### O feixe é a exceção, e ele também não mente
+
+`FEIXE` não instancia projétil: ele se desenha e o dano sai de uma consulta da
+`Arma`. Ela tem a **largura desenhada** — antes era uma linha de espessura zero
+sob um traço de 6 px, e um alvo encostado na borda não levava dano nenhum.
+
+O desenho para na fração **segura** do `cast_motion`; a pergunta de *quem* é
+feita na **insegura**. Perguntando na segura, `intersect_shape` volta vazia justo
+no frame do acerto.
+
 ## Como adicionar uma textura nova
 
 Este é o roteiro que mantém o documento vivo. Não pule o passo 1.

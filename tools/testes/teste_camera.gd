@@ -291,9 +291,9 @@ func _a_margem_deriva_da_parede(margem: Vector4) -> void:
 		"as margens verticais sao iguais (%.0f e %.0f) -- norte e sul tem a mesma composicao"
 			% [margem.y, margem.w]
 	)
-	ok(margem.y > margem.x and margem.w > margem.z,
-		"e as verticais sao mais fundas que as laterais (%.0f contra %.0f) -- o TOPO e que muda"
-			% [margem.y, margem.x]
+	ok(is_equal_approx(margem.y, margem.x) and is_equal_approx(margem.w, margem.z),
+		"e as laterais tem a mesma profundidade das verticais (%.0f) -- os quatro lados sao iguais"
+			% margem.x
 	)
 	var conferidas := 0
 	for caminho in CENAS:

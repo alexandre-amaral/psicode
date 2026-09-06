@@ -911,10 +911,17 @@ func _a_razao_face_topo_fica_em_um_para_um() -> void:
 		perfil.face_lateral, perfil.face_norte,
 		"a face lateral tem a mesma profundidade da norte (%.0f)" % perfil.face_norte
 	)
-	ok(
-		perfil.topo_norte > perfil.topo_lateral,
-		"e o TOPO ainda difere (%.0f no norte contra %.0f na lateral) -- la ele e espessura, aqui e superficie"
-			% [perfil.topo_norte, perfil.topo_lateral]
+	# E o TOPO tambem e igual: os QUATRO lados desenham a mesma composicao.
+	#
+	# Este caso ja cobrou o contrario -- que o topo do norte fosse mais fundo,
+	# "la ele e espessura, aqui e superficie". O argumento e verdadeiro sobre o
+	# solido e falso sobre o que se ve: com 32 px no norte e 24 nas laterais, cada
+	# lado mostrava uma FATIA diferente da mesma textura de 64 px, e o dono
+	# anotou como "cada orientacao recebe um tamanho e uma quantidade diferentes
+	# de tijolos". A uniformidade e o que a divida pediu.
+	igual(
+		perfil.topo_lateral, perfil.topo_norte,
+		"o topo lateral tem a mesma profundidade do norte (%.0f)" % perfil.topo_norte
 	)
 	# E o SUL desenha a MESMA face dos outros tres.
 	#

@@ -75,6 +75,8 @@ func executar() -> void:
 	_e_os_passos_sao_grandes_o_bastante_para_serem_vistos()
 	_a_arquitetura_nao_cabe_num_punhado_de_niveis()
 	_o_piso_e_a_superficie_mais_calma_da_sala()
+	_a_face_le_como_superficie_VERTICAL()
+	_o_chao_e_a_face_nao_falam_a_mesma_lingua()
 	_o_vazio_alem_da_sala_e_declarado()
 
 
@@ -309,3 +311,191 @@ func _abrir(caminho: String) -> Image:
 		return null
 	imagem.convert(Image.FORMAT_RGBA8)
 	return imagem
+
+
+## Quanto o gradiente de uma superficie tem de puxar para o eixo VERTICAL.
+##
+## A conta e a energia de gradiente em cada eixo, normalizada:
+##
+##     orientacao = (energia_x - energia_y) / (energia_x + energia_y)
+##
+## `energia_x` e a media de |I(x+1,y) - I(x,y)|, produzida por arestas VERTICAIS
+## -- andar em x atravessa uma coluna, um duto, uma nervura. `energia_y` e a irma,
+## produzida por arestas horizontais. Positivo = a superficie le como vertical;
+## negativo = horizontal. E metrica sobre a imagem, invariante a exposicao, da
+## mesma familia da faixa dinamica.
+##
+## **O numero nao e palpite: a propria biblioteca o ancora nos dois lados.** O
+## modulo `ventilada` mede -0,70 -- ele E comprometido com um eixo, so que com o
+## errado --, entao o estilo alcanca 0,7 de compromisso sem esforco. E os modulos
+## que nao se comprometem com nada formam um aglomerado em |0,03|, que e o ruido.
+## Um quarto do que a arte ja provou possivel fica muito acima do ruido e muito
+## abaixo do teto.
+const LIMIAR_VERTICAL := 0.20
+
+## Quanto a face tem de estar ACIMA do chao em orientacao.
+##
+## Esta e a assercao que carrega a tese, e por isso ela e RELATIVA e nao um teto
+## absoluto sobre o chao. Exigir que o piso puxe para horizontal o obrigaria a
+## ganhar juntas -- e `_o_piso_e_a_superficie_mais_calma_da_sala` acabou de faze-lo
+## perder detalhe, justamente porque piso calmo e onde o combate se le. Placa
+## quadrada e isotropica por desenho, e isso esta certo.
+##
+## O que nao pode e as duas falarem a MESMA lingua. Medido antes deste portao:
+## face -0,142 contra chao +0,024, ou seja, **separacao NEGATIVA de 0,166** -- em
+## media o chao era mais vertical que a parede.
+const SEPARACAO_MINIMA := 0.15
+
+## As faces que ainda nao se comprometeram com o eixo, declaradas.
+##
+## Mesmo desenho do `SEM_ARTE_AINDA` do portao de origem e do `PENDENTES` do
+## enquadramento: a lista SO ENCOLHE, todo nome nela tem de existir em disco e
+## continuar reprovando, e toda face FORA dela tem de passar. Sem ela o portao
+## entraria vermelho com 28 arquivos e seria desligado antes de servir para
+## alguma coisa.
+##
+## Tirar um nome daqui e o interruptor de "esta face foi redesenhada".
+##
+## **Ela esta VAZIA, e foi assim que ela terminou de servir.** As 28 entraram
+## declaradas e sairam juntas: as sete artes de modulo foram refeitas em
+## nervura, duto, cabo, tubo, veneziana, barramento e pistao -- todas correndo
+## de borda a borda em Y --, e cada arquivo foi reproduzido com o matiz e a
+## mediana de valor MEDIDOS no antigo, para a unica diferenca ser o eixo. A
+## faixa medida hoje vai de 0,50 a 0,90.
+const SEM_ORIENTACAO_AINDA: Array[String] = [
+]
+
+
+## A FACE le como superficie vertical, e o CHAO nao fala a mesma lingua.
+##
+## Calmar o piso resolveu METADE do problema: as duas superficies deixaram de ter
+## a mesma densidade. A outra metade e a GRAMATICA -- mesma escala de placa, mesmo
+## material, mesma orientacao aparente. Duas superficies com a mesma gramatica nao
+## produzem hierarquia espacial por mais que uma seja mais escura, e era isso que
+## fazia a faixa de parede ler como "mais uma fileira de placas".
+##
+## A face e onde a identidade arquitetonica aparece; o TOPO e so espessura e por
+## isso fica FORA desta conta -- cobrar verticalidade dele seria pedir decoracao
+## na superficie que existe justamente para nao ter nenhuma.
+func _a_face_le_como_superficie_VERTICAL() -> void:
+	var no_disco := _faces_em_disco()
+	var conferidas := 0
+	var pendentes := 0
+	for nome_arquivo in no_disco:
+		var o := _orientacao(nome_arquivo)
+		if o == INF:
+			ok(false, "%s abre" % nome_arquivo)
+			continue
+		if SEM_ORIENTACAO_AINDA.has(nome_arquivo):
+			# A lista morde dos DOIS lados: nome nela que JA passa e uma linha
+			# que ficou para tras, e a lista deixa de dizer o que falta.
+			ok(
+				o < LIMIAR_VERTICAL,
+				"%s esta declarada como pendente e continua horizontal (%.3f)"
+					% [nome_arquivo, o]
+			)
+			pendentes += 1
+			continue
+		conferidas += 1
+		ok(
+			o >= LIMIAR_VERTICAL,
+			"%s le como vertical (%.3f, minimo %.2f)"
+				% [nome_arquivo, o, LIMIAR_VERTICAL]
+		)
+	ok(conferidas + pendentes > 0, "houve face para medir (%d)" % (conferidas + pendentes))
+
+	# O outro lado da lista: nome declarado que sumiu do disco e isencao herdada
+	# por engano -- uma face renomeada levaria a isencao da antiga junto.
+	for pendente in SEM_ORIENTACAO_AINDA:
+		ok(no_disco.has(pendente), "%s, declarada pendente, existe em disco" % pendente)
+
+
+## E as duas superficies ficam SEPARADAS em orientacao.
+##
+## Mede a mediana das faces JA migradas contra a mediana do chao. Enquanto
+## nenhuma face migrou nao ha par para comparar, e o caso diz isso em vez de
+## fingir que mediu -- mas assim que a lista comeca a encolher ele passa a
+## carregar a tese sozinho.
+func _o_chao_e_a_face_nao_falam_a_mesma_lingua() -> void:
+	var faces: Array[float] = []
+	for nome_arquivo in _faces_em_disco():
+		if SEM_ORIENTACAO_AINDA.has(nome_arquivo):
+			continue
+		var o := _orientacao(nome_arquivo)
+		if o != INF:
+			faces.append(o)
+	var chaos: Array[float] = []
+	for nome_arquivo in CHAO:
+		var o := _orientacao(nome_arquivo)
+		if o != INF:
+			chaos.append(o)
+
+	igual(chaos.size(), CHAO.size(), "os chaos foram medidos")
+	if faces.is_empty():
+		ok(
+			not SEM_ORIENTACAO_AINDA.is_empty(),
+			"nenhuma face migrou ainda, e as %d pendentes explicam por que"
+				% SEM_ORIENTACAO_AINDA.size()
+		)
+		return
+
+	var mediana_face := _mediana(faces)
+	var mediana_chao := _mediana(chaos)
+	ok(
+		mediana_face - mediana_chao >= SEPARACAO_MINIMA,
+		"face e chao falam linguas diferentes (face %.3f, chao %.3f, separacao %.3f, minimo %.2f)"
+			% [mediana_face, mediana_chao, mediana_face - mediana_chao, SEPARACAO_MINIMA]
+	)
+
+
+## A orientacao de uma textura, em [-1, 1]. `INF` quando o arquivo nao abre.
+##
+## Le com WRAP nos dois eixos, e nao parando na borda: estas texturas ladrilham,
+## entao a coluna 63 e vizinha da 0 no jogo. Medir sem o wrap ignoraria justamente
+## a juncao, que e onde uma nervura vertical mal fechada apareceria.
+func _orientacao(nome_arquivo: String) -> float:
+	var imagem := _abrir(TEXTURAS + nome_arquivo + ".png")
+	if imagem == null:
+		return INF
+	var l := imagem.get_width()
+	var a := imagem.get_height()
+	var energia_x := 0.0
+	var energia_y := 0.0
+	for y in a:
+		for x in l:
+			var v := _luma(imagem.get_pixel(x, y))
+			energia_x += absf(_luma(imagem.get_pixel((x + 1) % l, y)) - v)
+			energia_y += absf(_luma(imagem.get_pixel(x, (y + 1) % a)) - v)
+	var soma := energia_x + energia_y
+	if soma <= 0.0:
+		return 0.0
+	return (energia_x - energia_y) / soma
+
+
+func _luma(c: Color) -> float:
+	return 0.299 * c.r + 0.587 * c.g + 0.114 * c.b
+
+
+func _mediana(valores: Array[float]) -> float:
+	if valores.is_empty():
+		return 0.0
+	valores.sort()
+	return valores[valores.size() / 2]
+
+
+## As faces em DISCO, e nao uma lista fixa.
+##
+## Lista fixa nao acusa arquivo que nunca entrou nela: ele SOME da conta em vez de
+## reprovar, e a suite fica verde. E a armadilha que deixou cinco PNGs passarem sem
+## prova em `_nenhum_png_fica_fora_de_regime`.
+func _faces_em_disco() -> Array[String]:
+	var fora: Array[String] = []
+	var pasta := DirAccess.open(TEXTURAS)
+	if pasta == null:
+		return fora
+	var arquivos := pasta.get_files()
+	arquivos.sort()
+	for arquivo in arquivos:
+		if arquivo.begins_with("parede_face") and arquivo.ends_with(".png"):
+			fora.append(arquivo.get_basename())
+	return fora

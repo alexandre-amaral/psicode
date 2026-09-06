@@ -56,6 +56,8 @@ func executar() -> void:
 	_o_modulo_norte_separa_topo_de_face()
 	_os_modulos_de_face_ficam_na_faixa_da_base()
 	_a_familia_parede_tem_faixa_dinamica()
+	_dois_modulos_de_face_nao_sao_a_mesma_coisa()
+	_os_tres_topos_sao_o_mesmo_material()
 	_nenhum_png_fica_fora_de_regime()
 	_a_arte_de_projetil_e_de_ATOR()
 
@@ -1221,3 +1223,172 @@ func _mesmos_bytes(a: Image, b: Image) -> bool:
 	da.convert(Image.FORMAT_RGBA8)
 	db.convert(Image.FORMAT_RGBA8)
 	return da.get_data() == db.get_data()
+
+
+## Quanto dois MODULOS DE FACE do mesmo tipo tem de diferir.
+##
+## A face carrega identidade: `tubulacao` tem de responder "aqui havia
+## hidraulica" e `ventilada` tem de responder "aqui havia exaustao", e as duas
+## sao tingidas no MESMO matiz de proposito -- e o tingimento que as faz
+## pertencer ao mesmo setor. Entao o que as separa so pode ser ESTRUTURA.
+##
+## O corte nao e escolhido: ele cai no vao entre os dois grupos que a medicao
+## encontrou quando os cinco modulos colapsaram na mesma chapa corrugada.
+##
+##     comum        x ventilada     0,073    <- a mesma chapa
+##     deteriorada  x ventilada     0,121
+##     comum        x deteriorada   0,175
+##     -------------------------------------- 0,25
+##     tubulacao    x deteriorada   0,303
+##     ...
+##     tecnica      x ventilada     0,607
+##
+## Ele reprova a arte de HOJE, e e por isso que a lista de pendentes existe: sem
+## ela a suite entraria vermelha e alguem a desligaria antes de a arte chegar.
+const DISTANCIA_ENTRE_MODULOS := 0.25
+
+## Quanto os tres TOPOS podem diferir entre si.
+##
+## **Este portao e o INVERSO do de cima, e a inversao e o ponto.** O topo e a
+## superficie neutra e continua: ela da a volta na sala, atravessa as quinas com
+## a UV ancorada no contorno, e e sorteada UMA VEZ POR SALA. Tres materiais ali
+## poem uma sala de metal ao lado de uma de pedra.
+##
+## Ele nasceu de uma tentativa que FALHOU. A formulacao pedida era "nenhum asset
+## do andar 1 pode introduzir pedra, tijolo ou alvenaria", e a metrica obvia para
+## isso -- a ortogonalidade do gradiente, a fracao da energia que cai nos eixos
+## contra as diagonais -- nao separa nada:
+##
+##     parede_topo_a  (chapa rebitada)   0,418
+##     parede_topo_b  (ALVENARIA)        0,429
+##     parede_topo_c  (painel vertical)  0,434
+##
+## Um portao sobre aquilo passaria por definicao, sem nunca olhar um arquivo.
+## Este mede o DEFEITO REAL, que nao e "existe pedra" e sim "os tres sao
+## materiais diferentes" -- e pega a alvenaria de hoje (`topo_b x topo_c` = 0,309)
+## sem precisar reconhecer pedra nenhuma.
+const DISTANCIA_ENTRE_TOPOS := 0.20
+
+## Os pares de face que ainda estao colapsados, DECLARADOS.
+##
+## Mesmo desenho de `SEM_AMPLITUDE_AINDA` e do `POLIGONO_POR_DECISAO` dos
+## projeteis: a lista morde dos DOIS lados -- par nela tem de CONTINUAR
+## colapsado, e par fora dela tem de passar. Sem a segunda metade ela viraria
+## permissao permanente no dia em que a arte chegasse.
+##
+## Ela some com a FABRICA 03.
+const MODULOS_COLAPSADOS: Array[String] = [
+	"comum|ventilada",
+	"deteriorada|ventilada",
+	"comum|deteriorada",
+]
+
+## Os topos ainda sao materiais diferentes, e isso esta declarado.
+##
+## Some com a FABRICA 02, quando os tres virarem tres estados da mesma chapa.
+const TOPOS_DE_MATERIAIS_DIFERENTES := true
+
+## Os cinco modulos de face, na ordem em que a biblioteca os declara.
+const MODULOS_DE_FACE: Array[String] = [
+	"comum", "tubulacao", "tecnica", "deteriorada", "ventilada",
+]
+
+## O tipo medido. Um so: os cinco modulos sao a MESMA arte tingida, entao medir
+## os cinco tipos mediria a mesma estrutura cinco vezes.
+const TIPO_MEDIDO := "combate"
+
+
+## Dois modulos de face do mesmo tipo nao podem ser a mesma coisa.
+##
+## O epico da fabrica existe porque eles viraram: ao consertar a divida da
+## uniformidade os cinco foram todos para a vertical, no mesmo matiz e no mesmo
+## valor, e `comum`, `tubulacao`, `deteriorada` e `ventilada` ficaram
+## indistinguiveis. A biblioteca existe para dar variedade entre salas e parou
+## de dar -- **sem que nenhum teste acusasse**, porque todos os portoes de
+## textura medem UM arquivo de cada vez.
+func _dois_modulos_de_face_nao_sao_a_mesma_coisa() -> void:
+	var assinaturas := {}
+	for modulo in MODULOS_DE_FACE:
+		var nome := "parede_face_%s" % TIPO_MEDIDO
+		if modulo != "comum":
+			nome += "_%s" % modulo
+		var imagem := _abrir("%s.png" % nome)
+		if imagem == null:
+			ok(false, "%s existe" % nome)
+			continue
+		assinaturas[modulo] = AssinaturaDeSuperficie.medir(imagem)
+
+	igual(assinaturas.size(), MODULOS_DE_FACE.size(), "os cinco modulos foram medidos")
+
+	var conferidos := 0
+	var declarados := 0
+	for i in MODULOS_DE_FACE.size():
+		for j in range(i + 1, MODULOS_DE_FACE.size()):
+			var a: String = MODULOS_DE_FACE[i]
+			var b: String = MODULOS_DE_FACE[j]
+			if not assinaturas.has(a) or not assinaturas.has(b):
+				continue
+			var d := AssinaturaDeSuperficie.distancia(assinaturas[a], assinaturas[b])
+			var chave := "%s|%s" % [a, b]
+			if MODULOS_COLAPSADOS.has(chave):
+				declarados += 1
+				ok(
+					d < DISTANCIA_ENTRE_MODULOS,
+					"%s esta declarado colapsado e continua colapsado (%.3f)" % [chave, d]
+				)
+				continue
+			conferidos += 1
+			ok(
+				d >= DISTANCIA_ENTRE_MODULOS,
+				"%s sao modulos diferentes (%.3f, minimo %.2f)"
+					% [chave, d, DISTANCIA_ENTRE_MODULOS]
+			)
+	ok(conferidos > 0, "houve par para conferir (%d)" % conferidos)
+	igual(declarados, MODULOS_COLAPSADOS.size(),
+		"todo par declarado colapsado foi medido (%d de %d)"
+			% [declarados, MODULOS_COLAPSADOS.size()])
+
+
+## Os tres topos sao o MESMO material em estados diferentes.
+##
+## O topo e sorteado uma vez por SALA e da a volta na geometria inteira. Tres
+## materiais ali -- e e o que ha hoje: chapa rebitada, alvenaria de tijolo e
+## painel vertical -- poem uma sala de metal ao lado de uma de pedra.
+##
+## E alvenaria nao pertence a uma fabrica.
+func _os_tres_topos_sao_o_mesmo_material() -> void:
+	var assinaturas := {}
+	for nome in ["parede_topo_a", "parede_topo_b", "parede_topo_c"]:
+		var imagem := _abrir("%s.png" % nome)
+		if imagem == null:
+			ok(false, "%s existe" % nome)
+			continue
+		assinaturas[nome] = AssinaturaDeSuperficie.medir(imagem)
+	igual(assinaturas.size(), 3, "os tres topos foram medidos")
+
+	var pior := 0.0
+	var onde := ""
+	var nomes := assinaturas.keys()
+	for i in nomes.size():
+		for j in range(i + 1, nomes.size()):
+			var d := AssinaturaDeSuperficie.distancia(
+				assinaturas[nomes[i]], assinaturas[nomes[j]])
+			if d > pior:
+				pior = d
+				onde = "%s x %s" % [nomes[i], nomes[j]]
+
+	if TOPOS_DE_MATERIAIS_DIFERENTES:
+		# A metade que morde da declaracao: enquanto a linha estiver ligada, os
+		# topos TEM de continuar diferentes. No dia em que a arte chegar, este
+		# caso reprova e obriga a desligar a bandeira -- ela nao fica para tras.
+		ok(
+			pior > DISTANCIA_ENTRE_TOPOS,
+			"os topos estao declarados como materiais diferentes e continuam sendo (%s = %.3f)"
+				% [onde, pior]
+		)
+		return
+	ok(
+		pior <= DISTANCIA_ENTRE_TOPOS,
+		"os tres topos sao o mesmo material (pior par %s = %.3f, teto %.2f)"
+			% [onde, pior, DISTANCIA_ENTRE_TOPOS]
+	)

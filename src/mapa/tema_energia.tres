@@ -7,5 +7,6 @@ script = ExtResource("1_tema")
 id = &"energia"
 peso = 1.0
 modulo_favorito = &"tecnica"
+decalque_favorito = &"parafusos"
 reforco = 3
 peso_comum = 0.20

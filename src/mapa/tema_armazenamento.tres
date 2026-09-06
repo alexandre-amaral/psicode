@@ -7,5 +7,6 @@ script = ExtResource("1_tema")
 id = &"armazenamento"
 peso = 1.1
 modulo_favorito = &""
+decalque_favorito = &"risco"
 reforco = 3
 peso_comum = 0.85

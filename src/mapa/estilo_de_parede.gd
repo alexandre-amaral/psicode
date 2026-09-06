@@ -38,6 +38,24 @@ extends Resource
 ## A face de recurso, usada por quem nao declara `texturas_face`.
 @export var face_neutra: Texture2D = null
 
+## Os DECALQUES de topo do andar (#244): evidencia localizada de abandono.
+##
+## Eles ficam FORA da chapa de proposito. Uma solda desenhada dentro dos 64x64 do
+## tile aparece tres vezes por sala em posicoes sorteadas -- a sala deixa de ter
+## uma solda e passa a ter um padrao de soldas. Como overlay ela aparece UMA vez,
+## onde faz sentido.
+##
+## E a base fica passavel nos portoes: amplitude, subordinacao e material sao
+## medidos numa chapa limpa, e o desgaste nao precisa negociar com eles.
+@export var decalques_de_topo: Array[Texture2D] = []
+
+## Com que frequencia um trecho de topo recebe decalque.
+##
+## **0,14 e um numero e nao uma opiniao**, e ele e irmao de `max_props_animados`:
+## se todo trecho tiver uma solda, nenhuma solda significa nada. A issue pede a
+## faixa 0,10-0,18 e o default fica no meio dela.
+@export_range(0.0, 1.0, 0.01) var chance_de_decalque: float = 0.14
+
 @export_group("Variacao")
 
 ## Quanto da parede e o modulo COMUM.

@@ -737,6 +737,15 @@ const AUTORADAS: Dictionary = {
 	# o topo e a superficie que todo tipo compartilha. Autoradas de origem GRANDE
 	# e reduzidas pelo funil -- gerar direto em 64 enche cada pixel de detalhe e
 	# a densidade sai no dobro da faixa.
+	# Os DECALQUES de topo (#244): a evidencia localizada de abandono, separada da
+	# chapa. Familia `decalque` e nao `parede`, e o teto de valor de 0,19 e o que
+	# os mantem subordinados -- eles desenham SOBRE a faixa que a #239 cobra para
+	# nao chamar atencao, entao um decalque claro desfaria a issue inteira.
+	"topo_decalque_oleo.png": {&"familia": &"decalque", &"tipo": &"andar1"},
+	"topo_decalque_ferrugem.png": {&"familia": &"decalque", &"tipo": &"andar1"},
+	"topo_decalque_solda.png": {&"familia": &"decalque", &"tipo": &"andar1"},
+	"topo_decalque_parafusos.png": {&"familia": &"decalque", &"tipo": &"andar1"},
+	"topo_decalque_risco.png": {&"familia": &"decalque", &"tipo": &"andar1"},
 	"parede_topo_a.png": {&"familia": &"parede", &"tipo": &"andar1"},
 	"parede_topo_b.png": {&"familia": &"parede", &"tipo": &"andar1"},
 	"parede_topo_c.png": {&"familia": &"parede", &"tipo": &"andar1"},
@@ -988,7 +997,14 @@ func _arquivos() -> void:
 		# Atlas nao ladrilha: ele e uma grade de CELULAS, e a borda direita dele
 		# nao encosta na esquerda em lugar nenhum. Medir costura ali cobraria
 		# continuidade entre dois props que nunca se tocam.
-		if d[&"familia"] != &"prop":
+		#
+		# DECALQUE tambem nao, e pela razao oposta: ele e colocado UMA vez, num
+		# lugar escolhido. A pergunta "a borda direita continua na esquerda?" so
+		# faz sentido para quem se repete, e cobra-la de um decalque exigiria que
+		# uma mancha de oleo terminasse igual dos dois lados -- o que a
+		# transformaria em padrao, que e exatamente o que tirar o desgaste de
+		# dentro do tile existe para evitar (#244).
+		if d[&"familia"] != &"prop" and d[&"familia"] != &"decalque":
 			_costura(imagem, nome)
 
 	igual(autoradas, AUTORADAS.size(), "todas as texturas autoradas foram abertas")

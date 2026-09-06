@@ -47,6 +47,13 @@ extends Resource
 ## nao serem a mesma foto.
 @export var reforco: int = 3
 
+## O sufixo do DECALQUE de topo que este tema favorece (#244).
+##
+## Mesmo mecanismo do modulo de face, e pela mesma razao: `ENERGIA` favorece
+## marca de queimadura, `MANUTENCAO` favorece solda. Vazio = o tema nao puxa
+## nenhum, e a lista do estilo vale como esta.
+@export var decalque_favorito: StringName = &""
+
 ## Quanto da parede continua sendo o modulo COMUM neste tema. Negativo = herda o
 ## `peso_comum` do `EstiloDeParede`.
 ##
@@ -76,6 +83,31 @@ func aplicar(faces: Array[Texture2D],
 	for i in range(1, faces.size()):
 		if faces[i] != favorito:
 			saida.append(faces[i])
+	return saida
+
+
+## A lista de decalques de topo, com o favorito do tema na frente e reforcado.
+##
+## Ao contrario da face, aqui NAO ha lista previa a preservar -- o estilo entrega
+## o catalogo do andar inteiro e o tema so muda as chances. Por isso os dois
+## recebem o mesmo argumento.
+func aplicar_decalques(disponiveis: Array[Texture2D]) -> Array[Texture2D]:
+	if decalque_favorito == &"" or disponiveis.is_empty():
+		return disponiveis
+	var alvo := "_%s.png" % decalque_favorito
+	var favorito: Texture2D = null
+	for d in disponiveis:
+		if d != null and d.resource_path.ends_with(alvo):
+			favorito = d
+			break
+	if favorito == null:
+		return disponiveis
+	var saida: Array[Texture2D] = []
+	for i in maxi(reforco, 1):
+		saida.append(favorito)
+	for d in disponiveis:
+		if d != null and d != favorito:
+			saida.append(d)
 	return saida
 
 

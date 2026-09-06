@@ -1247,27 +1247,31 @@ func _mesmos_bytes(a: Image, b: Image) -> bool:
 ## ela a suite entraria vermelha e alguem a desligaria antes de a arte chegar.
 const DISTANCIA_ENTRE_MODULOS := 0.25
 
-## Quanto os tres TOPOS podem diferir entre si.
+## Quanto os tres TOPOS podem diferir em ORIENTACAO.
 ##
-## **Este portao e o INVERSO do de cima, e a inversao e o ponto.** O topo e a
-## superficie neutra e continua: ela da a volta na sala, atravessa as quinas com
-## a UV ancorada no contorno, e e sorteada UMA VEZ POR SALA. Tres materiais ali
-## poem uma sala de metal ao lado de uma de pedra.
+## **So orientacao, e nao a assinatura inteira** -- e a correcao veio da primeira
+## leva de arte, o que e o melhor momento possivel para um portao ser corrigido.
 ##
-## Ele nasceu de uma tentativa que FALHOU. A formulacao pedida era "nenhum asset
-## do andar 1 pode introduzir pedra, tijolo ou alvenaria", e a metrica obvia para
-## isso -- a ortogonalidade do gradiente, a fracao da energia que cai nos eixos
-## contra as diagonais -- nao separa nada:
+## A assinatura tem dois eixos e eles medem coisas diferentes: a ORIENTACAO diz
+## como a superficie esta organizada, e a DENSIDADE diz quanto detalhe ela tem.
+## O material mora na primeira; o **desgaste** mora na segunda -- chapa corroida
+## tem mais detalhe que chapa limpa, necessariamente.
 ##
-##     parede_topo_a  (chapa rebitada)   0,418
-##     parede_topo_b  (ALVENARIA)        0,429
-##     parede_topo_c  (painel vertical)  0,434
+## A primeira versao usava as duas, e por isso ela BRIGAVA com a propria direcao
+## artistica: os tres topos sao "o mesmo material em tres estados de
+## conservacao", e a arte nova mediu 33%, 60% e 72% de densidade -- exatamente o
+## eixo de desgaste que a FABRICA 02 pede -- e reprovou por isso. Um portao que
+## reprova a arte por ela ter feito o que foi pedido esta medindo a coisa errada.
 ##
-## Um portao sobre aquilo passaria por definicao, sem nunca olhar um arquivo.
-## Este mede o DEFEITO REAL, que nao e "existe pedra" e sim "os tres sao
-## materiais diferentes" -- e pega a alvenaria de hoje (`topo_b x topo_c` = 0,309)
-## sem precisar reconhecer pedra nenhuma.
-const DISTANCIA_ENTRE_TOPOS := 0.20
+## So a orientacao separa limpo:
+##
+##     antes (tres materiais)   chapa -0,012 | ALVENARIA -0,116 | painel +0,100
+##                              pior par: 0,216
+##     depois (uma chapa)       +0,033 | +0,012 | +0,002
+##                              pior par: 0,031
+##
+## O corte em 0,10 fica no meio do vao, longe dos dois lados.
+const DISTANCIA_ENTRE_TOPOS := 0.10
 
 ## Os pares de face que ainda estao colapsados, DECLARADOS.
 ##
@@ -1283,10 +1287,15 @@ const MODULOS_COLAPSADOS: Array[String] = [
 	"comum|deteriorada",
 ]
 
-## Os topos ainda sao materiais diferentes, e isso esta declarado.
+## Os topos ainda sao materiais diferentes? **Nao mais** -- a FABRICA 02 entregou.
 ##
-## Some com a FABRICA 02, quando os tres virarem tres estados da mesma chapa.
-const TOPOS_DE_MATERIAIS_DIFERENTES := true
+## A bandeira fica, desligada. Ela e o interruptor de "a arte ainda nao chegou",
+## e no dia em que um andar novo trouxer topos proprios ela tem onde ser ligada
+## sem o portao entrar vermelho antes de existir arte para ele medir.
+##
+## Medido depois da troca: a orientacao dos tres ficou em 0,002 / 0,030 / 0,057,
+## pior par **0,055** contra os 0,216 da alvenaria que saiu.
+const TOPOS_DE_MATERIAIS_DIFERENTES := false
 
 ## Os cinco modulos de face, na ordem em que a biblioteca os declara.
 const MODULOS_DE_FACE: Array[String] = [
@@ -1371,8 +1380,10 @@ func _os_tres_topos_sao_o_mesmo_material() -> void:
 	var nomes := assinaturas.keys()
 	for i in nomes.size():
 		for j in range(i + 1, nomes.size()):
-			var d := AssinaturaDeSuperficie.distancia(
-				assinaturas[nomes[i]], assinaturas[nomes[j]])
+			# So o eixo x da assinatura: ver o comentario de
+			# `DISTANCIA_ENTRE_TOPOS`. A densidade e o desgaste, e o desgaste e
+			# justamente o que estas tres variantes existem para variar.
+			var d: float = absf(assinaturas[nomes[i]].x - assinaturas[nomes[j]].x)
 			if d > pior:
 				pior = d
 				onde = "%s x %s" % [nomes[i], nomes[j]]
@@ -1383,12 +1394,12 @@ func _os_tres_topos_sao_o_mesmo_material() -> void:
 		# caso reprova e obriga a desligar a bandeira -- ela nao fica para tras.
 		ok(
 			pior > DISTANCIA_ENTRE_TOPOS,
-			"os topos estao declarados como materiais diferentes e continuam sendo (%s = %.3f)"
+			"os topos estao declarados como materiais diferentes e continuam sendo (%s: orientacao %.3f)"
 				% [onde, pior]
 		)
 		return
 	ok(
 		pior <= DISTANCIA_ENTRE_TOPOS,
-		"os tres topos sao o mesmo material (pior par %s = %.3f, teto %.2f)"
+		"os tres topos sao o mesmo material (pior par %s: orientacao %.3f, teto %.2f)"
 			% [onde, pior, DISTANCIA_ENTRE_TOPOS]
 	)

@@ -107,6 +107,7 @@ func executar() -> void:
 	_familia_invalida_e_reconhecida_como_invalida()
 	_toda_familia_declarada_existe_na_biblioteca()
 	_cor_proxima_obriga_silhueta_diferente()
+	_o_projetil_se_acha_no_chao_do_proprio_matiz()
 	_o_rastro_cabe_no_vao_entre_dois_tiros()
 	_so_a_Forma_tem_colisao()
 	_toda_familia_de_impacto_existe()
@@ -623,3 +624,125 @@ func _contem(pontos: PackedVector2Array, alvo: Vector2) -> bool:
 		if p.is_equal_approx(alvo):
 			return true
 	return Geometry2D.is_point_in_polygon(alvo, pontos)
+
+
+## Os CHAOS do andar 1, um por tipo de sala.
+##
+## As tres variantes de `andar1` sao sorteadas por celula na mesma sala, entao
+## para esta pergunta elas sao um chao so -- o que importa e o pior deles.
+const CHAOS := {
+	"andar1": ["chao_andar1_a", "chao_andar1_b", "chao_andar1_c"],
+	"boss": ["chao_boss"],
+	"arma": ["chao_arma"],
+	"item": ["chao_item"],
+}
+
+const PASTA_TEXTURAS := "res://assets/texturas/"
+
+## Quanto o projetil tem de ser mais CLARO que o pixel mais claro do chao, quando
+## os dois estao no mesmo matiz.
+##
+## O portao de paleta ja garante 0,25 por construcao -- o chao tem teto de valor
+## 0,30 e o ator tem piso 0,55 --, entao um limiar em 0,25 seria um carimbo:
+## ele passaria por definicao, sem nunca olhar um arquivo. Este mede o CHAO REAL
+## (percentil 99, e nao o teto declarado) contra o valor do projetil, e o corte
+## fica acima do que a construcao garante e abaixo do que a arte de hoje entrega.
+##
+## Medido nas quatro faixas, contra a arma de matiz mais proximo de cada chao:
+##
+##     andar1   nanite_rifle    dist 0,8 grau   folga 0,75
+##     boss     tiro_diretora   dist 0,1 grau   folga 0,79
+##     arma     tiro_drone      dist 1,6 grau   folga 0,74
+##     item     tiro_neon       dist 6,6 graus  folga 0,70
+##
+## O corte em 0,40 morde se o chao clarear ou se um projetil escurecer, e nao
+## morde na arte de hoje. E ele existe porque **folga de valor nao e folga de
+## matiz**: todo tipo de sala tem ao menos um projetil no matiz do proprio chao,
+## e nada provava que a folga de valor bastava.
+const FOLGA_DE_VALOR := 0.40
+
+
+## Um projetil no matiz do proprio chao continua achavel, pelo VALOR.
+##
+## O andar 1 abriu mao de separar por matiz -- as faixas de chao e as cores de
+## arma se cruzam de proposito, porque o setor tem uma paleta so. O que sobrou
+## para separar ator de ambiente e o VALOR, e este caso e o que prova que sobrou
+## o bastante.
+##
+## Ele mede o chao pelo percentil 99 e nao pelo maximo: um punhado de pixels de
+## acento nao decide se o jogador acha o tiro, e o maximo faria a medicao
+## depender do pixel mais claro de um decalque.
+func _o_projetil_se_acha_no_chao_do_proprio_matiz() -> void:
+	var conferidos := 0
+	for tipo: String in CHAOS:
+		var claro := -1.0
+		var matiz_do_chao := -1.0
+		for nome_arquivo: String in CHAOS[tipo]:
+			var medida := _chao(nome_arquivo)
+			if medida.x < 0.0:
+				ok(false, "%s abre" % nome_arquivo)
+				continue
+			if medida.x > claro:
+				claro = medida.x
+			matiz_do_chao = medida.y
+		if claro < 0.0:
+			continue
+
+		# A arma de matiz mais PROXIMO daquele chao -- e o pior caso do tipo.
+		var pior := ""
+		var menor := 999.0
+		for nome_arma in _armas():
+			var dados := _arma(nome_arma)
+			if dados == null:
+				continue
+			var d := absf(fposmod(dados.cor_projetil.h * 360.0 - matiz_do_chao + 180.0, 360.0) - 180.0)
+			if d < menor:
+				menor = d
+				pior = nome_arma
+		if pior.is_empty():
+			continue
+
+		var dados_pior := _arma(pior)
+		var folga := dados_pior.cor_projetil.v - claro
+		conferidos += 1
+		ok(
+			folga >= FOLGA_DE_VALOR,
+			"chao %s (matiz %.0f, p99 do valor %.2f) contra %s (dist %.1f grau): folga %.2f, minimo %.2f"
+				% [tipo, matiz_do_chao, claro, pior, menor, folga, FOLGA_DE_VALOR]
+		)
+		# A premissa da issue, virada afirmacao: todo tipo TEM um projetil no
+		# proprio matiz. No dia em que deixar de ter, este caso passa a medir uma
+		# coincidencia em vez do pior caso, e a linha avisa.
+		ok(
+			menor <= LARGURA_MATIZ,
+			"e %s esta mesmo no matiz do chao %s (%.1f grau, faixa %.0f)"
+				% [pior, tipo, menor, LARGURA_MATIZ]
+		)
+	igual(conferidos, CHAOS.size(), "os quatro chaos foram medidos")
+
+
+## (percentil 99 do valor, matiz mediano) de um chao. `x < 0` quando nao abre.
+func _chao(nome_arquivo: String) -> Vector2:
+	if not FileAccess.file_exists(PASTA_TEXTURAS + nome_arquivo + ".png"):
+		return Vector2(-1.0, -1.0)
+	var imagem := Image.load_from_file(
+		ProjectSettings.globalize_path(PASTA_TEXTURAS + nome_arquivo + ".png"))
+	if imagem == null or imagem.is_empty():
+		return Vector2(-1.0, -1.0)
+	imagem.convert(Image.FORMAT_RGBA8)
+	var valores: Array[float] = []
+	var matizes: Array[float] = []
+	for y in imagem.get_height():
+		for x in imagem.get_width():
+			var cor := imagem.get_pixel(x, y)
+			valores.append(cor.v)
+			if cor.s > 0.02:
+				matizes.append(cor.h * 360.0)
+	if valores.is_empty():
+		return Vector2(-1.0, -1.0)
+	valores.sort()
+	matizes.sort()
+	return Vector2(
+		valores[mini(valores.size() - 1, valores.size() * 99 / 100)],
+		matizes[matizes.size() / 2] if not matizes.is_empty() else 0.0
+	)

@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="DadosArma" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+[ext_resource type="Texture2D" uid="uid://cie8ce0aq28mx" path="res://assets/projeteis/gravity_gun.png" id="9_arte"]
 
 [resource]
 script = ExtResource("1_dados")
@@ -25,6 +26,7 @@ raio_projetil = 9.0
 cor_projetil = Color(0.28, 0.36, 1, 1)
 familia_impacto = 3
 familia_silhueta = 4
+textura_projetil = ExtResource("9_arte")
 municao_maxima = -1
 shake_intensidade = 5.0
 shake_duracao = 0.18

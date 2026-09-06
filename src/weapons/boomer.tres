@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="DadosArma" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+[ext_resource type="Texture2D" uid="uid://bc7h1rympkfb8" path="res://assets/projeteis/boomer.png" id="9_arte"]
 
 [resource]
 script = ExtResource("1_dados")
@@ -25,6 +26,7 @@ raio_projetil = 7.0
 cor_projetil = Color(0.81, 1, 0.28, 1)
 familia_impacto = 4
 familia_silhueta = 3
+textura_projetil = ExtResource("9_arte")
 raio_explosao = 108.0
 dano_explosao = 6
 knockback_explosao = 340.0

@@ -39,32 +39,63 @@ const LARGURA_MATIZ := 15.0
 const DIFERENCA_DE_RAIO := 0.6
 const DIFERENCA_DE_ALONGAMENTO := 0.15
 
-## As armas que ainda nao tem arte, DECLARADAS.
+## As armas que desenham o POLIGONO, por DECISAO e nao por atraso.
 ##
-## Ela encolhe conforme o epico #172 anda, e tem de chegar a vazia -- ou ao que
-## sobrar por decisao, e nao por atraso. Ver
-## `_o_buraco_de_arte_esta_DECLARADO()` para as duas metades da regra.
-const SEM_ARTE_AINDA: Array[String] = [
-	"boomer",
-	"gravity_gun",
+## A Fase C do epico #172 previa arte autorada para as 21 armas. Medida, a
+## pipeline mostrou um teto que o plano nao previa: **abaixo de um certo
+## orcamento de pixel a arte perde para o poligono**, que e exato, ja e cobrado
+## pelos portoes de matiz e de grayscale, e ja da uma familia por arma.
+##
+## O numero que separa nao e gosto, e o MIOLO -- os pixels interiores, que sao os
+## que carregam a forma depois que o contorno e descontado. Medido nas oito artes
+## geradas, a separacao e limpa e nao tem caso no meio:
+##
+##     gravity_gun 206   onda_guardiao 144   tiro_vigia  91
+##     tiro_diretora 88  boomer         75   salva_diretora 67
+##     ------------------------------------------------ MIOLO_MINIMO = 64
+##     tiro_drone     54   sucata_guardiao 12
+##
+## E o veredicto bate com o olho: `tiro_drone` sai um disco cortado e
+## `sucata_guardiao` -- um CLUSTER, que e feito de pedacos soltos -- vira poeira,
+## 12 pixels espalhados. As seis acima do corte leem como a forma que pedem.
+##
+## Duas coisas foram aprendidas e ficam registradas, porque a proxima pessoa vai
+## refazer as duas se nao estiverem escritas:
+##
+##   - **A paleta forcada precisa ter TODOS os degraus competindo** (s > 0,35 e
+##     v > 0,55). Com um degrau escuro o gerador o usa para SOMBREAR, e num
+##     sprite de 16 px o sombreado ocupa quase todo o miolo: a fonte nasce em
+##     15% de miolo competindo, contra o piso de 70%. Nao e a reducao que
+##     derruba -- a fonte ja nasce assim.
+##   - **O aspecto nao se obtem por prompt.** Cinco reformulacoes deram bbox
+##     entre 3:1 e 8:1 onde o alvo era 2:1. Quem resolve e
+##     `gerar_projeteis.py --comprimento=N`, que apara a CAUDA ate o comprimento
+##     que `FormasProjetil` declara.
+##
+## A lista so encolhe quando arte NOVA passar do corte -- e o portao abaixo cobra
+## o corte, entao ninguem a encolhe com arte que nao leria.
+## O `laser_cutter` NAO entra: ele e feixe, nao tem projetil, e `_armas()` o
+## exclui na varredura. Uma arma de raio contínuo listada aqui faria a conta de
+## pendentes divergir da conta de armas -- e foi exatamente o que aconteceu.
+const POLIGONO_POR_DECISAO: Array[String] = [
 	"nanite_rifle",
 	"phase_blaster",
 	"pistola",
 	"pistola_cipher",
 	"plasma_arc",
 	"rail_x",
-	"salva_diretora",
 	"shotgun",
 	"smg_mantis",
 	"sucata_guardiao",
 	"swarm",
-	"tiro_diretora",
 	"tiro_drone",
 	"tiro_neon",
 	"tiro_sentinela",
-	"tiro_vigia",
 	"volt_caster",
 ]
+
+## O miolo minimo para uma arte valer mais que o poligono. A tabela esta acima.
+const MIOLO_MINIMO := 64
 
 ## Alongamentos varridos em todo caso de coerencia.
 ##
@@ -112,6 +143,7 @@ func executar() -> void:
 	_so_a_Forma_tem_colisao()
 	_toda_familia_de_impacto_existe()
 	_o_buraco_de_arte_esta_DECLARADO()
+	_toda_arte_tem_MIOLO_para_carregar_a_forma()
 	_nenhum_par_e_identico_em_GRAYSCALE()
 
 
@@ -190,7 +222,7 @@ func _nenhum_par_e_identico_em_GRAYSCALE() -> void:
 ##   nome DENTRO da lista -> tem de continuar nulo
 ##
 ## Sem a segunda, a linha fica aqui depois de a arte chegar e cobre em silencio o
-## dia em que aquele PNG se perder. Mesmo desenho de `SEM_ARTE_AINDA` no
+## dia em que aquele PNG se perder. Mesmo desenho de `POLIGONO_POR_DECISAO` no
 ## `teste_sprite_direcional.gd` e de `SEM_CLIPE_AINDA` no `teste_boss_animacao.gd`.
 ##
 ## Tirar um nome daqui e o interruptor de "a arte chegou".
@@ -200,7 +232,7 @@ func _o_buraco_de_arte_esta_DECLARADO() -> void:
 		var dados := _arma(nome)
 		if dados == null:
 			continue
-		if SEM_ARTE_AINDA.has(nome):
+		if POLIGONO_POR_DECISAO.has(nome):
 			pendentes += 1
 			ok(
 				dados.textura_projetil == null,
@@ -212,7 +244,7 @@ func _o_buraco_de_arte_esta_DECLARADO() -> void:
 			"%s nao esta na lista de pendentes, entao tem de ter arte" % nome
 		)
 	igual(
-		pendentes, SEM_ARTE_AINDA.size(),
+		pendentes, POLIGONO_POR_DECISAO.size(),
 		"toda arma listada como pendente foi encontrada no disco"
 	)
 
@@ -746,3 +778,46 @@ func _chao(nome_arquivo: String) -> Vector2:
 		valores[mini(valores.size() - 1, valores.size() * 99 / 100)],
 		matizes[matizes.size() / 2] if not matizes.is_empty() else 0.0
 	)
+
+
+## Toda arte de projetil tem MIOLO suficiente para carregar a forma.
+##
+## O portao de paleta ja cobra que o miolo COMPETE com ator; este cobra que ele
+## EXISTE. Sao perguntas diferentes e a segunda pegou o que a primeira deixou
+## passar: `sucata_guardiao` media 100% de miolo competindo com **12 pixels de
+## miolo** -- todos competiam, e nao havia forma nenhuma.
+##
+## Sem ele, a lista `POLIGONO_POR_DECISAO` poderia encolher com arte que nao le,
+## e a decisao viraria um carimbo.
+func _toda_arte_tem_MIOLO_para_carregar_a_forma() -> void:
+	var conferidas := 0
+	for nome in _armas():
+		var dados := _arma(nome)
+		if dados == null or dados.textura_projetil == null:
+			continue
+		var imagem := dados.textura_projetil.get_image()
+		if imagem == null or imagem.is_empty():
+			ok(false, "%s: a arte abre" % nome)
+			continue
+		imagem.convert(Image.FORMAT_RGBA8)
+		var miolo := 0
+		for y in imagem.get_height():
+			for x in imagem.get_width():
+				if not _opaco(imagem, x, y):
+					continue
+				if (_opaco(imagem, x - 1, y) and _opaco(imagem, x + 1, y)
+						and _opaco(imagem, x, y - 1) and _opaco(imagem, x, y + 1)):
+					miolo += 1
+		conferidas += 1
+		ok(
+			miolo >= MIOLO_MINIMO,
+			"%s tem miolo para carregar a forma (%d px, minimo %d)"
+				% [nome, miolo, MIOLO_MINIMO]
+		)
+	ok(conferidas > 0, "houve arte para medir (%d)" % conferidas)
+
+
+func _opaco(imagem: Image, x: int, y: int) -> bool:
+	if x < 0 or y < 0 or x >= imagem.get_width() or y >= imagem.get_height():
+		return false
+	return imagem.get_pixel(x, y).a >= 0.5

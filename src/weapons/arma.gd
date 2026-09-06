@@ -299,14 +299,23 @@ func _manter_feixe(direcao: Vector2) -> bool:
 
 	var origem := global_position
 	var ponta := origem + direcao.normalized() * dados.alcance
-	var alvo := _primeiro_no_caminho(origem, ponta)
+	# A consulta tem a LARGURA DESENHADA, e nao espessura zero.
+	#
+	# O feixe desenhava 6 px e feria numa linha de espessura zero: o corpo do
+	# raio MENTIA sobre a largura do dano, que e a mesma classe de mentira que o
+	# portao de silhueta cobra nos projeteis -- so que num lugar onde ninguem
+	# tinha olhado. Quem cedeu foi o DANO e nao o desenho: encolher o traco a um
+	# pixel tornaria a unica arma de dano continuo do jogo quase invisivel, e a
+	# largura desenhada e a promessa que o jogador le.
+	var alvo := _primeiro_no_caminho(origem, ponta, dados.largura_feixe)
 	if not alvo.is_empty():
 		ponta = alvo["position"]
 
 	if _feixe == null or not is_instance_valid(_feixe):
 		_feixe = CENA_FEIXE.instantiate()
 		_container().add_child(_feixe)
-	_feixe.apontar(origem, ponta, dados.cor_projetil, dados.largura_feixe)
+	_feixe.apontar(origem, ponta, dados.cor_projetil, dados.largura_feixe,
+		not alvo.is_empty())
 
 	# Municao escoa por TEMPO, nao por clique: `cadencia` no .tres do laser le
 	# como "balas por segundo enquanto ligado". Assim o mesmo campo continua
@@ -358,11 +367,50 @@ func _ferir_com_feixe(alvo: Dictionary, direcao: Vector2, delta: float) -> bool:
 ## Uma consulta so com as duas layers, e nao duas consultas: com duas o feixe
 ## acertaria o inimigo ATRAS da parede sempre que ele estivesse mais perto em
 ## linha reta, porque cada consulta so conhece o proprio alvo.
-func _primeiro_no_caminho(de: Vector2, para: Vector2) -> Dictionary:
-	var consulta := PhysicsRayQueryParameters2D.create(de, para)
-	consulta.collision_mask = LAYER_PAREDE | (LAYER_PLAYER if hostil else LAYER_INIMIGO)
+func _primeiro_no_caminho(de: Vector2, para: Vector2, largura: float = 0.0) -> Dictionary:
+	var mascara := LAYER_PAREDE | (LAYER_PLAYER if hostil else LAYER_INIMIGO)
+	var espaco := get_world_2d().direct_space_state
+	if largura <= 1.0:
+		var consulta := PhysicsRayQueryParameters2D.create(de, para)
+		consulta.collision_mask = mascara
+		consulta.collide_with_areas = false
+		return espaco.intersect_ray(consulta)
+
+	# DUAS consultas, e as duas sao necessarias.
+	#
+	# `cast_motion` responde ATE ONDE o circulo anda antes de encostar em algo --
+	# e o que clipa o desenho no lugar certo --, mas nao diz em QUEM. E
+	# `intersect_shape` responde em quem, mas so onde a forma ja esta. Entao:
+	# varre para achar a fracao, poe o circulo la, e pergunta quem esta ali.
+	var forma := CircleShape2D.new()
+	forma.radius = largura * 0.5
+	var consulta := PhysicsShapeQueryParameters2D.new()
+	consulta.shape = forma
+	consulta.collision_mask = mascara
 	consulta.collide_with_areas = false
-	return get_world_2d().direct_space_state.intersect_ray(consulta)
+	consulta.transform = Transform2D(0.0, de)
+	consulta.motion = para - de
+	var fracoes := espaco.cast_motion(consulta)
+	if fracoes.is_empty():
+		return {}
+	var segura: float = fracoes[0]
+	if segura >= 1.0:
+		return {}
+	var ponto := de + (para - de) * segura
+	# O DESENHO para na fracao SEGURA; a PERGUNTA e feita na INSEGURA.
+	#
+	# `cast_motion` devolve as duas: a segura e o ultimo instante em que a forma
+	# ainda NAO encosta -- e onde o traco tem de terminar, senao ele entra dentro
+	# do alvo --, e a insegura e o primeiro em que ela encosta. Perguntando na
+	# segura, `intersect_shape` volta vazia justo no frame do acerto, e o feixe
+	# desenha ate o alvo sem nunca feri-lo.
+	var insegura: float = fracoes[1] if fracoes.size() > 1 else segura
+	consulta.transform = Transform2D(0.0, de + (para - de) * insegura)
+	consulta.motion = Vector2.ZERO
+	var achados := espaco.intersect_shape(consulta, 1)
+	if achados.is_empty():
+		return {}
+	return {"position": ponto, "collider": achados[0]["collider"]}
 
 
 func _apagar_feixe() -> void:

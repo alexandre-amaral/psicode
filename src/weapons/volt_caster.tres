@@ -29,7 +29,6 @@ familia_silhueta = 3
 saltos_corrente = 3
 raio_corrente = 130.0
 decaimento_corrente = 0.6
-largura_feixe = 4.0
 municao_maxima = -1
 shake_intensidade = 1.6
 shake_duracao = 0.06

@@ -144,6 +144,7 @@ func executar() -> void:
 	_toda_familia_de_impacto_existe()
 	_o_buraco_de_arte_esta_DECLARADO()
 	_toda_arte_tem_MIOLO_para_carregar_a_forma()
+	_nenhum_tres_grava_campo_que_o_comportamento_nao_le()
 	_nenhum_par_e_identico_em_GRAYSCALE()
 
 
@@ -821,3 +822,59 @@ func _opaco(imagem: Image, x: int, y: int) -> bool:
 	if x < 0 or y < 0 or x >= imagem.get_width() or y >= imagem.get_height():
 		return false
 	return imagem.get_pixel(x, y).a >= 0.5
+
+
+## Nenhum `.tres` grava campo que o proprio comportamento nunca le.
+##
+## `laser_cutter` gravava `raio_projetil` e `velocidade_projetil`, e FEIXE nao
+## instancia projetil -- nao ha raio nem velocidade para ter. `volt_caster` e
+## CORRENTE e gravava `largura_feixe`, que so o feixe consulta.
+##
+## E a armadilha de "numero que foi para o `.tres` tem de SAIR do `.tscn`",
+## aplicada a arma: o campo continua no Inspetor, com um valor que parece
+## significar algo, e a proxima pessoa que for balancear gira um botao que nao
+## esta ligado em nada. Nao ha erro, nao ha sintoma -- so uma tarde perdida.
+##
+## O portao compara com o DEFAULT do script e nao com uma lista de literais: um
+## campo tocado e um campo que alguem quis mudar, e e disso que se trata.
+func _nenhum_tres_grava_campo_que_o_comportamento_nao_le() -> void:
+	var padrao := DadosArma.new()
+	var conferidas := 0
+	for nome in _todas_as_armas():
+		var dados := _arma(nome)
+		if dados == null:
+			continue
+		conferidas += 1
+		if dados.e_feixe():
+			# O feixe nao instancia projetil: raio e velocidade nao existem nele.
+			perto(
+				dados.raio_projetil, padrao.raio_projetil,
+				"%s e FEIXE e nao grava raio_projetil" % nome, 0.001
+			)
+			perto(
+				dados.velocidade_projetil, padrao.velocidade_projetil,
+				"%s e FEIXE e nao grava velocidade_projetil" % nome, 0.001
+			)
+		else:
+			perto(
+				dados.largura_feixe, padrao.largura_feixe,
+				"%s nao e feixe e nao grava largura_feixe" % nome, 0.001
+			)
+	ok(conferidas > 0, "houve arma para conferir (%d)" % conferidas)
+
+
+## TODAS as armas, feixes inclusive.
+##
+## `_armas()` pula os feixes de proposito -- os casos de silhueta nao tem o que
+## medir num raio que nao existe --, e este caso precisa justamente deles.
+func _todas_as_armas() -> Array[String]:
+	var fora: Array[String] = []
+	var pasta := DirAccess.open(ARMAS)
+	if pasta == null:
+		return fora
+	var arquivos := pasta.get_files()
+	arquivos.sort()
+	for arquivo in arquivos:
+		if arquivo.ends_with(".tres"):
+			fora.append(arquivo.get_basename())
+	return fora

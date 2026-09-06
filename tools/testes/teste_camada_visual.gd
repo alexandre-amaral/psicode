@@ -896,16 +896,39 @@ func _a_razao_face_topo_fica_em_um_para_um() -> void:
 		"a face norte e a superficie DOMINANTE do norte (razao %.2f, faixa 1,0-3,0)"
 			% razao
 	)
-	ok(
-		perfil.face_norte > perfil.topo_sul,
-		"e ela e maior que a parede sul inteira (%.0f contra %.0f) -- a norte carrega a altura, a sul so fecha o quadro"
-			% [perfil.face_norte, perfil.topo_sul]
+	# A FACE tem a mesma profundidade nos tres lados que a mostram.
+	#
+	# Este caso ja afirmou o contrario -- que as laterais eram mais rasas "porque
+	# mostram a face de esguelha" --, e o jogo desmentiu: medido com
+	# `tools/medir_moldura.tscn`, a mesma sala dava 22,8% de moldura com o jogador
+	# ao norte e **6,1%** a leste. Mesma textura, um quarto da espessura, e a
+	# lateral lia como uma borda em vez de uma parede.
+	#
+	# O que continua diferindo e o TOPO, e ai a assimetria e geometrica: no norte
+	# ele e espessura vista de esguelha, na lateral e superficie de cima.
+	igual(
+		perfil.face_lateral, perfil.face_norte,
+		"a face lateral tem a mesma profundidade da norte (%.0f)" % perfil.face_norte
 	)
 	ok(
-		perfil.topo_lateral + perfil.face_lateral < perfil.topo_norte + perfil.face_norte,
-		"as laterais sao mais rasas que a norte (%.0f contra %.0f) -- elas mostram a face de esguelha"
-			% [perfil.topo_lateral + perfil.face_lateral,
-				perfil.topo_norte + perfil.face_norte]
+		perfil.topo_norte > perfil.topo_lateral,
+		"e o TOPO ainda difere (%.0f no norte contra %.0f na lateral) -- la ele e espessura, aqui e superficie"
+			% [perfil.topo_norte, perfil.topo_lateral]
+	)
+	# E o SUL iguala a PROFUNDIDADE do norte sem ganhar face.
+	#
+	# Sao duas afirmacoes opostas de proposito. A profundidade igual e o que
+	# impede a borda preta embaixo do quadro; a face zero e o que impede pintar
+	# uma superficie que olha para longe da camera.
+	igual(
+		perfil.profundidade(RenderizadorParedes.Lado.SUL),
+		perfil.profundidade(RenderizadorParedes.Lado.NORTE),
+		"o sul e tao FUNDO quanto o norte (%.0f) -- sem isso sobra vazio embaixo"
+			% perfil.profundidade(RenderizadorParedes.Lado.NORTE)
+	)
+	igual(
+		perfil.fim_da_face(RenderizadorParedes.Lado.SUL), 0.0,
+		"e mesmo assim NAO ganha face: ela olharia para longe da camera"
 	)
 
 

@@ -27,44 +27,54 @@ extends RefCounted
 ## laterais em 16/16.
 ##
 ## A lateral e vista de ESGUELHA: engorda-la custa piso e quase nao da altura
-## lida. Medido na matriz, contra um perfil que engorda os quatro lados por igual:
+## lida.
 ##
-##     quatro lados iguais   norte 17,6% da tela   piso 61,2%
-##     so a norte (este)     norte 19,1% da tela   piso 65,9%
+## **A FACE tem a mesma profundidade nos tres lados que a mostram, e isso e a
+## regra.** Ela foi escrita depois de o dono olhar o jogo e dizer que a textura
+## da parede tinha mudado mas o ASPECTO nao. Medido com
+## `tools/medir_moldura.tscn`, na camera real, o motivo estava a vista:
 ##
-## Ele ganha nos DOIS eixos. Engordar os quatro por igual e dominado, e era
-## exatamente o que o perfil A fazia.
+##     sala_1, jogador ao NORTE     faixa de parede = 22,8% do quadro
+##     sala_1, jogador a LESTE      faixa de parede =  6,1% do quadro
 ##
-## A norte ocupa 19,1% da altura do quadro, que e a faixa em que a parede do
-## Isaac vive. Nos perfis anteriores ela ocupava 7,4% (C) e 10,3% (E), e o dono
-## olhou os dois no jogo e disse que a parede continuava pequena.
+## Mesma textura, um quarto da espessura. O norte desenhava 104 px e as laterais
+## 32, entao a lateral nunca chegava a ler como parede -- ela lia como uma borda.
 ##
-## `tools/matriz_paredes.tscn` monta a mesma sala nos quatro perfis com o mesmo
-## zoom e imprime quanto do quadro vira moldura:
+## Hoje os tres lados vistos desenham **72 px de face**. O que ainda difere e o
+## TOPO, e a diferenca e geometrica e nao de gosto: no norte o topo e a
+## espessura vista de esguelha (32 px), nas laterais ele e a superficie de cima
+## vista quase de frente (24 px), e no sul nao ha face nenhuma para desenhar.
 ##
-##     A  32/32  32/32  64  ->  28,6%
-##     B  24/24  24/24  24  ->  22,7%
-##     C  16/24  16/16  16  ->  19,5%
-##     D  16/16  12/12  12  ->  16,1%
+## **O sul nao ganha face, e a decisao continua valendo.** A face dele olharia
+## para LONGE da camera, escondida pela propria parede. O que ele ganha e
+## PROFUNDIDADE igual a do norte, so que toda em superficie de cima -- e assim o
+## piso parece encaixado numa caixa em vez de terminar numa linha, que e o que o
+## §15 do plano pede.
 ##
-## O alvo do plano e 10-20% de arquitetura contra 80-90% de espaco de jogo. O A
-## -- o estado que abriu este epico -- estava em 28,6%, meia vez acima do teto.
+## **Engordar os quatro lados nao e mais "dominado".** A medicao antiga dizia que
+## sim (norte 17,6% contra 19,1%, piso 61,2% contra 65,9%), e ela media a coisa
+## certa para a pergunta errada: ela comparava quanto da tela a parede NORTE
+## ocupa, com o jogador encostado no norte. Nessa pergunta engrossar a lateral so
+## rouba espaco. A pergunta que importa e outra -- *"em qualquer posicao, o
+## jogador ve parede?"* --, e nela a lateral fina perde: nas tres posicoes em que
+## o norte esta fora de quadro, a moldura caia para 6%.
 ##
-## C e nao D porque a NORTE nao pode encolher junto: ela e a unica que mostra a
-## face de FRENTE, e e dela que vem a altura da sala inteira. No D a face norte
-## cai a 16 e a sala perde o volume junto com o peso. C a mantem em 24 e encolhe
-## o que nao carrega nada -- o topo, as laterais de esguelha e o sul.
-##
-## Os tres numeros caem dentro das faixas que o plano sugere: norte topo 16-24 e
-## face 20-28, laterais 12-20, sul 8-16.
+## As profundidades sao o que sao porque a GRADE fecha nelas, e nao por gosto:
+## com 96 px de lateral, `contorno + margens` fecha 960 exato num contorno de
+## 768, que e multiplo de 32 e tem meia-dimensao na grade de 16. Com 104 o
+## contorno teria de ter 752, que nao cai na grade -- e o multiplo abaixo deixa
+## 16 px de VAZIO PRETO em cada borda, que e exatamente o defeito que esta
+## mudanca existe para tirar.
 var topo_norte: float = 32.0
 var face_norte: float = 72.0
-var topo_lateral: float = 16.0
-var face_lateral: float = 16.0
+var topo_lateral: float = 24.0
+var face_lateral: float = 72.0
 ## O sul mostra so a superficie de cima -- a face dele olha para longe da camera.
-## 16 e nao 64: desenhar 64 px de superficie chapada ali era o que mais engordava
-## a moldura sem dar nada em troca.
-var topo_sul: float = 16.0
+##
+## 88 e nao 16: a profundidade tem de igualar a do norte para o quadro nao ter
+## borda preta embaixo, e como nao ha face para desenhar ali, ela vai toda em
+## topo. Era 16, e com o clamp crescido isso deixava o eixo Y assimetrico.
+var topo_sul: float = 88.0
 ## A BORDA EXTERNA do sul: a espessura que escurece do topo ate o vazio.
 ##
 ## O §15 do plano de profundidade pede que a sul seja construida ao contrario da

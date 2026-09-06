@@ -96,8 +96,9 @@ func nome() -> String:
 func executar() -> void:
 	_toda_sala_esta_num_regime_declarado()
 	_a_lista_de_pendentes_nao_mente()
+	_a_moldura_ocupa_o_quadro_em_QUALQUER_posicao()
 	_os_dois_regimes_existem_de_verdade()
-	_uma_sala_do_tamanho_da_tela_REPROVA()
+	_uma_folga_no_MEIO_TERMO_REPROVA()
 
 
 ## Toda sala fora da lista de pendentes esta num regime declarado, nos dois eixos.
@@ -121,6 +122,89 @@ func _toda_sala_esta_num_regime_declarado() -> void:
 			)
 		sala.free()
 	ok(conferidas > 0, "houve sala migrada para conferir (%d)" % conferidas)
+
+
+## Quanto do quadro e MOLDURA, com o jogador em cada canto do clamp.
+##
+## O regime responde "a parede aparece?"; este responde "aparece QUANTO, e em
+## qualquer lugar?". Sao perguntas diferentes e a segunda pegou o que a primeira
+## deixou passar.
+##
+## Medido com `tools/medir_moldura.tscn` quando o dono disse que a textura da
+## parede tinha mudado mas o ASPECTO nao:
+##
+##     sala_1, jogador ao NORTE     moldura 22,8% do quadro
+##     sala_1, jogador a LESTE      moldura  6,1% do quadro
+##
+## O regime aprovava as duas -- o eixo X estava FECHADO, a parede ESTAVA em
+## quadro. Ela so era fina demais para ler como parede. Um portao que so pergunta
+## "aparece?" nunca ia acusar isso.
+##
+## O PISO de 15% nao e escolhido: e o meio do vao entre os dois numeros medidos.
+## Acima dele estao as posicoes que o dono aprovou; abaixo, a lateral fina que ele
+## recusou. Hoje o pior canto de qualquer sala mede 18,1%, e a `sala_3_grande` --
+## que sempre funcionou -- mede 9,0% a leste e por isso e a excecao DECLARADA:
+## ela e a unica ABERTA nos dois eixos, e numa sala grande a parede ser rara
+## quando se esta no meio dela e o desenho, nao o defeito.
+const PISO_DA_MOLDURA := 0.15
+
+## As salas cujo pior canto fica abaixo do piso, declaradas.
+##
+## Mesma disciplina das outras listas: nome nela tem de existir em disco E
+## continuar abaixo do piso; nome fora dela tem de passar.
+const MOLDURA_MAGRA_ACEITA: Array[String] = [
+	"sala_3_grande",
+]
+
+
+func _a_moldura_ocupa_o_quadro_em_QUALQUER_posicao() -> void:
+	var tela := _viewport()
+	var area_do_quadro := tela.x * tela.y
+	for nome_cena in _cenas():
+		var sala := _nascer(nome_cena)
+		if sala == null:
+			continue
+		var limites := sala.obter_limites()
+		var m := sala.perfil_de_parede()
+		var margens: Vector4 = m.margens() if m != null else PerfilDeParede.new().margens()
+		var clamp_ := limites.grow_individual(margens.x, margens.y, margens.z, margens.w)
+
+		# Os quatro cantos do clamp mais o centro: e nos cantos que a camera para,
+		# e e no centro que ela mostra menos parede.
+		var meia := tela * 0.5
+		var cantos := {
+			"centro": clamp_.get_center(),
+			"noroeste": clamp_.position + meia,
+			"nordeste": Vector2(clamp_.end.x - meia.x, clamp_.position.y + meia.y),
+			"sudoeste": Vector2(clamp_.position.x + meia.x, clamp_.end.y - meia.y),
+			"sudeste": clamp_.end - meia,
+		}
+		var pior := 1.0
+		var onde := ""
+		for rotulo: String in cantos:
+			var quadro := Rect2(cantos[rotulo] - meia, tela)
+			var chao := quadro.intersection(limites)
+			var fracao := 1.0 - (chao.size.x * chao.size.y) / area_do_quadro
+			if fracao < pior:
+				pior = fracao
+				onde = rotulo
+
+		if MOLDURA_MAGRA_ACEITA.has(nome_cena):
+			ok(
+				pior < PISO_DA_MOLDURA,
+				"%s esta declarada magra e continua magra (%.1f%% no %s)"
+					% [nome_cena, pior * 100.0, onde]
+			)
+		else:
+			ok(
+				pior >= PISO_DA_MOLDURA,
+				"%s mostra moldura em todo canto (pior %.1f%% no %s, piso %.0f%%)"
+					% [nome_cena, pior * 100.0, onde, PISO_DA_MOLDURA * 100.0]
+			)
+		sala.free()
+
+	for magra in MOLDURA_MAGRA_ACEITA:
+		ok(_cenas().has(magra), "%s, declarada magra, existe em disco" % magra)
 
 
 ## A lista morde dos DOIS lados.
@@ -172,25 +256,41 @@ func _os_dois_regimes_existem_de_verdade() -> void:
 	ok(abertos > 0, "e ha eixo ABERTO (%d)" % abertos)
 
 
-## E o lado que morde: a sala do tamanho da tela REPROVA.
+## E o lado que morde: uma folga NO MEIO reprova.
 ##
-## Regua que nao reprova nada e um carimbo. Este caso monta o defeito exato que a
-## regra existe para barrar -- 960x544, o tamanho de seis cenas de hoje -- e exige
-## que ele caia em PROIBIDO nos dois eixos.
-func _uma_sala_do_tamanho_da_tela_REPROVA() -> void:
+## Ele ja montou "uma sala do tamanho exato da tela", que era o defeito original.
+## Isso parou de servir quando a parede engordou: com margens de 96 e 104, um
+## contorno de 960x544 recebe folga 192x208, e 208 esta ACIMA do corte -- ou seja,
+## aquela sala deixou de ser patologica, porque a parede agora aparece nela.
+##
+## Um caso que afirma "este tamanho reprova" envelhece junto com o perfil. Este
+## afirma a REGRA: uma folga no meio termo reprova, seja de que sala for. E ele
+## guarda o numero historico ao lado, para a regra continuar ligada ao defeito
+## que a gerou -- as seis salas de 960x544 no perfil C mediam folga 64 x 68, e
+## continuam reprovando hoje.
+func _uma_folga_no_MEIO_TERMO_REPROVA() -> void:
 	var tela := _viewport()
-	var m := PerfilDeParede.new().margens()
-	var folga_x := tela.x + m.x + m.z - tela.x
-	var folga_y := tela.y + m.y + m.w - tela.y
-	igual(
-		_regime(folga_x, 0), "PROIBIDO",
-		"uma sala da largura da tela cai no meio termo (folga %.0f)" % folga_x
-	)
-	igual(
-		_regime(folga_y, 1), "PROIBIDO",
-		"e a altura tambem (folga %.0f)" % folga_y
-	)
-	# E o outro extremo continua valido, senao a regra so sabe reprovar.
+	for eixo in [0, 1]:
+		var rotulo := "x" if eixo == 0 else "y"
+		var corte: float = (tela.x if eixo == 0 else tela.y) * FRACAO_ABERTA
+		igual(
+			_regime(corte * 0.5, eixo), "PROIBIDO",
+			"eixo %s: metade do corte cai no meio termo (folga %.0f)" % [rotulo, corte * 0.5]
+		)
+		igual(
+			_regime(corte - 1.0, eixo), "PROIBIDO",
+			"eixo %s: um pixel abaixo do corte ainda reprova (folga %.0f)" % [rotulo, corte - 1.0]
+		)
+		igual(
+			_regime(corte, eixo), "ABERTO",
+			"eixo %s: no corte, ja passa (folga %.0f)" % [rotulo, corte]
+		)
+	# O defeito ORIGINAL, com os numeros que o mediram: seis salas de 960x544 no
+	# perfil C, folga 64 x 68. Se um dia o corte descer abaixo disso, ele volta a
+	# aprovar o quadro 100% de chao que abriu este epico.
+	igual(_regime(64.0, 0), "PROIBIDO", "a folga historica de 64 px em x reprova")
+	igual(_regime(68.0, 1), "PROIBIDO", "e a de 68 px em y tambem")
+	# E os dois extremos continuam validos, senao a regra so sabe reprovar.
 	igual(_regime(-1.0, 0), "FECHADO", "folga negativa e FECHADO")
 	igual(_regime(tela.x, 0), "ABERTO", "folga de uma tela inteira e ABERTO")
 

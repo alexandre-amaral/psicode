@@ -11,7 +11,7 @@ tipo = &"boss"
 area_spawn = Rect2(-16, -16, 32, 32)
 
 [node name="Parede" type="Line2D" parent="."]
-points = PackedVector2Array(-448, -368, 448, -368, 448, 368, -448, 368, -448, -368)
+points = PackedVector2Array(-384, -368, 384, -368, 384, 368, -384, 368, -384, -368)
 width = 8.0
 default_color = Color(1, 0.2, 0.4, 0.8)
 

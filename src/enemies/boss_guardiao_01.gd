@@ -130,6 +130,9 @@ const GESTOS := {
 ## O gesto do atordoamento e o do despertar. Nao pertencem a ataque nenhum.
 const CLIPE_CAMBALEAR := &"cambalear"
 const CLIPE_DESPERTAR := &"despertar"
+## E o da morte. `_morte()` so freava, e o chefe do andar terminava a luta
+## escorregando ate parar na mesma pose em que passou o combate inteiro.
+const CLIPE_MORRER := &"morrer"
 
 const IDLE := &"IDLE"
 ## Ele ACORDA antes de lutar. Ver `_despertar()`.
@@ -897,6 +900,8 @@ func clipe_do_estado(estado: StringName, ataque: StringName) -> StringName:
 			return CLIPE_CAMBALEAR
 		DESPERTAR:
 			return CLIPE_DESPERTAR
+		MORTE:
+			return CLIPE_MORRER
 	return &""
 
 

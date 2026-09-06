@@ -50,31 +50,58 @@ def main() -> int:
     pr.add_argument("modo", choices=list(MODOS))
     pr.add_argument("--invertido", action="store_true",
                     help="toca de tras para frente")
+    pr.add_argument("--uma-direcao", action="store_true",
+                    help="as OITO fitas apontam para a do SUL: o gesto nao gira")
     a = pr.parse_args()
 
     pasta = "assets/inimigos/%s" % a.ator
-    faltando = []
-    for direcao in DIRECOES:
-        caminho = "%s/%s_%s.png" % (pasta, a.clipe, direcao)
-        if not os.path.exists(caminho):
-            faltando.append(caminho)
-    if faltando:
-        print("FALTAM as fitas:")
-        for caminho in faltando:
-            print("  " + caminho)
-        return 1
 
+    # AS OITO APONTAM PARA A MESMA FITA, e isso nao e um remendo.
+    #
+    # `ClipeDirecional.desenhavel()` exige `fitas.size() >= Direcoes.TOTAL`, e ha
+    # gesto que NAO DEVE girar. O despertar do chefe e o caso: a apresentacao
+    # inteira depende de o jogador achar que o robo e cenario, e um chefe que
+    # gira ao acordar vira um inimigo que estava esperando -- e nao uma maquina
+    # que foi ligada. Ele acorda encarando a porta por onde o jogador entrou, em
+    # qualquer direcao que a maquina de estados peca.
+    #
+    # Gerar as oito direcoes custaria 24 geracoes para desenhar oito vezes a
+    # mesma encenacao errada.
+    if a.uma_direcao:
+        unica = "%s/%s_south.png" % (pasta, a.clipe)
+        if not os.path.exists(unica):
+            print("FALTA a fita do sul: %s" % unica)
+            return 1
+        direcoes_por_indice = ["south"] * len(DIRECOES)
+    else:
+        direcoes_por_indice = list(DIRECOES)
+        faltando = []
+        for direcao in DIRECOES:
+            caminho = "%s/%s_%s.png" % (pasta, a.clipe, direcao)
+            if not os.path.exists(caminho):
+                faltando.append(caminho)
+        if faltando:
+            print("FALTAM as fitas:")
+            for caminho in faltando:
+                print("  " + caminho)
+            return 1
+
+    distintas = []
+    for direcao in direcoes_por_indice:
+        if direcao not in distintas:
+            distintas.append(direcao)
     linhas = ['[gd_resource type="Resource" script_class="ClipeDirecional" '
-              'load_steps=%d format=3]' % (len(DIRECOES) + 2), '',
+              'load_steps=%d format=3]' % (len(distintas) + 2), '',
               '[ext_resource type="Script" '
               'path="res://src/enemies/clipe_direcional.gd" id="1_clipe"]']
-    ids = []
-    for i, direcao in enumerate(DIRECOES):
+    por_direcao = {}
+    for i, direcao in enumerate(distintas):
         ident = "%d_%s" % (i + 2, direcao.replace("-", "_"))
-        ids.append(ident)
+        por_direcao[direcao] = ident
         linhas.append('[ext_resource type="Texture2D" '
                       'path="res://%s/%s_%s.png" id="%s"]'
                       % (pasta, a.clipe, direcao, ident))
+    ids = [por_direcao[d] for d in direcoes_por_indice]
     linhas += ['', '[resource]', 'script = ExtResource("1_clipe")',
                'nome = &"%s"' % a.clipe,
                'fitas = Array[Texture2D]([%s])'

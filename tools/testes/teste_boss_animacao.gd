@@ -58,7 +58,7 @@ const SEM_CLIPE_AINDA: Array[StringName] = [
 	# ANIM 05 -- a Falha do Reator.
 	&"armar_reator", &"sobrecarregar",
 	# ANIM 06 -- cambalear e morrer.
-	&"cambalear",
+	&"cambalear", &"morrer",
 	# ANIM 07 -- o despertar na baia.
 	&"despertar",
 ]
@@ -118,7 +118,14 @@ func _o_gesto_pedido_existe_e_tem_a_contagem_medida() -> void:
 			ok(nome != &"", "%s/%s pede um gesto" % [ataque, estado])
 			if nome != &"":
 				pedidos.append(nome)
-	for estado: StringName in [chefe.ATORDOADO, chefe.DESPERTAR]:
+	# MORTE entra na lista, e a ausencia dela era um buraco.
+	#
+	# O portao varria os estados um por um, escritos a mao, e `MORTE` nao estava
+	# entre eles: um gesto pedido por `clipe_do_estado()` e nao declarado em
+	# lugar nenhum passava VERDE. E a mesma familia do defeito que abriu este
+	# epico -- "clipe declarado nao prova que alguem o desenha" --, so que pelo
+	# outro lado: alguem pedia e nada provava que existia.
+	for estado: StringName in [chefe.ATORDOADO, chefe.DESPERTAR, chefe.MORTE]:
 		var nome: StringName = chefe.clipe_do_estado(estado, chefe.SOCO)
 		ok(nome != &"", "%s pede um gesto" % estado)
 		if nome != &"":

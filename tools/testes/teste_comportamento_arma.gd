@@ -25,6 +25,7 @@ func executar() -> void:
 	await _o_nanite_empilha_e_estoura()
 	await _o_teleguiado_curva()
 	_o_feixe_declara_dano_por_segundo()
+	await _o_feixe_fere_na_largura_que_desenha()
 
 
 # ------------------------------------------------------------- apoio ---------
@@ -171,3 +172,55 @@ func _o_feixe_declara_dano_por_segundo() -> void:
 	# num feixe, o numero fica escrito no .tres sem efeito nenhum e engana quem
 	# for balancear.
 	igual(dados.abertura_graus, 0.0, "feixe nao usa leque, e o .tres nao finge que usa")
+
+
+## O FEIXE FERE NA LARGURA QUE DESENHA.
+##
+## Ele desenhava 6 px e feria numa linha de espessura ZERO: um alvo encostado na
+## borda do traco nao levava dano nenhum, e o corpo do raio mentia sobre a
+## largura do dano. E a mesma classe de mentira que
+## `_nenhuma_silhueta_mente_sobre_a_hitbox` cobra nos projeteis -- num lugar em
+## que ninguem tinha olhado, porque o feixe nao instancia projetil e escapa
+## daquele portao inteiro.
+##
+## Quem cedeu foi o DANO e nao o desenho. Encolher o traco ate a espessura do
+## raycast tornaria a unica arma de dano continuo do jogo quase invisivel, e a
+## largura desenhada e a promessa que o jogador le.
+##
+## O caso morde dos DOIS lados, e o segundo e o que importa: sem ele, trocar a
+## consulta por um circulo enorme passaria igual, e a arma acertaria quem esta
+## claramente fora do traco.
+func _o_feixe_fere_na_largura_que_desenha() -> void:
+	var dados: DadosArma = load("res://src/weapons/laser_cutter.tres")
+	var cenario := _cenario()
+	var cont: Node2D = cenario["cont"]
+
+	var arma := Arma.new()
+	arma.dados = dados
+	arma.hostil = false
+	cont.add_child(arma)
+	arma.global_position = LONGE
+	await Engine.get_main_loop().physics_frame
+
+	# DENTRO: o centro do alvo a meia largura do eixo -- ele esta encostando no
+	# traco desenhado, e tem de sangrar.
+	var meia := dados.largura_feixe * 0.5
+	var perto := _alvo(cont, LONGE + Vector2(120.0, 0.0))
+	perto.global_position = LONGE + Vector2(120.0, meia)
+	await Engine.get_main_loop().physics_frame
+	var achou_perto := arma._primeiro_no_caminho(
+		arma.global_position, arma.global_position + Vector2(400.0, 0.0),
+		dados.largura_feixe)
+	ok(not achou_perto.is_empty(), "o feixe acha um alvo encostado na borda do traco")
+
+	# FORA: bem alem do traco, e do raio do proprio alvo. Se ele for achado, a
+	# consulta engordou -- e uma arma que acerta o que nao toca e pior que uma
+	# que erra o que toca.
+	perto.global_position = LONGE + Vector2(120.0, meia + 96.0)
+	await Engine.get_main_loop().physics_frame
+	var achou_longe := arma._primeiro_no_caminho(
+		arma.global_position, arma.global_position + Vector2(400.0, 0.0),
+		dados.largura_feixe)
+	ok(achou_longe.is_empty(), "e NAO acha quem esta claramente fora dele")
+
+	cenario["raiz"].free()

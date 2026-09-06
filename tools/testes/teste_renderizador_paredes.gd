@@ -38,6 +38,7 @@ func executar() -> void:
 	_as_duas_contas_de_onde_ha_parede_coincidem()
 	_nada_vaza_pela_BOCA_de_um_lado_aberto()
 	_o_topo_ainda_tem_CHAPA()
+	await _o_desgaste_do_topo_e_RARO_e_cabe_na_chapa()
 
 
 ## Toda forma de sala em disco monta a fita, e nenhuma monta vazia.
@@ -766,3 +767,127 @@ func _o_topo_ainda_tem_CHAPA() -> void:
 		ok(variante.chapa_do_topo(RenderizadorParedes.Lado.NORTE) >= 16.0,
 			"a variante %s guarda chapa (%.0f px)"
 				% [nome, variante.chapa_do_topo(RenderizadorParedes.Lado.NORTE)])
+
+
+## O decalque de topo e RARO, e ele cabe na chapa.
+##
+## Duas perguntas, e as duas falham em silencio.
+##
+## **Raro.** A frequencia e um numero e nao uma opiniao: se todo trecho tiver uma
+## solda, nenhuma solda significa nada -- e a mesma ideia do `max_props_animados`,
+## cujo default e 2 de proposito. Um `chance_de_decalque` girado para 1,0 nao da
+## erro nenhum; ele so apaga a issue.
+##
+## **Cabe.** O decalque desenha na CHAPA, entre o bisel e a borda. Uma peca mais
+## alta que a faixa vaza para a face de um lado ou para o vazio do outro, e o
+## portao de invasao so pega o primeiro caso -- o vazio nao e area jogavel, entao
+## sair por ali passa sem uma linha no console.
+func _o_desgaste_do_topo_e_RARO_e_cabe_na_chapa() -> void:
+	var estilo := load("res://src/mapa/estilo_industrial_velho.tres") as EstiloDeParede
+	ok(estilo != null and not estilo.decalques_de_topo.is_empty(),
+		"o estilo do andar declara decalques de topo")
+	if estilo == null:
+		return
+	entre(estilo.chance_de_decalque, 0.10, 0.18,
+		"a chance fica na faixa baixa que a issue pede (%.2f)" % estilo.chance_de_decalque)
+
+	var dados := load("res://src/mapa/tipo_combate.tres") as DadosSala
+	var perfil := estilo.perfil()
+	var decalques := 0
+	var trechos := 0
+	var fora := 0
+	var salas := 10
+	for i in salas:
+		var sala := _nascer_com(dados, Vector2i(i * 3, i))
+		if sala == null:
+			continue
+		await Engine.get_main_loop().process_frame
+		var fita := sala.get_node_or_null("ParedeModulos") as Node2D
+		if fita == null:
+			sala.free()
+			continue
+		var contorno := sala.contorno_local()
+		for filho in fita.get_children():
+			var sprite := filho as Sprite2D
+			if sprite == null:
+				continue
+			decalques += 1
+			# A profundidade do centro da peca, medida ate o contorno: ela tem de
+			# cair dentro da chapa com a meia-altura da arte inteira.
+			var d := _profundidade_ate_contorno(sprite.position, contorno)
+			var lado := _lado_de(sprite.position, contorno)
+			var faixa_inicio := perfil.fim_da_face(lado) + perfil.bisel_do_topo
+			var faixa_fim := perfil.profundidade(lado) - perfil.borda_do_topo
+			var meia := sprite.texture.get_size() * 0.5
+			var travessia: float = meia.y if (lado == RenderizadorParedes.Lado.NORTE
+				or lado == RenderizadorParedes.Lado.SUL) else meia.x
+			if d - travessia < faixa_inicio - 1.0 or d + travessia > faixa_fim + 1.0:
+				fora += 1
+		trechos += _trechos_de_topo(sala)
+		sala.free()
+
+	igual(fora, 0, "nenhum decalque sai da chapa (%d de %d)" % [fora, decalques])
+	ok(decalques > 0, "houve decalque para conferir em %d salas (%d)" % [salas, decalques])
+	ok(trechos > 0, "houve trecho para comparar (%d)" % trechos)
+	if trechos > 0:
+		var fracao := float(decalques) / float(trechos)
+		# A folga e larga de proposito: a chance e por TRECHO, e nem todo trecho
+		# aceita toda peca -- a tira de 48x16 so cabe nos lados horizontais. O
+		# que este numero tem de pegar e o extremo, e nao o ajuste fino.
+		entre(fracao, 0.02, 0.35,
+			"a maioria dos trechos de topo continua limpa (%.0f%% com decalque)"
+				% (fracao * 100.0))
+
+
+## Quantos trechos de parede esta sala tem: um por lado, mais um por porta que o
+## parta. E o mesmo denominador que a chance de decalque usa.
+func _trechos_de_topo(sala: Sala) -> int:
+	var contorno := sala.contorno_local()
+	var portas: Array[Porta] = []
+	var raiz := sala.get_node_or_null("Portas")
+	if raiz != null:
+		for filho in raiz.get_children():
+			var porta := filho as Porta
+			if porta != null:
+				portas.append(porta)
+	var total := 0
+	for i in contorno.size():
+		var a := contorno[i]
+		var b := contorno[(i + 1) % contorno.size()]
+		total += RenderizadorParedes.trechos_livres(contorno, a, b, portas).size()
+	return total
+
+
+func _profundidade_ate_contorno(ponto: Vector2, contorno: PackedVector2Array) -> float:
+	var perto := INF
+	for i in contorno.size():
+		perto = minf(perto, ponto.distance_to(Geometry2D.get_closest_point_to_segment(
+			ponto, contorno[i], contorno[(i + 1) % contorno.size()])))
+	return perto
+
+
+## De que lado do contorno esta este ponto, pela aresta mais proxima.
+func _lado_de(ponto: Vector2, contorno: PackedVector2Array) -> int:
+	var perto := INF
+	var achado := RenderizadorParedes.Lado.NORTE
+	for i in contorno.size():
+		var a := contorno[i]
+		var b := contorno[(i + 1) % contorno.size()]
+		var d := ponto.distance_to(Geometry2D.get_closest_point_to_segment(ponto, a, b))
+		if d < perto:
+			perto = d
+			achado = RenderizadorParedes.classificar(
+				RenderizadorParedes.normal_externa(contorno, a, b))
+	return achado
+
+
+func _nascer_com(dados: DadosSala, celula: Vector2i) -> Sala:
+	var cena := load("res://src/mapa/sala_1_retangular.tscn") as PackedScene
+	var sala := cena.instantiate() as Sala
+	if sala == null:
+		return null
+	sala.coordenadas_grid = celula
+	sala.definir_visual(dados)
+	sala.position = LONGE
+	Engine.get_main_loop().root.add_child(sala)
+	return sala

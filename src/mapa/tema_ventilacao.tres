@@ -7,5 +7,6 @@ script = ExtResource("1_tema")
 id = &"ventilacao"
 peso = 0.9
 modulo_favorito = &"ventilada"
+decalque_favorito = &"oleo"
 reforco = 3
 peso_comum = 0.20

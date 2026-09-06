@@ -999,9 +999,23 @@ func _montar_fita(contorno: PackedVector2Array) -> void:
 		peso = _tema.peso_comum
 	var espacamento: int = estilo.espacamento_minimo if estilo != null else 2
 	var abertos: Array[Vector2] = []
+
+	# Os DECALQUES de topo, com o tema puxando o favorito dele para a frente.
+	# O ternario NAO serve aqui: `[]` nasce como `Array` sem tipo e a atribuicao
+	# explode em runtime, sem uma linha no editor. E a mesma armadilha que
+	# `Array[Node].filter()` ja registra.
+	var decalques: Array[Texture2D] = []
+	var chance_decalque := 0.0
+	if estilo != null:
+		decalques = estilo.decalques_de_topo
+		chance_decalque = estilo.chance_de_decalque
+	if _tema != null:
+		decalques = _tema.aplicar_decalques(decalques)
+
 	add_child(RenderizadorParedes.construir(
 		contorno, portas, hash(coordenadas_grid), topos, faces,
-		peso, espacamento, abertos, _perfil(), silhueta_de_teste))
+		peso, espacamento, abertos, _perfil(), silhueta_de_teste,
+		decalques, chance_decalque))
 
 
 ## O perfil de espessura desta sala.

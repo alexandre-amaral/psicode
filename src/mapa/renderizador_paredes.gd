@@ -174,7 +174,8 @@ static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 		semente: int, topos: Array[Texture2D], faces: Array[Texture2D],
 		peso_comum: float = 0.65,
 		espacamento: int = 2, abertos: Array[Vector2] = [],
-		perfil: PerfilDeParede = null, silhueta: bool = false) -> Node2D:
+		perfil: PerfilDeParede = null, silhueta: bool = false,
+		decalques: Array[Texture2D] = [], chance_decalque: float = 0.0) -> Node2D:
 	var raiz := Node2D.new()
 	raiz.name = "ParedeModulos"
 	raiz.z_index = Z_FITA
@@ -203,7 +204,8 @@ static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 		if _e_aberto(normal_externa(contorno, a, b), abertos):
 			continue
 		_vestir_lado(raiz, contorno, a, b, portas, semente ^ (i * 0x9e3779b1),
-			semente, topos, faces, peso_comum, espacamento, regra, ancora, silhueta)
+			semente, topos, faces, peso_comum, espacamento, regra, ancora, silhueta,
+			decalques, chance_decalque)
 	_fechar_quinas(raiz, contorno, regra, topos, faces, ancora, silhueta,
 		abertos, semente)
 	return raiz
@@ -229,7 +231,8 @@ static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 		b: Vector2, portas: Array[Porta], semente: int, semente_da_sala: int,
 		topos: Array[Texture2D],
 		faces: Array[Texture2D], peso_comum: float, espacamento: int,
-		perfil: PerfilDeParede, ancora: Vector2, silhueta: bool) -> void:
+		perfil: PerfilDeParede, ancora: Vector2, silhueta: bool,
+		decalques: Array[Texture2D] = [], chance_decalque: float = 0.0) -> void:
 	var comprimento := a.distance_to(b)
 	if comprimento < LADO_MINIMO:
 		return
@@ -323,6 +326,71 @@ static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 		_vestir_acabamento(raiz, de, ate, normal, lado, fim_face <= 0.0, fundo,
 			fim_face, perfil.borda_do_topo > 0.0,
 			FLANGE if fim_face > 0.0 else 0.0)
+		if not silhueta:
+			_decalque_no_trecho(raiz, de, ate, normal, lado, perfil, fim_face,
+				fim_topo, decalques, chance_decalque, semente ^ int(de.x) ^ int(de.y))
+
+
+
+## UM decalque de desgaste na chapa deste trecho, ou nenhum.
+##
+## **A frequencia e baixa e e um numero, nao uma opiniao.** Ela e irmao de
+## `max_props_animados`, cujo default e 2 pelo mesmo motivo: se todo trecho tiver
+## uma solda, nenhuma solda significa nada. O abandono aparece por evidencia
+## LOCALIZADA, e nao por ruido uniforme.
+##
+## **Ele nao gira, e nao e por comodidade.** `teste_renderizador_paredes` proibe
+## rotacao na fita inteira porque as bandas de acabamento codificam a direcao da
+## luz, e uma peca girada mente sobre ela. Um decalque que precisasse girar para
+## caber num lado seria a mesma mentira -- entao a regra aqui e de ENCAIXE e nao
+## de excecao: a peca so entra no lado em que ela cabe na chapa sem virar.
+## Na pratica, o quadrado de 16 cabe nos quatro; a tira de 48x16 cabe so nos
+## lados horizontais, e e onde uma solda ao longo da parede faz sentido de
+## qualquer jeito.
+##
+## Ele desenha na CHAPA -- entre o bisel e a borda --, e nao na faixa inteira.
+## Fora dela ele cruzaria a dobra que a #241 montou, e o desgaste passaria a
+## contradizer a estrutura em vez de assentar nela.
+static func _decalque_no_trecho(raiz: Node2D, de: Vector2, ate: Vector2,
+		normal: Vector2, lado: Lado, perfil: PerfilDeParede, fim_face: float,
+		fim_topo: float, decalques: Array[Texture2D], chance: float,
+		chave: int) -> void:
+	if decalques.is_empty() or chance <= 0.0:
+		return
+	if float(absi(chave * 0x27d4eb2d) % 10000) / 10000.0 >= chance:
+		return
+	var inicio := fim_face + perfil.bisel_do_topo
+	var faixa := fim_topo - perfil.borda_do_topo - inicio
+	if faixa < 8.0:
+		return
+
+	# A peca so entra se couber na chapa SEM girar. `atravessa` e a dimensao dela
+	# no eixo da profundidade, e ela muda com a orientacao do lado.
+	var horizontal := lado == Lado.NORTE or lado == Lado.SUL
+	var candidatas: Array[Texture2D] = []
+	for d in decalques:
+		if d == null:
+			continue
+		var atravessa := d.get_height() if horizontal else d.get_width()
+		var ao_longo := d.get_width() if horizontal else d.get_height()
+		if float(atravessa) <= faixa and float(ao_longo) <= de.distance_to(ate):
+			candidatas.append(d)
+	if candidatas.is_empty():
+		return
+	var escolhida := candidatas[absi(chave ^ 0x5bd1e995) % candidatas.size()]
+
+	var comprimento := de.distance_to(ate)
+	var meia := (escolhida.get_width() if horizontal else escolhida.get_height()) * 0.5
+	var vao := comprimento - meia * 2.0
+	var onde := meia
+	if vao > 1.0:
+		onde += float(absi(chave ^ 0x1b873593) % int(vao))
+	var direcao := (ate - de) / comprimento
+
+	var sprite := Sprite2D.new()
+	sprite.texture = escolhida
+	sprite.position = de + direcao * onde + normal * (inicio + faixa * 0.5)
+	raiz.add_child(sprite)
 
 
 ## OS TRECHOS de um lado: ele inteiro, menos os vaos de porta.

@@ -250,3 +250,186 @@ godot --path . tools/medir_moldura.tscn --resolution 960x544
 Peça que não passe nos portões é **descartada**, não é acomodada. Foi assim que
 duas artes de projétil foram jogadas fora nesta mesma semana, e é o que impede a
 régua de virar carimbo.
+
+
+---
+
+# Revisão — a direção artística do Andar 1
+
+*(definida pelo dono depois do levantamento; a arquitetura técnica das seções 1 a
+5 não muda — faixas contínuas, face 56, topo 40, UV com deslocamento arbitrário e
+todos os portões continuam valendo)*
+
+## A frase que decide tudo
+
+> O primeiro andar não deve parecer "cyberpunk velho". Ele deve parecer **uma
+> fábrica que morreu**.
+
+O cyberpunk continua na paleta, nos personagens, nas armas e na tecnologia. A
+arquitetura conta uma história mais específica: máquinas trabalharam ali, foram
+reparadas, vazaram, quebraram, foram abandonadas, e agora só restam sistemas e
+autômatos funcionando além da vida útil.
+
+A leitura tem de acontecer nesta ordem:
+
+**estrutura industrial → função antiga → desgaste → abandono → tecnologia do psicode.**
+
+Não é ruína genérica nem instalação cyberpunk ainda ativa.
+
+## As cinco faces passam a ser FUNÇÕES, não texturas
+
+Cada módulo tem de responder *"o que existia aqui?"* mesmo sem prop nenhum.
+
+| módulo | função da fábrica |
+|---|---|
+| `comum` | o concreto visual: painéis estruturais de aço rebitado, juntas verticais, pintura industrial descascando, corrosão escorrendo dos pontos de fixação |
+| `tubulacao` | infraestrutura hidráulica: tubos grossos, flanges, válvula, conexões, vazamentos antigos |
+| `tecnica` | infraestrutura elétrica de controle **antiga**: bandejas de cabos, caixas de junção, conduítes. **Sem monitor moderno, sem holograma** — a tecnologia é industrial e utilitária |
+| `deteriorada` | o abandono: chapa arrancada, estrutura interna exposta, cabo pendurado, corrosão profunda. **Não é "a mesma textura mais suja"** |
+| `ventilada` | o sistema de exaustão: venezianas industriais, grade engordurada, lâmina torta, depósito escuro |
+
+## O piso também conta a história
+
+A base continua **escura e pouco contrastada** — a leitura de projétil não se
+negocia —, mas ganha variações grandes e **pouco frequentes**: marcas de
+circulação de máquina, trilhos embutidos inutilizados, mancha seca de óleo, placa
+substituída, risco de equipamento pesado, corrosão pontual, base de onde uma
+máquina foi arrancada, faixa de segurança quase apagada, número industrial gasto.
+
+Elas **não** aparecem em toda sala. O piso continua sendo a região mais calma.
+
+## Props passam a ser fundamentais
+
+O tile de 64×64 com wrap e deslocamento arbitrário **não pode esconder elemento
+único grande** — é a restrição da seção 1. Tudo que é objeto sai da textura e
+vira prop.
+
+12–16 famílias: tambor amassado, pallet, caixa de peças, tubulação quebrada,
+válvula, motor desmontado, painel elétrico morto, grade solta, cabo enrolado,
+carrinho industrial, suporte vazio de máquina, placa de identificação, peça
+descartada, poça de óleo. A maior parte cenográfica e sem colisão; os maiores
+podem virar obstáculo depois.
+
+## `FactoryRoomTheme` — cada sala é uma parte da mesma fábrica
+
+Um subtema por sala, que **não muda o tipo funcional**: sala de combate continua
+sala de combate. Ele só pesa a decoração.
+
+`PRODUCAO` · `MANUTENCAO` · `ENERGIA` · `VENTILACAO` · `ARMAZENAMENTO` · `DEGRADADA`
+
+MANUTENCAO favorece `tubulacao`, válvula, caixa de ferramenta, peça desmontada.
+ENERGIA favorece `tecnica`, cabo, caixa elétrica, marca de queimadura.
+DEGRADADA favorece `deteriorada`, chapa caída, corrosão, detrito.
+
+Isso resolve um problema que nenhuma textura resolve: a fábrica passa a parecer
+um lugar que **tinha organização interna**, e não um conjunto procedural de salas
+com decoração aleatória.
+
+## História ambiental sem texto
+
+Uma sequência que os assets têm de **permitir** — não precisa ser linear nem
+garantida: sala íntegra → reparo improvisado → vazamento → equipamento
+desmontado → deterioração crescente → setor do chefe.
+
+A numeração industrial (`A-03`, `P-12`, `M-04`, setas, símbolos de manutenção) é
+parte do vocabulário. Poucos por sala, grandes e gastos — e **decalque ou prop,
+nunca dentro do tile**, pela restrição da seção 1.
+
+## A sala do chefe fecha o círculo
+
+`motor` e `energia` levam a fábrica ao extremo: pistões, cilindros, óleo,
+barramento de cobre, isolador, marca de queimadura. Uma **antiga câmara de
+maquinário pesado**, não uma arena de chefe genérica.
+
+E a conexão que dá sentido ao andar inteiro: **o robô e a fábrica são da mesma
+geração tecnológica.** Atrás das paredes aparecem pistões parecidos com os
+componentes dele; os cabos grossos usam a linguagem da fiação exposta dele; o
+óleo que vaza da máquina repete a mancha vista pelo andar. Ele não é um inimigo
+enferrujado numa instalação qualquer — ele é o que sobrou daquela instalação.
+
+## Os três portões pedidos, e o que a medição diz de cada um
+
+Foram pedidos três portões novos além do de distinguibilidade. **Os três foram
+testados antes de serem prometidos, e só um funciona como proposto.**
+
+### Identidade — FUNCIONA, e mede a coisa certa
+
+A assinatura estrutural `(orientação, densidade)` separa os módulos, e a
+distância entre pares hoje mostra exatamente o colapso:
+
+```
+comum        x ventilada     0,073    <- a mesma chapa corrugada
+deteriorada  x ventilada     0,121
+comum        x deteriorada   0,175
+------------------------------------- corte proposto: 0,25
+tubulacao    x deteriorada   0,303
+tubulacao    x tecnica       0,398
+tubulacao    x ventilada     0,424
+comum        x tubulacao     0,478
+comum        x tecnica       0,534
+tecnica      x deteriorada   0,558
+tecnica      x ventilada     0,607
+```
+
+O corte em 0,25 reprova os três pares colapsados e passa os sete restantes.
+
+**A metade que NÃO é automatizável** é a que o pedido descreve como
+*"classificável como `tubulacao` sem consultar o nome do arquivo"*. Isso é
+reconhecimento semântico; a régua mede que as cinco são **estruturalmente
+distintas**, não que alguém as nomeia certo. A nomeação fica como critério de
+aceite humano, e este documento diz isso em vez de fingir.
+
+### Material — a formulação direta NÃO funciona; a indireta sim
+
+Testou-se separar alvenaria de chapa pela **ortogonalidade** do gradiente — a
+fração da energia que cai nos eixos, contra as diagonais. Medido:
+
+```
+parede_topo_a  (chapa rebitada)     0,418
+parede_topo_b  (ALVENARIA)          0,429
+parede_topo_c  (painel vertical)    0,434
+```
+
+**Não separa.** Alvenaria e chapa dão o mesmo número, e um portão sobre isso
+seria um carimbo.
+
+O que funciona é medir o defeito real, que não é "existe pedra" e sim **"os três
+topos são materiais diferentes"**. Na mesma assinatura estrutural, o par
+`topo_b × topo_c` mede **0,309** — muito acima do que três variantes do mesmo
+material deveriam medir entre si. O portão inverte: em vez de proibir um
+material, exige que os três topos fiquem **próximos entre si** (≤ 0,20).
+
+Isso pega a alvenaria de hoje e continua pegando qualquer material estranho que
+entre amanhã, sem precisar reconhecer pedra.
+
+### Abandono — NÃO é medível como proposto
+
+Testou-se **heterogeneidade** (coeficiente de variação da densidade em blocos
+4×4), esperando que superfície gasta fosse mais irregular que superfície limpa. O
+resultado é o inverso do esperado:
+
+```
+chao_andar1_a                    0,282
+parede_topo_b                    0,154
+parede_face_combate              0,093
+parede_face_combate_deteriorada  0,020   <- a MAIS deteriorada e a mais homogenea
+```
+
+A `deteriorada` mede o menor número da biblioteca inteira. A métrica está
+capturando "tem regiões grandes uniformes", não "tem desgaste".
+
+**Esse portão não será escrito.** No lugar entra o que é honesto e cobrável: os
+três topos têm de estar **ordenados** num eixo de desgaste declarado (A < B < C),
+e a pergunta *"isto parece abandonado?"* fica no critério de aceite, olhada. Um
+portão em que não se confia empurra a arte para o lado errado com a autoridade de
+um número — e isto já está escrito no `preparar_textura.py`.
+
+## Ordem de implementação
+
+Cinco etapas, **sem tocar na geometria da parede** enquanto isso:
+
+1. **Parede** — três estados da mesma chapa no topo, cinco faces com função.
+2. **Piso** — base menos repetitiva e decalques industriais independentes.
+3. **Props** — biblioteca de fábrica abandonada e distribuição.
+4. **Tematização** — `FactoryRoomTheme`.
+5. **Chefe** — o setor de maquinário pesado, ligando a fábrica ao robô.

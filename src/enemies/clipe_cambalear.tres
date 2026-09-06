@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ClipeDirecional" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://src/enemies/clipe_direcional.gd" id="1_clipe"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/cambalear_east.png" id="2_east"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/cambalear_south-east.png" id="3_south_east"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/cambalear_south.png" id="4_south"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/cambalear_south-west.png" id="5_south_west"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/cambalear_west.png" id="6_west"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/cambalear_north-west.png" id="7_north_west"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/cambalear_north.png" id="8_north"]
+[ext_resource type="Texture2D" path="res://assets/inimigos/boss_guardiao_01/cambalear_north-east.png" id="9_north_east"]
+
+[resource]
+script = ExtResource("1_clipe")
+nome = &"cambalear"
+fitas = Array[Texture2D]([ExtResource("2_east"), ExtResource("3_south_east"), ExtResource("4_south"), ExtResource("5_south_west"), ExtResource("6_west"), ExtResource("7_north_west"), ExtResource("8_north"), ExtResource("9_north_east")])
+quadros = 5
+fps = 10.0
+modo = 1
+invertido = false

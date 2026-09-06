@@ -50,17 +50,18 @@ const QUADROS_DE_PREPARO := 4
 ## existir depois da ultima issue do epico, e a arte que ja chegou passaria sem
 ## prova ate la.
 ##
-## Uma lista assim so vale se ela morder dos DOIS lados, e e o que o caso faz:
-## nome fora dela tem de existir, e nome DENTRO dela tem de continuar faltando.
-## Sem a segunda metade, a ANIM 05 entregaria o Reator e a linha ficaria aqui
-## para sempre, cobrindo em silencio o dia em que aquele clipe se perdesse.
+## Uma lista assim so vale se ela morder dos DOIS lados: nome fora dela tem de
+## existir, e nome DENTRO dela tem de continuar faltando. Sem a segunda metade a
+## ANIM 05 entregaria o Reator e a linha ficaria aqui para sempre, cobrindo em
+## silencio o dia em que aquele clipe se perdesse.
+##
+## **Ela esta VAZIA, e foi assim que ela terminou de servir.** Entraram quatro
+## nomes -- os dois do Reator, o cambalear e o despertar -- e o `morrer` entrou
+## depois, quando o portao passou a varrer o estado MORTE. Os cinco sairam com a
+## arte das ANIM 05, 06 e 07. A lista fica: ela e o interruptor de "este gesto
+## ainda nao existe", e sem ela o proximo gesto pedido antes da arte poria o
+## portao vermelho sem ter onde declarar isso.
 const SEM_CLIPE_AINDA: Array[StringName] = [
-	# ANIM 05 -- a Falha do Reator.
-	&"armar_reator", &"sobrecarregar",
-	# ANIM 06 -- cambalear e morrer.
-	&"cambalear",
-	# ANIM 07 -- o despertar na baia.
-	&"despertar",
 ]
 
 ## Teto de quanto tempo UM quadro pode ficar parado na tela.
@@ -118,7 +119,14 @@ func _o_gesto_pedido_existe_e_tem_a_contagem_medida() -> void:
 			ok(nome != &"", "%s/%s pede um gesto" % [ataque, estado])
 			if nome != &"":
 				pedidos.append(nome)
-	for estado: StringName in [chefe.ATORDOADO, chefe.DESPERTAR]:
+	# MORTE entra na lista, e a ausencia dela era um buraco.
+	#
+	# O portao varria os estados um por um, escritos a mao, e `MORTE` nao estava
+	# entre eles: um gesto pedido por `clipe_do_estado()` e nao declarado em
+	# lugar nenhum passava VERDE. E a mesma familia do defeito que abriu este
+	# epico -- "clipe declarado nao prova que alguem o desenha" --, so que pelo
+	# outro lado: alguem pedia e nada provava que existia.
+	for estado: StringName in [chefe.ATORDOADO, chefe.DESPERTAR, chefe.MORTE]:
 		var nome: StringName = chefe.clipe_do_estado(estado, chefe.SOCO)
 		ok(nome != &"", "%s pede um gesto" % estado)
 		if nome != &"":

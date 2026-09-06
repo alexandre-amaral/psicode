@@ -156,9 +156,25 @@ func _o_conjunto_de_arquivos(s: SpriteDirecional) -> void:
 	)
 
 
+## Os clipes cujas oito fitas apontam de proposito para a MESMA arte.
+##
+## Repetir fita e, quase sempre, o erro de copiar-colar que deixa duas direcoes
+## identicas -- e nada mais no jogo acusa. Mas ha gesto que NAO DEVE girar, e o
+## despertar do chefe e o caso: a apresentacao inteira depende de o jogador achar
+## que o robo e cenario, e um chefe que gira ao acordar vira um inimigo que
+## estava esperando, e nao uma maquina que foi ligada.
+##
+## Declarar em vez de abrir excecao no codigo mantem o portao mordendo em todo o
+## resto. E ela morde dos dois lados: nome aqui que PARE de repetir sai da lista,
+## senao ela vira permissao permanente.
+const GESTO_QUE_NAO_GIRA: Array[String] = [
+	"despertar",
+]
+
+
 ## Cada textura tem o tamanho certo, nao e nula, e nao repete outro arquivo.
 ## Repetir e o erro de copiar-colar que deixa duas direcoes identicas, e nada
-## mais no jogo acusa.
+## mais no jogo acusa -- fora os gestos de `GESTO_QUE_NAO_GIRA`.
 func _medir(texturas: Array[Texture2D], tamanho: Vector2, rotulo: String) -> void:
 	var vistas: Array[String] = []
 	for i in texturas.size():
@@ -167,8 +183,14 @@ func _medir(texturas: Array[Texture2D], tamanho: Vector2, rotulo: String) -> voi
 			ok(false, "%s: %s %d nao e nula" % [_nome_atual, rotulo, i])
 			continue
 		igual(t.get_size(), tamanho, "%s: %s %d mede %s" % [_nome_atual, rotulo, i, tamanho])
+		# O rotulo carrega o nome do gesto quando ele e um clipe; e por ele que a
+		# excecao declarada se reconhece, sem o portao precisar saber de clipes.
+		var pode_repetir := false
+		for gesto in GESTO_QUE_NAO_GIRA:
+			if rotulo.contains(gesto):
+				pode_repetir = true
 		ok(
-			not vistas.has(t.resource_path),
+			pode_repetir or not vistas.has(t.resource_path),
 			"%s: %s %d nao repete outro arquivo (%s)" % [_nome_atual, rotulo, i, t.resource_path.get_file()]
 		)
 		vistas.append(t.resource_path)

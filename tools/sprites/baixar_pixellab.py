@@ -158,13 +158,16 @@ def _objeto(id_arma, fontes):
 def main():
     if len(sys.argv) >= 4 and sys.argv[1] == "--objeto":
         return _objeto(sys.argv[2], sys.argv[3:])
-    if len(sys.argv) not in (4, 5):
+    # A bandeira sai da lista posicional antes de qualquer contagem, senao ela
+    # e lida como o intervalo `a-b` e o script morre com a mensagem errada.
+    argumentos = [a for a in sys.argv if a != "--uma-direcao"]
+    if len(argumentos) not in (4, 5):
         sys.exit(__doc__)
-    ator, clipe, fonte = sys.argv[1], sys.argv[2], sys.argv[3]
+    ator, clipe, fonte = argumentos[1], argumentos[2], argumentos[3]
     corte = None
-    if len(sys.argv) == 5:
+    if len(argumentos) == 5:
         try:
-            a, b = sys.argv[4].split("-")
+            a, b = argumentos[4].split("-")
             corte = (int(a), int(b) + 1)
         except ValueError:
             sys.exit("intervalo tem de ser a-b, ex.: 0-3")
@@ -178,6 +181,22 @@ def main():
         mapa = _do_zip(pacote, animacao)
     else:
         mapa = _do_manifesto(fonte)
+
+    # UMA DIRECAO SO, quando o gesto nao deve girar.
+    #
+    # `--uma-direcao` copia o SUL para as oito. Nao e um atalho para arte
+    # incompleta: ha gesto que so faz sentido numa direcao, e o despertar do
+    # chefe e o caso -- ele acorda encarando a porta por onde o jogador entrou, e
+    # um chefe que gira ao acordar vira um inimigo que estava esperando.
+    #
+    # As oito continuam existindo porque a contagem de quadros sai de um campo
+    # so: sete direcoes viram sete arquivos que passam em tudo e deixam um lado
+    # do bicho congelado.
+    if "--uma-direcao" in sys.argv and mapa.get("south"):
+        for d in DIRECOES:
+            mapa.setdefault(d, [])
+            if not mapa[d]:
+                mapa[d] = list(mapa["south"])
 
     faltando = [d for d in DIRECOES if not mapa.get(d)]
     if faltando:

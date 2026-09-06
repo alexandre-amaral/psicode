@@ -298,6 +298,18 @@ var _golpes_restantes: int = 1
 ## a investida justa, e a mesma que a Cyber-Besta ja segue: investida que
 ## persegue durante a execucao nao da para esquivar, so para sobreviver.
 var _direcao_travada: Vector2 = Vector2.RIGHT
+
+## O aviso da INVESTIDA, e o unico ataque do chefe que nao tinha nenhum.
+##
+## SOCO e REATOR avisam por `AreaDePerigo`, que traz o `Telegrafo` de graca;
+## RAJADA e PISAO avisam pelo corpo travado mais o gesto. A investida tinha so o
+## corpo travado -- e ela e o ataque que percorre a sala inteira a 620 px/s.
+##
+## A forma escolhida e a MESMA da Cyber-Besta: uma LINHA da posicao do chefe ate
+## onde a corrida vai parar. Isso nao e economia de codigo, e vocabulario -- ha
+## dois ataques de investida no jogo, e o jogador que aprendeu a ler a Besta ja
+## sabe ler o chefe.
+var _telegrafo: Telegrafo
 ## O corpo de oito rotacoes. Ver `_animar()`.
 var _sprite: SpriteDirecional
 ## O ataque anterior. E a MEMORIA da selecao: sem ela, dois socos seguidos por
@@ -328,6 +340,8 @@ var _t_pulso: float = 0.0
 
 
 func _ready() -> void:
+	_telegrafo = Telegrafo.anexar(self)
+	_telegrafo.cor = cor_base
 	super._ready()
 
 	_placa = $Visual/Placa
@@ -988,6 +1002,13 @@ func _preparar_entrar() -> void:
 			_semear_aviso_do_soco()
 		REATOR:
 			_semear_cerco_do_reator()
+		INVESTIDA:
+			# Ate onde a corrida vai parar, e nao um comprimento fixo: o aviso
+			# tem de dizer a verdade sobre o alcance, senao ele ensina errado.
+			_telegrafo.linha(global_position,
+				global_position + _direcao_travada
+					* velocidade_investida * tempo_real(duracao_investida))
+			_telegrafo.acender(_aviso_atual)
 
 
 func _preparar(delta: float) -> void:
@@ -1006,6 +1027,10 @@ func _executar_entrar() -> void:
 		REATOR:
 			_estourar_o_reator()
 		INVESTIDA:
+			# O aviso apaga quando o golpe SAI, e nao quando ele termina: aviso
+			# aceso durante a corrida seria uma linha que promete o que ja esta
+			# acontecendo.
+			_telegrafo.apagar()
 			EventBus.pedido_shake.emit(4.0, 0.18)
 
 
@@ -1092,6 +1117,16 @@ func _ponto_do_soco() -> Vector2:
 ## isto aqui e o que sai dele para a frente.
 func _bater() -> void:
 	EventBus.pedido_shake.emit(7.0, 0.25)
+	# O PUNHO CHEGA AO CHAO, e ate aqui isso era so tremor.
+	#
+	# O aviso do soco e uma `AreaDePerigo` e o dano sai dela, entao o ataque
+	# estava correto e mudo: no instante do golpe nada acontecia NO PONTO em que
+	# ele acontece. Faisca e poeira metalica ali sao o que amarram o circulo
+	# desenhado no chao ao golpe que ele avisou.
+	#
+	# Familia PO pela mesma razao da batida na parede: e um punho hidraulico, e o
+	# vocabulario do chefe e metal pesado e nao energia.
+	_poeira_em(_ponto_do_soco(), 2.4)
 	var direcoes := Balistica.leque(_direcao_travada, _ondas_do_soco(), abertura_onda)
 	_arma_onda.atirar_varias(direcoes)
 
@@ -1258,6 +1293,35 @@ func _investidas_da_fase() -> int:
 func _atordoado_entrar() -> void:
 	velocity = Vector2.ZERO
 	EventBus.pedido_shake.emit(6.0, 0.3)
+	# A BATIDA TEM IMPACTO, e ela e a maior janela da luta depois do Reator.
+	#
+	# Ela acontecia com o tremor e mais nada: o chefe simplesmente parava. Sem
+	# efeito, o jogador nao le "ele errou" -- le "ele decidiu parar", e a janela
+	# que ele ganhou por esquivar deixa de ser legivel como recompensa.
+	#
+	# Familia PO, que e a do proprio chefe e da sucata: pesado e sem brilho. Uma
+	# FAISCA ali diria "algo eletrico", e o que bateu foi uma tonelada de metal.
+	_poeira_da_batida()
+
+
+## A poeira da batida na parede, a frente do chefe.
+##
+## `vestir()` roda ANTES do `add_child`, ao contrario da convencao da casa: o
+## `_ready` de `fx_autodestroi.gd` liga a emissao e agenda a liberacao com o
+## `lifetime` DAQUELE instante. Vestido depois, a particula morre no tempo errado.
+func _poeira_da_batida() -> void:
+	_poeira_em(global_position + _direcao_travada * raio_soco * 0.5, 2.0)
+
+
+## Poeira metalica num ponto do mundo.
+func _poeira_em(onde: Vector2, escala: float) -> void:
+	var casa := get_tree().current_scene
+	if casa == null:
+		return
+	var fx := preload("res://src/fx/impacto.tscn").instantiate()
+	fx.global_position = onde
+	Impactos.vestir(fx, Impactos.Familia.PO, cor_base, escala)
+	casa.add_child(fx)
 
 
 func _atordoado(delta: float) -> void:

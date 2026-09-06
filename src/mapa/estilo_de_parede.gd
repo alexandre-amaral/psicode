@@ -132,6 +132,11 @@ func canto(indice: int) -> Texture2D:
 @export var topo_sul: float = -1.0
 @export var face_sul: float = -1.0
 @export var borda_externa_sul: float = -1.0
+## Como o topo se divide (#241). Sentinela NEGATIVO como os de cima: -1 herda o
+## que `PerfilDeParede` declara, e so um andar que queira outra subdivisao
+## escreve aqui.
+@export var borda_do_topo: float = -1.0
+@export var bisel_do_topo: float = -1.0
 
 
 ## O perfil que o renderizador consome.
@@ -155,4 +160,8 @@ func perfil() -> PerfilDeParede:
 		p.face_sul = face_sul
 	if borda_externa_sul >= 0.0:
 		p.borda_externa_sul = borda_externa_sul
+	if borda_do_topo >= 0.0:
+		p.borda_do_topo = borda_do_topo
+	if bisel_do_topo >= 0.0:
+		p.bisel_do_topo = bisel_do_topo
 	return p

@@ -117,6 +117,21 @@ const N7 := Color("5a6480")
 ## nao ha arte que conserte -- o problema esta na geometria, e e ela que muda.
 const COR_TOPO := Color("31384c")
 const COR_FACE := Color("1a1e2b")
+## O BISEL entre os dois, e o degrau entre as tres cores e o proprio teste: se em
+## silhueta a faixa ainda parecer um bloco, nao ha arte que conserte.
+const COR_BISEL := N4
+
+## Quanto o BISEL escurece a chapa que ele corta.
+##
+## Ele e a MESMA textura do topo multiplicada por isto, e nao uma faixa chapada:
+## o que se quer ali e "a chapa dobra e pega menos luz", que e material, e nao
+## "alguem desenhou uma linha por cima", que e o outline que a meia-esquadria
+## existe para nao ter.
+##
+## Mais azul que cinza porque a rampa neutra do projeto e fria -- N1 e quase
+## azul puro --, entao escurecer para o cinza descolaria o bisel da propria
+## sombra da parede.
+const TINTA_DO_BISEL := Color(0.55, 0.57, 0.66)
 
 const COSTURA := 32.0
 const SOMBRA_DA_COSTURA := 2.0
@@ -257,6 +272,18 @@ static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 	if borda > 0.0:
 		_borda_externa_do_sul(raiz, a, b, normal, fim_topo, fundo)
 
+	# A SUBDIVISAO DO TOPO (#241), e ela acompanha o TOPO e nao a face: o topo
+	# atravessa o vao da porta, entao desenhar bisel e borda por trecho os
+	# interromperia em cima de cada porta -- a mesma falha que a face teve por
+	# seis issues, so que ao contrario.
+	var bisel := perfil.bisel_do_topo
+	if bisel > 0.0 and fim_face + bisel <= fim_topo:
+		_superficie(raiz, a, b, normal, fim_face, fim_face + bisel, textura_topo,
+			ancora, silhueta, COR_BISEL, TINTA_DO_BISEL)
+	var borda_topo := perfil.borda_do_topo
+	if borda_topo > 0.0 and fim_topo - borda_topo > fim_face:
+		_banda(raiz, a, b, normal, fim_topo - borda_topo, fim_topo, N1)
+
 	for trecho in trechos_livres(contorno, a, b, portas):
 		var de: Vector2 = trecho[0]
 		var ate: Vector2 = trecho[1]
@@ -266,7 +293,7 @@ static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 			_superficie(raiz, de, ate, normal, 0.0, fim_face, textura_face,
 				ancora, silhueta, COR_FACE)
 		_vestir_acabamento(raiz, de, ate, normal, lado, fim_face <= 0.0, fundo,
-			fim_face)
+			fim_face, perfil.borda_do_topo > 0.0)
 
 
 ## OS TRECHOS de um lado: ele inteiro, menos os vaos de porta.
@@ -347,7 +374,7 @@ static func _borda_externa_do_sul(raiz: Node2D, de: Vector2, ate: Vector2,
 ## problema e a geometria, e nao a arte -- e nao adianta avancar.
 static func _superficie(raiz: Node2D, de: Vector2, ate: Vector2, normal: Vector2,
 		inicio: float, fim: float, textura: Texture2D, ancora: Vector2,
-		silhueta: bool, cor: Color) -> void:
+		silhueta: bool, cor: Color, tinta: Color = Color.WHITE) -> void:
 	if fim - inicio < 0.5:
 		return
 	# `position` no MEIO da faixa e o poligono relativo a ela.
@@ -368,6 +395,9 @@ static func _superficie(raiz: Node2D, de: Vector2, ate: Vector2, normal: Vector2
 	if silhueta or textura == null:
 		quad.color = cor
 	else:
+		# `color` MULTIPLICA a textura num Polygon2D. E como o bisel escurece a
+		# chapa sem deixar de ser a chapa.
+		quad.color = tinta
 		quad.texture = textura
 		# Sem isto a textura sai esticada UMA vez no tamanho do quad: o projeto
 		# nao define `default_texture_repeat`, entao o padrao e Disabled.
@@ -424,7 +454,7 @@ static func _superficie(raiz: Node2D, de: Vector2, ate: Vector2, normal: Vector2
 ## projeto ja removeu uma vez. O labio tem 1 px, e no meio da faixa.
 static func _vestir_acabamento(raiz: Node2D, de: Vector2, ate: Vector2,
 		normal: Vector2, lado: Lado, so_topo: bool, fundo: float,
-		costura: float) -> void:
+		costura: float, tem_borda_de_topo: bool = false) -> void:
 	# A COSTURA: onde o topo vira face. Nao existe no sul, que nao tem face.
 	if not so_topo and costura > SOMBRA_DA_COSTURA:
 		_banda(raiz, de, ate, normal, costura - SOMBRA_DA_COSTURA, costura, N4)
@@ -458,9 +488,16 @@ static func _vestir_acabamento(raiz: Node2D, de: Vector2, ate: Vector2,
 	# e N0 --, e nao e para ele que existe: e para a boca do corredor, onde duas
 	# faixas se encontram sem separacao, e para a quina, onde o canto encosta nos
 	# dois lados.
-	_banda(raiz, de, ate, normal, fundo - BISEL, fundo, N1)
-	if lado == Lado.OESTE:
-		_banda(raiz, de, ate, normal, fundo - BISEL - LABIO, fundo - BISEL, N7)
+	#
+	# **Ele SAI quando o topo tem borda propria.** A borda de #241 e a mesma
+	# ideia com 4 px e desenhada ao longo do lado inteiro; manter os dois somaria
+	# duas faixas escuras encostadas, e a de cima ficaria interrompida em cada
+	# porta enquanto a de baixo atravessa -- duas respostas para onde a parede
+	# acaba, que e o defeito que a face ja pagou.
+	if not tem_borda_de_topo:
+		_banda(raiz, de, ate, normal, fundo - BISEL, fundo, N1)
+		if lado == Lado.OESTE:
+			_banda(raiz, de, ate, normal, fundo - BISEL - LABIO, fundo - BISEL, N7)
 
 
 ## Uma tira retangular ao longo de um trecho do contorno.

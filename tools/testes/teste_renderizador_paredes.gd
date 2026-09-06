@@ -37,6 +37,7 @@ func executar() -> void:
 	_a_variante_e_deterministica_e_o_espacamento_morde()
 	_as_duas_contas_de_onde_ha_parede_coincidem()
 	_nada_vaza_pela_BOCA_de_um_lado_aberto()
+	_o_topo_ainda_tem_CHAPA()
 
 
 ## Toda forma de sala em disco monta a fita, e nenhuma monta vazia.
@@ -725,3 +726,45 @@ func _nada_vaza_pela_BOCA_de_um_lado_aberto() -> void:
 	)
 	fita.get_parent().remove_child(fita)
 	fita.free()
+
+
+## A subdivisao do topo nao pode comer a superficie inteira.
+##
+## `borda_do_topo` e `bisel_do_topo` sao acabamento; entre eles fica a CHAPA, que
+## e o material -- e e ela que carrega a textura sorteada por sala. Somados acima
+## da profundidade do topo, os dois nao dao erro nenhum: `_superficie()` desiste
+## sozinha quando a banda tem menos de meio pixel, e a faixa passa a ser so
+## juntas, com a arte do topo simplesmente ausente da tela.
+##
+## **A soma nao precisa ser cobrada porque a chapa e DERIVADA.** A issue pedia
+## tres campos com `borda + chapa + bisel == topo` conferido; guardar a chapa
+## como quarto numero e mante-lo em dia por portao e a duplicata que o
+## `EstiloDeParede` ja custou dois epicos. O que resta perguntar e o que ainda
+## pode falhar: sobrou chapa?
+##
+## O piso e 16 e nao 1: uma chapa de 2 px existe e nao le como superficie
+## nenhuma, e um portao que aprovasse isso estaria carimbando.
+func _o_topo_ainda_tem_CHAPA() -> void:
+	var perfil := PerfilDeParede.new()
+	for lado in [RenderizadorParedes.Lado.NORTE, RenderizadorParedes.Lado.SUL,
+			RenderizadorParedes.Lado.LESTE, RenderizadorParedes.Lado.OESTE]:
+		ok(perfil.chapa_do_topo(lado) >= 16.0,
+			"o lado %d guarda chapa para a textura do topo (%.0f px)"
+				% [lado, perfil.chapa_do_topo(lado)])
+
+	# O LADO QUE MORDE: acabamento maior que a faixa tem de reprovar. Sem este
+	# caso o de cima passaria para sempre com os defaults e nunca teria olhado a
+	# conta.
+	var estourado := PerfilDeParede.new()
+	estourado.bisel_do_topo = estourado.topo_norte
+	ok(estourado.chapa_do_topo(RenderizadorParedes.Lado.NORTE) < 16.0,
+		"um bisel do tamanho da faixa nao deixa chapa, e o portao ve isso")
+
+	# E as VARIANTES comparadas em `comparar_topos.tscn` tambem cabem: uma
+	# variante que nao coubesse seria fotografada e comparada mesmo assim, e a
+	# foto nao diz que a chapa sumiu -- ela mostra uma faixa escura plausivel.
+	for nome in ["atual", "A", "B", "C"]:
+		var variante := PerfilDeParede.de_topo(nome)
+		ok(variante.chapa_do_topo(RenderizadorParedes.Lado.NORTE) >= 16.0,
+			"a variante %s guarda chapa (%.0f px)"
+				% [nome, variante.chapa_do_topo(RenderizadorParedes.Lado.NORTE)])

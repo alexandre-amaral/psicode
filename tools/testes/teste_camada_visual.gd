@@ -44,6 +44,7 @@ func executar() -> void:
 	_a_faixa_de_uv_da_face_e_declarada()
 	_o_corredor_usa_a_mesma_perspectiva_da_sala()
 	_a_razao_face_topo_fica_em_um_para_um()
+	_o_topo_e_subordinado_a_face()
 	_o_topo_cerca_a_sala_e_a_face_nao_desce_para_o_sul()
 	_a_sombra_assenta_a_parede_sem_invadir_o_combate()
 	_a_deterioracao_visual_nunca_decresce()
@@ -1177,3 +1178,126 @@ func _a_deterioracao_visual_nunca_decresce() -> void:
 	# Piso: uma funcao que devolvesse sempre o mesmo indice passaria em todas as
 	# comparacoes acima sem progredir nada.
 	ok(subiu, "e ela de fato PROGRIDE ao longo do andar, nao fica no mesmo")
+
+
+## Quanto o TOPO pode chamar a atencao, em fracao da FACE.
+##
+## **A fracao sai da hierarquia que o projeto ja declara, e nao de gosto.** O
+## chao e a superficie calma por decisao e mede 19% da face. O topo nao precisa
+## ir tao longe -- ele e arquitetura e a face e identidade --, mas 100% e o
+## numero de quem nao e subordinado a ninguem. 0,75 poe o topo claramente abaixo
+## e ainda bem acima do chao.
+const SUBORDINACAO_MAXIMA := 0.75
+
+## O topo ainda compete com a face, e isso esta DECLARADO.
+##
+## Mesmo desenho de `SEM_ARTE_AINDA`, `SEM_CLIPE_AINDA` e `MODULOS_COLAPSADOS`: a
+## bandeira morde dos DOIS lados. Enquanto ela estiver ligada, o topo TEM de
+## continuar competindo -- no dia em que a #241 e a #242 entrarem, este caso
+## reprova e obriga a desliga-la. Sem a segunda metade ela viraria permissao
+## permanente, que e como o `EstiloDeParede` cobriu dois epicos inteiros.
+const TOPO_AINDA_COMPETE := true
+
+
+## O TOPO e ESPESSURA, e espessura nao disputa atencao com identidade.
+##
+## A ordem desejada de leitura e player -> interior -> face -> props -> topo ->
+## exterior. Medido na captura real (`quina_sala.png`), a energia de gradiente
+## por pixel dizia outra coisa: topo 27,66 e face 27,67 -- identicos --, contra
+## 5,29 do chao. O topo e a face competem em igualdade exata.
+##
+## **A medicao e sobre o MIOLO de cada superficie, e nao sobre a faixa inteira.**
+## As juntas -- linha de contato, costura, labio, bisel -- sao estrutura, e a
+## #241 acrescenta mais delas de proposito. Um portao que as contasse subiria
+## quando a estrutura melhorasse, que e o oposto do que ele existe para dizer.
+## O que ele pergunta e sobre o MATERIAL: quanto a chapa de cima conversa,
+## comparada com a face.
+##
+## E ele le a fita MONTADA, e nao os PNGs. O que o jogador ve no topo e a textura
+## mais as bandas desenhadas em codigo; medir `parede_topo_a.png` responderia
+## sobre um arquivo, e nao sobre a parede.
+func _o_topo_e_subordinado_a_face() -> void:
+	var dados := load("res://src/mapa/tipo_combate.tres") as DadosSala
+	var sala := _montar_com(CENA_SALA, dados, Vector2i.ZERO)
+	var fita := sala.get_node_or_null("ParedeModulos") as Node2D
+	ok(fita != null, "a sala montou a fita para medir")
+	if fita == null:
+		sala.free()
+		return
+
+	var perfil := sala.perfil_de_parede()
+	var contorno := sala.contorno_local()
+	var portas: Array[Porta] = []
+	var raiz := sala.get_node_or_null("Portas")
+	if raiz != null:
+		for filho in raiz.get_children():
+			var porta := filho as Porta
+			if porta != null:
+				portas.append(porta)
+
+	# O lado NORTE: o unico que mostra a face inteira de frente, e por isso o
+	# unico em que a pergunta "o topo compete com a face?" tem sentido.
+	var de := Vector2.ZERO
+	var ate := Vector2.ZERO
+	var normal := Vector2.ZERO
+	var maior := 0.0
+	for i in contorno.size():
+		var a := contorno[i]
+		var b := contorno[(i + 1) % contorno.size()]
+		var n := RenderizadorParedes.normal_externa(contorno, a, b)
+		if RenderizadorParedes.classificar(n) != RenderizadorParedes.Lado.NORTE:
+			continue
+		# O trecho LIVRE mais longo, e ele vem do proprio renderizador: a face
+		# abre no vao da porta e o topo o atravessa, entao amostrar em cima de
+		# uma porta compararia topo contra nada.
+		for trecho in RenderizadorParedes.trechos_livres(contorno, a, b, portas):
+			var comprimento: float = trecho[0].distance_to(trecho[1])
+			if comprimento > maior:
+				maior = comprimento
+				de = trecho[0]
+				ate = trecho[1]
+				normal = n
+	ok(maior >= 64.0, "achou um trecho de norte sem porta para medir (%.0f px)" % maior)
+	if maior < 64.0:
+		sala.free()
+		return
+
+	var fundo := int(perfil.profundidade(RenderizadorParedes.Lado.NORTE))
+	var fim_face := int(perfil.fim_da_face(RenderizadorParedes.Lado.NORTE))
+	var largura := int(minf(maior, 192.0))
+	var meio := (de + ate) * 0.5
+	var eixo := (ate - de).normalized()
+	var imagem := RasterizadorDeFita.faixa(fita,
+		meio - eixo * (largura * 0.5), meio + eixo * (largura * 0.5),
+		normal, fundo, largura)
+
+	# O MIOLO de cada banda: as juntas ficam de fora, dos dois lados, pela mesma
+	# regra.
+	#
+	# 4 px porque a maior peca de acabamento da faixa tem 2 -- linha de contato,
+	# sombra da costura e bisel medem 2, o labio mede 1 --, e 4 deixa um pixel de
+	# folga de cada lado. **Nao use `RenderizadorParedes.COSTURA` aqui**: aquele
+	# 32 e a POSICAO onde a costura ficava quando a face tinha 32 px, e nao a
+	# largura de peca nenhuma. Com face de 56 ele apaga a banda inteira, e a
+	# primeira versao deste caso mediu energia ZERO por causa dele.
+	var margem := 4
+	var energia_face := RasterizadorDeFita.energia(imagem, margem, fim_face - margem)
+	var energia_topo := RasterizadorDeFita.energia(imagem, fim_face + margem, fundo - margem)
+	ok(energia_face > 0.0, "a face tem miolo para medir (%.2f)" % energia_face)
+	if energia_face <= 0.0:
+		sala.free()
+		return
+
+	var razao := energia_topo / energia_face
+	if TOPO_AINDA_COMPETE:
+		# A metade que morde: enquanto a bandeira estiver ligada, o topo TEM de
+		# continuar competindo. Quando a arte e as bandas chegarem, este caso
+		# reprova e a linha nao fica para tras.
+		ok(razao > SUBORDINACAO_MAXIMA,
+			"o topo esta declarado como competindo e continua competindo (topo %.2f / face %.2f = %.3f)"
+				% [energia_topo, energia_face, razao])
+	else:
+		ok(razao <= SUBORDINACAO_MAXIMA,
+			"o topo e subordinado a face (topo %.2f / face %.2f = %.3f, teto %.2f)"
+				% [energia_topo, energia_face, razao, SUBORDINACAO_MAXIMA])
+	sala.free()

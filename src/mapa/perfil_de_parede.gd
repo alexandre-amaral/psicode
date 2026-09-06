@@ -129,6 +129,38 @@ var face_sul: float = 56.0
 var borda_externa_sul: float = 0.0
 
 
+## COMO os 40 px de topo se dividem, do contorno para FORA.
+##
+##         vazio
+##     ------------------   borda do topo     4 px
+##     ##################   chapa superior   26 px   (derivada)
+##     ------------------   bisel do topo    10 px
+##     ##################   face             56 px
+##
+## **A hipotese e que o problema nao e TER 40 px: e os 40 px serem lidos como uma
+## massa homogenea.** Medida a energia de gradiente por pixel na captura real, o
+## topo dava 27,66 e a face 27,67 -- identicos --, contra 5,29 do chao. O topo e
+## espessura e deveria ser subordinado; ele competia de igual para igual.
+##
+## **A CHAPA e derivada, e nao um terceiro campo.** A issue pedia tres numeros com
+## a soma cobrada por um portao; derivar e estritamente melhor, porque a soma
+## deixa de poder divergir. O que sobra para o portao e a pergunta que ainda pode
+## falhar -- **a chapa continua existindo?** --, cobrada por
+## `teste_renderizador_paredes`. Um campo redundante guardado ao lado de um
+## portao que o confere e exatamente a duplicata que o `EstiloDeParede` custou.
+##
+## **Nada de contorno de sprite.** A borda e o bisel nascem de mudanca de VALOR,
+## sombra e material -- e por isso o bisel e a MESMA textura do topo escurecida,
+## e nao uma faixa chapada. Um outline artificial reintroduz a leitura de "peca
+## desenhada por cima", que e o defeito que a meia-esquadria removeu das quinas.
+##
+## Iguais nos quatro lados porque o topo tambem e: ele e a superficie continua que
+## da a volta na sala, e um bisel que mudasse de espessura ao virar a quina
+## quebraria a unica coisa que segura aquela leitura.
+var borda_do_topo: float = 4.0
+var bisel_do_topo: float = 10.0
+
+
 ## Os quatro perfis da matriz de comparacao do plano.
 ##
 ## Eles existem para a escolha ser feita olhando a MESMA sala nos quatro, lado a
@@ -187,6 +219,53 @@ static func de_nome(nome: String) -> PerfilDeParede:
 		_:
 			pass
 	return p
+
+
+## As variantes de TOPO comparadas em `tools/comparar_topos.tscn`.
+##
+## Elas mudam **so a subdivisao**: profundidade, face e grade continuam as
+## mesmas. E o que torna a comparacao honesta -- se a variante mudasse tambem o
+## tamanho, "ficou melhor" nao diria qual das duas coisas melhorou.
+##
+## `atual` e o estado ANTES da subdivisao, e ele existe para a comparacao ter um
+## antes. Zerar os dois campos devolve a faixa de 40 px chapada de textura, com o
+## bisel de 2 px que `_vestir_acabamento` ja desenhava.
+static func de_topo(nome: String) -> PerfilDeParede:
+	var p := PerfilDeParede.new()
+	match nome:
+		"atual":
+			p.borda_do_topo = 0.0
+			p.bisel_do_topo = 0.0
+		"A":
+			# So a borda: termina a arquitetura contra o vazio, sem transicao.
+			p.bisel_do_topo = 0.0
+		"B":
+			# O PROPOSTO, e o que roda. Iguala os defaults de proposito: a
+			# variante que o jogo usa tem de ser uma das comparadas, senao a
+			# ferramenta compara tres coisas e o jogo desenha uma quarta.
+			pass
+		"C":
+			# Bisel mais fundo: a chapa cai para 20 px. Ele existe para a
+			# comparacao ter um extremo -- se C ler melhor que B, o numero certo
+			# esta acima de 10 e nao abaixo.
+			p.bisel_do_topo = 16.0
+		_:
+			pass
+	return p
+
+
+## Quanto sobra para a CHAPA depois da borda e do bisel.
+##
+## Zero ou negativo quer dizer que os dois acabamentos comeram a superficie
+## inteira: a faixa deixa de ter material e vira so junta. `_o_topo_ainda_tem_CHAPA`
+## cobra que isto continue positivo.
+func chapa_do_topo(lado: int) -> float:
+	var topo := topo_sul
+	if lado == RenderizadorParedes.Lado.NORTE:
+		topo = topo_norte
+	elif lado != RenderizadorParedes.Lado.SUL:
+		topo = topo_lateral
+	return topo - borda_do_topo - bisel_do_topo
 
 
 ## Quanto este lado desenha ao todo.

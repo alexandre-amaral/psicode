@@ -197,6 +197,18 @@ const CANTOS_NEUTROS: Array[String] = [
 ## de tuning do projeto.
 static var perfil_de_teste: PerfilDeParede = null
 
+## Valvula de FERRAMENTA: desenha a fita em cor chapada, sem textura nenhuma.
+##
+## E o teste que separa duas hipoteses que custam muito diferente. Se em
+## silhueta a faixa AINDA parecer um bloco, o problema e GEOMETRICO e nao
+## adianta arte nova -- textura melhor so deixa o bloco mais bonito. Se em
+## silhueta ficar bom, o problema e de material, e a resposta e a chapa e as
+## bandas.
+##
+## Ela mora aqui pela mesma razao que `perfil_de_teste`: a sala monta a fita no
+## proprio `_ready`, e nao ha janela entre instanciar e desenhar.
+static var silhueta_de_teste: bool = false
+
 const TOPOS_NEUTROS: Array[String] = [
 	"res://assets/texturas/parede_topo_a.png",
 	"res://assets/texturas/parede_topo_b.png",
@@ -978,7 +990,7 @@ func _montar_fita(contorno: PackedVector2Array) -> void:
 	var abertos: Array[Vector2] = []
 	add_child(RenderizadorParedes.construir(
 		contorno, portas, hash(coordenadas_grid), topos, faces, cantos,
-		peso, espacamento, abertos, _perfil()))
+		peso, espacamento, abertos, _perfil(), silhueta_de_teste))
 
 
 ## O perfil de espessura desta sala.

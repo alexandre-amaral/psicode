@@ -35,6 +35,7 @@ documentos abaixo — leia antes de propor mecanica nova:
 | `docs/Plano de Implementação — Migração para Low Top-Down Squared.md` | **O plano que comanda a migracao**, em 30 fases. Tile visual 64, grade estrutural 16/32. Dissolvido nas issues `[LTD 00-16]`, epico em #47 |
 | `docs/PIVO_LOW_TOPDOWN.md` | O levantamento por tras do plano: o que ja esta conforme, as decisoes e o inventario do que os testes recusam |
 | `docs/PIVO_PAREDES.md` | O levantamento por tras do epico das PAREDES: o que o plano pede e o codigo ja faz, as nove formas de sala medidas, e as tres decisoes que precedem o codigo |
+| `docs/BRIEFING_PAREDES_FABRICA.md` | **O pedido de arte das paredes**: onde a arte entra no renderizador, os sete portoes que ela tem de passar, os numeros do funil e o prompt de cada modulo. O andar 1 e uma fabrica abandonada e a parede nao diz isso |
 
 Quando o codigo e o texto discordarem, **o codigo ganha e o texto se
 atualiza**. Se um pedido contradiz o GDD — genero, camera, mecanica central —

@@ -1297,11 +1297,7 @@ const DISTANCIA_ENTRE_TOPOS := 0.10
 ## permissao permanente no dia em que a arte chegasse.
 ##
 ## Ela some com a FABRICA 03.
-const MODULOS_COLAPSADOS: Array[String] = [
-	"comum|ventilada",
-	"deteriorada|ventilada",
-	"comum|deteriorada",
-]
+const MODULOS_COLAPSADOS: Array[String] = []
 
 ## Os topos ainda sao materiais diferentes? **Nao mais** -- a FABRICA 02 entregou.
 ##

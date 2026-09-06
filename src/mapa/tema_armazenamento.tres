@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="TemaDeSala" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/mapa/tema_de_sala.gd" id="1_tema"]
+
+[resource]
+script = ExtResource("1_tema")
+id = &"armazenamento"
+peso = 1.1
+modulo_favorito = &""
+reforco = 3
+peso_comum = 0.85

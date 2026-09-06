@@ -62,6 +62,16 @@ const MAX_TENTATIVAS := 24
 @export var ambiente_do_andar: AudioStream
 
 @export var tipos_de_sala: Array[DadosSala] = []
+
+## Os SUBTEMAS que uma sala deste andar pode receber (FABRICA 08).
+##
+## Lista de recursos e nao um `if` por tema, pela mesma regra que fez
+## `cena_boss`/`cena_tesouro` sairem daqui: tema novo e um `.tres` novo, e a
+## proxima pessoa nao precisa abrir este arquivo.
+##
+## Lista vazia = nenhuma sala recebe tema, e a face volta ao sorteio de sempre.
+## E o estado de qualquer cena que nao os declare.
+@export var temas: Array[TemaDeSala] = []
 ## Distancia livre entre duas bandas vizinhas: e o comprimento do corredor.
 @export var vao_corredor: float = 256.0
 ## Quantas salas o andar tenta ter, contando as penduradas.
@@ -852,6 +862,7 @@ func _montar_andar() -> void:
 		# sem vizinho, monta a parede em cima delas e veste a sala com as
 		# texturas do tipo -- inclusive escolhendo a variante pela fracao acima.
 		sala.definir_visual(_dados_por_celula.get(celula))
+		sala.definir_tema(_sortear_tema())
 		if celula == celula_rara:
 			sala.permitir_props_raros()
 		sala.configurar_conexoes(vizinhos_de(celula))
@@ -936,6 +947,40 @@ func _sortear_celula_de_prop_raro() -> Vector2i:
 func _ligar_ambiente() -> void:
 	if ambiente_do_andar != null:
 		Audio.definir_ambiente(ambiente_do_andar)
+
+
+## Um tema para esta sala, sorteado por peso. `null` quando a lista esta vazia.
+##
+## **Sem vies de distancia, e isso e deliberado.** A tentacao obvia e fazer
+## `DEGRADADA` ficar mais provavel fundo no andar, para a fabrica contar uma
+## historia de deterioracao crescente. E exatamente a armadilha que o corredor
+## pre-chefe ja registra: ele e a UNICA excecao a regra da noite base porque um
+## andar que escurecesse a cada sala anunciaria o chefe desde a terceira porta, e
+## a virada deixaria de acontecer num lugar so.
+##
+## Aqui o preco seria maior: o jogador passaria a LER O MAPA PELA PAREDE. A
+## historia ambiental que a #235 pede e uma que os assets tem de PERMITIR, e nao
+## uma que o gerador garanta -- e o sorteio uniforme ja a permite, porque salas
+## degradadas caem em qualquer lugar e as sequencias acontecem sozinhas.
+func _sortear_tema() -> TemaDeSala:
+	var total := 0.0
+	for tema in temas:
+		if tema != null and tema.peso > 0.0:
+			total += tema.peso
+	if total <= 0.0:
+		return null
+	var alvo := randf() * total
+	for tema in temas:
+		if tema == null or tema.peso <= 0.0:
+			continue
+		alvo -= tema.peso
+		if alvo <= 0.0:
+			return tema
+	# So chega aqui por arredondamento de ponto flutuante no ultimo passo.
+	for i in range(temas.size() - 1, -1, -1):
+		if temas[i] != null and temas[i].peso > 0.0:
+			return temas[i]
+	return null
 
 
 func _sortear_composicoes() -> void:

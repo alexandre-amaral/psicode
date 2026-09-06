@@ -183,6 +183,14 @@ const FACE_NEUTRA := "res://assets/texturas/parede_face.png"
 ## de tuning do projeto.
 static var perfil_de_teste: PerfilDeParede = null
 
+## O SUBTEMA desta sala: que parte da fabrica ela era.
+##
+## Recebido antes do `add_child`, como `definir_visual()` e
+## `configurar_conexoes()`, porque e o `_ready` que monta as camadas. Fica
+## `null` quando ninguem define -- sala aberta sozinha no editor, suite que monta
+## sala sem gerenciador --, e nesse caso a face sai do sorteio de sempre.
+var _tema: TemaDeSala = null
+
 ## Valvula de FERRAMENTA: desenha a fita em cor chapada, sem textura nenhuma.
 ##
 ## E o teste que separa duas hipoteses que custam muito diferente. Se em
@@ -356,6 +364,20 @@ func direcoes_disponiveis() -> Array[Vector2]:
 func configurar_conexoes(direcoes: Array[Vector2]) -> void:
 	_conexoes = direcoes.duplicate()
 	_conexoes_definidas = true
+
+
+## O SUBTEMA da sala, e ele roda ANTES do `add_child` como os outros dois.
+##
+## Nao ha janela depois disso: o `_ready` sela portas, monta a fita e escolhe a
+## face. Um tema definido depois seria guardado e nunca desenhado -- sem erro no
+## console, que e o modo de falha que `definir_visual()` ja documenta.
+func definir_tema(tema: TemaDeSala) -> void:
+	_tema = tema
+
+
+## O tema desta sala, ou `null`. Publico porque o portao e o minimapa perguntam.
+func tema() -> TemaDeSala:
+	return _tema
 
 
 ## Chamado ANTES de add_child, como configurar_conexoes: e o _ready que monta
@@ -962,7 +984,19 @@ func _montar_fita(contorno: PackedVector2Array) -> void:
 		if neutra != null:
 			faces.append(neutra)
 
+	# O TEMA entra DEPOIS do terco do andar, e nao no lugar dele.
+	#
+	# O terco faz o andar mudar de cara conforme o jogador avanca; o tema faz a
+	# SALA ter identidade. Sao perguntas diferentes e as duas continuam sendo
+	# respondidas -- por isso `aplicar()` recebe o catalogo INTEIRO do tipo, e nao
+	# a lista ja filtrada: o favorito do tema pode aparecer num terco que nao o
+	# incluiria.
+	if _tema != null and _dados_visual != null:
+		faces = _tema.aplicar(faces, _dados_visual.texturas_face)
+
 	var peso: float = estilo.peso_comum if estilo != null else 0.65
+	if _tema != null and _tema.peso_comum >= 0.0:
+		peso = _tema.peso_comum
 	var espacamento: int = estilo.espacamento_minimo if estilo != null else 2
 	var abertos: Array[Vector2] = []
 	add_child(RenderizadorParedes.construir(

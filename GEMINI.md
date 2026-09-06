@@ -1033,6 +1033,37 @@ em qualquer erro de script.
   e o vazio alem da parede, e isso e desejado: e ele que diz que a sala e
   cavidade escavada em algo. Crescer para um lado so encostaria a sala numa borda
   -- exatamente o que o motor faz sozinho quando o limite e impossivel.
+- **A FACE tem a mesma profundidade nos tres lados que a mostram, e o SUL iguala
+  a profundidade sem ganhar face.** Por muito tempo o norte desenhava 104 px e as
+  laterais 32, com o argumento de que a lateral "mostra a face de esguelha". O
+  jogo desmentiu: medido com `tools/medir_moldura.tscn`, a mesma sala dava 22,8%
+  de moldura com o jogador ao norte e **6,1%** a leste. Mesma textura, um quarto
+  da espessura -- a lateral lia como uma BORDA. Hoje os tres lados vistos
+  desenham 72 px de face; o que difere e o TOPO (32 no norte, onde ele e
+  espessura vista de esguelha; 24 na lateral, onde e superficie de cima). O sul
+  vai a 104 tambem, todo em topo: profundidade igual e o que fecha a borda preta
+  embaixo, e face zero e o que impede pintar uma superficie que olha para longe
+  da camera. As duas metades sao afirmacoes opostas de proposito.
+- **A profundidade da lateral e 96 porque a GRADE fecha nela, e nao por gosto.**
+  Com 96, `contorno + margens` da 960 exato num contorno de 768 -- multiplo de
+  32, com meia-dimensao na grade de 16. Com 104 o contorno teria de ter 752, que
+  nao cai na grade, e o multiplo abaixo devolve 16 px de VAZIO PRETO em cada
+  borda. E o mesmo tipo de aritmetica que ja impede fechar o eixo Y.
+- **"A parede aparece?" e "aparece QUANTO?" sao portoes diferentes, e o primeiro
+  sozinho aprovou 6,1%.** O regime de enquadramento respondia SIM para a lateral
+  fina: o eixo estava FECHADO, a parede ESTAVA em quadro, ela so era fina demais
+  para ler. Quem pergunta o quanto e
+  `teste_enquadramento.gd:_a_moldura_ocupa_o_quadro_em_QUALQUER_posicao`, com
+  piso de 15% no PIOR canto do clamp -- e a `sala_3_grande` e excecao declarada,
+  porque numa sala aberta nos dois eixos a parede ser rara no meio dela e o
+  desenho.
+- **Portao que afirma um TAMANHO envelhece junto com o perfil.** O caso que
+  mordia em `teste_enquadramento` montava "uma sala do tamanho exato da tela" e
+  exigia que ela reprovasse. Com a parede mais grossa aquele tamanho deixou de
+  ser patologico -- margens de 96 e 104 dao folga 192x208, acima do corte -- e o
+  caso passou a reprovar o codigo certo. Hoje ele afirma a REGRA (uma folga no
+  meio termo reprova, seja de que sala for) e guarda os numeros historicos, 64 e
+  68 px, ao lado.
 - **O nucleo do chefe fica APAGADO enquanto ele dorme na baia.** A apresentacao
   dele e o jogador acreditar que o robo e CENARIO, e um chefe que pulsa antes de
   acordar entrega o truque no primeiro quadro. E a partida FALHA duas vezes

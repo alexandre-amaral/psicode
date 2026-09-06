@@ -133,10 +133,30 @@ const COR_BISEL := N4
 ## sombra da parede.
 const TINTA_DO_BISEL := Color(0.55, 0.57, 0.66)
 
+## Quanto a FLANGE escurece a face que ela leva para cima.
+##
+## Menos que o bisel: ela ainda e a face, vista quase de topo. Escurecida demais
+## viraria uma segunda costura preta e a juncao voltaria a ler como duas pecas
+## empilhadas -- que e exatamente o que ela existe para desfazer.
+const TINTA_DA_FLANGE := Color(0.72, 0.74, 0.82)
+
 const COSTURA := 32.0
 const SOMBRA_DA_COSTURA := 2.0
 const LABIO := 1.0
 const BISEL := 2.0
+
+## A FLANGE: quantos px da FACE sobem para dentro do topo.
+##
+## Ate aqui a juncao dizia "esse bloco esta em cima daquela parede": o topo
+## acabava, a face comecava, e os dois materiais apenas se encostavam. A flange
+## faz a frase virar "essa chapa e a cobertura desta parede" -- a nervura
+## vertical da face continua alguns pixels para dentro da faixa de cima e so
+## entao para, que e como uma chapa aparafusada numa estrutura se parece de cima.
+##
+## Tres px, e o numero e o menor que le. Com dois ela some contra o bisel em
+## metade dos trechos; com quatro ela come quase metade do bisel e a transicao
+## que a #241 montou deixa de acontecer.
+const FLANGE := 3.0
 
 ## A LINHA DE CONTATO parede/chao, em px.
 ##
@@ -292,8 +312,24 @@ static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 		if fim_face > 0.0:
 			_superficie(raiz, de, ate, normal, 0.0, fim_face, textura_face,
 				ancora, silhueta, COR_FACE)
+			# A FLANGE, e ela mora AQUI e nao em `_vestir_acabamento`.
+			#
+			# Aquela funcao desenha tira chapada -- ela nao conhece textura nem
+			# ancora, e e essa ignorancia que a deixa ser chamada por trecho sem
+			# se preocupar com continuidade de UV. A flange e MATERIAL: ela e a
+			# propria face subindo, com a mesma ancora, e por isso precisa das
+			# duas coisas.
+			#
+			# E ela acompanha a FACE, entao abre no vao da porta junto com ela.
+			# Uma flange que atravessasse o vao poria material de parede em cima
+			# da passagem -- o defeito que o topo evita ter porque sobre a porta
+			# ha verga, e a flange nao e verga.
+			if fim_face + FLANGE <= fundo:
+				_superficie(raiz, de, ate, normal, fim_face, fim_face + FLANGE,
+					textura_face, ancora, silhueta, COR_FACE, TINTA_DA_FLANGE)
 		_vestir_acabamento(raiz, de, ate, normal, lado, fim_face <= 0.0, fundo,
-			fim_face, perfil.borda_do_topo > 0.0)
+			fim_face, perfil.borda_do_topo > 0.0,
+			FLANGE if fim_face > 0.0 else 0.0)
 
 
 ## OS TRECHOS de um lado: ele inteiro, menos os vaos de porta.
@@ -454,12 +490,21 @@ static func _superficie(raiz: Node2D, de: Vector2, ate: Vector2, normal: Vector2
 ## projeto ja removeu uma vez. O labio tem 1 px, e no meio da faixa.
 static func _vestir_acabamento(raiz: Node2D, de: Vector2, ate: Vector2,
 		normal: Vector2, lado: Lado, so_topo: bool, fundo: float,
-		costura: float, tem_borda_de_topo: bool = false) -> void:
+		costura: float, tem_borda_de_topo: bool = false,
+		flange: float = 0.0) -> void:
 	# A COSTURA: onde o topo vira face. Nao existe no sul, que nao tem face.
 	if not so_topo and costura > SOMBRA_DA_COSTURA:
 		_banda(raiz, de, ate, normal, costura - SOMBRA_DA_COSTURA, costura, N4)
+		# O LABIO MARCA A ARESTA EXTERNA DA FLANGE, e nao a da face.
+		#
+		# Ele e a aresta acesa da dobra: com a flange no lugar, a dobra deixou de
+		# ficar em `costura` e passou a ficar `FLANGE` px acima. Desenhado no
+		# lugar antigo ele viraria uma linha clara NO MEIO da flange, partindo em
+		# duas a peca que existe justamente para juntar as outras duas. E nao e
+		# peca nova: e a mesma linha de 1 px, deslocada por quem a empurrou.
 		if lado != Lado.OESTE:
-			_banda(raiz, de, ate, normal, costura, costura + LABIO, N7)
+			_banda(raiz, de, ate, normal, costura + flange,
+				costura + flange + LABIO, N7)
 
 	# A LINHA DE CONTATO: onde a parede encontra o chao, e ela e CONTINUA.
 	#

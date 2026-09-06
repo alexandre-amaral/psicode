@@ -192,10 +192,6 @@ static func nomes() -> Array[String]:
 	lista.append("modulo_s.png")
 	lista.append("modulo_l.png")
 	lista.append("modulo_o.png")
-	lista.append("modulo_canto_no.png")
-	lista.append("modulo_canto_ne.png")
-	lista.append("modulo_canto_so.png")
-	lista.append("modulo_canto_se.png")
 	lista.append("props_atlas.png")
 	return lista
 
@@ -234,14 +230,6 @@ static func gerar(nome: String) -> Image:
 			return gerar_modulo_l()
 		"modulo_o.png":
 			return gerar_modulo_o()
-		"modulo_canto_no.png":
-			return gerar_modulo_canto(Vector2i(-1, -1))
-		"modulo_canto_ne.png":
-			return gerar_modulo_canto(Vector2i(1, -1))
-		"modulo_canto_so.png":
-			return gerar_modulo_canto(Vector2i(-1, 1))
-		"modulo_canto_se.png":
-			return gerar_modulo_canto(Vector2i(1, 1))
 		"props_atlas.png":
 			return gerar_props_atlas(SEEDS[&"props_atlas"])
 		"parede_topo.png":
@@ -759,130 +747,6 @@ static func _modulo_lateral(semente: int, leste: bool) -> Image:
 	_ret(img, 0, 0, w, 1, n4)
 	_rebite(img, w / 2 - 1, 4)
 	_rebite(img, w / 2 - 1, h - 6)
-	return img
-
-
-## O CANTO, e ele resolve um DEGRAU e nao uma quina.
-##
-## Ao norte a parede tem topo E face; ao sul so topo; a leste e a oeste, topo e
-## uma face de esguelha. A quina e onde essas alturas se encontram, e sobrepor
-## dois retangulos nao responde isso -- e o que o plano diz ao recusar a solucao
-## obvia.
-##
-## A saida e um PILAR: uma coluna quadrada na quina, que e o que arquitetura
-## industrial de verdade faz e o que le num relance. As duas faixas morrem dentro
-## dele, e o degrau some atras de uma peca que tem razao de existir.
-##
-## **QUATRO pecas, uma por diagonal, e elas servem tambem as quinas CONCAVAS.**
-## O plano previa oito -- quatro convexas e quatro concavas --, e medindo a
-## geometria as duas familias pedem o mesmo desenho: em ambas o pilar fica na
-## quina virada para a SALA, e o que muda e so de que lado a sala esta. Numa
-## quina convexa as duas faixas contornam o pilar por fora; numa concava elas se
-## sobrepoem debaixo dele. O `Canto` do `EstiloDeParede` tem espaco para as
-## concavas ganharem desenho proprio no dia em que alguem provar que precisam --
-## por ora, quatro arquivos fazem o trabalho de oito.
-##
-## `fora` e a diagonal que aponta para longe da sala. O pilar vai no canto
-## OPOSTO a ela, que e o virado para dentro.
-static func gerar_modulo_canto(fora: Vector2i) -> Image:
-	var img := _nova(MODULO_CANTO.x, MODULO_CANTO.y)
-	var semente: int = SEEDS[&"modulo"] + 5 + fora.x * 3 + fora.y * 7
-	# A RAMPA DESCEU DOIS DEGRAUS na TOPO 04, e o canto tem de descer junto.
-	#
-	# Ele e a unica peca GERADA num kit que e todo autorado, entao ele nao passa
-	# pelo funil e nao acompanha `--alvo-v` sozinho. Deixado onde estava, os
-	# quatro cantos ficariam ~2,4x mais claros que a faixa que eles fecham -- os
-	# unicos blocos claros de uma sala que acabou de escurecer, exatamente nas
-	# quinas, que e onde o olho vai.
-	#
-	# A DISTANCIA entre os degraus e que carrega o desenho, e ela nao muda: laje
-	# um degrau abaixo do pilar, aresta acesa um acima, aresta na sombra um
-	# abaixo, contato dois abaixo. O que mudou foi so onde a escada comeca.
-	var n0 := Paleta.neutro(&"N0")
-	var n1 := Paleta.neutro(&"N1")
-	var n2 := Paleta.neutro(&"N2")
-	var n4 := Paleta.neutro(&"N4")
-	var lado := MODULO_CANTO.x
-
-	# A laje em volta nasce mais ESCURA que o pilar, e nao igual.
-	#
-	# A primeira versao pintava as duas em N6, e o pilar virava um quadrado
-	# desenhado a lapis: so a linha de 1 px o separava do fundo, e a 1x ela some.
-	# Um pilar e um volume que SOBE acima do topo da parede -- entao ele fica no
-	# valor do topo e quem baixa e a laje.
-	_chapa(img, 0, 0, lado, lado, &"N2", semente)
-
-	var pilar := 44
-	var px := 0 if fora.x > 0 else lado - pilar
-	var py := 0 if fora.y > 0 else lado - pilar
-	_chapa(img, px, py, pilar, pilar, &"N3", semente + 10)
-	# A luz vem de cima e da esquerda, e isto NAO se espelha entre as quatro
-	# pecas: acender a aresta de baixo num canto do sul faria aquele pilar parecer
-	# iluminado por outra fonte, no mesmo quadro que os outros tres.
-	_ret(img, px, py, pilar, 1, n4)
-	_ret(img, px, py, 1, pilar, n4)
-	_ret(img, px, py + pilar - 1, pilar, 1, n1)
-	_ret(img, px + pilar - 1, py, 1, pilar, n1)
-	# Uma cinta no meio da altura, para o pilar nao ser um quadrado liso.
-	_ret(img, px + 1, py + pilar / 2, pilar - 2, 1, n2)
-	# Rebite PROPRIO, e nao o `_rebite()` compartilhado.
-	#
-	# Aquele acende em N7 (V 0,502), que era um realce discreto sobre um pilar em
-	# N6 e virou um ponto quatro vezes mais claro que o pilar depois da TOPO 04.
-	# Quatro deles por quina, nas quatro quinas, seriam os pontos mais claros da
-	# sala -- e a regra de leitura de combate ja proibe ponto claro isolado com
-	# silhueta de projetil. Mexer no `_rebite()` compartilhado nao serve: ele
-	# ainda veste os `modulo_n/s/l/o`, que continuam na rampa antiga.
-	for dy: int in [4, pilar - 6]:
-		for dx: int in [4, pilar - 6]:
-			_ret(img, px + dx, py + dy, 2, 2, n1)
-			_pintar(img, px + dx, py + dy, n4)
-	# A sombra de contato, na aresta do pilar virada para a sala.
-	if fora.y > 0:
-		_ret(img, px, py, pilar, 2, n0)
-	else:
-		_ret(img, px, py + pilar - 2, pilar, 2, n0)
-
-	# A GRADE DE LAJES DA LAJE, no mesmo periodo do topo (TOPO 06).
-	#
-	# Ela entra por duas razoes, e a segunda so apareceu quando o portao de
-	# amplitude foi medir:
-	#
-	# 1. **Concordancia.** O topo ganhou lajes de 32 com junta na TOPO 05, e o
-	#    canto encosta nele nos dois lados. Sem a mesma grade, a quina seria o
-	#    unico lugar do perimetro onde a laje some -- e a peca de canto ja e a
-	#    que mais chama atencao, porque desenha POR CIMA das celulas vizinhas.
-	#
-	# 2. **O p10 do canto estava numa BORDA DE PERCENTIL.** As quatro pecas sao
-	#    estruturalmente identicas -- 88 px em N0, ~330 em N1, ~2140 em N2, ~1460
-	#    em N3 --, e a unica diferenca entre elas e a contagem de grao do
-	#    `_chapa`. Medido: NO 10,4% de pixels abaixo da mediana, NE **10,0%**, SO
-	#    10,6%, SE 10,8%. Com o p10 caindo exatamente ali, NOVE PIXELS de
-	#    diferenca decidiam se ele lia 0,086 ou 0,122 -- e a amplitude ia de 0,68
-	#    para 0,39. Nao havia assimetria no gerador; havia escuro DE MENOS, e uma
-	#    metrica lida em cima de um degrau. A junta resolve a causa: com recesso
-	#    de verdade, o p10 para de fazer equilibrio na borda.
-	#
-	# So na LAJE. A junta e o vao ENTRE pecas; atravessar o pilar com ela seria
-	# riscar um volume que sobe, e nao separar duas superficies.
-	var periodo := PLACA
-	for y in lado:
-		for x in lado:
-			var na_junta := (x % periodo) < 2 or (y % periodo) < 2
-			if not na_junta:
-				continue
-			if x >= px and x < px + pilar and y >= py and y < py + pilar:
-				continue
-			_pintar(img, x, y, n0)
-	# E o labio aceso logo depois dela, do lado que pega luz.
-	for y in lado:
-		for x in lado:
-			var no_labio := (x % periodo) == 2 or (y % periodo) == 2
-			if not no_labio:
-				continue
-			if x >= px and x < px + pilar and y >= py and y < py + pilar:
-				continue
-			_pintar(img, x, y, n4)
 	return img
 
 

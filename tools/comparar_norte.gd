@@ -44,42 +44,23 @@ func _fotografar_lobby() -> void:
 	await get_tree().process_frame
 
 
+## O POSICIONAMENTO e o de `EnquadramentoDeSala`, e nao uma copia dele.
+##
+## A #240 pediu que esta ferramenta e `comparar_topos` compartilhassem o
+## enquadramento: duas copias divergem, e o sintoma e comparar coisas
+## fotografadas de lugares diferentes sem nada acusar.
 func _fotografar_sala() -> void:
-	var sala: Sala = (load(SALA) as PackedScene).instantiate()
-	sala.definir_visual(_dados_do_tipo("sala_1_retangular"))
-	add_child(sala)
+	var sala := EnquadramentoDeSala.montar(self, SALA)
 	await get_tree().process_frame
 	sala.ativar()
-	var limites := sala.obter_limites()
-	var margens := RenderizadorParedes.margens(sala.perfil_de_parede())
 	# O jogador da metade anterior morreu junto com o Lobby, entao esta metade
 	# monta o seu. Sem camera o viewport cai na de fallback, na origem, e a sala
 	# sai encostada no canto -- que se parece com um defeito de clamp e nao e.
-	var p: Node2D = (load("res://src/player/player.tscn") as PackedScene).instantiate()
-	add_child(p)
-	p.global_position = Vector2(0.0, limites.position.y + 24.0)
-	var camera := p.get_node_or_null("Camera") as Camera2D
-	if camera != null:
-		camera.make_current()
-	if camera != null:
-		# O mesmo retangulo do jogo: cresce pela parede desenhada e depois ate o
-		# quadro, senao a sala mais estreita que a tela sai encostada numa borda.
-		var visivel := limites.grow_individual(margens.x, margens.y, margens.z, margens.w)
-		var gerenciador := GerenciadorMapa.new()
-		visivel = gerenciador._cabendo_a_tela(visivel)
-		gerenciador.free()
-		camera.limit_left = int(visivel.position.x)
-		camera.limit_top = int(visivel.position.y)
-		camera.limit_right = int(visivel.end.x)
-		camera.limit_bottom = int(visivel.end.y)
-	await _assentar()
-	_salvar("norte_sala.png")
-	p.global_position = Vector2(0.0, limites.end.y - 24.0)
-	await _assentar()
-	_salvar("sul_sala.png")
-	p.global_position = Vector2(limites.position.x + 24.0, limites.position.y + 24.0)
-	await _assentar()
-	_salvar("quina_sala.png")
+	var p := EnquadramentoDeSala.acompanhar(self, sala)
+	for onde in EnquadramentoDeSala.POSICOES:
+		EnquadramentoDeSala.posicionar(p, sala, onde)
+		await _assentar()
+		_salvar("%s_sala.png" % onde)
 
 
 func _assentar() -> void:
@@ -91,26 +72,3 @@ func _assentar() -> void:
 func _salvar(nome: String) -> void:
 	get_viewport().get_texture().get_image().save_png("user://capturas/" + nome)
 	print("  %s" % nome)
-
-
-## O `DadosSala` do tipo daquela cena, para a sala vestir o ESTILO de verdade.
-##
-## Sem isto a sala nasce com `_dados_visual` nulo, `_perfil()` devolve `null` e
-## quem mede cai no `PerfilDeParede` default -- que e justamente o perfil que o
-## jogo NAO usava. Uma ferramenta de medicao que se engana assim mede a regra e
-## afirma que mediu o jogo, e foi o que aconteceu: a moldura foi medida em 18%
-## enquanto a sala real desenhava o perfil C.
-##
-## `definir_visual()` roda ANTES do `add_child`, como `configurar_conexoes`: e o
-## `_ready` que monta as camadas.
-func _dados_do_tipo(nome_cena: String) -> DadosSala:
-	var tipo := "combate"
-	if nome_cena.ends_with("_boss"):
-		tipo = "boss"
-	elif nome_cena.ends_with("_arma"):
-		tipo = "arma"
-	elif nome_cena.ends_with("_item"):
-		tipo = "item"
-	elif nome_cena.ends_with("_inicial"):
-		tipo = "inicial"
-	return load("res://src/mapa/tipo_%s.tres" % tipo) as DadosSala

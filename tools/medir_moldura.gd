@@ -33,6 +33,18 @@ const POSTOS := {
 
 
 func _ready() -> void:
+	# ELA PRECISA DE JANELA, e sem uma o sintoma nao diz isso.
+	#
+	# A regua LE O QUADRO (`get_viewport().get_texture()`), e com `--headless` o
+	# rasterizador e o dummy: a textura volta nula e o console enche de
+	# `Parameter "t" is null` uma vez por cena, sem nenhuma linha dizendo o que
+	# fazer. Uma rodada em background terminou com codigo ZERO e 45 erros,
+	# parecendo um defeito do medidor.
+	if DisplayServer.get_name() == "headless":
+		print("MEDIR_MOLDURA precisa de JANELA -- ela le o quadro renderizado.")
+		print("  godot --path . tools/medir_moldura.tscn --resolution 960x544")
+		get_tree().quit()
+		return
 	var tela := Vector2(
 		float(ProjectSettings.get_setting("display/window/size/viewport_width", 960)),
 		float(ProjectSettings.get_setting("display/window/size/viewport_height", 544))

@@ -138,10 +138,10 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## DadosSala e nao pode ficar sem face.
 @export var texturas_face: Array[Texture2D] = []
 
-## O KIT de parede do andar: topo, cantos e a face de recurso.
+## O KIT de parede do andar: topo e a face de recurso.
 ##
 ## UM campo, e nao uma duzia. Com a parede virando fita de modulos, cada tipo de
-## sala precisaria de listas de topo, canto e variante -- e o plano avisa contra a
+## sala precisaria de listas de topo e de variante -- e o plano avisa contra a
 ## explosao de `@export`. O `EstiloDeParede` reune isso e fica reusavel: as cinco
 ## salas do andar 1 apontam o MESMO recurso, porque elas sao o mesmo setor.
 ##

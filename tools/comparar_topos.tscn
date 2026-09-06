@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tools/comparar_topos.gd" id="1_ctp"]
+
+[node name="CompararTopos" type="Node2D"]
+script = ExtResource("1_ctp")

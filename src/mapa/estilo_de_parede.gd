@@ -19,12 +19,12 @@ extends Resource
 ## **O que ele NAO carrega e a face por tipo de sala.** Desde a LTD 13 a face e
 ## quem diz de que sala se trata -- combate ciano, chefe rosa, arma ambar --, e
 ## isso continua morando em `DadosSala.texturas_face`. O estilo carrega o que e
-## do ANDAR: o topo, que e neutro e compartilhado desde a PAR 04, os cantos, e a
-## face de recurso para quem nao declarar a propria.
+## do ANDAR: o topo, que e neutro e compartilhado desde a PAR 04, e a face de
+## recurso para quem nao declarar a propria.
 ##
 ## A divisao entre os dois se le assim:
 ##
-##   ESTILO      o andar    topo, cantos, face neutra
+##   ESTILO      o andar    topo, face neutra
 ##   DadosSala   a sala     face do tipo, chao, props, regras de colocacao
 
 ## O nome do kit, para o Inspetor e para mensagem de erro.
@@ -37,13 +37,6 @@ extends Resource
 
 ## A face de recurso, usada por quem nao declara `texturas_face`.
 @export var face_neutra: Texture2D = null
-
-## Os CANTOS convexos, na ordem noroeste, nordeste.
-##
-## Eles sao lista e nao dois campos porque a PAREDE 06 acrescenta os concavos, e
-## campo por quina e exatamente a explosao de `@export` que este recurso existe
-## para evitar. Quem indexa e `RenderizadorParedes`, por um enum.
-@export var cantos: Array[Texture2D] = []
 
 @export_group("Variacao")
 
@@ -92,17 +85,6 @@ func vestivel() -> bool:
 	return not topos.is_empty()
 
 
-## O canto de um indice, ou `null` se o kit ainda nao tem aquele.
-##
-## Devolver `null` em vez de estourar e deliberado: a PAREDE 06 acrescenta quatro
-## quinas novas, e ate la o renderizador pede por elas e nao recebe. Kit
-## incompleto desenha menos, e nao quebra.
-func canto(indice: int) -> Texture2D:
-	if indice < 0 or indice >= cantos.size():
-		return null
-	return cantos[indice]
-
-
 @export_group("Espessura desenhada")
 ## Quanto cada lado DESENHA, do contorno para fora. **-1 = herda o default.**
 ##
@@ -132,6 +114,11 @@ func canto(indice: int) -> Texture2D:
 @export var topo_sul: float = -1.0
 @export var face_sul: float = -1.0
 @export var borda_externa_sul: float = -1.0
+## Como o topo se divide (#241). Sentinela NEGATIVO como os de cima: -1 herda o
+## que `PerfilDeParede` declara, e so um andar que queira outra subdivisao
+## escreve aqui.
+@export var borda_do_topo: float = -1.0
+@export var bisel_do_topo: float = -1.0
 
 
 ## O perfil que o renderizador consome.
@@ -155,4 +142,8 @@ func perfil() -> PerfilDeParede:
 		p.face_sul = face_sul
 	if borda_externa_sul >= 0.0:
 		p.borda_externa_sul = borda_externa_sul
+	if borda_do_topo >= 0.0:
+		p.borda_do_topo = borda_do_topo
+	if bisel_do_topo >= 0.0:
+		p.bisel_do_topo = bisel_do_topo
 	return p

@@ -189,12 +189,32 @@ func _o_vao_da_porta_fica_sem_modulo() -> void:
 				# inocente mesmo que ela atravessasse a soleira inteira. Medir a
 				# extensao tambem endurece o caso para as celulas: uma peca cuja
 				# BORDA entra no vao passava antes.
+				# O TOPO PODE atravessar; a FACE nao.
+				#
+				# Sobre a porta ha verga: a superficie de cima da parede passa por
+				# cima da passagem, e e isso que impede um retangulo preto de
+				# 64 px pelo fundo da faixa alem de cada porta -- o defeito que o
+				# dono viu quando a faixa passou de 32 para 96 px. Quem tem
+				# abertura e a face, que e onde a passagem se ve.
+				#
+				# Sem esta distincao o portao afirmava "nada atravessa o vao", que
+				# e o oposto do que o proprio projeto documenta.
+				var poly_item := item as Polygon2D
+				var caminho_tex := ""
+				if poly_item != null and poly_item.texture != null:
+					caminho_tex = poly_item.texture.resource_path
+				else:
+					var spr := item as Sprite2D
+					if spr != null and spr.texture != null:
+						caminho_tex = spr.texture.resource_path
+				if not caminho_tex.get_file().begins_with("parede_face"):
+					continue
 				var faixa := _extensao(item, eixo)
 				if faixa.y > centro - meia + 0.5 and faixa.x < centro + meia - 0.5:
 					invasores += 1
 			igual(
 				invasores, 0,
-				"%s/%s: nenhum modulo desenha dentro do vao (%d)"
+				"%s/%s: nenhuma FACE desenha dentro do vao (%d) -- o topo atravessa, ela nao"
 					% [caminho.get_file(), porta.name, invasores]
 			)
 
@@ -567,8 +587,9 @@ func _o_acabamento_existe_e_cabe_na_faixa() -> void:
 				# laterais, e um numero unico so acharia a de um dos lados.
 				if absf(d - perfil.face_norte) <= 3.0 						or absf(d - perfil.face_lateral) <= 3.0:
 					costuras += 1
-					# Ao sul a fita e topo puro: costura ali e linha no meio de
-					# uma superficie continua.
+					# Ao sul TAMBEM ha costura, desde que o sul ganhou face.
+					# Ela era proibida aqui -- "la a fita e topo puro" --, e essa
+					# proibicao era o reflexo da regra antiga.
 					if meio.y > _caixa(contorno).end.y:
 						costuras_ao_sul += 1
 		var nome := caminho.get_file()
@@ -576,8 +597,8 @@ func _o_acabamento_existe_e_cabe_na_faixa() -> void:
 		igual(fora, 0, "%s: nenhum vertice sai da faixa (%.0fx%.0f px) (%d)"
 			% [nome, eixo.x, eixo.y, fora])
 		ok(costuras > 0, "%s: a costura existe onde ha face (%d)" % [nome, costuras])
-		igual(costuras_ao_sul, 0,
-			"%s: nenhuma costura na parede SUL -- la nao ha face para virar (%d)"
+		ok(costuras_ao_sul > 0,
+			"%s: a costura tambem existe ao SUL (%d) -- ele tem face como os outros tres"
 				% [nome, costuras_ao_sul])
 		sala.free()
 

@@ -49,6 +49,7 @@ func _ready() -> void:
 		if cena == null:
 			continue
 		var sala := cena.instantiate() as Sala
+		sala.definir_visual(_dados_do_tipo(nome_cena))
 		add_child(sala)
 		await get_tree().process_frame
 		sala.ativar()
@@ -99,10 +100,16 @@ func _medir(nome_cena: String, rotulo: String, sala: Sala, perfil: PerfilDePared
 	# O canto superior esquerdo do quadro, em coordenadas de mundo.
 	var canto := camera.get_screen_center_position() - tela * 0.5
 
+	var contorno := sala.contorno_local()
+	var m_perfil := perfil.margens()
+	var fundo: float = maxf(maxf(m_perfil.x, m_perfil.y), maxf(m_perfil.z, m_perfil.w))
+	var inflados := Geometry2D.offset_polygon(contorno, fundo)
+
 	var chao := 0
 	var faixa_pintada := 0
 	var faixa_crua := 0
 	var fora := 0
+	var cruas_por_lugar := {}
 	var passo := 2  # amostra de 2 em 2: o veredicto e uma fracao, nao um pixel
 	var total := 0
 	var y := 0
@@ -111,13 +118,15 @@ func _medir(nome_cena: String, rotulo: String, sala: Sala, perfil: PerfilDePared
 		while x < imagem.get_width():
 			total += 1
 			var mundo := canto + Vector2(float(x), float(y))
-			var regiao := _regiao(mundo, sala, perfil, limites)
+			var regiao := _regiao(mundo - sala.global_position, contorno, inflados)
 			match regiao:
 				0:
 					chao += 1
 				1:
 					if _mesma_cor(imagem.get_pixel(x, y), vazio):
 						faixa_crua += 1
+						var onde := _onde_na_faixa(mundo, limites)
+						cruas_por_lugar[onde] = int(cruas_por_lugar.get(onde, 0)) + 1
 					else:
 						faixa_pintada += 1
 				_:
@@ -126,26 +135,63 @@ func _medir(nome_cena: String, rotulo: String, sala: Sala, perfil: PerfilDePared
 		y += passo
 
 	var n := float(maxi(total, 1))
-	print("%-22s %-8s %6.1f%% %6.1f%% %6.1f%% %6.1f%%" % [
+	var detalhe := ""
+	if not cruas_por_lugar.is_empty():
+		var partes: Array[String] = []
+		var chaves := cruas_por_lugar.keys()
+		chaves.sort()
+		for k: String in chaves:
+			partes.append("%s %.1f%%" % [k, int(cruas_por_lugar[k]) / n * 100.0])
+		detalhe = "   cru em: " + ", ".join(partes)
+	print("%-22s %-8s %6.1f%% %6.1f%% %6.1f%% %6.1f%%%s" % [
 		nome_cena, rotulo,
 		chao / n * 100.0, faixa_pintada / n * 100.0,
-		faixa_crua / n * 100.0, fora / n * 100.0])
+		faixa_crua / n * 100.0, fora / n * 100.0, detalhe])
 
 
-## 0 = chao, 1 = faixa de parede daquele lado, 2 = alem de tudo.
+## 0 = chao, 1 = faixa de parede, 2 = alem de tudo.
 ##
-## Usa o RETANGULO dos limites e nao o contorno exato: a sala em L teria uma
-## quina concava, e o objetivo aqui e a moldura e nao a forma. A margem de cada
-## lado sai do perfil, entao a faixa medida e exatamente a que o renderizador
-## desenha.
-func _regiao(mundo: Vector2, _sala: Sala, perfil: PerfilDeParede, limites: Rect2) -> int:
-	if limites.has_point(mundo):
+## Usa o CONTORNO REAL e nao o retangulo dos limites. Com o retangulo, a sala em
+## L contava o proprio recorte como faixa nao pintada: 12,5% de "cru" que nao era
+## buraco nenhum, era a forma da sala. Uma regua que inventa defeito na forma
+## mais incomum do jogo e uma regua que sera ignorada justamente onde importa.
+## `inflados` vem PRONTO de fora, e isso nao e microotimizacao.
+##
+## `Geometry2D.offset_polygon` chamado por pixel sao ~130 mil chamadas por
+## captura e 45 capturas por rodada: a ferramenta parou de terminar. O contorno
+## nao muda dentro de uma cena, entao ele e calculado uma vez.
+func _regiao(local: Vector2, contorno: PackedVector2Array,
+		inflados: Array[PackedVector2Array]) -> int:
+	if Geometry2D.is_point_in_polygon(local, contorno):
 		return 0
-	var m := perfil.margens()
-	var faixa := Rect2(
-		limites.position - Vector2(m.x, m.y),
-		limites.size + Vector2(m.x + m.z, m.y + m.w))
-	return 1 if faixa.has_point(mundo) else 2
+	for inflado in inflados:
+		if Geometry2D.is_point_in_polygon(local, inflado):
+			return 1
+	return 2
+
+
+## ONDE na faixa este pixel cru caiu: um dos quatro lados, ou uma quina.
+##
+## "Cru" e faixa que ninguem pintou -- pixel da cor do vazio DENTRO da regiao que
+## deveria ser parede. Sem saber onde, o numero e so um incomodo; com o lugar,
+## ele aponta o desenho que faltou. Foi assim que o buraco alem das portas
+## apareceu: "lateral 1,9%" em toda posicao de uma sala de quatro portas.
+func _onde_na_faixa(mundo: Vector2, limites: Rect2) -> String:
+	var acima := mundo.y < limites.position.y
+	var abaixo := mundo.y > limites.end.y
+	var esquerda := mundo.x < limites.position.x
+	var direita := mundo.x > limites.end.x
+	if (acima or abaixo) and (esquerda or direita):
+		return "quina"
+	if acima:
+		return "norte"
+	if abaixo:
+		return "sul"
+	if esquerda or direita:
+		return "lateral"
+	# Dentro do retangulo em x e y, mas fora do chao: e o recorte da forma (o vao
+	# do L), e nao um buraco de parede.
+	return "recorte"
 
 
 func _mesma_cor(a: Color, b: Color) -> bool:
@@ -163,3 +209,26 @@ func _cenas() -> Array[String]:
 		if arquivo.begins_with("sala_") and arquivo.ends_with(".tscn"):
 			fora.append(arquivo.get_basename())
 	return fora
+
+
+## O `DadosSala` do tipo daquela cena, para a sala vestir o ESTILO de verdade.
+##
+## Sem isto a sala nasce com `_dados_visual` nulo, `_perfil()` devolve `null` e
+## quem mede cai no `PerfilDeParede` default -- que e justamente o perfil que o
+## jogo NAO usava. Uma ferramenta de medicao que se engana assim mede a regra e
+## afirma que mediu o jogo, e foi o que aconteceu: a moldura foi medida em 18%
+## enquanto a sala real desenhava o perfil C.
+##
+## `definir_visual()` roda ANTES do `add_child`, como `configurar_conexoes`: e o
+## `_ready` que monta as camadas.
+func _dados_do_tipo(nome_cena: String) -> DadosSala:
+	var tipo := "combate"
+	if nome_cena.ends_with("_boss"):
+		tipo = "boss"
+	elif nome_cena.ends_with("_arma"):
+		tipo = "arma"
+	elif nome_cena.ends_with("_item"):
+		tipo = "item"
+	elif nome_cena.ends_with("_inicial"):
+		tipo = "inicial"
+	return load("res://src/mapa/tipo_%s.tres" % tipo) as DadosSala

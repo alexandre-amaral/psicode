@@ -176,7 +176,7 @@ static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 			continue
 		_vestir_lado(raiz, contorno, a, b, portas, semente ^ (i * 0x9e3779b1),
 			topos, faces, peso_comum, espacamento, regra, ancora, silhueta)
-	_fechar_quinas(raiz, contorno, regra, topos, ancora, silhueta)
+	_fechar_quinas(raiz, contorno, regra, topos, faces, ancora, silhueta)
 	return raiz
 
 
@@ -221,6 +221,28 @@ static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 	var textura_face := _face_da_celula(faces, semente,
 		_quer_especial(semente, peso_comum))
 
+	# O TOPO ATRAVESSA O VAO; a FACE e que abre. E a regra que o projeto ja
+	# escreve e que o codigo nao cumpria.
+	#
+	# Sobre a porta ha verga: a superficie de cima da parede passa por cima da
+	# passagem de verdade. Cortando o topo junto com a face, o que sobrava alem da
+	# porta era um retangulo do tamanho do vao vezes a profundidade da faixa --
+	# **sem nada desenhado**. Com o perfil C, 32 px de faixa, a arte da porta
+	# cobria quase tudo e ninguem via; com 96 e 104, o buraco virou uma janela
+	# preta de 64x96 px em cada porta. Medido: 1,9% do quadro numa sala de quatro
+	# portas, e o dono viu antes de a regua achar.
+	#
+	# Quem tem abertura e a face, e so ela -- o resto do acabamento (linha de
+	# contato, costura, bisel) acompanha a face, porque e ela que termina ali.
+	var fim_topo := fundo
+	var borda := perfil.borda_externa_sul if lado == Lado.SUL else 0.0
+	if borda > 0.0:
+		fim_topo = fundo - borda
+	_superficie(raiz, a, b, normal, fim_face, fim_topo, textura_topo,
+		ancora, silhueta, COR_TOPO)
+	if borda > 0.0:
+		_borda_externa_do_sul(raiz, a, b, normal, fim_topo, fundo)
+
 	for trecho in trechos_livres(contorno, a, b, portas):
 		var de: Vector2 = trecho[0]
 		var ate: Vector2 = trecho[1]
@@ -229,14 +251,6 @@ static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 		if fim_face > 0.0:
 			_superficie(raiz, de, ate, normal, 0.0, fim_face, textura_face,
 				ancora, silhueta, COR_FACE)
-		var fim_topo := fundo
-		var borda := perfil.borda_externa_sul if lado == Lado.SUL else 0.0
-		if borda > 0.0:
-			fim_topo = fundo - borda
-		_superficie(raiz, de, ate, normal, fim_face, fim_topo, textura_topo,
-			ancora, silhueta, COR_TOPO)
-		if borda > 0.0:
-			_borda_externa_do_sul(raiz, de, ate, normal, fim_topo, fundo)
 		_vestir_acabamento(raiz, de, ate, normal, lado, fim_face <= 0.0, fundo,
 			fim_face)
 
@@ -568,7 +582,8 @@ static func _sorteia(lista: Array[Texture2D], chave: int) -> Texture2D:
 ## declara; ele so nao e mais desenhado. Tirar o campo e outra issue, e ela nao
 ## tem pressa -- campo nao usado nao aparece na tela.
 static func _fechar_quinas(raiz: Node2D, contorno: PackedVector2Array,
-		perfil: PerfilDeParede, topos: Array[Texture2D], ancora: Vector2,
+		perfil: PerfilDeParede, topos: Array[Texture2D],
+		faces: Array[Texture2D], ancora: Vector2,
 		silhueta: bool) -> void:
 	var total := contorno.size()
 	for i in total:
@@ -589,29 +604,91 @@ static func _fechar_quinas(raiz: Node2D, contorno: PackedVector2Array,
 		var d2 := perfil.profundidade(classificar(n2))
 		if d1 <= 0.0 or d2 <= 0.0:
 			continue
-		# O vao e o retangulo que os dois lados NAO alcancam: cada um cobre ao
-		# longo do proprio segmento, e sobra o quadrado na diagonal da quina.
+		# MEIA ESQUADRIA, e nao um quad unico de topo.
+		#
+		# O vao da quina e o retangulo que os dois lados nao alcancam. Preenche-lo
+		# inteiro com a textura de TOPO funcionava com a faixa fina do perfil C --
+		# 16 a 24 px --, mas com 96 e 104 aquele retangulo virou um bloco de
+		# 96x104 px de pedra entre duas faces estriadas: a sala voltou a parecer
+		# construida com cubos, que e exatamente o defeito que tirar o pilar
+		# desenhado existia para resolver.
+		#
+		# Na referencia (`inspiração/cantos.png`) a quina e uma JUNTA: a
+		# superficie de cada lado vira 45 graus e encontra a do outro numa
+		# diagonal. Nada e desenhado por cima; o que muda e para onde cada
+		# superficie continua.
+		#
+		# Entao o retangulo e cortado pela diagonal que vai da quina INTERNA (`v`)
+		# a EXTERNA (`v + n1*d1 + n2*d2`), e cada metade recebe as bandas do SEU
+		# lado -- face colada no contorno, topo por fora. A textura e a mesma e a
+		# ancora de UV e a mesma, entao a junta nao aparece como emenda: aparece
+		# como a superficie virando.
+		var externo := v + n1 * d1 + n2 * d2
+		var f1 := perfil.fim_da_face(classificar(n1))
+		var f2 := perfil.fim_da_face(classificar(n2))
+		var textura_topo_q := _sorteia(topos, hash(v))
+		var textura_face_q := _sorteia(faces, hash(v))
+		_meia_quina(raiz, v, n1, d1, f1, n2, d2, externo,
+			textura_face_q, textura_topo_q, ancora, silhueta)
+		_meia_quina(raiz, v, n2, d2, f2, n1, d1, externo,
+			textura_face_q, textura_topo_q, ancora, silhueta)
+
+
+## Uma das duas metades da quina: as bandas de UM lado, cortadas na diagonal.
+##
+## `n` e a normal do lado que esta metade continua, `fundo` a profundidade dele e
+## `fim_face` onde a face dele acaba. `n_outro`/`fundo_outro` descrevem o vizinho,
+## e servem so para medir o retangulo do vao.
+##
+## O corte usa `Geometry2D.intersect_polygons` e nao um triangulo escrito a mao
+## porque as bandas nao chegam todas ate a diagonal: a face acaba antes do topo,
+## e cada uma cruza a diagonal num lugar diferente. Recortar cada banda pelo
+## triangulo resolve as duas de uma vez, e continua valendo se um lado tiver face
+## zero.
+static func _meia_quina(raiz: Node2D, v: Vector2, n: Vector2, fundo: float,
+		fim_face: float, n_outro: Vector2, fundo_outro: float, externo: Vector2,
+		textura_face: Texture2D, textura_topo: Texture2D, ancora: Vector2,
+		silhueta: bool) -> void:
+	var triangulo := PackedVector2Array([v, v + n * fundo, externo])
+	if fim_face > 0.0:
+		_banda_da_quina(raiz, v, n, 0.0, fim_face, n_outro, fundo_outro,
+			triangulo, textura_face, ancora, silhueta, COR_FACE)
+	if fundo > fim_face:
+		_banda_da_quina(raiz, v, n, fim_face, fundo, n_outro, fundo_outro,
+			triangulo, textura_topo, ancora, silhueta, COR_TOPO)
+
+
+## Uma banda (face ou topo) da quina, recortada pelo triangulo daquela metade.
+static func _banda_da_quina(raiz: Node2D, v: Vector2, n: Vector2, de: float,
+		ate: float, n_outro: Vector2, fundo_outro: float,
+		triangulo: PackedVector2Array, textura: Texture2D, ancora: Vector2,
+		silhueta: bool, cor: Color) -> void:
+	var banda := PackedVector2Array([
+		v + n * de,
+		v + n * ate,
+		v + n * ate + n_outro * fundo_outro,
+		v + n * de + n_outro * fundo_outro,
+	])
+	for pedaco in Geometry2D.intersect_polygons(banda, triangulo):
+		if pedaco.size() < 3:
+			continue
+		var caixa := Rect2(pedaco[0], Vector2.ZERO)
+		for ponto in pedaco:
+			caixa = caixa.expand(ponto)
+		var centro := caixa.get_center()
 		var quad := Polygon2D.new()
-		var cantos_do_vao := PackedVector2Array([
-			v,
-			v + n1 * d1,
-			v + n1 * d1 + n2 * d2,
-			v + n2 * d2,
-		])
-		var centro := (cantos_do_vao[0] + cantos_do_vao[2]) * 0.5
 		quad.position = centro
 		var relativos := PackedVector2Array()
-		for ponto in cantos_do_vao:
+		for ponto in pedaco:
 			relativos.append(ponto - centro)
 		quad.polygon = relativos
-		var textura := _sorteia(topos, hash(v))
 		if silhueta or textura == null:
-			quad.color = COR_TOPO
+			quad.color = cor
 		else:
 			quad.texture = textura
 			quad.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-			# A MESMA ancora das faixas: e isso que faz a quina ser a
-			# continuacao do desenho em vez de um remendo com textura propria.
+			# A MESMA ancora das faixas: e isso que faz a quina ser a continuacao
+			# do desenho em vez de um remendo com textura propria.
 			quad.texture_offset = centro - ancora
 		raiz.add_child(quad)
 

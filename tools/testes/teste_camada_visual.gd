@@ -535,7 +535,8 @@ func _a_face_sorteia_por_lado() -> void:
 			var item := filho as Node2D
 			if item != null and item.position.y > caixa.end.y:
 				faces_sul += 1
-	igual(faces_sul, 0, "a parede SUL nao ganha face -- ela olha para longe da camera")
+	ok(faces_sul > 0,
+		"a parede SUL veste face como as outras (%d pecas) -- a regra foi invertida" % faces_sul)
 	var usadas := _texturas_de_face(sala_um)
 	ok(not usadas.is_empty(), "a sala veste face nos lados que a camera enxerga")
 	if not usadas.is_empty():
@@ -915,20 +916,22 @@ func _a_razao_face_topo_fica_em_um_para_um() -> void:
 		"e o TOPO ainda difere (%.0f no norte contra %.0f na lateral) -- la ele e espessura, aqui e superficie"
 			% [perfil.topo_norte, perfil.topo_lateral]
 	)
-	# E o SUL iguala a PROFUNDIDADE do norte sem ganhar face.
+	# E o SUL desenha a MESMA face dos outros tres.
 	#
-	# Sao duas afirmacoes opostas de proposito. A profundidade igual e o que
-	# impede a borda preta embaixo do quadro; a face zero e o que impede pintar
-	# uma superficie que olha para longe da camera.
+	# Esta assercao ja disse duas coisas opostas nesta suite, e vale dizer por
+	# que. Ela nasceu cobrando que o sul NAO tivesse face -- geometricamente
+	# certo, a face dele olha para longe da camera. Depois virou "o sul e tao
+	# fundo quanto o norte", numa tentativa de fechar uma borda preta que nao
+	# existia. Hoje ela cobra IGUALDADE de face, porque foi isso que o jogo pediu:
+	# tres lados estriados e um liso fazem a sala ler como chao de pedra colado
+	# embaixo, e nao como cavidade.
 	igual(
-		perfil.profundidade(RenderizadorParedes.Lado.SUL),
-		perfil.profundidade(RenderizadorParedes.Lado.NORTE),
-		"o sul e tao FUNDO quanto o norte (%.0f) -- sem isso sobra vazio embaixo"
-			% perfil.profundidade(RenderizadorParedes.Lado.NORTE)
+		perfil.face_sul, perfil.face_norte,
+		"a face sul tem a mesma profundidade da norte (%.0f)" % perfil.face_norte
 	)
 	igual(
-		perfil.fim_da_face(RenderizadorParedes.Lado.SUL), 0.0,
-		"e mesmo assim NAO ganha face: ela olharia para longe da camera"
+		perfil.topo_sul, perfil.topo_norte,
+		"e o topo tambem (%.0f) -- e a mesma superficie vista do mesmo jeito" % perfil.topo_norte
 	)
 
 
@@ -1105,9 +1108,18 @@ func _o_topo_cerca_a_sala_e_a_face_nao_desce_para_o_sul() -> void:
 			folga.position.x < caixa.position.x and folga.position.y < caixa.position.y 				and folga.end.x > caixa.end.x and folga.end.y > caixa.end.y,
 			"%s: a fita cerca a sala pelos QUATRO sentidos" % nome
 		)
-		igual(
-			faces_ao_sul, 0,
-			"%s: nenhuma face desce abaixo da borda sul -- e la que ela cobriria combate" % nome
+		# A FACE AO SUL passou de proibida a exigida.
+		#
+		# A proibicao dizia "e la que ela cobriria combate", e isso confundia dois
+		# lugares: a face desce ABAIXO da borda sul, que e fora da area jogavel --
+		# quem cobriria combate seria uma face desenhada para DENTRO do contorno,
+		# e disso quem cuida e `nenhuma peca cai na area jogavel`, que continua
+		# valendo. Sem face, o sul virava um campo liso da textura de topo, e a
+		# sala parava de ler como cavidade.
+		ok(
+			faces_ao_sul > 0,
+			"%s: o sul tambem veste face (%d pecas) -- os quatro lados falam o mesmo material"
+				% [nome, faces_ao_sul]
 		)
 		sala.free()
 

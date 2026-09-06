@@ -104,33 +104,55 @@ func canto(indice: int) -> Texture2D:
 
 
 @export_group("Espessura desenhada")
-## Quanto cada lado DESENHA, do contorno para fora.
+## Quanto cada lado DESENHA, do contorno para fora. **-1 = herda o default.**
 ##
-## Espessura e botao de tuning, entao ela mora aqui e nao no codigo -- e a mesma
-## regra que poe densidade de inimigo no `tipo_*.tres` e dano no `.tres` da arma.
+## O sentinela e NEGATIVO e nao zero pela mesma razao do `Escalonamento` dos
+## inimigos: zero e um valor valido aqui -- um lado que nao desenha face tem
+## `face = 0` de verdade --, entao zero como "herda" transformaria um ajuste
+## legitimo em "nao faz nada", em silencio.
 ##
-## **Assimetria e o ponto.** 32 de topo mais 32 de face nos quatro lados produz
-## a moldura pesada que o epico da moldura existe para desfazer: a NORTE e a
-## unica que mostra a face de frente e e ela que carrega a altura; as laterais a
-## mostram de esguelha e podem ser bem mais estreitas; a SUL mostra so a
-## superficie de cima, e desenhar 64 px dela e o que mais engorda a moldura sem
-## dar nada em troca.
+## **Ele existe porque estes campos ja foram uma SEGUNDA COPIA dos mesmos
+## numeros, e a copia venceu.** Eram literais (16/24, 16/16, 16), que sao o
+## perfil C -- de antes do epico da profundidade --, e `perfil()` os escrevia por
+## cima de um `PerfilDeParede` recem-criado. Efeito: o Lobby, que nao passa
+## perfil e cai no default, recebeu o epico inteiro; **as salas do andar 1, que
+## passam por aqui, nunca receberam nada.** Duas entregas de parede foram
+## medidas, aprovadas e nao chegaram ao jogo.
+##
+## E `borda_externa_sul` nem estava na lista, entao ela vazava o default no meio
+## de um perfil que deveria ser inteiro do estilo -- um perfil metade de um
+## lugar, metade de outro.
 ##
 ## A COLISAO nao muda: ela e um segmento sobre o contorno, e a grade logica
 ## continua 32. Isto descreve so o que se desenha.
-@export var topo_norte: float = 16.0
-@export var face_norte: float = 24.0
-@export var topo_lateral: float = 16.0
-@export var face_lateral: float = 16.0
-@export var topo_sul: float = 16.0
+@export var topo_norte: float = -1.0
+@export var face_norte: float = -1.0
+@export var topo_lateral: float = -1.0
+@export var face_lateral: float = -1.0
+@export var topo_sul: float = -1.0
+@export var face_sul: float = -1.0
+@export var borda_externa_sul: float = -1.0
 
 
 ## O perfil que o renderizador consome.
+##
+## Comeca no DEFAULT e so sobrescreve o que este estilo declarou. Assim o estilo
+## continua sendo o botao de tuning que ele foi feito para ser, sem ser tambem
+## uma copia silenciosa da regra.
 func perfil() -> PerfilDeParede:
 	var p := PerfilDeParede.new()
-	p.topo_norte = topo_norte
-	p.face_norte = face_norte
-	p.topo_lateral = topo_lateral
-	p.face_lateral = face_lateral
-	p.topo_sul = topo_sul
+	if topo_norte >= 0.0:
+		p.topo_norte = topo_norte
+	if face_norte >= 0.0:
+		p.face_norte = face_norte
+	if topo_lateral >= 0.0:
+		p.topo_lateral = topo_lateral
+	if face_lateral >= 0.0:
+		p.face_lateral = face_lateral
+	if topo_sul >= 0.0:
+		p.topo_sul = topo_sul
+	if face_sul >= 0.0:
+		p.face_sul = face_sul
+	if borda_externa_sul >= 0.0:
+		p.borda_externa_sul = borda_externa_sul
 	return p

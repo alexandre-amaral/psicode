@@ -273,20 +273,27 @@ func _a_margem_segue_o_perfil_DA_SALA() -> void:
 func _a_margem_deriva_da_parede(margem: Vector4) -> void:
 	ok(margem.x > 0.0 and margem.y > 0.0 and margem.z > 0.0 and margem.w > 0.0,
 		"as quatro margens sao positivas (sem elas a parede nunca entra no quadro)")
-	# As margens VERTICAIS sao iguais, e ja foram deliberadamente diferentes.
+	# A composicao e a mesma nos quatro lados; o que difere e o TOPO.
 	#
-	# A regra antiga era "a de cima e maior que a de baixo -- e a assimetria que
-	# carrega a perspectiva", com o sul em 32 px contra 104 do norte. Ela media a
-	# perspectiva no lugar errado: quem a carrega e a FACE (o norte tem 72 px
-	# dela, o sul nao tem nenhuma), e nao a profundidade. Com o sul raso, o clamp
-	# mostrava 72 px a menos embaixo e sobrava borda preta no quadro.
+	# **Esta assercao ja girou tres vezes, e o registro disso importa mais que o
+	# numero.** Ela nasceu como `y > w` -- "a assimetria carrega a perspectiva",
+	# com o sul raso. Virou `y == w` num conserto meu de uma borda preta que nao
+	# existia. Voltou a `y > w`. E hoje volta a igualdade, mas por um motivo
+	# diferente do da segunda vez: o sul ganhou FACE (ver `PerfilDeParede`), entao
+	# os dois lados verticais desenham a mesma composicao e a mesma profundidade.
 	#
-	# Hoje a assimetria mora na COMPOSICAO -- topo contra face -- e a profundidade
-	# e igual nos dois. O portao inverteu junto, e por isso ele cobra IGUALDADE:
-	# um sul mais raso volta a abrir a borda.
+	# O que ela cobra agora nao e um numero e sim uma RELACAO, e por isso deve
+	# parar de girar: as verticais sao iguais entre si, e maiores que as laterais,
+	# porque a face e a mesma nos quatro e o TOPO e que muda -- 32 px onde ele e
+	# espessura vista de esguelha (norte e sul), 24 px onde e superficie de cima
+	# (leste e oeste).
 	ok(is_equal_approx(margem.y, margem.w),
-		"as margens vertical sao iguais (%.0f e %.0f) -- assimetria e da composicao, nao da profundidade"
+		"as margens verticais sao iguais (%.0f e %.0f) -- norte e sul tem a mesma composicao"
 			% [margem.y, margem.w]
+	)
+	ok(margem.y > margem.x and margem.w > margem.z,
+		"e as verticais sao mais fundas que as laterais (%.0f contra %.0f) -- o TOPO e que muda"
+			% [margem.y, margem.x]
 	)
 	var conferidas := 0
 	for caminho in CENAS:

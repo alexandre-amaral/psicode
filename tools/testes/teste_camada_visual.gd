@@ -1198,6 +1198,14 @@ const SUBORDINACAO_MAXIMA := 0.75
 ## permanente, que e como o `EstiloDeParede` cobriu dois epicos inteiros.
 const TOPO_AINDA_COMPETE := true
 
+## Quantas celulas a varredura visita.
+##
+## Oito e o menor numero que exercita as tres texturas de topo e as cinco de
+## face com folga: com tres e cinco no sorteio, oito hashes independentes deixam
+## a chance de nao ver a face mais calma abaixo de 20%. Subir isto so custa
+## tempo, e o tempo aqui e rasterizar 96x96 px por celula.
+const CELULAS_MEDIDAS := 8
+
 
 ## O TOPO e ESPESSURA, e espessura nao disputa atencao com identidade.
 ##
@@ -1213,19 +1221,69 @@ const TOPO_AINDA_COMPETE := true
 ## O que ele pergunta e sobre o MATERIAL: quanto a chapa de cima conversa,
 ## comparada com a face.
 ##
+## **E ele VARRE celulas, porque uma sala so nao responde a pergunta.** A face e
+## sorteada por lado dentro de uma biblioteca que varia de proposito -- medidas
+## nos arquivos, as cinco de combate vao de 10,7 a 27,4 de energia --, e o topo e
+## sorteado uma vez por sala entre tres. Amostrar UMA sala compara o topo com a
+## face que aquele hash escolheu: a primeira versao deste caso caiu numa sala de
+## face `tubulacao`, a mais agitada da biblioteca, e mediu 1,015 onde a mesma
+## arte contra a face `comum` mede mais que o dobro. O que vale e o PIOR par que
+## o andar consegue produzir, porque e uma sala de verdade.
+##
 ## E ele le a fita MONTADA, e nao os PNGs. O que o jogador ve no topo e a textura
 ## mais as bandas desenhadas em codigo; medir `parede_topo_a.png` responderia
 ## sobre um arquivo, e nao sobre a parede.
+##
+## **Este portao NAO prova a #241.** Ele mede material, e a #241 mexe em
+## estrutura -- borda, chapa e bisel. Quem julga a #241 e `comparar_topos.tscn`,
+## olhando. Quem faz este numero cair e a chapa nova da #242.
 func _o_topo_e_subordinado_a_face() -> void:
 	var dados := load("res://src/mapa/tipo_combate.tres") as DadosSala
-	var sala := _montar_com(CENA_SALA, dados, Vector2i.ZERO)
-	var fita := sala.get_node_or_null("ParedeModulos") as Node2D
-	ok(fita != null, "a sala montou a fita para medir")
-	if fita == null:
+	var pior := 0.0
+	var pior_face := 0.0
+	var pior_topo := 0.0
+	var medidas := 0
+	for i in CELULAS_MEDIDAS:
+		# Celulas diferentes = hashes diferentes = outra face e outro topo. E o
+		# mesmo sorteio que o andar faz, e nao uma variacao inventada aqui.
+		var sala := _montar_com(CENA_SALA, dados, Vector2i(i, i * 3))
+		var energias := _energia_da_faixa_norte(sala)
 		sala.free()
+		if energias.x <= 0.0:
+			continue
+		medidas += 1
+		var razao := energias.y / energias.x
+		if razao > pior:
+			pior = razao
+			pior_face = energias.x
+			pior_topo = energias.y
+	ok(medidas >= CELULAS_MEDIDAS - 1,
+		"a varredura mediu as celulas (%d de %d)" % [medidas, CELULAS_MEDIDAS])
+	if medidas == 0:
 		return
 
+	if TOPO_AINDA_COMPETE:
+		# A metade que morde: enquanto a bandeira estiver ligada, o topo TEM de
+		# continuar competindo. Quando a chapa nova chegar, este caso reprova e a
+		# linha nao fica para tras.
+		ok(pior > SUBORDINACAO_MAXIMA,
+			"o topo esta declarado como competindo e continua competindo (pior par: topo %.2f / face %.2f = %.3f)"
+				% [pior_topo, pior_face, pior])
+	else:
+		ok(pior <= SUBORDINACAO_MAXIMA,
+			"o topo e subordinado a face no pior par (topo %.2f / face %.2f = %.3f, teto %.2f)"
+				% [pior_topo, pior_face, pior, SUBORDINACAO_MAXIMA])
+
+
+## (energia da face, energia do topo) na faixa NORTE desta sala.
+##
+## O norte e o unico lado que mostra a face inteira de frente, e por isso o unico
+## em que a pergunta "o topo compete com a face?" tem sentido.
+func _energia_da_faixa_norte(sala: Sala) -> Vector2:
+	var fita := sala.get_node_or_null("ParedeModulos") as Node2D
 	var perfil := sala.perfil_de_parede()
+	if fita == null or perfil == null:
+		return Vector2.ZERO
 	var contorno := sala.contorno_local()
 	var portas: Array[Porta] = []
 	var raiz := sala.get_node_or_null("Portas")
@@ -1235,10 +1293,7 @@ func _o_topo_e_subordinado_a_face() -> void:
 			if porta != null:
 				portas.append(porta)
 
-	# O lado NORTE: o unico que mostra a face inteira de frente, e por isso o
-	# unico em que a pergunta "o topo compete com a face?" tem sentido.
-	var de := Vector2.ZERO
-	var ate := Vector2.ZERO
+	var melhor := PackedVector2Array()
 	var normal := Vector2.ZERO
 	var maior := 0.0
 	for i in contorno.size():
@@ -1247,26 +1302,23 @@ func _o_topo_e_subordinado_a_face() -> void:
 		var n := RenderizadorParedes.normal_externa(contorno, a, b)
 		if RenderizadorParedes.classificar(n) != RenderizadorParedes.Lado.NORTE:
 			continue
-		# O trecho LIVRE mais longo, e ele vem do proprio renderizador: a face
-		# abre no vao da porta e o topo o atravessa, entao amostrar em cima de
-		# uma porta compararia topo contra nada.
+		# O trecho LIVRE, e ele vem do proprio renderizador: a face abre no vao
+		# da porta e o topo o atravessa, entao amostrar em cima de uma porta
+		# compararia topo contra nada.
 		for trecho in RenderizadorParedes.trechos_livres(contorno, a, b, portas):
 			var comprimento: float = trecho[0].distance_to(trecho[1])
 			if comprimento > maior:
 				maior = comprimento
-				de = trecho[0]
-				ate = trecho[1]
+				melhor = trecho
 				normal = n
-	ok(maior >= 64.0, "achou um trecho de norte sem porta para medir (%.0f px)" % maior)
 	if maior < 64.0:
-		sala.free()
-		return
+		return Vector2.ZERO
 
 	var fundo := int(perfil.profundidade(RenderizadorParedes.Lado.NORTE))
 	var fim_face := int(perfil.fim_da_face(RenderizadorParedes.Lado.NORTE))
-	var largura := int(minf(maior, 192.0))
-	var meio := (de + ate) * 0.5
-	var eixo := (ate - de).normalized()
+	var largura := int(minf(maior, 96.0))
+	var meio := (melhor[0] + melhor[1]) * 0.5
+	var eixo := (melhor[1] - melhor[0]).normalized()
 	var imagem := RasterizadorDeFita.faixa(fita,
 		meio - eixo * (largura * 0.5), meio + eixo * (largura * 0.5),
 		normal, fundo, largura)
@@ -1281,23 +1333,6 @@ func _o_topo_e_subordinado_a_face() -> void:
 	# largura de peca nenhuma. Com face de 56 ele apaga a banda inteira, e a
 	# primeira versao deste caso mediu energia ZERO por causa dele.
 	var margem := 4
-	var energia_face := RasterizadorDeFita.energia(imagem, margem, fim_face - margem)
-	var energia_topo := RasterizadorDeFita.energia(imagem, fim_face + margem, fundo - margem)
-	ok(energia_face > 0.0, "a face tem miolo para medir (%.2f)" % energia_face)
-	if energia_face <= 0.0:
-		sala.free()
-		return
-
-	var razao := energia_topo / energia_face
-	if TOPO_AINDA_COMPETE:
-		# A metade que morde: enquanto a bandeira estiver ligada, o topo TEM de
-		# continuar competindo. Quando a arte e as bandas chegarem, este caso
-		# reprova e a linha nao fica para tras.
-		ok(razao > SUBORDINACAO_MAXIMA,
-			"o topo esta declarado como competindo e continua competindo (topo %.2f / face %.2f = %.3f)"
-				% [energia_topo, energia_face, razao])
-	else:
-		ok(razao <= SUBORDINACAO_MAXIMA,
-			"o topo e subordinado a face (topo %.2f / face %.2f = %.3f, teto %.2f)"
-				% [energia_topo, energia_face, razao, SUBORDINACAO_MAXIMA])
-	sala.free()
+	return Vector2(
+		RasterizadorDeFita.energia(imagem, margem, fim_face - margem),
+		RasterizadorDeFita.energia(imagem, fim_face + margem, fundo - margem))

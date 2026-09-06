@@ -122,6 +122,18 @@ func _medir(composicao: String) -> void:
 	var topo := RasterizadorDeFita.energia(imagem, fim_face + margem, fundo - margem)
 	print("  %-10s face %6.2f   topo %6.2f   topo/face %.3f   (face %d px, topo %d px)"
 		% [composicao, face, topo, topo / maxf(face, 0.001), fim_face, fundo - fim_face])
+
+	# A FATIA em disco, ampliada. Ela e a evidencia da medicao: sem ela, um
+	# numero errado por amostrar o lado errado da parede continua sendo um
+	# numero, e o unico jeito de descobrir e reler o codigo. A fatia mostra na
+	# hora se o que foi medido e mesmo face embaixo e topo em cima.
+	DirAccess.make_dir_recursive_absolute("user://capturas")
+	var ampliada := Image.create(imagem.get_width() * 2, imagem.get_height() * 4,
+		false, Image.FORMAT_RGBA8)
+	for y in ampliada.get_height():
+		for x in ampliada.get_width():
+			ampliada.set_pixel(x, y, imagem.get_pixel(x / 2, y / 4))
+	ampliada.save_png("user://capturas/fatia_%s.png" % composicao)
 	sala.queue_free()
 
 

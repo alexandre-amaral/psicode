@@ -1,4 +1,4 @@
-[gd_scene load_steps=34 format=3]
+[gd_scene load_steps=39 format=3]
 
 [ext_resource type="Script" path="res://src/enemies/boss_guardiao_01.gd" id="1_s"]
 [ext_resource type="Resource" path="res://src/enemies/dados_boss_guardiao_01.tres" id="2_dados"]
@@ -29,6 +29,11 @@
 [ext_resource type="Resource" path="res://src/enemies/clipe_investir.tres" id="35_c"]
 [ext_resource type="Resource" path="res://src/enemies/clipe_armar_pisao.tres" id="36_c"]
 [ext_resource type="Resource" path="res://src/enemies/clipe_pisar.tres" id="37_c"]
+[ext_resource type="Resource" path="res://src/enemies/clipe_despertar.tres" id="38_c"]
+[ext_resource type="Resource" path="res://src/enemies/clipe_cambalear.tres" id="39_c"]
+[ext_resource type="Resource" path="res://src/enemies/clipe_morrer.tres" id="40_c"]
+[ext_resource type="Resource" path="res://src/enemies/clipe_armar_reator.tres" id="41_c"]
+[ext_resource type="Resource" path="res://src/enemies/clipe_sobrecarregar.tres" id="42_c"]
 [ext_resource type="Script" path="res://src/enemies/sprite_direcional.gd" id="6_sprite"]
 [ext_resource type="AudioStream" path="res://assets/audio/motor_falhando.wav" id="30_m1"]
 [ext_resource type="AudioStream" path="res://assets/audio/motor_firme.wav" id="31_m2"]
@@ -60,7 +65,7 @@ sprites_andando = Array[Texture2D]([ExtResource("20_a"), ExtResource("21_a"), Ex
 quadros_andando = 8
 fps_andando = 9.0
 velocidade_referencia = 132.0
-clipes = Array[ClipeDirecional]([ExtResource("30_c"), ExtResource("31_c"), ExtResource("32_c"), ExtResource("33_c"), ExtResource("34_c"), ExtResource("35_c"), ExtResource("36_c"), ExtResource("37_c")])
+clipes = Array[ClipeDirecional]([ExtResource("30_c"), ExtResource("31_c"), ExtResource("32_c"), ExtResource("33_c"), ExtResource("34_c"), ExtResource("35_c"), ExtResource("36_c"), ExtResource("37_c"), ExtResource("38_c"), ExtResource("39_c"), ExtResource("40_c"), ExtResource("41_c"), ExtResource("42_c")])
 
 [node name="Placa" type="Polygon2D" parent="Visual"]
 visible = false

@@ -355,35 +355,14 @@ const SEPARACAO_MINIMA := 0.15
 ## alguma coisa.
 ##
 ## Tirar um nome daqui e o interruptor de "esta face foi redesenhada".
+##
+## **Ela esta VAZIA, e foi assim que ela terminou de servir.** As 28 entraram
+## declaradas e sairam juntas: as sete artes de modulo foram refeitas em
+## nervura, duto, cabo, tubo, veneziana, barramento e pistao -- todas correndo
+## de borda a borda em Y --, e cada arquivo foi reproduzido com o matiz e a
+## mediana de valor MEDIDOS no antigo, para a unica diferenca ser o eixo. A
+## faixa medida hoje vai de 0,50 a 0,90.
 const SEM_ORIENTACAO_AINDA: Array[String] = [
-	"parede_face",
-	"parede_face_arma",
-	"parede_face_arma_deteriorada",
-	"parede_face_arma_tecnica",
-	"parede_face_arma_tubulacao",
-	"parede_face_arma_ventilada",
-	"parede_face_boss",
-	"parede_face_boss_deteriorada",
-	"parede_face_boss_energia",
-	"parede_face_boss_motor",
-	"parede_face_boss_tecnica",
-	"parede_face_boss_tubulacao",
-	"parede_face_boss_ventilada",
-	"parede_face_combate",
-	"parede_face_combate_deteriorada",
-	"parede_face_combate_tecnica",
-	"parede_face_combate_tubulacao",
-	"parede_face_combate_ventilada",
-	"parede_face_inicial",
-	"parede_face_inicial_deteriorada",
-	"parede_face_inicial_tecnica",
-	"parede_face_inicial_tubulacao",
-	"parede_face_inicial_ventilada",
-	"parede_face_item",
-	"parede_face_item_deteriorada",
-	"parede_face_item_tecnica",
-	"parede_face_item_tubulacao",
-	"parede_face_item_ventilada",
 ]
 
 

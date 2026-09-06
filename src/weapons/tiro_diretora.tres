@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="DadosArma" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+[ext_resource type="Texture2D" uid="uid://xkesr3wg3ptu" path="res://assets/projeteis/tiro_diretora.png" id="9_arte"]
 
 [resource]
 script = ExtResource("1_dados")
@@ -19,6 +20,7 @@ alcance = 1080.0
 raio_projetil = 7.0
 cor_projetil = Color(1, 0.24, 0.55, 1)
 alongamento_silhueta = 0.70
+textura_projetil = ExtResource("9_arte")
 familia_silhueta = 3
 municao_maxima = -1
 shake_intensidade = 0.0

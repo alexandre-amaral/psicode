@@ -176,7 +176,19 @@ func _o_clamp_nunca_e_menor_que_o_quadro() -> void:
 		sala.get_parent().remove_child(sala)
 		sala.free()
 
-	ok(estreitas > 0, "ha sala mais estreita que o quadro para exercitar (%d)" % estreitas)
+	# NENHUMA sala e mais estreita que o quadro, e isso deixou de ser acidente.
+	#
+	# Este caso ja exigia o contrario -- que houvesse ao menos uma, para exercitar
+	# o crescimento. Exigir isso amarrava o portao a um defeito: enquanto o
+	# corredor tivesse 768 px contra 960 de tela, ele mostrava 13,3% do quadro em
+	# VAZIO PRETO, medido com `tools/medir_moldura.tscn`. Com a lateral em 96 px o
+	# contorno de 768 fecha 960 exato e o vazio sumiu.
+	#
+	# Quem exercita o crescimento e o retangulo sintetico logo abaixo, que e o
+	# lado que sempre mordeu de verdade. O que se cobra aqui e o oposto do que se
+	# cobrava: ZERO salas dependendo do crescimento.
+	igual(estreitas, 0,
+		"nenhuma sala depende do crescimento do clamp -- todas fecham o quadro sozinhas")
 
 	# O LADO QUE MORDE, sintetico: um retangulo que nao cabe em NENHUM eixo.
 	var minusculo := gerenciador._cabendo_a_tela(Rect2(-50.0, -50.0, 100.0, 100.0))
@@ -261,9 +273,21 @@ func _a_margem_segue_o_perfil_DA_SALA() -> void:
 func _a_margem_deriva_da_parede(margem: Vector4) -> void:
 	ok(margem.x > 0.0 and margem.y > 0.0 and margem.z > 0.0 and margem.w > 0.0,
 		"as quatro margens sao positivas (sem elas a parede nunca entra no quadro)")
-	ok(margem.y > margem.w,
-		"e a de CIMA e maior que a de BAIXO -- e a assimetria que carrega a perspectiva (%.0f contra %.0f)"
-			% [margem.y, margem.w])
+	# As margens VERTICAIS sao iguais, e ja foram deliberadamente diferentes.
+	#
+	# A regra antiga era "a de cima e maior que a de baixo -- e a assimetria que
+	# carrega a perspectiva", com o sul em 32 px contra 104 do norte. Ela media a
+	# perspectiva no lugar errado: quem a carrega e a FACE (o norte tem 72 px
+	# dela, o sul nao tem nenhuma), e nao a profundidade. Com o sul raso, o clamp
+	# mostrava 72 px a menos embaixo e sobrava borda preta no quadro.
+	#
+	# Hoje a assimetria mora na COMPOSICAO -- topo contra face -- e a profundidade
+	# e igual nos dois. O portao inverteu junto, e por isso ele cobra IGUALDADE:
+	# um sul mais raso volta a abrir a borda.
+	ok(is_equal_approx(margem.y, margem.w),
+		"as margens vertical sao iguais (%.0f e %.0f) -- assimetria e da composicao, nao da profundidade"
+			% [margem.y, margem.w]
+	)
 	var conferidas := 0
 	for caminho in CENAS:
 		var cena: PackedScene = load(caminho)

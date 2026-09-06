@@ -175,20 +175,6 @@ const FACE_NEUTRA := "res://assets/texturas/parede_face.png"
 ## Compartilhada e nao copiada nos cinco `tipo_*.tres`: cinco copias da mesma
 ## lista divergem no dia em que alguem mudar quatro. Se um tipo um dia precisar
 ## de topo proprio, isso e uma decisao nova e nao um campo esperando.
-## Os CANTOS neutros, na ordem do `RenderizadorParedes.Canto`.
-##
-## Existem pelo mesmo motivo que `TOPOS_NEUTROS`: sala sem `DadosSala` -- aberta
-## sozinha no editor, a amostra do catalogo, toda suite que monta sala sem visual
-## -- tem de continuar desenhando parede inteira. Sem esta lista ela perdia os
-## cantos em silencio enquanto a fita continuava, e a quina ficava sem
-## articulacao so naquelas salas.
-const CANTOS_NEUTROS: Array[String] = [
-	"res://assets/texturas/modulo_canto_no.png",
-	"res://assets/texturas/modulo_canto_ne.png",
-	"res://assets/texturas/modulo_canto_so.png",
-	"res://assets/texturas/modulo_canto_se.png",
-]
-
 ## Valvula de FERRAMENTA: o perfil que a matriz de comparacao quer usar.
 ##
 ## Ela existe porque a sala monta a fita no proprio `_ready`, e nao ha janela
@@ -976,20 +962,11 @@ func _montar_fita(contorno: PackedVector2Array) -> void:
 		if neutra != null:
 			faces.append(neutra)
 
-	var cantos: Array[Texture2D] = []
-	if estilo != null and not estilo.cantos.is_empty():
-		cantos = estilo.cantos
-	else:
-		for caminho in CANTOS_NEUTROS:
-			var c := load(caminho) as Texture2D
-			if c != null:
-				cantos.append(c)
-
 	var peso: float = estilo.peso_comum if estilo != null else 0.65
 	var espacamento: int = estilo.espacamento_minimo if estilo != null else 2
 	var abertos: Array[Vector2] = []
 	add_child(RenderizadorParedes.construir(
-		contorno, portas, hash(coordenadas_grid), topos, faces, cantos,
+		contorno, portas, hash(coordenadas_grid), topos, faces,
 		peso, espacamento, abertos, _perfil(), silhueta_de_teste))
 
 

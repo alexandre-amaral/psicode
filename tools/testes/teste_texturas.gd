@@ -371,7 +371,7 @@ func _superficies_de_parede() -> Array[String]:
 	for arquivo in pasta.get_files():
 		if not arquivo.ends_with(".png"):
 			continue
-		if arquivo.begins_with("parede_face") or arquivo.begins_with("parede_topo") 				or arquivo.begins_with("modulo_canto"):
+		if arquivo.begins_with("parede_face") or arquivo.begins_with("parede_topo"):
 			lista.append(arquivo)
 	lista.sort()
 	return lista

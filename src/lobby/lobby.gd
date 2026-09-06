@@ -131,15 +131,9 @@ func _montar_visual() -> void:
 	var face := load(Sala.FACE_NEUTRA) as Texture2D
 	if face != null:
 		faces.append(face)
-	var cantos: Array[Texture2D] = []
-	for caminho in Sala.CANTOS_NEUTROS:
-		var c := load(caminho) as Texture2D
-		if c != null:
-			cantos.append(c)
-
 	var sem_portas: Array[Porta] = []
 	_mundo.add_child(RenderizadorParedes.construir(
-		contorno, sem_portas, hash("lobby"), topos, faces, cantos))
+		contorno, sem_portas, hash("lobby"), topos, faces))
 
 
 func _montar_paredes() -> void:

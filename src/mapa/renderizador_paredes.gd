@@ -76,13 +76,6 @@ const LADO_MINIMO := MODULO
 ## sendo `Z_FRENTE`.
 const Z_FITA := -13
 
-## Os cantos, na ordem em que o `EstiloDeParede` os guarda.
-##
-## Enum e nao indice solto: a PAREDE 06 acrescenta os concavos NO FIM da lista, e
-## um numero cru espalhado pelo arquivo seria reescrito em silencio no dia em que
-## a ordem mudasse. Mesma armadilha que `DadosArma.Comportamento` ja registra.
-enum Canto { NOROESTE, NORDESTE, SUDOESTE, SUDESTE }
-
 ## O lado da celula, e ele e o mesmo tile visual do projeto.
 ##
 ## A faixa tem 64 px de profundidade, entao cada celula da fita sao DUAS peças
@@ -179,7 +172,7 @@ enum Lado { NORTE, SUL, LESTE, OESTE }
 ## pai de quem.
 static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 		semente: int, topos: Array[Texture2D], faces: Array[Texture2D],
-		cantos: Array[Texture2D], peso_comum: float = 0.65,
+		peso_comum: float = 0.65,
 		espacamento: int = 2, abertos: Array[Vector2] = [],
 		perfil: PerfilDeParede = null, silhueta: bool = false) -> Node2D:
 	var raiz := Node2D.new()
@@ -674,9 +667,18 @@ static func _sorteia(lista: Array[Texture2D], chave: int) -> Texture2D:
 ## nao se ve -- e esse e o ponto. A quina passa a ser o lugar onde duas
 ## superficies se encontram, e nao uma peca em cima delas.
 ##
-## O `cantos` continua na assinatura de `construir()` porque o kit ainda o
-## declara; ele so nao e mais desenhado. Tirar o campo e outra issue, e ela nao
-## tem pressa -- campo nao usado nao aparece na tela.
+## **O kit de cantos SAIU.** Ele sobreviveu a esta mudanca como campo declarado e
+## nunca desenhado, e ficou assim porque campo nao usado nao aparece na tela --
+## o que e justamente o problema: a proxima encomenda de arte abriria a pasta de
+## texturas e desenharia quatro cantos que ninguem consome.
+## As quinas CONCAVAS caem no mesmo tratamento das convexas, de proposito.
+##
+## Medindo a geometria, as duas familias pedem a mesma coisa: em ambas a
+## superficie VIRA na quina, e o que muda e so de que lado ela vira. Numa convexa
+## as duas faixas contornam o vertice por fora; numa concava elas se sobrepoem
+## debaixo dele. O plano previa oito pecas de arte; a meia-esquadria nao precisa
+## de nenhuma -- ela corta o retangulo na diagonal e da a cada metade as bandas
+## do SEU lado, com a mesma textura e a mesma ancora de UV.
 static func _fechar_quinas(raiz: Node2D, contorno: PackedVector2Array,
 		perfil: PerfilDeParede, topos: Array[Texture2D],
 		faces: Array[Texture2D], ancora: Vector2,
@@ -804,33 +806,6 @@ static func _banda_da_quina(raiz: Node2D, v: Vector2, n: Vector2, de: float,
 		raiz.add_child(quad)
 
 
-## Qual canto do kit cobre esta quina.## Qual canto do kit cobre esta quina. -1 quando a quina nao e um encontro de um
-## lado horizontal com um vertical -- o que so acontece em contorno degenerado.
-##
-## As quinas CONCAVAS caem no mesmo mapa, de proposito. Medindo a geometria, as
-## duas familias pedem o mesmo desenho: em ambas o pilar fica na quina virada
-## para a sala, e o que muda e so de que lado ela esta. Numa convexa as duas
-## faixas contornam o pilar por fora; numa concava elas se sobrepoem debaixo
-## dele. O plano previa oito pecas; quatro fazem o trabalho, e o enum tem espaco
-## para as concavas ganharem desenho proprio se um dia alguem provar que precisam.
-static func _canto_de(um: Lado, outro: Lado) -> int:
-	var lados := [um, outro]
-	var norte := lados.has(Lado.NORTE)
-	var sul := lados.has(Lado.SUL)
-	if lados.has(Lado.OESTE):
-		if norte:
-			return Canto.NOROESTE
-		if sul:
-			return Canto.SUDOESTE
-	if lados.has(Lado.LESTE):
-		if norte:
-			return Canto.NORDESTE
-		if sul:
-			return Canto.SUDESTE
-	return -1
-
-
-## Para que lado este trecho aponta.
 static func classificar(normal: Vector2) -> Lado:
 	if normal.y <= Sala.LIMIAR_LADO_NORTE:
 		return Lado.NORTE

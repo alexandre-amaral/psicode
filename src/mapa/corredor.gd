@@ -197,11 +197,10 @@ func _montar_fita(eixo: Vector2, lado: Vector2, comprimento: float, largura: flo
 		faces.append(face)
 
 	var vazias: Array[Porta] = []
-	var sem_canto: Array[Texture2D] = []
 	var abertos: Array[Vector2] = [eixo, -eixo]
 	add_child(RenderizadorParedes.construir(
 		contorno, vazias, hash(_retangulo_local.position), topos, faces,
-		sem_canto, 0.65, 2, abertos))
+		0.65, 2, abertos))
 
 	# A SOMBRA vale para o corredor tambem, e nao por simetria de codigo.
 	#

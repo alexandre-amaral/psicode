@@ -335,7 +335,6 @@ func _a_variante_e_deterministica_e_o_espacamento_morde() -> void:
 		load("res://assets/texturas/parede_face_combate_tecnica.png"),
 		load("res://assets/texturas/parede_face_combate_ventilada.png"),
 	]
-	var cantos: Array[Texture2D] = []
 	var vazias: Array[Porta] = []
 	for t in topos + faces:
 		if t == null:
@@ -343,11 +342,11 @@ func _a_variante_e_deterministica_e_o_espacamento_morde() -> void:
 			return
 
 	var solto := RenderizadorParedes.construir(
-		contorno, vazias, 12345, topos, faces, cantos, 0.65, 0)
+		contorno, vazias, 12345, topos, faces, 0.65, 0)
 	var apertado := RenderizadorParedes.construir(
-		contorno, vazias, 12345, topos, faces, cantos, 0.65, 2)
+		contorno, vazias, 12345, topos, faces, 0.65, 2)
 	var repetido := RenderizadorParedes.construir(
-		contorno, vazias, 12345, topos, faces, cantos, 0.65, 2)
+		contorno, vazias, 12345, topos, faces, 0.65, 2)
 
 	# 1. DETERMINISMO: as duas montagens com a mesma semente sao identicas.
 	# Comparado por HASH e nao por `igual()`: a assinatura de uma parede tem
@@ -685,12 +684,11 @@ func _nada_vaza_pela_BOCA_de_um_lado_aberto() -> void:
 	if face != null:
 		faces.append(face)
 	var sem_portas: Array[Porta] = []
-	var sem_canto: Array[Texture2D] = []
 	# As bocas de um corredor horizontal: leste e oeste.
 	var abertos: Array[Vector2] = [Vector2.RIGHT, Vector2.LEFT]
 
 	var fita := RenderizadorParedes.construir(
-		contorno, sem_portas, 1234, topos, faces, sem_canto, 0.65, 2, abertos)
+		contorno, sem_portas, 1234, topos, faces, 0.65, 2, abertos)
 	Engine.get_main_loop().root.add_child(fita)
 
 	var caixa := Rect2()

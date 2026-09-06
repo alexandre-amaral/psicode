@@ -36,6 +36,7 @@ func executar() -> void:
 	await _toda_quina_recebe_canto()
 	_a_variante_e_deterministica_e_o_espacamento_morde()
 	_as_duas_contas_de_onde_ha_parede_coincidem()
+	_nada_vaza_pela_BOCA_de_um_lado_aberto()
 
 
 ## Toda forma de sala em disco monta a fita, e nenhuma monta vazia.
@@ -648,3 +649,79 @@ func _extensao(item: Node2D, eixo: Vector2) -> Vector2:
 		lo = minf(lo, onde)
 		hi = maxf(hi, onde)
 	return Vector2(lo, hi)
+
+
+## Nada desenhado atravessa a BOCA de um lado declarado aberto.
+##
+## `abertos` e como o corredor diz "estes dois lados nao sao parede, sao
+## passagem". A fita ja respeitava; a QUINA nao sabia, e fechava as quatro do
+## retangulo. Na boca, uma das duas direcoes da quina aponta ao longo do
+## corredor -- para dentro da sala vizinha --, entao o quad dela invadia a sala
+## com `profundidade x profundidade`.
+##
+## Com o perfil C, 16 a 24 px, aquilo cabia debaixo da parede da propria sala e
+## ninguem via. Com 96 e 104 virou um bloco entrando pela porta, nas DUAS bocas.
+##
+## O portao monta a geometria do corredor -- retangulo estreito, dois lados
+## abertos -- e exige que nenhuma peca ultrapasse o contorno no eixo da
+## passagem. E geometria pura: nao precisa de sala, de porta nem de andar.
+func _nada_vaza_pela_BOCA_de_um_lado_aberto() -> void:
+	var meia_largura := 32.0
+	var meio := 200.0
+	var contorno := PackedVector2Array([
+		Vector2(-meio, -meia_largura),
+		Vector2(meio, -meia_largura),
+		Vector2(meio, meia_largura),
+		Vector2(-meio, meia_largura),
+	])
+	var topos: Array[Texture2D] = []
+	for caminho in Sala.TOPOS_NEUTROS:
+		var tex := load(caminho) as Texture2D
+		if tex != null:
+			topos.append(tex)
+	var faces: Array[Texture2D] = []
+	var face := load(Sala.FACE_NEUTRA) as Texture2D
+	if face != null:
+		faces.append(face)
+	var sem_portas: Array[Porta] = []
+	var sem_canto: Array[Texture2D] = []
+	# As bocas de um corredor horizontal: leste e oeste.
+	var abertos: Array[Vector2] = [Vector2.RIGHT, Vector2.LEFT]
+
+	var fita := RenderizadorParedes.construir(
+		contorno, sem_portas, 1234, topos, faces, sem_canto, 0.65, 2, abertos)
+	Engine.get_main_loop().root.add_child(fita)
+
+	var caixa := Rect2()
+	var pecas := 0
+	for filho in fita.get_children():
+		var item := filho as Node2D
+		if item == null:
+			continue
+		var meia := Vector2.ZERO
+		var sprite := item as Sprite2D
+		if sprite != null and sprite.texture != null:
+			meia = sprite.texture.get_size() * 0.5
+		else:
+			var poly := item as Polygon2D
+			if poly == null or poly.polygon.is_empty():
+				continue
+			meia = _caixa(poly.polygon).size * 0.5
+		var caixa_da_peca := Rect2(item.position - meia, meia * 2.0)
+		caixa = caixa_da_peca if pecas == 0 else caixa.merge(caixa_da_peca)
+		pecas += 1
+	ok(pecas > 0, "a fita do corredor tem pecas para medir (%d)" % pecas)
+	ok(
+		caixa.position.x >= -meio - 0.5 and caixa.end.x <= meio + 0.5,
+		"nada vaza pelas bocas (x de %.1f a %.1f, contorno de %.0f a %.0f)"
+			% [caixa.position.x, caixa.end.x, -meio, meio]
+	)
+	# E o lado que morde: o eixo FECHADO tem de vazar, senao o caso passaria numa
+	# fita que simplesmente nao desenhou nada.
+	ok(
+		caixa.position.y < -meia_largura - 1.0 and caixa.end.y > meia_largura + 1.0,
+		"e os lados FECHADOS desenham parede alem do contorno (y de %.1f a %.1f)"
+			% [caixa.position.y, caixa.end.y]
+	)
+	fita.get_parent().remove_child(fita)
+	fita.free()

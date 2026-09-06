@@ -175,8 +175,9 @@ static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 		if _e_aberto(normal_externa(contorno, a, b), abertos):
 			continue
 		_vestir_lado(raiz, contorno, a, b, portas, semente ^ (i * 0x9e3779b1),
-			topos, faces, peso_comum, espacamento, regra, ancora, silhueta)
-	_fechar_quinas(raiz, contorno, regra, topos, faces, ancora, silhueta)
+			semente, topos, faces, peso_comum, espacamento, regra, ancora, silhueta)
+	_fechar_quinas(raiz, contorno, regra, topos, faces, ancora, silhueta,
+		abertos, semente)
 	return raiz
 
 
@@ -197,7 +198,8 @@ static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 ## dele. E isso traz de graca o corte da porta: um vao parte a faixa em duas em
 ## vez de abrir um buraco de celulas puladas.
 static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
-		b: Vector2, portas: Array[Porta], semente: int, topos: Array[Texture2D],
+		b: Vector2, portas: Array[Porta], semente: int, semente_da_sala: int,
+		topos: Array[Texture2D],
 		faces: Array[Texture2D], peso_comum: float, espacamento: int,
 		perfil: PerfilDeParede, ancora: Vector2, silhueta: bool) -> void:
 	var comprimento := a.distance_to(b)
@@ -217,7 +219,19 @@ static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 	# denunciava a celula. Com uma escolha por lado, a variedade passa a
 	# acontecer entre SALAS e entre LADOS, que e onde o jogador consegue le-la
 	# como material e nao como grade.
-	var textura_topo := _sorteia(topos, semente)
+	# O TOPO e sorteado UMA VEZ POR SALA; a FACE, uma vez por lado.
+	#
+	# Os dois ja sairam do mesmo sorteio por lado, e o resultado era a sala
+	# vestir tres tijolos diferentes ao mesmo tempo -- norte com um, leste com
+	# outro, sul com um terceiro. O dono descreveu como "cada orientacao recebe um
+	# tamanho e uma quantidade diferentes de tijolos".
+	#
+	# A distincao nao e capricho: o topo e a superficie NEUTRA e CONTINUA, a
+	# mesma que da a volta na sala e atravessa as quinas com a UV ancorada no
+	# contorno. Duas variantes na mesma volta quebram essa continuidade num lugar
+	# onde ela e a unica coisa que segura a leitura. A FACE e o oposto -- ela
+	# carrega identidade, e a variedade entre lados e o que produz a biblioteca.
+	var textura_topo := _sorteia(topos, semente_da_sala)
 	var textura_face := _face_da_celula(faces, semente,
 		_quer_especial(semente, peso_comum))
 
@@ -584,7 +598,8 @@ static func _sorteia(lista: Array[Texture2D], chave: int) -> Texture2D:
 static func _fechar_quinas(raiz: Node2D, contorno: PackedVector2Array,
 		perfil: PerfilDeParede, topos: Array[Texture2D],
 		faces: Array[Texture2D], ancora: Vector2,
-		silhueta: bool) -> void:
+		silhueta: bool, abertos: Array[Vector2] = [],
+		semente_da_sala: int = 0) -> void:
 	var total := contorno.size()
 	for i in total:
 		var anterior := contorno[(i - 1 + total) % total]
@@ -595,6 +610,20 @@ static func _fechar_quinas(raiz: Node2D, contorno: PackedVector2Array,
 		var n1 := normal_externa(contorno, anterior, v)
 		var n2 := normal_externa(contorno, v, proximo)
 		if n1 == Vector2.ZERO or n2 == Vector2.ZERO:
+			continue
+		# Quina de LADO ABERTO nao se fecha, e isso e o conserto do corredor.
+		#
+		# `abertos` ja impedia a FITA de vestir a boca; a quina nao sabia disso e
+		# fechava as quatro do retangulo. Na boca, uma das duas direcoes aponta ao
+		# longo do corredor -- ou seja, para DENTRO da sala vizinha --, entao o
+		# quad da quina invadia a sala com `profundidade x profundidade`.
+		#
+		# Com o perfil C, 16 a 24 px, aquilo cabia debaixo da parede da propria
+		# sala e ninguem via. Com 96 e 104 virou um bloco entrando pela porta: o
+		# dono viu como "os pilares do corredor vazam para a proxima sala, e
+		# voltando vazam para a anterior" -- as DUAS bocas, que e exatamente o
+		# numero de bocas que um corredor tem.
+		if _e_aberto(n1, abertos) or _e_aberto(n2, abertos):
 			continue
 		# Quina reta: as duas normais sao perpendiculares. Num contorno
 		# degenerado elas podem ser iguais, e ai nao ha vao para fechar.
@@ -626,8 +655,8 @@ static func _fechar_quinas(raiz: Node2D, contorno: PackedVector2Array,
 		var externo := v + n1 * d1 + n2 * d2
 		var f1 := perfil.fim_da_face(classificar(n1))
 		var f2 := perfil.fim_da_face(classificar(n2))
-		var textura_topo_q := _sorteia(topos, hash(v))
-		var textura_face_q := _sorteia(faces, hash(v))
+		var textura_topo_q := _sorteia(topos, semente_da_sala)
+		var textura_face_q := _sorteia(faces, semente_da_sala)
 		_meia_quina(raiz, v, n1, d1, f1, n2, d2, externo,
 			textura_face_q, textura_topo_q, ancora, silhueta)
 		_meia_quina(raiz, v, n2, d2, f2, n1, d1, externo,

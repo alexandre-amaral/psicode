@@ -65,10 +65,26 @@ extends RefCounted
 ## contorno teria de ter 752, que nao cai na grade -- e o multiplo abaixo deixa
 ## 16 px de VAZIO PRETO em cada borda, que e exatamente o defeito que esta
 ## mudanca existe para tirar.
+## **Os QUATRO lados desenham a mesma coisa: 32 de topo e 64 de face.**
+##
+## A uniformidade e o entregavel, e ela veio de uma divida anotada pelo dono: "os
+## tijolos que compoem o topo nao estao nem um pouco uniformes, cada orientacao e
+## cada canto recebem um tamanho e uma quantidade diferentes". Duas causas, e as
+## duas eram codigo:
+##
+##   - o TOPO era sorteado por LADO entre tres texturas que nao sao variantes
+##     do mesmo material -- placas 2x2, tijolo irregular e painel vertical --,
+##     entao uma sala vestia tres materiais ao mesmo tempo;
+##   - e a faixa de topo tinha 32 px no norte e 24 nas laterais, entao cada lado
+##     mostrava uma FATIA diferente da mesma textura de 64 px.
+##
+## 32 + 64 = 96 nos quatro lados fecha a grade: `contorno + margens` da 960 exato
+## num contorno de 768. Com 32 + 72 o lado curto teria de ter 752, que nao cai na
+## grade de 32, e o multiplo abaixo devolve vazio preto na borda.
 var topo_norte: float = 32.0
-var face_norte: float = 72.0
-var topo_lateral: float = 24.0
-var face_lateral: float = 72.0
+var face_norte: float = 64.0
+var topo_lateral: float = 32.0
+var face_lateral: float = 64.0
 ## O SUL desenha face e topo como os outros tres. **Esta regra foi INVERTIDA.**
 ##
 ## Ela dizia que o sul nao ganha face porque a face dele "olha para longe da
@@ -94,7 +110,7 @@ var face_lateral: float = 72.0
 ## simetria que a mudanca existe para produzir. O codigo dela fica, guardado por
 ## `> 0`, porque um andar futuro pode querer o degrau sem a face.
 var topo_sul: float = 32.0
-var face_sul: float = 72.0
+var face_sul: float = 64.0
 var borda_externa_sul: float = 0.0
 
 

@@ -1033,6 +1033,43 @@ em qualquer erro de script.
   e o vazio alem da parede, e isso e desejado: e ele que diz que a sala e
   cavidade escavada em algo. Crescer para um lado so encostaria a sala numa borda
   -- exatamente o que o motor faz sozinho quando o limite e impossivel.
+- **O TOPO e sorteado UMA VEZ POR SALA; a FACE, uma vez por lado.** Os dois ja
+  sairam do mesmo sorteio por lado (`semente ^ (i * 0x9e3779b1)`), e o resultado
+  era a sala vestir tres tijolos diferentes ao mesmo tempo -- norte com um, leste
+  com outro, sul com um terceiro. O topo e a superficie NEUTRA e CONTINUA, a
+  mesma que da a volta na sala e atravessa as quinas com a UV ancorada no
+  contorno; duas variantes na mesma volta quebram a continuidade no unico lugar
+  onde ela segura a leitura. A FACE e o oposto: ela carrega identidade, e a
+  variedade entre lados e o que produz a biblioteca.
+- **DIVIDA DE ARTE: os tres `parede_topo_*` nao sao variantes, sao tres
+  MATERIAIS.** Medidos: `_a` sao placas 2x2 com rebite (orientacao -0,01), `_b` e
+  tijolo irregular (-0,12), `_c` e painel de listras verticais (+0,10). Sortear
+  entre eles nao produz "a mesma parede com outra cara" e sim uma sala de metal
+  ao lado de uma de alvenaria. Hoje isso e uniforme DENTRO de uma sala e continua
+  gritante ENTRE salas. O conserto e arte -- tres variantes do mesmo material --
+  e nao codigo; o sorteio ja esta no lugar certo para receber.
+- **A quina e MEIA ESQUADRIA, e nao um quad de topo.** O vao entre as duas
+  faixas era preenchido inteiro com a textura de topo. Com 16 a 24 px ninguem
+  via; com 96 virou um bloco de pedra entre duas faces, e a sala voltou a parecer
+  feita de cubos -- o defeito que tirar o pilar desenhado existia para resolver.
+  Hoje o retangulo e cortado na diagonal da quina interna a externa, e cada
+  metade recebe as bandas do SEU lado, com a mesma textura e a mesma ancora de
+  UV: a superficie vira, em vez de uma peca entrar por cima.
+- **Quina de lado ABERTO nao se fecha.** `abertos` impedia a fita de vestir a
+  boca de um corredor; a quina nao sabia disso e fechava as quatro do retangulo.
+  Na boca, uma das direcoes aponta ao longo do corredor -- para DENTRO da sala
+  vizinha --, entao o quad invadia a sala com `profundidade x profundidade`. Com
+  o perfil raso cabia debaixo da parede da propria sala; com 96 virou um bloco
+  entrando pela porta, nas DUAS bocas.
+- **`EstiloDeParede` carregava uma SEGUNDA COPIA do perfil, e a copia venceu.**
+  Os campos de espessura eram literais do perfil C e `perfil()` os escrevia por
+  cima de um `PerfilDeParede` novo. O Lobby nao passa perfil e cai no default,
+  entao ele recebeu dois epicos de parede inteiros; **as salas do andar 1 nao
+  receberam nada**, e as duas entregas foram medidas, aprovadas e mergeadas sem
+  tocar o jogo. Hoje os campos sao sentinela NEGATIVO (-1 = herda). E a regua
+  tinha o mesmo ponto cego: `medir_moldura` montava a sala sem `DadosSala`, entao
+  `_perfil()` devolvia null e ela media o DEFAULT enquanto o jogo desenhava
+  outra coisa.
 - **A FACE tem a mesma profundidade nos tres lados que a mostram, e o SUL iguala
   a profundidade sem ganhar face.** Por muito tempo o norte desenhava 104 px e as
   laterais 32, com o argumento de que a lateral "mostra a face de esguelha". O

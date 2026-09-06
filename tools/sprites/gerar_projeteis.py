@@ -13,11 +13,14 @@ manifesto que EXPIRA e o pacote que nao --, e dois downloaders divergiriam no
 dia em que o PixelLab mudasse o layout do ZIP.
 
 USO
-    python tools/sprites/gerar_projeteis.py <id> <raio> [--girar=N] [entrada]
+    python tools/sprites/gerar_projeteis.py <id> <raio> [--girar=N]
+                                            [--comprimento=N] [entrada]
 
     <id>       nome do arquivo de saida, sem extensao (bate com o `.tres`)
     <raio>     `raio_projetil` daquela arma -- e ele que decide a moldura
     --girar=N  gira a FONTE em N graus (multiplo de 90) antes de tudo
+    --comprimento=N  apara a CAUDA ate N px de comprimento final; e o numero
+               que `FormasProjetil.contorno()` daquela arma mede. Zero = livre.
     [entrada]  pasta com os quadros; default `animations/projeteis/<id>/`
 
 O `--girar` existe porque a arte quase nunca nasce apontando para +X, e girar a
@@ -164,7 +167,32 @@ def _aponta_para_frente(img):
     return frente >= tras
 
 
-def _normalizar(origem, raio, girar=0):
+def _aparar_a_cauda(recorte, raio, comprimento):
+    """Encurta a arte pela CAUDA ate o comprimento que o `.tres` declara.
+
+    Existe porque o comprimento sai da BBOX da fonte, e a fonte quase nunca nasce
+    na proporcao certa: um gerador de pixel art desenha dardo alongado por
+    default, e uma fonte 8:1 vira um projetil de 64 px com raio 4 -- oito vezes o
+    losango de referencia. Isso nao e "arte livre": `alongamento_silhueta` e um
+    campo do `.tres`, e arte que o contradiz faz o Inspetor mentir sobre o que a
+    arma desenha. E a mesma armadilha que "numero que foi para o `.tres` tem de
+    SAIR do `.tscn`" descreve, aplicada a forma em vez de ao numero.
+
+    Apara pela CAUDA e nunca pela frente, e nunca ESTICA. A frente e o que le
+    direcao -- e a ponta que diz para onde o tiro vai --, e esticar reamostraria
+    pixel art em escala nao inteira. Se a arte ja for mais curta que o alvo, ela
+    passa como esta: sobrar espaco e legitimo, faltar ponta nao.
+    """
+    if comprimento <= 0:
+        return recorte
+    escala = (raio * 2.0) / float(recorte.height)
+    largura_alvo = int(round(comprimento / escala))
+    if recorte.width <= largura_alvo:
+        return recorte
+    return recorte.crop((recorte.width - largura_alvo, 0, recorte.width, recorte.height))
+
+
+def _normalizar(origem, raio, girar=0, comprimento=0.0):
     """Um quadro: recorta no alfa, escala pela LATERAL, centraliza na moldura."""
     img = origem.convert("RGBA")
     if girar % 360:
@@ -174,7 +202,7 @@ def _normalizar(origem, raio, girar=0):
     caixa = _bbox_de_alfa(img)
     if caixa is None:
         raise SystemExit("quadro vazio: nao ha um pixel opaco na arte")
-    recorte = img.crop(caixa)
+    recorte = _aparar_a_cauda(img.crop(caixa), raio, comprimento)
 
     lateral = lateral_de(raio)
     alvo_altura = max(1, int(round(raio * 2.0)))
@@ -213,8 +241,11 @@ def main(argv):
         return 2
     id_arma = argv[1]
     raio = float(argv[2])
-    resto = [a for a in argv[3:] if not a.startswith("--girar=")]
+    bandeiras = ("--girar=", "--comprimento=")
+    resto = [a for a in argv[3:] if not a.startswith(bandeiras)]
     girar = next((int(a.split("=")[1]) for a in argv[3:] if a.startswith("--girar=")), 0)
+    comprimento = next(
+        (float(a.split("=")[1]) for a in argv[3:] if a.startswith("--comprimento=")), 0.0)
     entrada = resto[0] if resto else os.path.join(ENTRADA_PADRAO, id_arma)
 
     if not os.path.isdir(entrada):
@@ -225,7 +256,8 @@ def main(argv):
         print("nenhum PNG em %s" % entrada)
         return 1
 
-    quadros = [_normalizar(Image.open(os.path.join(entrada, n)), raio, girar) for n in nomes]
+    quadros = [_normalizar(Image.open(os.path.join(entrada, n)), raio, girar, comprimento)
+               for n in nomes]
     largura = max(q.width for q in quadros)
     altura = quadros[0].height
     fita = Image.new("RGBA", (largura * len(quadros), altura), (0, 0, 0, 0))

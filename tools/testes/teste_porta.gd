@@ -44,6 +44,7 @@ func executar() -> void:
 	_toda_moldura_CERCA_o_vao()
 	_a_moldura_e_mais_escura_que_a_parede()
 	await _a_face_abre_no_vao_da_porta()
+	_a_FACE_nao_e_mais_funda_que_a_moldura()
 
 
 ## A ANIMACAO DE ABERTURA e leitura, e nao pedagio (AND1 05).
@@ -821,3 +822,53 @@ func _porta_solta(raiz: Node) -> Porta:
 
 func _barreira_de(porta: Porta) -> CollisionShape2D:
 	return porta.get_node_or_null(CAMINHO_BARREIRA) as CollisionShape2D
+
+
+## A FACE da parede nao pode ser mais funda que a moldura da porta.
+##
+## A face ABRE no vao -- e a regra que faz a porta ler como passagem e nao como
+## janela --, entao no vao quem cobre aquela faixa e a moldura. Uma face mais
+## funda que a moldura deixa uma tira de NADA entre o alto dela e o comeco do
+## topo: o dono viu como "um espaco vazio acima da porta, com uma cor parecida
+## mas nao igual a da moldura".
+##
+## O teto e MEDIDO no alfa do arquivo e nao escrito aqui. `porta_moldura.png` tem
+## hoje 58 px de conteudo acima do contorno; no dia em que a arte crescer, o teto
+## sobe junto e a face pode acompanhar sem ninguem lembrar de mexer neste numero.
+## E o mesmo desenho de `_o_recesso_cobre_o_vao_da_moldura`, que ja cruza as
+## coordenadas locais de duas imagens em vez de comparar literais.
+func _a_FACE_nao_e_mais_funda_que_a_moldura() -> void:
+	var imagem := Image.load_from_file(
+		ProjectSettings.globalize_path("res://assets/texturas/porta_moldura.png"))
+	if imagem == null or imagem.is_empty():
+		ok(false, "porta_moldura.png abre")
+		return
+	imagem.convert(Image.FORMAT_RGBA8)
+	# A linha mais alta com pixel opaco, em coordenadas de MUNDO: o sprite e
+	# centrado sobre o contorno, entao a metade de cima do arquivo fica acima
+	# dele.
+	var primeira := -1
+	for y in imagem.get_height():
+		for x in imagem.get_width():
+			if imagem.get_pixel(x, y).a >= 0.5:
+				primeira = y
+				break
+		if primeira >= 0:
+			break
+	ok(primeira >= 0, "a moldura tem pixel opaco")
+	if primeira < 0:
+		return
+	var acima_do_contorno := float(imagem.get_height()) * 0.5 - float(primeira)
+	var perfil := PerfilDeParede.new()
+	ok(
+		perfil.face_norte <= acima_do_contorno,
+		"a face (%.0f) cabe na moldura (%.0f px acima do contorno)"
+			% [perfil.face_norte, acima_do_contorno]
+	)
+	# O outro lado: uma face MUITO menor que a moldura tambem e defeito -- ai a
+	# moldura invade o topo e a verga deixa de ler como verga.
+	ok(
+		perfil.face_norte >= acima_do_contorno - 16.0,
+		"e nao sobra moldura demais sobre o topo (%.0f contra %.0f)"
+			% [perfil.face_norte, acima_do_contorno]
+	)

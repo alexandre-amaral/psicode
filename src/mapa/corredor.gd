@@ -59,6 +59,13 @@ const CAMADA_PAREDE := 4
 ## Folga em pixels antes de considerar que os dois pontos nao estao num eixo.
 const TOLERANCIA_ALINHAMENTO := 1.0
 
+## Quanto o decalque se afasta da borda do corredor.
+##
+## 48 px cobre a meia-largura da maior peca do atlas (64) mais folga: uma marca
+## que cruze a parede lateral aparece cortada, e a lateral do corredor e onde a
+## faixa de parede da sala vizinha ja desenha por cima.
+const RECUO_DO_DECALQUE := 48.0
+
 var _retangulo_local: Rect2 = Rect2()
 var _configurado: bool = false
 ## Este e o ultimo trecho antes do chefe?
@@ -68,6 +75,16 @@ var _configurado: bool = false
 ## muda nada. E "qual e o ultimo" nao e pergunta que o corredor responda olhando
 ## so para si mesmo: ele conhece dois pontos, e nao o andar.
 var pre_chefe := false
+
+## O perfil deste corredor, quando ele e um CORREDOR_TECNICO.
+##
+## Nulo e o comportamento de sempre: passagem curta e parede compartilhada nao
+## recebem perfil, porque elas nao sao um LUGAR -- decorar uma travessia de meio
+## segundo poria marca de chao onde ninguem para para ver.
+##
+## Escrito ANTES do `configurar()`, como `pre_chefe`: e ele que monta chao e
+## decalque, e nao ha segunda chance depois disso.
+var perfil: PerfilDeCorredor = null
 
 
 ## "de" e "para" sao pontos GLOBAIS (as bocas das duas portas).
@@ -129,6 +146,17 @@ func _textura_de_chao() -> Texture2D:
 		var chefe := load(TEXTURA_CHAO_CHEFE) as Texture2D
 		if chefe != null:
 			return chefe
+	# **O PERFIL escolhe entre as texturas da noite base, e nao para fora dela.**
+	#
+	# As tres SAO a noite base, entao escolher por perfil nao diz nada sobre a
+	# sala vizinha -- que e a regra inteira do corredor comum. O que muda e a
+	# textura ser DETERMINISTICA pelo que aquele corredor representa em vez de
+	# sair do hash da posicao.
+	#
+	# A ordem importa: o trecho pre-chefe vence o perfil, porque ele e a unica
+	# excecao autorizada a anunciar, e resolve-la aqui mantem um caminho so.
+	if perfil != null and perfil.textura_chao != null:
+		return perfil.textura_chao
 	return _textura(TEXTURAS_CHAO, 0)
 
 
@@ -254,6 +282,45 @@ func _montar_chao() -> void:
 	if pre_chefe:
 		chao.modulate = Color(ESCURECER_PRE_CHEFE, ESCURECER_PRE_CHEFE, ESCURECER_PRE_CHEFE, 1.0)
 	add_child(chao)
+	_montar_decalques()
+
+
+## As marcas de chao do perfil, na mesma faixa chapada dos decalques de sala.
+##
+## `Z_CHAO_DETALHE` e ABAIXO de `Z_MUNDO`, e isso e garantia geometrica e nao
+## intencao: um decalque na faixa zero poderia cair na frente do telegrafo ou de
+## um projetil que atravessa o corredor, e o corredor e estreito -- ali o jogador
+## tem menos espaco para reler a ameaca do que numa sala.
+##
+## Elas ficam no MIOLO, longe das bocas: uma marca cortada ao meio pela parede da
+## sala vizinha le como erro de montagem, e as bocas sao onde o corredor e a sala
+## se encontram.
+func _montar_decalques() -> void:
+	if perfil == null or perfil.atlas_decalques == null:
+		return
+	if perfil.regioes_decalques.is_empty() or perfil.quantidade_decalques <= 0:
+		return
+	var raiz := Node2D.new()
+	raiz.name = "Decalques"
+	raiz.z_index = Sala.Z_CHAO_DETALHE
+	add_child(raiz)
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(Vector2i(global_position)) ^ hash(perfil.id)
+	var util := _retangulo_local.grow(-RECUO_DO_DECALQUE)
+	if util.size.x <= 0.0 or util.size.y <= 0.0:
+		return
+	for _i in perfil.quantidade_decalques:
+		var regiao: Rect2i = perfil.regioes_decalques[
+			rng.randi_range(0, perfil.regioes_decalques.size() - 1)]
+		var sprite := Sprite2D.new()
+		sprite.texture = perfil.atlas_decalques
+		sprite.region_enabled = true
+		sprite.region_rect = Rect2(regiao)
+		sprite.position = Vector2(
+			rng.randf_range(util.position.x, util.end.x),
+			rng.randf_range(util.position.y, util.end.y))
+		raiz.add_child(sprite)
 
 
 ## Cada lateral e SO barreira: quem da a leitura visual e a faixa de parede

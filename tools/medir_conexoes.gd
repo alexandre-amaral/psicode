@@ -15,7 +15,7 @@ extends Node2D
 ## Ela roda HEADLESS: monta o andar, le a geometria e imprime. Nao fotografa
 ## nada, entao nao precisa de janela.
 
-const ANDARES := 12
+const ANDARES := 24
 
 
 func _ready() -> void:
@@ -24,6 +24,7 @@ func _ready() -> void:
 	print("vao declarado, faixa de parede de cada lado, e o que sobra de piso\n")
 
 	var por_eixo := {"horizontal": [], "vertical": []}
+	var por_tipo := {}
 	var total_arestas := 0
 	var comprimentos: Array[float] = []
 
@@ -55,6 +56,8 @@ func _ready() -> void:
 				vao = absf(caixa_b.position.x - caixa_a.end.x) if b.x > a.x \
 					else absf(caixa_a.position.x - caixa_b.end.x)
 			por_eixo[eixo].append(vao)
+			var tipo_da: int = ligacao["tipo"]
+			por_tipo[tipo_da] = int(por_tipo.get(tipo_da, 0)) + 1
 			comprimentos.append(vao)
 			total_arestas += 1
 
@@ -106,6 +109,33 @@ func _ready() -> void:
 		print("               parede %.0f (%.0f%% da mediana)   piso de corredor %.0f"
 			% [faixa, faixa / maxf(mediana, 1.0) * 100.0, mediana - faixa])
 
+	# A DISTRIBUICAO DOS TIPOS, medida em muitos andares e nao numa semente.
+	#
+	# A issue pede o corredor em 5 a 15% das arestas: e por ficar RARO que ele
+	# passa a parecer um corredor de servico de verdade em vez do espaco
+	# obrigatorio entre combates. Uma semente sozinha nao responde -- ela pode cair
+	# com quatro fronteiras entre clusters e devolver 50%.
+	print("")
+	print("  --- distribuicao dos tipos ---")
+	for tipo: int in por_tipo:
+		var quantos: int = por_tipo[tipo]
+		print("  %-22s %3d  (%.1f%%)" % [
+			PlantaDoAndar.nome_de(tipo as PlantaDoAndar.Conexao), quantos,
+			float(quantos) / float(maxi(total_arestas, 1)) * 100.0])
+	# **"5 a 15% das arestas" e "uma, as vezes duas" NAO sao o mesmo criterio**, e
+	# a issue pede os dois. Com 9 arestas por andar, uma conexao vale 11% e duas
+	# valem 22% -- entao "uma, as vezes duas" e a faixa 11-22%, e nao 5-15%.
+	#
+	# Duas coisas empurram para cima e nenhuma delas e o sorteio: o corredor do
+	# chefe e RESERVADO (um por andar garantido, ja 11%), e o tipo e sorteado por
+	# FRONTEIRA -- uma fronteira que caia em corredor veste todas as arestas que a
+	# cruzam, entao um sorteio pode render duas ou tres.
+	#
+	# O numero que descreve o desenho e o de CORREDORES POR ANDAR, e e nele que o
+	# portao morde.
+	var corredores: int = int(por_tipo.get(PlantaDoAndar.Conexao.CORREDOR_TECNICO, 0))
+	print("  corredores por andar: %.2f  (a issue pede uma, as vezes duas)"
+		% (float(corredores) / float(ANDARES)))
 	print("\n  %d arestas em %d andares (%.1f por andar)"
 		% [total_arestas, ANDARES, float(total_arestas) / float(ANDARES)])
 	print("  a pe, o jogador atravessa %.0f px entre um chao e o proximo"

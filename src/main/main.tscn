@@ -11,6 +11,10 @@
 [ext_resource type="Resource" path="res://src/mapa/tipo_item.tres" id="9_item"]
 [ext_resource type="Resource" path="res://src/mapa/tipo_inicial.tres" id="11_inicial"]
 [ext_resource type="Resource" path="res://src/mapa/planta_andar1.tres" id="60_planta"]
+[ext_resource type="Resource" path="res://src/mapa/corredor_tunel_de_servico.tres" id="61_perfil"]
+[ext_resource type="Resource" path="res://src/mapa/corredor_acesso_hidraulico.tres" id="62_perfil"]
+[ext_resource type="Resource" path="res://src/mapa/corredor_linha_de_forca.tres" id="63_perfil"]
+[ext_resource type="Resource" path="res://src/mapa/corredor_acesso_de_ventilacao.tres" id="64_perfil"]
 [ext_resource type="Resource" path="res://src/mapa/tema_producao.tres" id="50_tema"]
 [ext_resource type="Resource" path="res://src/mapa/tema_manutencao.tres" id="51_tema"]
 [ext_resource type="Resource" path="res://src/mapa/tema_energia.tres" id="52_tema"]
@@ -38,6 +42,7 @@ script = ExtResource("5_jkpqq")
 ambiente_do_andar = ExtResource("40_amb")
 tipos_de_sala = Array[Resource]([ExtResource("6_combate"), ExtResource("7_boss"), ExtResource("8_arma"), ExtResource("9_item"), ExtResource("11_inicial")])
 temas = Array[Resource]([ExtResource("50_tema"), ExtResource("51_tema"), ExtResource("52_tema"), ExtResource("53_tema"), ExtResource("54_tema"), ExtResource("55_tema")])
+perfis_de_corredor = Array[Resource]([ExtResource("61_perfil"), ExtResource("62_perfil"), ExtResource("63_perfil"), ExtResource("64_perfil")])
 planta = ExtResource("60_planta")
 
 [node name="Player" parent="Mundo" unique_id=220117599 groups=["player"] instance=ExtResource("10_km7bn")]

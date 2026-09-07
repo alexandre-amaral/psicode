@@ -5,12 +5,12 @@
 [resource]
 script = ExtResource("1_planta")
 id = &"andar1"
-peso_parede_compartilhada = 0.70
-peso_passagem_curta = 0.20
-peso_corredor_tecnico = 0.10
-peso_parede_entre_clusters = 0.15
-peso_passagem_entre_clusters = 0.45
-peso_corredor_entre_clusters = 0.40
+peso_parede_compartilhada = 0.74
+peso_passagem_curta = 0.25
+peso_corredor_tecnico = 0.005
+peso_parede_entre_clusters = 0.25
+peso_passagem_entre_clusters = 0.70
+peso_corredor_entre_clusters = 0.03
 vao_parede_compartilhada = Vector2(128, 128)
 vao_passagem_curta = Vector2(160, 176)
 vao_corredor_tecnico = Vector2(384, 384)

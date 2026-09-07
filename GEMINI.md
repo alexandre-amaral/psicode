@@ -189,6 +189,8 @@ docs/
 | **As travas de identidade do chefe** | `tools/testes/teste_diretora.gd` + a secao no `docs/GDD.md` |
 | Layout e conexao das salas | `src/mapa/gerenciador_mapa.gd`, `src/mapa/sala_*.tscn` |
 | **Tipo de sala novo (loja, desafio...)** | criar `src/mapa/tipo_*.tres` e por na lista `tipos_de_sala` do `GerenciadorMapa` |
+| **O que um CORREDOR_TECNICO representa** | `src/mapa/corredor_*.tres` (`PerfilDeCorredor`), na lista `perfis_de_corredor` do `GerenciadorMapa`. Ele decora pelo CHAO e pelo DECALQUE -- nunca pela face, que anunciaria a sala vizinha |
+| **Quao raro o corredor e** | `peso_corredor_*` em `src/mapa/planta_andar1.tres`; o do chefe e reservado a parte e nao passa pelo sorteio |
 | **Estilo novo de uma sala que ja existe** | arrastar a cena para `cenas` no `tipo_*.tres` correspondente |
 | **Quanto a parede varia (peso do comum, espacamento das especiais)** | grupo `Variacao` do `src/mapa/estilo_industrial_velho.tres` |
 | **A ESPESSURA desenhada da parede** | `corpo`, `cap` e `sombra_de_contato` em `src/mapa/estilo_industrial_velho.tres` -- **-1 herda o default**. Os quatro lados leem o MESMO numero; a assimetria de outro andar passa pelos `escala_*` do `PerfilDeParede`, e nunca por um campo por lado |
@@ -1210,6 +1212,23 @@ em qualquer erro de script.
   faixa de perigo amarela cai em 25-50 -- a da sala de ARMA. A baia le por FORMA
   (retangulo com listras e ancoras nos cantos) e nao por matiz, que e a mesma
   licao que a ferrugem da face ja tinha ensinado.
+- **O perfil do corredor decora pelo CHAO e pelo DECALQUE, nunca pela face.** A
+  solucao obvia -- vestir a face do corredor com os modulos de tubulacao,
+  tecnica e deteriorada -- colide de frente com a regra da noite base: aqueles
+  modulos so existem nos TINGIMENTOS de tipo de sala, entao vestir um deles
+  anuncia qual sala vem. As tres texturas de chao SAO a noite base, entao
+  escolher entre elas por perfil nao diz nada; e uma valvula desenhada no piso e
+  muda. Quem guarda a fronteira e
+  `teste_conexoes.gd:_o_perfil_de_corredor_nao_anuncia_a_vizinha`, porque um
+  `.tres` novo apontando `textura_chao` para `chao_boss.png` compila, carrega,
+  desenha e desfaz a regra do andar inteiro sem uma linha no console.
+- **"5 a 15% das arestas" e "uma, as vezes duas" NAO sao o mesmo criterio.** Com
+  9 arestas por andar, uma conexao vale 11% e duas valem 22%. Medido em 24
+  andares: **15,3% das arestas e 1,38 corredor por andar** -- fora da primeira
+  faixa e dentro da segunda. Duas coisas empurram a fracao para cima e nenhuma e
+  o sorteio: o corredor do chefe e RESERVADO (11% sozinho), e o tipo e sorteado
+  por FRONTEIRA -- uma fronteira que caia em corredor veste TODAS as arestas que
+  a cruzam. O portao morde em corredor POR ANDAR, que e o que descreve o desenho.
 - **O corredor pre-chefe e a UNICA excecao a regra da noite base, e ela e
   deliberada.** Corredor comum nao veste a cor da sala vizinha de proposito --
   "pintar cada metade com a cor da vizinha anunciaria o que ha do outro lado

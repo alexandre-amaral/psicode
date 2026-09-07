@@ -36,6 +36,8 @@ func executar() -> void:
 	_a_planta_do_andar1_declara_o_vao_em_que_as_faixas_se_encontram()
 	await _a_conexao_do_chefe_e_sempre_corredor()
 	await _o_cluster_agrupa_sem_virar_gradiente()
+	_o_perfil_de_corredor_nao_anuncia_a_vizinha()
+	await _o_corredor_e_raro_e_por_isso_significa_algo()
 
 
 ## Sobe o andar inteiro e devolve o gerenciador ja montado.
@@ -316,3 +318,161 @@ func _o_cluster_agrupa_sem_virar_gradiente() -> void:
 	ok(dentro > entre,
 		"dentro do cluster a parede compartilhada domina (%.0f%% contra %.0f%% entre clusters)"
 			% [dentro * 100.0, entre * 100.0])
+
+
+## O PERFIL DE CORREDOR DECORA SEM ANUNCIAR A VIZINHA (SETOR 07).
+##
+## A regra da noite base tem uma excecao so, e ela e deliberada: o trecho
+## pre-chefe. Todo o resto do corredor fica neutro de proposito --
+##
+##     "pintar cada metade com a cor da vizinha anunciaria o que ha do outro lado
+##     antes de o jogador chegar"
+##
+## -- e foi essa regra que barrou a solucao obvia desta issue. Vestir a FACE do
+## corredor com os modulos ja entregues (tubulacao, tecnica, deteriorada) usaria
+## arte que so existe nos tingimentos de TIPO DE SALA, e vestir um deles diria
+## qual sala vem. A decoracao foi entao para o CHAO e para o DECALQUE, que sao
+## mudos: as tres texturas de chao SAO a noite base, e uma valvula desenhada no
+## piso nao informa nada sobre a proxima sala.
+##
+## **Este caso guarda a fronteira, e ele e o unico lugar onde ela e verificavel.**
+## Um `.tres` novo apontando `textura_chao` para `chao_boss.png` compila,
+## carrega, desenha e desfaz a regra do andar inteiro sem uma linha no console --
+## o sintoma seria o jogo anunciando o chefe em toda parte, que e exatamente o
+## defeito que a excecao existe para conter num lugar so.
+func _o_perfil_de_corredor_nao_anuncia_a_vizinha() -> void:
+	var perfis := _perfis_de_corredor()
+	ok(perfis.size() >= 3, "o andar declara perfis de corredor (%d)" % perfis.size())
+
+	for p in perfis:
+		# 1. O CHAO FICA NA NOITE BASE. E a fronteira inteira.
+		ok(p.textura_chao != null, "%s declara chao" % p.id)
+		if p.textura_chao != null:
+			var caminho := p.textura_chao.resource_path
+			ok(Corredor.TEXTURAS_CHAO.has(caminho),
+				"%s fica na noite base (%s)" % [p.id, caminho.get_file()])
+
+		# 2. E O DECALQUE CABE NO CORREDOR. Uma peca mais larga que a passagem
+		#    sai cortada pelas duas laterais, e marca cortada le como erro de
+		#    montagem em vez de desgaste.
+		var folga := Porta.LARGURA - Corredor.RECUO_DO_DECALQUE
+		for regiao in p.regioes_decalques:
+			ok(float(maxi(regiao.size.x, regiao.size.y)) <= Porta.LARGURA,
+				"%s: a peca %dx%d cabe na largura do corredor (%d px)"
+					% [p.id, regiao.size.x, regiao.size.y, int(Porta.LARGURA)])
+		ok(folga > 0.0,
+			"%s: sobra miolo depois do recuo (%.0f px)" % [p.id, folga])
+
+	# 3. TODO PAR DE TEMAS ACHA UM PERFIL. A afinidade ordena, nao desqualifica:
+	#    um par sem perfil correspondente deixaria o corredor pelado, que e o
+	#    estado de antes desta issue -- e ele nao daria erro nenhum.
+	var ids: Array[StringName] = []
+	for caminho in _temas_em_disco():
+		var t := load(caminho) as TemaDeSala
+		if t != null:
+			ids.append(t.id)
+	ok(ids.size() >= 4, "a varredura achou os temas (%d)" % ids.size())
+	var sem_perfil := 0
+	for a in ids:
+		for b in ids:
+			var melhor := -1
+			for p in perfis:
+				melhor = maxi(melhor, p.afinidade(a, b))
+			if melhor < 0:
+				sem_perfil += 1
+	igual(sem_perfil, 0,
+		"nenhum par de temas fica sem perfil (%d pares nus)" % sem_perfil)
+
+	# 4. O TRECHO PRE-CHEFE TEM O PERFIL QUE O #257 CRAVA. Ele e o unico lugar
+	#    autorizado a anunciar, e um anuncio que muda de cara a cada run deixa de
+	#    ser reconhecivel -- e o mesmo argumento que faz o chefe ter moveset fixo.
+	var tem_forca := false
+	for p in perfis:
+		if p.id == &"linha_de_forca":
+			tem_forca = true
+	ok(tem_forca, "o perfil do trecho pre-chefe existe (linha_de_forca)")
+
+
+func _perfis_de_corredor() -> Array[PerfilDeCorredor]:
+	var saida: Array[PerfilDeCorredor] = []
+	var pasta := DirAccess.open("res://src/mapa/")
+	if pasta == null:
+		return saida
+	for nome in pasta.get_files():
+		if not nome.begins_with("corredor_") or not nome.ends_with(".tres"):
+			continue
+		var p := load("res://src/mapa/" + nome) as PerfilDeCorredor
+		if p != null:
+			saida.append(p)
+	return saida
+
+
+func _temas_em_disco() -> Array[String]:
+	var saida: Array[String] = []
+	var pasta := DirAccess.open("res://src/mapa/")
+	if pasta == null:
+		return saida
+	for nome in pasta.get_files():
+		if nome.begins_with("tema_") and nome.ends_with(".tres"):
+			saida.append("res://src/mapa/" + nome)
+	return saida
+
+
+## O CORREDOR E RARO, e e por isso que ele significa algo (SETOR 07).
+##
+## Ele deixou de ser o conector universal para virar o caso especial -- e a
+## decoracao por perfil so faz sentido em cima disso: um corredor que aparece
+## entre todo par de salas nao e um tunel de servico, e o espaco obrigatorio
+## entre combates.
+##
+## **A issue pede dois criterios que nao sao o mesmo, e o portao morde no que
+## descreve o desenho.** "5 a 15% das arestas" e "uma, as vezes duas" divergem:
+## com 9 arestas por andar, uma conexao vale 11% e duas valem 22%. Medido em 24
+## andares, o andar entrega **15,3% das arestas e 1,38 corredor por andar** -- de
+## fora da primeira faixa e dentro da segunda.
+##
+## Duas coisas empurram a fracao para cima, e nenhuma e o sorteio:
+##
+##   - o corredor do chefe e RESERVADO (#257), entao um por andar e garantido e
+##     isso sozinho ja e 11% das arestas;
+##   - o tipo e sorteado por FRONTEIRA e nao por aresta, porque o andar e montado
+##     em bandas -- uma fronteira que caia em corredor veste TODAS as arestas que
+##     a cruzam, e um unico sorteio pode render duas ou tres.
+##
+## Contar aresta mede a segunda coisa; contar corredor por andar mede o desenho.
+func _o_corredor_e_raro_e_por_isso_significa_algo() -> void:
+	var total := 0
+	var andares := 0
+	var sem_nenhum := 0
+	for i in ANDARES:
+		seed(7700 + i * 61)
+		var mapa := _montar(true)
+		if mapa == null:
+			continue
+		await Engine.get_main_loop().process_frame
+		var quantos := 0
+		for ligacao in mapa.ligacoes():
+			if int(ligacao["tipo"]) == PlantaDoAndar.Conexao.CORREDOR_TECNICO:
+				quantos += 1
+		total += quantos
+		andares += 1
+		if quantos == 0:
+			sem_nenhum += 1
+		mapa.get_parent().remove_child(mapa)
+		mapa.free()
+
+	ok(andares > 0, "os andares subiram (%d)" % andares)
+	if andares == 0:
+		return
+	# **NENHUM ANDAR FICA SEM CORREDOR**, e isso nao vem do sorteio: vem da
+	# reserva do #257. O trecho pre-chefe e o unico lugar autorizado a anunciar o
+	# que vem, e com o corredor raro ele poderia simplesmente nao ser sorteado --
+	# o anuncio sumiria sem uma linha no console.
+	igual(sem_nenhum, 0, "todo andar tem ao menos um corredor (%d sem)" % sem_nenhum)
+
+	var media := float(total) / float(andares)
+	# O teto e o que separa "caso especial" de "conector". Tres por andar ja e um
+	# andar em que o corredor deixou de ser excecao, e a decoracao por perfil
+	# passa a ser vista tantas vezes que ela vira o padrao em vez do desvio.
+	entre(media, 1.0, 2.0,
+		"o corredor e raro: %.2f por andar (a issue pede uma, as vezes duas)" % media)

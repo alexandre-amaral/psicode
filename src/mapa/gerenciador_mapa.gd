@@ -73,6 +73,18 @@ const MAX_TENTATIVAS := 24
 ## E o estado de qualquer cena que nao os declare.
 @export var temas: Array[TemaDeSala] = []
 
+## Os perfis que um CORREDOR_TECNICO pode vestir (#253).
+##
+## Lista vazia = corredor sem perfil, que e o estado de qualquer cena que nao os
+## declare -- e o mesmo default que mantem `planta` e `temas` opcionais.
+##
+## **So o CORREDOR_TECNICO recebe perfil, e isso e a issue inteira.** A parede
+## compartilhada e a passagem curta nao sao um LUGAR: sao travessias de menos de
+## meio segundo. Decorar uma delas poria marca de chao onde ninguem para para
+## ver, e apagaria justamente o que faz o corredor significar algo -- ele so
+## parece um corredor de servico de verdade porque e raro.
+@export var perfis_de_corredor: Array[PerfilDeCorredor] = []
+
 ## COMO as arestas deste andar viram geometria (#248).
 ##
 ## Nulo = o comportamento de sempre: corredor para toda aresta, no `vao_corredor`
@@ -944,6 +956,55 @@ func _exit_tree() -> void:
 ## SO o ultimo trecho muda. Um andar que ficasse mais escuro a cada sala
 ## anunciaria o chefe desde a terceira porta, e o que se quer e a virada
 ## acontecer em um lugar so.
+## O perfil deste corredor, pelos temas das DUAS pontas.
+##
+## Um corredor entre `ENERGIA` e `MANUTENCAO` nao e o mesmo que um entre dois
+## `ARMAZENAMENTO`: ele e a ligacao ENTRE duas partes da fabrica, e o que ele
+## carrega e o que passa de uma para a outra.
+##
+## **A afinidade nao desqualifica ninguem.** Um perfil que nao atende nenhuma das
+## pontas continua elegivel, so perde para quem atende -- senao um par de temas
+## sem perfil correspondente deixaria o corredor pelado, que e o estado de antes
+## desta issue. E o empate cai no sorteio da semente do andar, para dois andares
+## com o mesmo par de temas nao virarem a mesma imagem.
+##
+## O TRECHO PRE-CHEFE e forcado a `linha_de_forca`, e nao sorteado: ele e o
+## unico lugar do andar autorizado a anunciar o que vem, e um anuncio que muda de
+## cara a cada run deixa de ser reconhecivel. Se aquele perfil nao estiver
+## declarado, ele cai no sorteio como qualquer outro em vez de ficar sem nada.
+func _perfil_do_corredor(a: Vector2i, b: Vector2i) -> PerfilDeCorredor:
+	if perfis_de_corredor.is_empty():
+		return null
+	if _e_trecho_pre_chefe(a, b):
+		for p in perfis_de_corredor:
+			if p != null and p.id == &"linha_de_forca":
+				return p
+
+	var tema_a := _tema_da_celula(a)
+	var tema_b := _tema_da_celula(b)
+	var id_a: StringName = tema_a.id if tema_a != null else &""
+	var id_b: StringName = tema_b.id if tema_b != null else &""
+
+	var melhores: Array[PerfilDeCorredor] = []
+	var melhor := -1
+	for p in perfis_de_corredor:
+		if p == null:
+			continue
+		var pontos := p.afinidade(id_a, id_b)
+		if pontos > melhor:
+			melhor = pontos
+			melhores = [p]
+		elif pontos == melhor:
+			melhores.append(p)
+	if melhores.is_empty():
+		return null
+	# O MESMO gerador global do resto do gerenciador, e nao um `rng` proprio
+	# semeado pela aresta. Semeado pela aresta, dois andares com o mesmo grafo
+	# vestiriam sempre o mesmo perfil -- e a semente do andar e justamente o que
+	# faz duas runs no mesmo layout nao virarem a mesma imagem.
+	return melhores[randi() % melhores.size()]
+
+
 func _e_trecho_pre_chefe(a: Vector2i, b: Vector2i) -> bool:
 	var chefe := celula_do_chefe()
 	# `celula_do_chefe()` devolve ZERO quando nao ha chefe no andar, e ZERO e uma
@@ -1440,6 +1501,8 @@ func _montar_corredores() -> void:
 			# ANTES do `configurar()`: e ele que monta a geometria e veste as
 			# texturas, e depois dele a bandeira nao muda mais nada.
 			corredor.pre_chefe = _e_trecho_pre_chefe(celula, vizinha)
+			if tipo == PlantaDoAndar.Conexao.CORREDOR_TECNICO:
+				corredor.perfil = _perfil_do_corredor(celula, vizinha)
 			add_child(corredor)
 			corredor.configurar(de.boca_da_porta(direcao), para.boca_da_porta(-direcao), largura_corredor)
 			corredor.visible = false

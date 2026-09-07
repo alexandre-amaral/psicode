@@ -87,7 +87,10 @@ func _fotografar_no(alvo: Node2D, contorno: PackedVector2Array, nome: String) ->
 	# §49 e o §50 dizem COMO conferir. Sem medir aqui, "funciona em L" continuaria
 	# sendo uma foto que alguem olhou uma vez -- e a sala em L e justamente a que
 	# tem quina concava, onde as duas faixas se sobrepoem.
-	var medida := ReguaDeProfundidade.medir(imagem)
+	# A regua recebe o ZOOM desta foto: a suavizacao dela e espacial, e sem isso
+	# ela mede a vista sintetica em vez da arquitetura. No pilar, que e a sala
+	# mais reduzida daqui, o cap de 12 px chega a 5,8 na tela.
+	var medida := ReguaDeProfundidade.medir(imagem, fator)
 	print(ReguaDeProfundidade.relatar(nome, medida))
 	if not medida["passou"]:
 		_reprovadas.append(nome)

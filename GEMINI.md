@@ -1147,6 +1147,31 @@ em qualquer erro de script.
   (`cap - borda - bisel`), e quem separa as duas familias e o campo `onde: cap`
   em `AUTORADAS` -- e nao o prefixo do nome, porque renomear nao da erro nenhum.
   Os atlas de decalque de CHAO continuam na grade.
+- **A regua de profundidade varria SO COLUNAS, e isso era cegueira herdada.**
+  Uma coluna vertical atravessa as bandas norte e sul e nunca encontra as
+  laterais, que sao bandas VERTICAIS. Com o jogador encostado a leste, a
+  `sala_1_retangular` media amplitude **0,059** com a parede leste ocupando a
+  beira inteira do quadro. Isso nao doia enquanto a parede era assimetrica --
+  a massa vivia no norte e era la que se olhava --, e virou defeito no dia em
+  que os quatro lados passaram a valer igual. Foi essa cegueira, e nao a arte,
+  que reprovava a `sala_5_pilar` em `formas_paredes`: varrendo os dois eixos ela
+  vai de 0,196 para **0,345**.
+- **E a janela da suavizacao e ESPACIAL, entao ela tem de seguir o zoom.**
+  `formas_paredes` da zoom para fora ate a sala inteira caber; no pilar
+  (960x960) o fator e 0,486 e o cap de 12 px chega a 5,8 na tela, onde a mediana
+  movel de 9 px o apaga inteiro. A regua respondia sobre o ZOOM em vez de sobre a
+  arquitetura. Hoje `ReguaDeProfundidade.medir()` recebe a escala da captura;
+  quem fotografa em zoom 1,0 passa o default e nada muda.
+- **O aviso de area desenhava em coordenada de MUNDO, e o rasterizador e
+  float32.** `Telegrafo._draw` somava `_centro` em cada vertice, entao um disco
+  de 12 px de raio a 71 mil px da origem chegava com as diferencas entre
+  vertices vizinhos perdidas na cancelacao: `Invalid polygon data, triangulation
+  failed`, duas linhas por execucao da suite, rodando ha muito tempo sem dono --
+  erro de rasterizacao nao volta como valor. No JOGO nao aparecia, porque o andar
+  cabe em poucos milhares de px; era por isso mesmo que valia consertar, porque
+  um aviso que depende de a sala ficar perto da origem some no dia em que o mapa
+  crescer. O centro foi para a transformacao, e `poligono_desenhado()` existe
+  para o portao poder conferir sem renderizar.
 - **A profundidade tem de fechar a GRADE, e nao e escolha de gosto.** Com 60 px
   por lado, `contorno + margens` cabe em 960 num contorno de 768 -- multiplo de
   32, com meia-dimensao na grade de 16 -- e sobram 36 px de vazio de cada lado. E

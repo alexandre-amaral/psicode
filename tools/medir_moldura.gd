@@ -53,8 +53,8 @@ func _ready() -> void:
 		"rendering/environment/defaults/default_clear_color", Color("0b0d16"))
 
 	print("\nquanto de cada quadro e CHAO, FAIXA e VAZIO (tela %.0fx%.0f)" % [tela.x, tela.y])
-	print("%-22s %-8s %7s %7s %7s %7s" % [
-		"cena", "posto", "chao", "faixa", "  crua", "vazio"])
+	print("%-22s %-8s %7s %7s %7s %7s %7s" % [
+		"cena", "posto", "chao", "faixa", "  crua", "vazio", "amplit"])
 
 	for nome_cena in _cenas():
 		var cena: PackedScene = load(CENAS + nome_cena + ".tscn")
@@ -109,6 +109,18 @@ func _medir(nome_cena: String, rotulo: String, sala: Sala, perfil: PerfilDePared
 	var camera := get_viewport().get_camera_2d()
 	if camera == null:
 		return
+	# A LEITURA DE CAVIDADE, medida ONDE A SALA E JOGADA.
+	#
+	# `formas_paredes` ja media isso, e media na propria vista sintetica: ela da
+	# zoom para fora ate a sala inteira caber, e no `sala_5_pilar` (960x960) o
+	# fator e 0,486 -- o cap de 12 px chega a 5,8 na tela. A regua respondia
+	# sobre o ZOOM em vez de sobre a arquitetura.
+	#
+	# Aqui a camera esta em zoom 1,0, com o clamp de verdade e o jogador em cada
+	# um dos cinco postos. E a mesma pergunta feita no lugar certo, e por isso ela
+	# entra ao lado das fracoes de quadro em vez de substituir aquela ferramenta:
+	# uma responde "a forma fecha?", a outra "o jogador ve cavidade?".
+	var cavidade: float = ReguaDeProfundidade.medir(imagem)["amplitude"]
 	# O canto superior esquerdo do quadro, em coordenadas de mundo.
 	var canto := camera.get_screen_center_position() - tela * 0.5
 
@@ -175,10 +187,10 @@ func _medir(nome_cena: String, rotulo: String, sala: Sala, perfil: PerfilDePared
 		for k: String in chaves:
 			partes.append("%s %.1f%%" % [k, int(cruas_por_lugar[k]) / n * 100.0])
 		detalhe = "   cru em: " + ", ".join(partes)
-	print("%-22s %-8s %6.1f%% %6.1f%% %6.1f%% %6.1f%%%s" % [
+	print("%-22s %-8s %6.1f%% %6.1f%% %6.1f%% %6.1f%% %7.3f%s" % [
 		nome_cena, rotulo,
 		chao / n * 100.0, faixa_pintada / n * 100.0,
-		faixa_crua / n * 100.0, fora / n * 100.0, detalhe])
+		faixa_crua / n * 100.0, fora / n * 100.0, cavidade, detalhe])
 
 
 ## 0 = chao, 1 = faixa de parede, 2 = alem de tudo.

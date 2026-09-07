@@ -49,18 +49,38 @@ const PATAMARES_MINIMOS := 3
 ## armadilha 4 no cabecalho -- e este numero que faz a regua morder.
 const AMPLITUDE_MINIMA := 0.25
 
-## Colunas amostradas, em fracao da largura. Fogem do meio porque a porta nasce
+## Linhas de amostragem, em fracao do eixo. Fogem do meio porque a porta nasce
 ## centrada no lado, e ficam dentro da sala porque a sala nao preenche o quadro.
 const COLUNAS: Array[float] = [0.30, 0.38, 0.62, 0.70]
 
+## A janela da mediana movel em zoom 1,0, em px.
+##
+## Ela e calibrada contra as duas coisas que precisa separar: o rebite isolado,
+## que tem 1 a 3 px e deve sumir, e o cap da parede, que tem 12 e deve
+## sobreviver. 9 fica entre os dois com folga dos dois lados.
+const JANELA_BASE := 9
+
 
 ## Mede uma captura e devolve `{superficies, superficies_25, amplitude, passou}`.
-static func medir(imagem: Image) -> Dictionary:
+##
+## **`escala` e o zoom com que aquela captura foi feita, e ignora-lo mede o
+## ZOOM em vez da arquitetura.** A suavizacao e ESPACIAL: uma mediana movel de 9
+## px apaga toda banda mais fina que isso. Numa foto em zoom 1,0 ela ignora o
+## rebite e preserva o cap de 12 px, que e para o que foi calibrada.
+##
+## `formas_paredes` fotografa a sala INTEIRA, entao ela da zoom para fora ate
+## caber -- e no `sala_5_pilar`, que e 960x960, o fator e 0,486. Ali o cap chega
+## a 5,8 px de tela e a janela de 9 o apaga por completo: a amplitude caiu de
+## 0,243 para **0,196** sem um pixel de parede ter mudado. A regua estava
+## medindo a propria vista sintetica.
+##
+## Quem fotografa em zoom 1,0 passa 1,0 (o default) e nada muda.
+static func medir(imagem: Image, escala: float = 1.0) -> Dictionary:
 	if imagem == null or imagem.is_empty():
 		return {"superficies": 0, "superficies_25": 0, "amplitude": 0.0, "passou": false}
 	var cheia := _medianos(imagem, 1)
 	var reduzida := _medianos(_reduzir(imagem, 4), 4)
-	var amplitude := _amplitude(imagem)
+	var amplitude := _amplitude(imagem, janela_para(escala))
 	return {
 		"superficies": cheia,
 		"superficies_25": reduzida,
@@ -129,27 +149,51 @@ static func _na_coluna(imagem: Image, x: int, escala: int) -> int:
 	return distintos.size()
 
 
-static func _amplitude(imagem: Image) -> float:
+## A janela de suavizacao naquela escala, sempre IMPAR e nunca abaixo de 3.
+##
+## Impar porque a mediana precisa de um elemento central; piso 3 porque abaixo
+## disso ela deixa de filtrar e o rebite isolado volta a contar como patamar.
+static func janela_para(escala: float) -> int:
+	var n := int(round(float(JANELA_BASE) * clampf(escala, 0.0, 1.0)))
+	if n % 2 == 0:
+		n += 1
+	return maxi(3, n)
+
+
+## **ELA VARRE OS DOIS EIXOS, e varrer so um era cegueira herdada.**
+##
+## Uma coluna vertical atravessa as bandas NORTE e SUL e nao encontra as
+## laterais, que sao bandas verticais -- entao com o jogador encostado a leste a
+## regua media 0,059 numa sala cuja parede leste ocupava a beira inteira do
+## quadro. Isso passava despercebido enquanto a parede era assimetrica, porque a
+## massa vivia no norte e era la que se olhava. Com os quatro lados iguais, medir
+## um eixo so responde sobre metade da caixa.
+static func _amplitude(imagem: Image, janela: int = JANELA_BASE) -> float:
 	var maior := 0.0
 	for fracao in COLUNAS:
-		var suave := _suavizar(imagem, int(imagem.get_width() * fracao), 9)
-		var alto := 0.0
-		var baixo := 1.0
-		for v in suave:
-			alto = maxf(alto, v)
-			baixo = minf(baixo, v)
-		maior = maxf(maior, alto - baixo)
+		for vertical in [true, false]:
+			var eixo := imagem.get_width() if vertical else imagem.get_height()
+			var suave := _suavizar(imagem, int(float(eixo) * fracao), janela, vertical)
+			var alto := 0.0
+			var baixo := 1.0
+			for v in suave:
+				alto = maxf(alto, v)
+				baixo = minf(baixo, v)
+			maior = maxf(maior, alto - baixo)
 	return maior
 
 
 ## Mediana movel: ela ignora o rebite isolado sem arrastar a borda da superficie,
 ## que e o que uma media faria.
-static func _suavizar(imagem: Image, x: int, janela: int) -> Array[float]:
-	var altura := imagem.get_height()
-	var coluna := clampi(x, 0, imagem.get_width() - 1)
+static func _suavizar(imagem: Image, onde: int, janela: int,
+		vertical: bool = true) -> Array[float]:
+	var altura := imagem.get_height() if vertical else imagem.get_width()
+	var fixo := clampi(onde, 0,
+		(imagem.get_width() if vertical else imagem.get_height()) - 1)
 	var cru: Array[float] = []
-	for y in altura:
-		cru.append(imagem.get_pixel(coluna, y).v)
+	for i in altura:
+		cru.append(imagem.get_pixel(fixo, i).v if vertical
+			else imagem.get_pixel(i, fixo).v)
 	var suave: Array[float] = []
 	for i in altura:
 		var a := maxi(0, i - janela / 2)

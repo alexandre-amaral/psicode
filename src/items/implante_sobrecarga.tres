@@ -27,3 +27,4 @@ parametro = 0.3
 maximo_por_run = 1
 cor = Color(1, 0.55, 0.15, 1)
 sigla = "X"
+valor_de_loja = 22

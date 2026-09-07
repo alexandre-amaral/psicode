@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="DadosLoja" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/loja/dados_loja.gd" id="1_dl"]
+
+[resource]
+script = ExtResource("1_dl")
+id = &"loja_andar1"
+vagas = Array[int]([0, 1, 2])
+permite_duplicata = false
+reroll_habilitado = false

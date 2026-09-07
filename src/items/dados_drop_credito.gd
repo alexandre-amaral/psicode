@@ -36,9 +36,28 @@ extends Resource
 
 ## Quanto do valor esperado vira ficha, de fato.
 ##
-## Abaixo de 1,0 a economia paga menos que o `creditos` declarado, o que e o
-## botao para baixar a renda do andar sem mexer em inimigo nenhum -- e ele existe
-## porque a renda ainda nao foi medida contra os precos da Loja (#284).
+## Abaixo de 1,0 a economia paga menos que o `creditos` declarado -- o botao para
+## calibrar a renda do andar sem mexer em inimigo nenhum.
+##
+## **0,20 saiu de medicao e nao de gosto.** Com 1,0 o andar rende 253 creditos
+## (`tools/loja/simulacao_economica.tscn`, 40 andares) contra os 35-55 que o
+## plano da Loja assume, e 100% das runs compram as tres ofertas -- a decisao que
+## a Loja existe para criar deixa de existir.
+##
+##     fracao   ate a Loja   no andar   ao menos 1   exatamente 2   nenhuma
+##      0,20        21          51         85%           2,5%         15%
+##      0,24        25          61         92,5%          15%          7,5%
+##      0,28        29          71         95%            32,5%        5%
+##      alvo      14-24       35-55       70-85%        15-35%       15-30%
+##
+## **Os quatro alvos do plano nao coexistem, e a tabela mostra por que:** subir a
+## renda para o "exatamente 2" cair na faixa quebra "ao menos uma" e "nenhuma" ao
+## mesmo tempo -- mais dinheiro e menos runs sem compra, por construcao. 0,20 e o
+## unico ponto que acerta tres dos quatro E as duas faixas de renda.
+##
+## O "exatamente 2" so entra na faixa por outro caminho: garantir uma oferta
+## BARATA por loja, em vez de sortear os tres precos livres. Isso e regra de
+## vaga, e fica para a decisao do dono.
 @export var fracao_do_valor: float = 1.0
 
 ## Teto de fichas por abate, para o chefe nao virar um chuveiro de 60 creditos.

@@ -13,3 +13,4 @@ parametro = 1.75
 maximo_por_run = 2
 cor = Color(1, 0.3, 0.7, 1)
 sigla = "P"
+valor_de_loja = 30

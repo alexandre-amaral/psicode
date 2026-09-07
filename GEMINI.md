@@ -200,6 +200,9 @@ docs/
 | **A ESPESSURA desenhada da parede** | `corpo`, `cap` e `sombra_de_contato` em `src/mapa/estilo_industrial_velho.tres` -- **-1 herda o default**. Os quatro lados leem o MESMO numero; a assimetria de outro andar passa pelos `escala_*` do `PerfilDeParede`, e nunca por um campo por lado |
 | **Ver a geometria da parede sem a arte defende-la** | `godot --path . tools/comparar_caixa.tscn --resolution 960x544` -- o par ATUAL x ALVO em cores chapadas, mais as reducoes de 25%, 10% e cinza. Sem janela ele imprime a dispersao entre lados |
 | **O MATERIAL da parede de um andar** | `src/mapa/estilo_industrial_velho.tres` -- topo, cantos e face neutra. Os cinco `tipo_*.tres` apontam o MESMO kit, porque sao o mesmo setor; a face do TIPO continua em `texturas_face` |
+| **Preco de uma arma ou item na Loja** | `valor_de_loja` em `src/weapons/*.tres` e `src/items/implante_*.tres`; zero = nao vai a prateleira |
+| **As regras da Loja (vagas, duplicata, reroll)** | `src/loja/loja_andar1.tres` (`DadosLoja`). Ela nao lista conteudo -- quem lista e `pool_padrao.tres`, a mesma pool do loot |
+| **Calibrar a renda do andar contra os precos** | `godot --headless --path . tools/loja/simulacao_economica.tscn` -- 40 andares, renda de teto e comprabilidade |
 | **Quanto um inimigo paga de credito** | `creditos` em `src/enemies/dados_*.tres` -- ele e o valor ESPERADO, e o sorteio de fichas converge para ele |
 | **Como o credito vira ficha no chao** | `src/items/drop_credito_andar1.tres` (`DadosDropCredito`): os tres valores, a fracao paga e o teto de fichas por abate |
 | **Quanto limpar uma sala paga** | `chance_de_premio`, `premio_minimo` e `premio_maximo` no `src/mapa/tipo_*.tres`; zero nas salas sem combate |
@@ -967,6 +970,21 @@ em qualquer erro de script.
   nunca entravam em grupo nenhum -- os projeteis atravessavam parede. Hoje quem
   resolve isso e o raycast de `projetil.gd`, que tambem devolve a normal que o
   ricochete precisa.
+- **Os quatro alvos de comprabilidade do plano da Loja NAO coexistem, e a
+  medicao mostra por que.** Ele pede "ao menos uma compra em 70-85%" e
+  "exatamente duas em 15-35%" ao mesmo tempo: subir a renda para o segundo cair
+  na faixa derruba o primeiro e o "nenhuma compra" juntos, porque mais dinheiro e
+  menos runs sem compra por construcao. Medido em 40 andares -- fracao 0,20 da
+  85% / 2,5% / 15%; 0,24 da 92,5% / 15% / 7,5%; 0,28 da 95% / 32,5% / 5%. Fica
+  em 0,20, que acerta tres dos quatro E as duas faixas de renda. O "exatamente
+  2" so entra por outro caminho: garantir uma oferta BARATA por loja em vez de
+  sortear os tres precos livres.
+- **Portao que crava um NUMERO envelhece com o botao de tuning.** O portao do
+  teto de fichas afirmava "o chefe paga 60" e passava so porque `fracao_do_valor`
+  era 1,0 -- calibrar a renda para 0,20 reprovou o codigo CERTO. Ele afirmava um
+  numero em vez da regra, e a regra e que o teto JUNTE o resto em vez de
+  descartar. Mesma licao que `teste_enquadramento` ja pagou com o tamanho de
+  sala.
 - **`GameState.creditos` so muda pela API, e `teste_creditos.gd` LE O CODIGO
   para provar.** Nenhum teste de comportamento pega uma atribuicao direta: ela
   funciona, some do sinal `creditos_mudaram`, e a HUD para de atualizar naquele

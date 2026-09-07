@@ -151,8 +151,15 @@ func _o_drop_nao_enche_a_tela_de_fichas() -> void:
 	var pago := 0
 	for valor in do_chefe:
 		pago += valor
-	igual(pago, 60,
-		"e o teto JUNTA o resto em vez de descartar (pagou %d de 60)" % pago)
+	# **O ESPERADO SAI DA FRACAO DECLARADA, e nao do valor cru.** A primeira
+	# versao cravava 60 e passava so porque a fracao era 1,0 -- calibrar a renda
+	# para 0,20 reprovou o codigo CERTO, e o portao estava afirmando um numero em
+	# vez de afirmar a regra. A regra e que o teto JUNTE o resto em vez de
+	# descartar, e ela nao muda com o botao de renda.
+	var esperado_do_chefe := int(roundf(60.0 * dados.fracao_do_valor))
+	perto(float(pago), float(esperado_do_chefe),
+		"o teto JUNTA o resto em vez de descartar (pagou %d de %d)"
+			% [pago, esperado_do_chefe], 1.0)
 
 
 ## A FICHA NAO DESENHA NA FAIXA DO COMBATE.

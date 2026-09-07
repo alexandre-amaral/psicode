@@ -13,3 +13,4 @@ parametro = 0.1
 maximo_por_run = 2
 cor = Color(0.75, 0.5, 1, 1)
 sigla = "F"
+valor_de_loja = 26

@@ -32,3 +32,4 @@ shake_duracao = 0.06
 recuo_player = 0.0
 tamanho_pente = 16
 tempo_recarga = 1.2
+valor_de_loja = 25

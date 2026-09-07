@@ -334,3 +334,16 @@ func dispersao_apos(atual: float, delta: float) -> float:
 	if not tem_bloom():
 		return 0.0
 	return maxf(atual - dispersao_recuperacao * delta, 0.0)
+
+@export_group("Economia")
+## Quanto este conteudo custa na Loja. Zero = nao aparece a venda.
+##
+## **O preco sai do IMPACTO na run, e nao da raridade estetica.** Uma arma comum
+## que resolve o andar inteiro custa mais que uma rara e situacional -- e a
+## raridade ja tem o proprio botao no sorteio de loot.
+##
+## Os numeros de hoje sao PONTO DE PARTIDA e nao valores finais: a renda do andar
+## foi medida em 173 creditos numa run completa, contra os 35-55 que o plano da
+## Loja assume. A calibragem e da simulacao economica (#284), e ela decide entre
+## baixar a renda e subir os precos -- nao adianta girar um dos dois por gosto.
+@export var valor_de_loja: int = 0

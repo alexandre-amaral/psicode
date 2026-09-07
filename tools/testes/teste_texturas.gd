@@ -57,6 +57,7 @@ func executar() -> void:
 	_os_modulos_de_face_ficam_na_faixa_da_base()
 	_a_familia_parede_tem_faixa_dinamica()
 	_dois_modulos_de_face_nao_sao_a_mesma_coisa()
+	_os_sete_modulos_do_chefe_tambem_sao_distintos()
 	_os_tres_topos_sao_o_mesmo_material()
 	_nenhum_png_fica_fora_de_regime()
 	_a_arte_de_projetil_e_de_ATOR()
@@ -1319,9 +1320,24 @@ const MODULOS_DE_FACE: Array[String] = [
 	"comum", "tubulacao", "tecnica", "deteriorada", "ventilada",
 ]
 
-## O tipo medido. Um so: os cinco modulos sao a MESMA arte tingida, entao medir
-## os cinco tipos mediria a mesma estrutura cinco vezes.
+## O tipo medido para os CINCO modulos compartilhados. Um so: eles sao a MESMA
+## arte tingida, entao medir os cinco tipos mediria a mesma estrutura cinco
+## vezes.
 const TIPO_MEDIDO := "combate"
+
+## Os dois modulos que SO a sala do chefe tem (#231).
+##
+## **Eles nao sao a mesma arte tingida, e por isso escapavam.** O caso de cima
+## mede o tipo `combate`, onde `motor` e `energia` nao existem -- entao os dois
+## unicos modulos com arte propria do jogo eram os unicos nunca conferidos. Antes
+## desta issue a sala do chefe tinha TRES pares colapsados: `motor x tubulacao`
+## em 0,204, `energia x tecnica` em 0,199 e `deteriorada x motor` em 0,171.
+##
+## E medir o chefe nao repete o caso de cima: ali sao cinco modulos, aqui sao
+## SETE, e os dois pares novos que aparecem sao justamente os que ninguem olhava.
+const MODULOS_DO_CHEFE: Array[String] = [
+	"comum", "tubulacao", "tecnica", "deteriorada", "ventilada", "motor", "energia",
+]
 
 
 ## Dois modulos de face do mesmo tipo nao podem ser a mesma coisa.
@@ -1420,3 +1436,51 @@ func _os_tres_topos_sao_o_mesmo_material() -> void:
 		"os tres topos sao o mesmo material (pior par %s: orientacao %.3f, teto %.2f)"
 			% [onde, pior, DISTANCIA_ENTRE_TOPOS]
 	)
+
+
+## A sala do chefe tem SETE modulos, e os dois proprios dela contam junto.
+##
+## `motor` e `energia` sao os unicos modulos do jogo que nao sao a estrutura
+## comum tingida -- eles existem para dizer que **o robo e a fabrica sao da mesma
+## geracao tecnologica**. Um `motor` que medisse igual a `tubulacao` nao diria
+## nada: seriam dois canos.
+##
+## Reusa o mesmo corte de 0,25 do caso irmao, de proposito. Um corte proprio aqui
+## viraria a pergunta "quanto os modulos do chefe podem parecer entre si", que e
+## a mesma pergunta -- e dois numeros para uma pergunta divergem no dia em que
+## alguem mexer num.
+func _os_sete_modulos_do_chefe_tambem_sao_distintos() -> void:
+	var assinaturas := {}
+	for modulo in MODULOS_DO_CHEFE:
+		var nome := "parede_face_boss"
+		if modulo != "comum":
+			nome += "_%s" % modulo
+		var imagem := _abrir("%s.png" % nome)
+		if imagem == null:
+			ok(false, "%s existe" % nome)
+			continue
+		assinaturas[modulo] = AssinaturaDeSuperficie.medir(imagem)
+	igual(assinaturas.size(), MODULOS_DO_CHEFE.size(),
+		"os sete modulos do chefe foram medidos")
+
+	var conferidos := 0
+	var pior := INF
+	var onde := ""
+	for i in MODULOS_DO_CHEFE.size():
+		for j in range(i + 1, MODULOS_DO_CHEFE.size()):
+			var a: String = MODULOS_DO_CHEFE[i]
+			var b: String = MODULOS_DO_CHEFE[j]
+			if not assinaturas.has(a) or not assinaturas.has(b):
+				continue
+			var d := AssinaturaDeSuperficie.distancia(assinaturas[a], assinaturas[b])
+			conferidos += 1
+			if d < pior:
+				pior = d
+				onde = "%s|%s" % [a, b]
+			ok(
+				d >= DISTANCIA_ENTRE_MODULOS,
+				"chefe: %s|%s sao modulos diferentes (%.3f, minimo %.2f)"
+					% [a, b, d, DISTANCIA_ENTRE_MODULOS]
+			)
+	igual(conferidos, 21, "os 21 pares do chefe foram conferidos (%d)" % conferidos)
+	ok(pior < INF, "o pior par do chefe e %s (%.3f)" % [onde, pior])

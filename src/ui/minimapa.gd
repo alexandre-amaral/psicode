@@ -27,6 +27,11 @@ extends Control
 @export var cor_fundo: Color = Color(0.04, 0.05, 0.09, 0.55)
 @export var cor_desconhecida: Color = Color(0.45, 0.5, 0.62, 0.35)
 @export var cor_corredor: Color = Color(0.3, 0.9, 1.0, 0.35)
+## A JUNCAO de duas salas que compartilham parede: mais forte que o corredor,
+## porque ela e o que diz "estas duas sao o mesmo bloco".
+@export var cor_juncao: Color = Color(0.55, 1.0, 1.0, 0.75)
+## E a passagem curta, no meio termo.
+@export var cor_passagem: Color = Color(0.4, 0.95, 1.0, 0.55)
 @export var cor_atual: Color = Color(1, 1, 1, 0.95)
 ## Preenchimento de sala visitada mas ainda nao limpa.
 @export var alpha_visitada: float = 0.22
@@ -114,8 +119,19 @@ func _draw() -> void:
 		_desenhar_sala(celula, celula == atual)
 
 
-## So o corredor com as duas pontas conhecidas, espelhando o que o mundo faz:
+## So a conexao com as duas pontas conhecidas, espelhando o que o mundo faz:
 ## caminho iluminado terminando no escuro entrega o que a nevoa esconde.
+##
+## **Os tres tipos desenham diferente, e isso nao e decoracao.** Desde a
+## `PlantaDoAndar` uma aresta pode ser parede compartilhada, passagem curta ou
+## corredor tecnico -- e desenhar as tres igual desfaz no HUD o que a arquitetura
+## acabou de construir: o jogador leria de novo "camaras ligadas por tuneis"
+## enquanto o mundo mostra setores encostados.
+##
+## A parede compartilhada e a mais estreita das tres na tela porque ela E a mais
+## estreita no mundo (96 px contra 384), entao ela ganha uma marca CHEIA e mais
+## clara em vez de uma caixa: numa escala de andar inteiro, 96 px viram um risco
+## de menos de um pixel e a ligacao sumiria.
 func _desenhar_corredores() -> void:
 	for ligacao in _mapa.ligacoes():
 		if not _mapa.e_conhecida(ligacao["a"]) or not _mapa.e_conhecida(ligacao["b"]):
@@ -123,7 +139,16 @@ func _desenhar_corredores() -> void:
 		var caixa: Rect2 = ligacao["caixa"]
 		var canto := _para_tela(caixa.position)
 		var tamanho := caixa.size * _escala
-		draw_rect(Rect2(canto, tamanho), cor_corredor, true)
+		var tipo: int = ligacao.get("tipo", PlantaDoAndar.Conexao.CORREDOR_TECNICO)
+		if tipo == PlantaDoAndar.Conexao.CORREDOR_TECNICO:
+			draw_rect(Rect2(canto, tamanho), cor_corredor, true)
+			continue
+		# PISO DE UM PIXEL: sem ele, uma conexao de 96 px num andar de 4000
+		# desaparece na escala do minimapa, e duas salas conectadas passam a
+		# parecer desconectadas -- um defeito de leitura de mapa que nao da erro.
+		var espesso := Vector2(maxf(tamanho.x, 1.0), maxf(tamanho.y, 1.0))
+		var cor := cor_juncao if tipo == PlantaDoAndar.Conexao.PAREDE_COMPARTILHADA 			else cor_passagem
+		draw_rect(Rect2(canto, espesso), cor, true)
 
 
 func _desenhar_sala(celula: Vector2i, eh_atual: bool) -> void:

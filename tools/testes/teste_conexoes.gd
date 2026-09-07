@@ -34,6 +34,8 @@ func executar() -> void:
 	await _todo_vao_cai_na_grade_de_16()
 	await _nenhuma_camera_alcanca_o_chao_da_vizinha()
 	_a_planta_do_andar1_declara_o_vao_em_que_as_faixas_se_encontram()
+	await _a_conexao_do_chefe_e_sempre_corredor()
+	await _o_cluster_agrupa_sem_virar_gradiente()
 
 
 ## Sobe o andar inteiro e devolve o gerenciador ja montado.
@@ -196,3 +198,121 @@ func _a_planta_do_andar1_declara_o_vao_em_que_as_faixas_se_encontram() -> void:
 		ok(a < b and b < c,
 			"os tres vaos ficam em ordem no eixo %s (%.0f < %.0f < %.0f)"
 				% ["vertical" if vertical else "horizontal", a, b, c])
+
+
+## A conexao que entra na sala do chefe e sempre corredor tecnico.
+##
+## O corredor pre-chefe e a UNICA excecao autorizada a regra da noite base, e com
+## corredor em 10% das arestas ele pode simplesmente nao ser sorteado. O anuncio
+## sumiria sem uma linha no console -- uma parede compartilhada de 96 px ainda
+## troca a textura de chao, entao ele viraria uma mancha de dois passos.
+##
+## E o outro lado: num andar SEM chefe nenhuma conexao pode vestir o perfil dele.
+## `celula_do_chefe()` devolve ZERO quando nao ha chefe, e zero e a celula
+## inicial -- sem conferir a reserva, a entrada do andar ganharia o corredor do
+## chefe.
+func _a_conexao_do_chefe_e_sempre_corredor() -> void:
+	var conferidos := 0
+	var fora := 0
+	for i in ANDARES:
+		seed(9300 + i * 53)
+		var mapa := _montar(true)
+		if mapa == null:
+			continue
+		await Engine.get_main_loop().process_frame
+		var chefe := mapa.celula_do_chefe()
+		for ligacao in mapa.ligacoes():
+			if ligacao["a"] != chefe and ligacao["b"] != chefe:
+				continue
+			conferidos += 1
+			if int(ligacao["tipo"]) != PlantaDoAndar.Conexao.CORREDOR_TECNICO:
+				fora += 1
+		mapa.get_parent().free()
+		await Engine.get_main_loop().process_frame
+	ok(conferidos > 0, "houve conexao de chefe para conferir (%d)" % conferidos)
+	igual(fora, 0,
+		"toda conexao que entra no chefe e corredor tecnico (%d fora de %d)"
+			% [fora, conferidos])
+
+
+## O cluster agrupa por VIZINHANCA, e nao por distancia da entrada.
+##
+## **Esta e a metade que impede o cluster de reintroduzir o que o vies de
+## distancia foi recusado por fazer.** A tentacao obvia -- `DEGRADADA` mais
+## provavel fundo no andar -- e a armadilha que o corredor pre-chefe ja registra:
+## um andar que escurecesse a cada sala anunciaria o chefe desde a terceira
+## porta, e o jogador passaria a ler o mapa pela parede.
+##
+## Cluster nao faz isso, e o portao prova em vez de afirmar: se o indice do
+## cluster tiver correlacao com a distancia da entrada, o agrupamento virou
+## gradiente sem ninguem decidir.
+##
+## E as duas metades opostas: salas do MESMO cluster tem de se ligar
+## majoritariamente por parede compartilhada, e as de clusters diferentes nao --
+## senao o cluster existe e nao muda nada.
+func _o_cluster_agrupa_sem_virar_gradiente() -> void:
+	var pares_dentro := 0
+	var compartilhadas_dentro := 0
+	var pares_entre := 0
+	var compartilhadas_entre := 0
+	var soma_x := 0.0
+	var soma_y := 0.0
+	var soma_xy := 0.0
+	var soma_x2 := 0.0
+	var soma_y2 := 0.0
+	var n := 0
+
+	for i in ANDARES:
+		seed(9400 + i * 71)
+		var mapa := _montar(true)
+		if mapa == null:
+			continue
+		await Engine.get_main_loop().process_frame
+		var origem := Vector2i.ZERO
+		for celula in mapa.celulas():
+			var cluster := mapa.cluster_da_celula(celula)
+			if cluster < 0:
+				continue
+			# Distancia de MANHATTAN ate a entrada: e o que o jogador percorre no
+			# grafo, e e a variavel que nao pode explicar o cluster.
+			var d := float(absi(celula.x - origem.x) + absi(celula.y - origem.y))
+			var c := float(cluster)
+			soma_x += d
+			soma_y += c
+			soma_xy += d * c
+			soma_x2 += d * d
+			soma_y2 += c * c
+			n += 1
+		for ligacao in mapa.ligacoes():
+			var mesmo := mapa.cluster_da_celula(ligacao["a"]) == mapa.cluster_da_celula(ligacao["b"])
+			var compartilhada := int(ligacao["tipo"]) == PlantaDoAndar.Conexao.PAREDE_COMPARTILHADA
+			if mesmo:
+				pares_dentro += 1
+				compartilhadas_dentro += 1 if compartilhada else 0
+			else:
+				pares_entre += 1
+				compartilhadas_entre += 1 if compartilhada else 0
+		mapa.get_parent().free()
+		await Engine.get_main_loop().process_frame
+
+	ok(n > 0, "houve celula para medir (%d)" % n)
+	ok(pares_dentro > 0 and pares_entre > 0,
+		"houve fronteira dos dois tipos (%d dentro, %d entre)" % [pares_dentro, pares_entre])
+	if n < 2 or pares_dentro == 0 or pares_entre == 0:
+		return
+
+	var num := float(n) * soma_xy - soma_x * soma_y
+	var den := sqrt(maxf(float(n) * soma_x2 - soma_x * soma_x, 0.0001)) \
+		* sqrt(maxf(float(n) * soma_y2 - soma_y * soma_y, 0.0001))
+	var correlacao := absf(num / den)
+	# O corte e generoso porque a inundacao parte de sementes ordenadas e alguma
+	# correlacao e inevitavel; o que ele tem de pegar e o gradiente, e um
+	# gradiente de verdade mede acima de 0,8.
+	ok(correlacao < 0.6,
+		"o cluster nao e um gradiente de distancia (correlacao %.2f, teto 0,60)" % correlacao)
+
+	var dentro := float(compartilhadas_dentro) / float(pares_dentro)
+	var entre := float(compartilhadas_entre) / float(pares_entre)
+	ok(dentro > entre,
+		"dentro do cluster a parede compartilhada domina (%.0f%% contra %.0f%% entre clusters)"
+			% [dentro * 100.0, entre * 100.0])

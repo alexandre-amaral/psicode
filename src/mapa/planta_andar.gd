@@ -54,6 +54,21 @@ enum Conexao { PAREDE_COMPARTILHADA, PASSAGEM_CURTA, CORREDOR_TECNICO }
 ## andar continua sendo o que sempre foi.
 @export var peso_corredor_tecnico: float = 1.0
 
+@export_group("Pesos ENTRE clusters")
+## Os mesmos tres pesos, para uma fronteira que separa dois setores funcionais.
+##
+## **A regra que sai daqui e intuitiva e o jogador a percebe sem que nada a
+## diga:** quanto mais relacionadas duas areas sao, mais integrada e a
+## arquitetura entre elas. Dentro de um cluster predomina a parede
+## compartilhada; entre clusters, a passagem e o corredor.
+##
+## Ter DOIS conjuntos, e nao um multiplicador, e o que mantem isso legivel: o
+## `.tres` mostra as duas situacoes lado a lado em vez de um fator que so faz
+## sentido depois de multiplicar.
+@export var peso_parede_entre_clusters: float = 0.15
+@export var peso_passagem_entre_clusters: float = 0.45
+@export var peso_corredor_entre_clusters: float = 0.40
+
 @export_group("Vaos (horizontal, vertical)")
 ## O vao em que as duas faixas se ENCONTRAM, medido: 80 no horizontal (36 x 2
 ## arredondado para a grade de 16) e 96 no vertical (32 + 60 = 92, arredondado).
@@ -71,8 +86,11 @@ enum Conexao { PAREDE_COMPARTILHADA, PASSAGEM_CURTA, CORREDOR_TECNICO }
 
 ## Sorteia um tipo por peso. `rng` entra de fora para o andar inteiro sair de uma
 ## semente so.
-func sortear(rng: RandomNumberGenerator) -> Conexao:
+func sortear(rng: RandomNumberGenerator, entre_clusters: bool = false) -> Conexao:
 	var pesos := [peso_parede_compartilhada, peso_passagem_curta, peso_corredor_tecnico]
+	if entre_clusters:
+		pesos = [peso_parede_entre_clusters, peso_passagem_entre_clusters,
+			peso_corredor_entre_clusters]
 	var total := 0.0
 	for p: float in pesos:
 		total += maxf(p, 0.0)

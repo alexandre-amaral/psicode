@@ -747,6 +747,10 @@ const AUTORADAS: Dictionary = {
 	# colar arte autorada nele quebraria a comparacao byte a byte dos doze props
 	# que ja moram la, e o erro apontaria para o gerador.
 	"decalques_andar1.png": {&"familia": &"decalque", &"tipo": &"andar1"},
+	# O atlas do SETOR DO CHEFE (#236): queimadura eletrica e poca de oleo, no
+	# matiz 330-355 dele. Separado do andar1 porque o decalque tem de pertencer a
+	# sala em que ele cai -- e a faixa de perigo AMARELA seria a da sala de ARMA.
+	"decalques_boss.png": {&"familia": &"decalque", &"tipo": &"boss"},
 	"topo_decalque_oleo.png": {&"familia": &"decalque", &"tipo": &"andar1"},
 	"topo_decalque_ferrugem.png": {&"familia": &"decalque", &"tipo": &"andar1"},
 	"topo_decalque_solda.png": {&"familia": &"decalque", &"tipo": &"andar1"},

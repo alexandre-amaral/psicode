@@ -115,7 +115,6 @@ const COR_FACE := Color("1a1e2b")
 const COR_BISEL := N4
 ## A QUEDA externa do sul, no modo silhueta: mais escura que o cap, porque ela
 ## esta virada para longe da camera e e o ultimo degrau antes do vazio.
-const COR_QUEDA := Color("1f2432")
 
 ## A LINHA DE CONTATO, e ela e translucida de proposito.
 ##
@@ -129,6 +128,23 @@ const COR_QUEDA := Color("1f2432")
 ## e a linha, aquela e o gradiente -- e falarem o mesmo alfa e o que impede uma
 ## de anular a outra.
 const COR_CONTATO := Color(0.02, 0.024, 0.043, 0.55)
+
+## A PALETA DE PROVA: olhar a geometria sem a arte defende-la.
+##
+## Vazia por padrao, e ai este arquivo desenha exatamente o que sempre desenhou.
+## Preenchida (`{COR_FACE: cinza_medio, COR_TOPO: cinza_claro, ...}`), ela troca
+## a cor de cada familia no modo silhueta -- e a sala vira o diagrama chapado que
+## a secao 37 do plano manda olhar ANTES de vestir arte.
+##
+## **Ela nao e conveniencia de ferramenta: e o portao mais barato que existe.**
+## A lista do que nao fazer tem "compensar com textura" repetido tres vezes, e
+## nenhum numero pega isso -- uma parede fina com arte boa mede igual a uma
+## parede grossa. Em cores chapadas nao ha onde se esconder: ou a moldura tem
+## massa nos quatro lados, ou ela nao tem.
+##
+## Serve tambem de mascara de corpo (`corpo branco, resto preto`), que e como se
+## confere que o anel tem espessura quase constante em volta da sala inteira.
+static var paleta_de_prova: Dictionary = {}
 
 ## Quanto o BISEL escurece a chapa que ele corta.
 ##
@@ -154,7 +170,6 @@ const TINTA_DA_FLANGE := Color(0.72, 0.74, 0.82)
 ## Mais que o bisel: ela e a face externa do sul, virada para longe da camera, e
 ## o que vem depois dela e o vazio. Um degrau raso ali faz a moldura terminar sem
 ## terminar.
-const TINTA_DA_QUEDA := Color(0.42, 0.44, 0.52)
 
 const COSTURA := 32.0
 const SOMBRA_DA_COSTURA := 2.0
@@ -325,12 +340,11 @@ static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 			else:
 				_camada_continua(raiz, de, ate, normal, camada, textura_topo,
 					ancora, silhueta)
-		# O DECALQUE nao depende mais de haver face: quem decide e o ENCAIXE.
+		# O DECALQUE nao depende de haver face: quem decide e o ENCAIXE.
 		#
-		# Com o perfil direcional o unico lado largo o bastante para uma peca de
-		# 16 px e o SUL, cujo ledge tem 20 -- e ele e justamente o que nao tem
-		# face. Amarrar o decalque a `fim_face > 0` o excluia do unico lugar onde
-		# ele cabe, e nao havia erro nenhum: a decoracao simplesmente sumia.
+		# Com o cap em 12 px nos quatro lados, a peca que cabe tem 8 px de
+		# espessura -- e a regra de encaixe e o que impede uma tira de 16 px,
+		# desenhada para o cap de 40, de sumir em silencio.
 		if not silhueta:
 			_decalque_no_trecho(raiz, de, ate, normal, lado, perfil, fim_face,
 				fundo, decalques, chance_decalque,
@@ -387,14 +401,11 @@ static func _vestir_chanfro(raiz: Node2D, contorno: PackedVector2Array, indice: 
 			a + n_a * ca.y,
 		])
 		match int(ca.z):
-			PerfilDeParede.Camada.SOMBRA, PerfilDeParede.Camada.LABIO:
-				_poligono_chapado(raiz, poligono, N1)
+			PerfilDeParede.Camada.SOMBRA:
+				_poligono_chapado(raiz, poligono, COR_CONTATO)
 			PerfilDeParede.Camada.FACE:
 				_poligono_texturizado(raiz, poligono, textura_face, ancora, silhueta,
 					COR_FACE, Color.WHITE)
-			PerfilDeParede.Camada.QUEDA:
-				_poligono_texturizado(raiz, poligono, textura_topo, ancora, silhueta,
-					COR_QUEDA, TINTA_DA_QUEDA)
 			_:
 				_poligono_texturizado(raiz, poligono, textura_topo, ancora, silhueta,
 					COR_TOPO, Color.WHITE)
@@ -402,8 +413,9 @@ static func _vestir_chanfro(raiz: Node2D, contorno: PackedVector2Array, indice: 
 
 ## Uma camada que ATRAVESSA o lado inteiro, sem abrir na porta.
 ##
-## Cap, reveal, ledge, queda, labio e sombra passam por cima do vao: sobre a
-## porta ha verga. So a FACE abre, e ela e desenhada por trecho.
+## Ela desenha CAP e SOMBRA de um trecho ja livre de portas -- o recorte e feito
+## por quem chama, e atravessa a pilha inteira. So a FACE tem tratamento proprio,
+## por causa da flange.
 static func _camada_continua(raiz: Node2D, a: Vector2, b: Vector2, normal: Vector2,
 		camada: Vector3, textura_topo: Texture2D, ancora: Vector2,
 		silhueta: bool) -> void:
@@ -413,7 +425,7 @@ static func _camada_continua(raiz: Node2D, a: Vector2, b: Vector2, normal: Vecto
 	if fim - inicio < 0.5:
 		return
 	match tipo:
-		PerfilDeParede.Camada.SOMBRA, PerfilDeParede.Camada.LABIO:
+		PerfilDeParede.Camada.SOMBRA:
 			# A LINHA DE CONTATO, e ela cresce para DENTRO do piso.
 			#
 			# E a peca que faz o piso parecer estar ABAIXO da face em vez de ao
@@ -426,15 +438,10 @@ static func _camada_continua(raiz: Node2D, a: Vector2, b: Vector2, normal: Vecto
 			# sombra, e sombra escurece o que esta embaixo -- um valor absoluto so
 			# funciona se por acaso ele for mais escuro que aquele piso.
 			_banda(raiz, a, b, normal, inicio, fim, COR_CONTATO)
-		PerfilDeParede.Camada.QUEDA:
-			# A queda externa termina a moldura antes do vazio. Ela e a MESMA
-			# chapa escurecida, e nao uma faixa chapada: material que some, e nao
-			# uma linha desenhada por cima.
-			_superficie(raiz, a, b, normal, inicio, fim, textura_topo, ancora,
-				silhueta, COR_QUEDA, TINTA_DA_QUEDA)
 		_:
-			# CAP, REVEAL e LEDGE sao a mesma cobertura estrutural. O que muda e
-			# quanto dela se ve, e isso e o lado que decide.
+			# O CAP e a cobertura estrutural, e ele e igual nos quatro lados.
+			# REVEAL, LEDGE e QUEDA sairam daqui junto com o modelo assimetrico:
+			# eram tres nomes para a mesma chapa vista de lados diferentes.
 			_superficie(raiz, a, b, normal, inicio, fim, textura_topo, ancora,
 				silhueta, COR_TOPO)
 
@@ -564,7 +571,7 @@ static func _superficie(raiz: Node2D, de: Vector2, ate: Vector2, normal: Vector2
 		de + normal * fim - centro,
 	])
 	if silhueta or textura == null:
-		quad.color = cor
+		quad.color = de_prova(cor)
 	else:
 		# `color` MULTIPLICA a textura num Polygon2D. E como o bisel escurece a
 		# chapa sem deixar de ser a chapa.
@@ -785,14 +792,14 @@ static func _meia_quina(raiz: Node2D, v: Vector2, n: Vector2, n_outro: Vector2,
 	])
 	var tipo := int(camada.z)
 	match tipo:
-		PerfilDeParede.Camada.SOMBRA, PerfilDeParede.Camada.LABIO:
-			_poligono_chapado(raiz, poligono, N1)
+		PerfilDeParede.Camada.SOMBRA:
+			# TRANSLUCIDA, como no lado reto: o anel de contato tem de atravessar
+			# a quina com o mesmo valor. Opaca aqui, ela sumia contra o chao --
+			# N1 mede luma 13 e o chao 14 a 16.
+			_poligono_chapado(raiz, poligono, COR_CONTATO)
 		PerfilDeParede.Camada.FACE:
 			_poligono_texturizado(raiz, poligono, textura_face, ancora, silhueta,
 				COR_FACE, Color.WHITE)
-		PerfilDeParede.Camada.QUEDA:
-			_poligono_texturizado(raiz, poligono, textura_topo, ancora, silhueta,
-				COR_QUEDA, TINTA_DA_QUEDA)
 		_:
 			_poligono_texturizado(raiz, poligono, textura_topo, ancora, silhueta,
 				COR_TOPO, Color.WHITE)
@@ -802,7 +809,7 @@ static func _poligono_chapado(raiz: Node2D, pontos: PackedVector2Array,
 		cor: Color) -> void:
 	var centro := _centro(pontos)
 	var poly := Polygon2D.new()
-	poly.color = cor
+	poly.color = de_prova(cor)
 	poly.position = centro
 	poly.polygon = _relativo(pontos, centro)
 	raiz.add_child(poly)
@@ -818,7 +825,7 @@ static func _poligono_texturizado(raiz: Node2D, pontos: PackedVector2Array,
 	poly.position = centro
 	poly.polygon = _relativo(pontos, centro)
 	if silhueta or textura == null:
-		poly.color = cor
+		poly.color = de_prova(cor)
 	else:
 		poly.color = tinta
 		poly.texture = textura
@@ -882,3 +889,10 @@ static func _caixa(pontos: PackedVector2Array) -> Rect2:
 ## As quatro margens da camera. Ver `PerfilDeParede.margens()`.
 static func margens(perfil: PerfilDeParede = null) -> Vector4:
 	return (perfil if perfil != null else PerfilDeParede.new()).margens()
+
+
+## A cor de prova daquela familia, ou a propria cor quando nao ha prova em curso.
+static func de_prova(cor: Color) -> Color:
+	if paleta_de_prova.is_empty():
+		return cor
+	return paleta_de_prova.get(cor, cor)

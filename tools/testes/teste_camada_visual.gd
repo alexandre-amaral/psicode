@@ -43,7 +43,7 @@ func executar() -> void:
 	_a_face_sorteia_por_lado()
 	_a_faixa_de_uv_da_face_e_declarada()
 	_o_corredor_usa_a_mesma_perspectiva_da_sala()
-	_cada_lado_tem_o_proprio_perfil()
+	_os_quatro_lados_sao_a_mesma_parede()
 	_o_topo_e_subordinado_a_face()
 	_o_topo_cerca_a_sala_e_a_face_nao_desce_para_o_sul()
 	_a_sombra_assenta_a_parede_sem_invadir_o_combate()
@@ -131,7 +131,7 @@ func _o_chao_fica_acima_do_topo_da_parede() -> void:
 		# So a SOMBRA DE CONTATO pode entrar, e so ate onde o perfil declara.
 		# Ver a versao longa em `teste_renderizador_paredes`.
 		var perfil := PerfilDeParede.new()
-		var fundo_permitido := maxf(perfil.sombra_norte, perfil.sombra_lateral)
+		var fundo_permitido := perfil.sombra_de_contato
 		var dentro := 0
 		var conferidas := 0
 		for filho in fita.get_children():
@@ -552,19 +552,19 @@ func _a_face_sorteia_por_lado() -> void:
 	# O SUL NAO VESTE FACE, e esta e a terceira redacao desta linha.
 	#
 	# Ela ja disse "o sul nao ganha face", depois "o sul veste face como as
-	# outras", e volta agora para a primeira -- mas por um motivo que nenhuma das
-	# duas tinha. As duas leituras anteriores estavam certas sobre coisas
-	# diferentes: o sul de fato nao pode mostrar uma face alta virada para dentro,
-	# e de fato nao podia ser um campo liso de topo. O que faltava era a terceira
-	# construcao: uma SOLEIRA -- labio, ledge e queda -- que cresce para FORA.
+	# outras", depois para a primeira via SOLEIRA -- e agora para a segunda, por um
+	# motivo que nenhuma das tres tinha: **a sala e uma caixa aberta vista de
+	# cima**, e numa caixa as quatro paredes tem a mesma massa.
 	#
-	# Entao a pergunta deixa de ser "ha face ao sul?" e passa a ser "ha soleira
-	# ao sul?", e ela e conferida em `teste_renderizador_paredes`, onde a
-	# geometria esta. Aqui fica so a metade que este arquivo sabe medir: nenhuma
-	# textura de FACE desce para o sul.
-	igual(faces_sul, 0,
-		"o sul nao veste face (%d pecas) -- ele tem soleira, e ela cresce para fora"
-			% faces_sul)
+	# O medo que produziu a soleira era concreto: uma face alta ao sul cobriria o
+	# jogador. A resposta nao e tirar a face, e sim faze-la crescer para FORA da
+	# area jogavel -- a maior parte dela fica abaixo do piso na tela, entao nao ha
+	# nada a esconder e nenhum foreground e necessario.
+	#
+	# Sem face ao sul, aquele lado media 32 px contra 60 do norte e lia como uma
+	# linha; era o defeito que fechou o epico anterior.
+	ok(faces_sul > 0,
+		"o sul VESTE face (%d pecas), como os outros tres lados" % faces_sul)
 	var usadas := _texturas_de_face(sala_um)
 	ok(not usadas.is_empty(), "a sala veste face nos lados que a camera enxerga")
 	if not usadas.is_empty():
@@ -878,88 +878,88 @@ func _caixa_do_poligono(pontos: PackedVector2Array) -> Rect2:
 	return caixa
 
 
-## CADA LADO TEM O PROPRIO PERFIL, e a simetria que saiu daqui era o defeito.
+## OS QUATRO LADOS SAO A MESMA PAREDE, e a assimetria que saiu daqui era o defeito.
 ##
-## **Este caso ja cobrou a razao 1:1 da secao 24, depois um teto de 2,0, depois
-## 3,0 -- e agora a pergunta e outra.** Vale registrar por que, porque as tres
-## versoes anteriores estavam certas sobre o modelo que existia quando foram
-## escritas.
+## **Este caso ja afirmou o CONTRARIO, e a virada e o assunto.** Ele exigia que
+## as tres pilhas fossem diferentes entre si, com o argumento de que a camera e
+## uma so e cada lado esta numa relacao diferente com ela -- norte visto de
+## frente, lateral de esguelha, sul de cima. O argumento e verdadeiro em
+## PERSPECTIVA e falso em LEITURA, e o jogo mostrou qual das duas manda.
 ##
-## A razao face/topo media "todo cenario compartilha a mesma camera imaginaria"
-## enquanto os quatro lados desenhavam a MESMA coisa. Nesse mundo, a razao era a
-## unica coisa que dizia se a parede era vista de frente ou de cima.
+## Medido no estado que ele aprovava (`baseline_assimetrico/norte_sala.png`):
 ##
-## O modelo novo mede outra coisa em cada lado, e por construcao:
+##     vazio 6 | cap 48 | corpo 44 | contato 9 | piso 17     lateral 36 px, sul 32
 ##
-##     NORTE     face 48 / cap 12  -- a face e vista de FRENTE
-##     LATERAL   face 28 / reveal 8 -- vista de esguelha
-##     SUL       ledge 20 / sem face -- vista de CIMA
+## As quinas diziam "ha uma moldura"; os lados diziam "ha um acabamento". **A
+## sala e uma caixa aberta vista de cima**, e numa caixa as quatro paredes tem a
+## mesma espessura -- a perspectiva vem do chanfro, da sombra e da orientacao da
+## textura, nunca da diferenca de massa.
 ##
-## O norte agora mede 4,0, acima do teto de 3,0 que a versao anterior defendia. O
-## argumento daquele teto era real: "acima de 3,0 o topo vira um fio e a parede
-## le como vista quase de LADO -- camera baixa, e ai os props deixam de pertencer
-## a mesma cena". **Esse risco nao desapareceu; ele mudou de dono.** O que o
-## protege agora nao e uma razao, e o cap NUNCA SUMIR e nunca dominar -- e a
-## pergunta "os props ainda pertencem a esta camera?" passa a ser do teste de
-## aceitacao visual, olhada, porque nenhum numero daqui a responde.
+## E a correcao nao foi escolher valores iguais: foi tirar do recurso a
+## capacidade de divergir. Enquanto houvesse um campo por lado, alguem os giraria
+## em separado, e foi o que aconteceu.
 ##
 ## O que este caso cobra e o que ainda pode falhar em silencio:
 ##
-##   - **um lado perder o perfil dele** e virar copia de outro. Era o defeito;
-##     ele volta assim que alguem "simplificar" as camadas.
+##   - **um lado voltar a divergir**, por um `escala_*` girado sem que o andar
+##     inteiro tenha sido pensado para isso;
 ##   - **o cap sumir.** Cap zero deixa a parede sem espessura nenhuma: uma face
-##     chapada colada no vazio.
+##     chapada colada no vazio;
 ##   - **o cap dominar.** Foi o defeito medido pelo dono -- 40 px de topo lendo
-##     como faixa de piso.
-##   - **o sul ganhar face para dentro.** Ela olharia para longe da camera.
-func _cada_lado_tem_o_proprio_perfil() -> void:
-	# ELE MEDIA DUAS CONSTANTES QUE NAO DESENHAM MAIS NADA.
-	#
-	# `ESPESSURA_PAREDE` e `ALTURA_FACE` descreviam a parede ate a MOLDURA 06.
-	# Hoje quem manda no que se desenha e o `PerfilDeParede`, e um portao lendo
-	# dali continuaria VERDE para sempre, medindo uma parede que nao existe.
+##     como faixa de piso. O corpo e a autoridade estrutural, e o cap acabamento;
+##   - **o sul voltar a ser soleira.** Ele foi tratado como ledge por um epico
+##     inteiro, e o resultado lia como uma linha em vez de parede.
+func _os_quatro_lados_sao_a_mesma_parede() -> void:
 	var perfil := PerfilDeParede.new()
-	var norte := RenderizadorParedes.Lado.NORTE
-	var lateral := RenderizadorParedes.Lado.LESTE
-	var sul := RenderizadorParedes.Lado.SUL
-
-	# 1. OS TRES SAO DIFERENTES. Dois lados com a mesma pilha e a simetria de
-	#    volta, e ela nao da erro nenhum -- so faz a sala voltar a ler plana.
-	var pilhas := {
-		"norte": _assinatura_do_lado(perfil, norte),
-		"lateral": _assinatura_do_lado(perfil, lateral),
-		"sul": _assinatura_do_lado(perfil, sul),
+	var lados := {
+		"norte": RenderizadorParedes.Lado.NORTE,
+		"sul": RenderizadorParedes.Lado.SUL,
+		"leste": RenderizadorParedes.Lado.LESTE,
+		"oeste": RenderizadorParedes.Lado.OESTE,
 	}
-	var nomes: Array = pilhas.keys()
-	for a in nomes.size():
-		for b in range(a + 1, nomes.size()):
-			ok(pilhas[nomes[a]] != pilhas[nomes[b]],
-				"%s e %s tem perfis diferentes" % [nomes[a], nomes[b]])
 
-	# 2. O CAP EXISTE E E SUBORDINADO, nos dois lados que mostram face.
-	for rotulo: String in {"norte": norte, "lateral": lateral}:
-		var lado: int = norte if rotulo == "norte" else lateral
-		var face := perfil.fim_da_face(lado)
-		var cap := perfil.profundidade(lado) - face
+	# 1. AS QUATRO PILHAS COINCIDEM. Uma diferente e um lado que voltou a ter
+	#    perfil proprio -- e isso nao da erro nenhum, so faz a moldura voltar a ler
+	#    como acabamento de um lado e parede do outro.
+	var nomes: Array = lados.keys()
+	var referencia := _assinatura_do_lado(perfil, lados[nomes[0]])
+	for n: String in nomes:
+		var assinatura := _assinatura_do_lado(perfil, lados[n])
+		ok(assinatura == referencia,
+			"%s desenha a mesma pilha que %s (%s)" % [n, nomes[0], assinatura])
+
+	# 2. OS QUATRO SCALES VALEM 1,0 NO ANDAR 1. Eles existem para outro andar
+	#    poder declarar uma assimetria -- e declarar e diferente de derivar para
+	#    uma. Um scale girado aqui reabre exatamente o defeito de cima.
+	for par: Array in [["norte", perfil.escala_norte], ["sul", perfil.escala_sul],
+			["leste", perfil.escala_leste], ["oeste", perfil.escala_oeste]]:
+		perto(par[1], 1.0, "a escala do %s e neutra no andar 1" % par[0], 0.0001)
+
+	# 3. O CORPO E A AUTORIDADE, O CAP E ACABAMENTO -- nos QUATRO lados.
+	for n: String in nomes:
+		var lado: int = lados[n]
+		var corpo := perfil.fim_da_face(lado)
+		var cap := perfil.profundidade(lado) - corpo
 		ok(cap > 0.0, "o cap do %s existe (%.0f px) -- sem ele a parede nao tem espessura"
-			% [rotulo, cap])
-		ok(cap < face, "e ele e subordinado a face (%.0f contra %.0f)" % [cap, face])
+			% [n, cap])
+		ok(corpo > cap, "e o corpo do %s domina (%.0f contra %.0f)" % [n, corpo, cap])
+		# O SUL TEM CORPO, e este e o portao que impede a soleira de voltar. Ele
+		# desenhava `labio 4 + ledge 20 + queda 8` e ZERO de face; hoje desenha a
+		# mesma parede que o norte, crescendo para fora da area jogavel.
+		ok(corpo >= 32.0,
+			"o corpo do %s tem massa de parede (%.0f px), e nao de soleira" % [n, corpo])
 
-	# 3. O SUL NAO TEM FACE PARA DENTRO. Ele e soleira, e a soleira cresce para
-	#    FORA -- e a diferenca entre emoldurar e competir com o piso.
-	perto(perfil.fim_da_face(sul), 0.0, "o sul nao desenha face para dentro")
-	ok(perfil.profundidade(sul) > 0.0,
-		"mas ele desenha soleira (%.0f px)" % perfil.profundidade(sul))
-	ok(perfil.profundidade(sul) < perfil.profundidade(norte),
-		"e ela e mais rasa que o norte (%.0f contra %.0f) -- quem carrega a altura e a face"
-			% [perfil.profundidade(sul), perfil.profundidade(norte)])
-
-	# 4. A SOMBRA CRESCE PARA DENTRO, e e ela que poe o piso abaixo da face.
-	var tem_sombra := false
-	for camada in perfil.camadas(norte):
-		if int(camada.z) == PerfilDeParede.Camada.SOMBRA:
-			tem_sombra = camada.x < 0.0
-	ok(tem_sombra, "a sombra de contato do norte cresce para DENTRO do piso")
+	# 4. A SOMBRA CRESCE PARA DENTRO, E EXISTE NOS QUATRO LADOS.
+	#
+	#    No modelo antigo o SUL nao tinha nenhuma, e era isso que fazia o piso
+	#    parecer TERMINAR ali em vez de descer. Ela e o segundo anel: contorna a
+	#    sala inteira, chanfro incluido.
+	for n: String in nomes:
+		var tem_sombra := false
+		for camada in perfil.camadas(lados[n]):
+			if int(camada.z) == PerfilDeParede.Camada.SOMBRA:
+				tem_sombra = camada.x < 0.0
+		ok(tem_sombra, "a sombra de contato do %s cresce para DENTRO do piso" % n)
 
 	# 5. O CHANFRO EXISTE E CAI NA GRADE. Sem ele as quinas voltam a 90 graus, e
 	#    o dono mediu que so isso ja mantem a sala lendo como planta baixa.
@@ -1153,17 +1153,15 @@ func _o_topo_cerca_a_sala_e_a_face_nao_desce_para_o_sul() -> void:
 		# A FACE AO SUL ja foi proibida, depois exigida, e volta a ser proibida --
 		# por um terceiro motivo, que nenhuma das duas versoes anteriores tinha.
 		#
-		# A proibicao original dizia "e la que ela cobriria combate", e isso
-		# confundia dois lugares. A exigencia seguinte veio de o sul ter virado um
-		# campo liso da textura de topo, e a sala ter parado de ler como cavidade.
-		# As duas estavam certas sobre coisas diferentes.
+		# A proibicao original dizia "e la que ela cobriria combate". O que ela
+		# nao previu e que a face pode crescer para FORA: o corpo do sul fica
+		# abaixo do piso na tela, entao ele nunca disputa area jogavel com nada.
 		#
-		# O que faltava era a terceira construcao: o sul e visto de CIMA, entao
-		# ele nao tem face nem campo de topo -- tem SOLEIRA, que cresce para FORA
-		# da area jogavel. Face ali voltaria a competir com o piso.
-		igual(
-			faces_ao_sul, 0,
-			"%s: o sul nao veste face (%d pecas) -- ele tem soleira, que cresce para fora"
+		# Sem face, aquele lado voltava a ler como uma linha -- e as nove salas
+		# ficavam com tres paredes e um acabamento.
+		ok(
+			faces_ao_sul > 0,
+			"%s: o sul veste face (%d pecas), como os outros tres lados"
 				% [nome, faces_ao_sul]
 		)
 		sala.free()

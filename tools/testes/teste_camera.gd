@@ -237,8 +237,7 @@ func _a_margem_segue_o_perfil_DA_SALA() -> void:
 	var fundo := PerfilDeParede.new()
 	# Claramente mais fundo que o default, seja ele qual for -- um literal
 	# escolhido perto do default de hoje empata com ele amanha.
-	fundo.topo_norte = PerfilDeParede.new().topo_norte * 2.0
-	fundo.face_norte = PerfilDeParede.new().face_norte * 2.0
+	fundo.corpo = PerfilDeParede.new().corpo * 2.0
 	Sala.perfil_de_teste = fundo
 	var maior: Vector4 = gerenciador.margem_da_parede([sala])
 	Sala.perfil_de_teste = null
@@ -248,7 +247,7 @@ func _a_margem_segue_o_perfil_DA_SALA() -> void:
 		"perfil mais fundo empurra a margem NORTE (%.0f contra %.0f)" % [maior.y, padrao.y]
 	)
 	perto(
-		maior.y, fundo.topo_norte + fundo.face_norte,
+		maior.y, fundo.profundidade(RenderizadorParedes.Lado.NORTE) + fundo.margem_exterior,
 		"e ela vale exatamente o que aquele perfil desenha ao norte"
 	)
 
@@ -256,7 +255,7 @@ func _a_margem_segue_o_perfil_DA_SALA() -> void:
 	# assinatura antiga fazia sempre.
 	var vazia: Vector4 = gerenciador.margem_da_parede([])
 	var base := PerfilDeParede.new()
-	perto(vazia.y, base.topo_norte + base.face_norte,
+	perto(vazia.y, base.profundidade(RenderizadorParedes.Lado.NORTE) + base.margem_exterior,
 		"sem sala, a margem e a do perfil default")
 
 	gerenciador.free()
@@ -286,29 +285,31 @@ func _a_margem_deriva_da_parede(margem: Vector4) -> void:
 	# raso. Virou `y == w` num conserto meu de uma borda preta que nao existia.
 	# Voltou a `y > w`. Virou igualdade de novo quando o sul ganhou face. E agora
 	# volta a ordem, por um motivo que nenhuma das quatro tinha: **os quatro lados
-	# deixaram de poder ser comparados pelo mesmo numero**, porque cada um desenha
-	# uma pilha diferente.
+	# continuam sendo QUATRO numeros**, mas hoje eles COINCIDEM -- e a coincidencia
+	# e o que se cobra.
 	#
-	# O que ela cobra e a ORDEM, e ela sai da camera e nao de gosto:
+	# **ESTE PORTAO JA AFIRMOU O CONTRARIO, e a virada tem medicao.** Ele exigia
+	# `norte > lateral > sul`, com o argumento de que cada lado esta numa relacao
+	# diferente com a camera. O argumento e verdadeiro em perspectiva e falso em
+	# LEITURA, e o jogo mostrou qual das duas importa: com a lateral em 36 px e o
+	# sul em 32, as quinas diziam "ha uma moldura" e os lados diziam "ha um
+	# acabamento".
 	#
-	#   NORTE   a unica face vista de frente -- e a mais funda
-	#   LATERAL vista de esguelha -- intermediaria
-	#   SUL     soleira vista de cima -- a mais rasa
+	#     baseline_assimetrico/norte_sala.png, coluna 240:
+	#     vazio 6 | cap 48 | corpo 44 | contato 9 | piso 17
 	#
-	# Duas margens iguais aqui querem dizer dois lados com a mesma pilha, e e
-	# exatamente o defeito que o perfil direcional existe para tirar.
-	ok(margem.y > margem.x,
-		"o norte e mais fundo que a lateral (%.0f contra %.0f) -- e a face vista de frente"
-			% [margem.y, margem.x]
-	)
-	ok(margem.x > margem.w,
-		"e a lateral e mais funda que o sul (%.0f contra %.0f) -- a soleira e vista de cima"
-			% [margem.x, margem.w]
-	)
-	ok(is_equal_approx(margem.x, margem.z),
-		"leste e oeste continuam iguais (%.0f e %.0f) -- os dois estao a mesma distancia da camera"
-			% [margem.x, margem.z]
-	)
+	# **A sala e uma caixa aberta vista de cima**, e numa caixa as quatro paredes
+	# tem a mesma espessura. A perspectiva passa a vir do chanfro, da sombra e da
+	# orientacao da textura -- nunca da diferenca de massa entre os lados.
+	#
+	# Quatro margens iguais aqui querem dizer que nenhum lado divergiu, e e
+	# exatamente o que o perfil unico existe para garantir.
+	for par: Array in [[margem.y, margem.w, "norte", "sul"],
+			[margem.x, margem.z, "leste", "oeste"],
+			[margem.y, margem.x, "norte", "leste"]]:
+		perto(par[0], par[1],
+			"%s e %s medem a mesma coisa (%.0f e %.0f) -- a caixa e simetrica"
+				% [par[2], par[3], par[0], par[1]], 0.5)
 	var conferidas := 0
 	for caminho in CENAS:
 		var cena: PackedScene = load(caminho)

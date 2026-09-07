@@ -11,6 +11,6 @@ peso_corredor_tecnico = 0.10
 peso_parede_entre_clusters = 0.15
 peso_passagem_entre_clusters = 0.45
 peso_corredor_entre_clusters = 0.40
-vao_parede_compartilhada = Vector2(80, 96)
+vao_parede_compartilhada = Vector2(128, 128)
 vao_passagem_curta = Vector2(144, 160)
 vao_corredor_tecnico = Vector2(384, 384)

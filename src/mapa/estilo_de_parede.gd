@@ -125,15 +125,16 @@ func vestivel() -> bool:
 ##
 ## A COLISAO nao muda: ela e um segmento sobre o contorno, e a grade logica
 ## continua 32. Isto descreve so o que se desenha.
-@export var face_norte: float = -1.0
-@export var cap_norte: float = -1.0
-@export var sombra_norte: float = -1.0
-@export var face_lateral: float = -1.0
-@export var reveal_lateral: float = -1.0
-@export var sombra_lateral: float = -1.0
-@export var labio_sul: float = -1.0
-@export var ledge_sul: float = -1.0
-@export var queda_sul: float = -1.0
+##
+## **NOVE CAMPOS VIRARAM TRES, e a reducao e o entregavel.** Havia um campo por
+## lado -- `face_norte`, `face_lateral`, `labio_sul`, `ledge_sul`... --, e foi
+## essa liberdade que produziu norte 48 / lateral 28 / sul 24. O estilo PERMITIA
+## a divergencia, entao ela aconteceu. Hoje o corpo e um numero e os quatro lados
+## o leem; a assimetria de outro andar, se um dia existir, passa pelos `escala_*`
+## do perfil, que sao uma declaracao visivel em vez de nove botoes soltos.
+@export var corpo: float = -1.0
+@export var cap: float = -1.0
+@export var sombra_de_contato: float = -1.0
 @export var chanfro_de_canto: float = -1.0
 @export var margem_exterior: float = -1.0
 
@@ -145,24 +146,12 @@ func vestivel() -> bool:
 ## uma copia silenciosa da regra.
 func perfil() -> PerfilDeParede:
 	var p := PerfilDeParede.new()
-	if face_norte >= 0.0:
-		p.face_norte = face_norte
-	if cap_norte >= 0.0:
-		p.cap_norte = cap_norte
-	if sombra_norte >= 0.0:
-		p.sombra_norte = sombra_norte
-	if face_lateral >= 0.0:
-		p.face_lateral = face_lateral
-	if reveal_lateral >= 0.0:
-		p.reveal_lateral = reveal_lateral
-	if sombra_lateral >= 0.0:
-		p.sombra_lateral = sombra_lateral
-	if labio_sul >= 0.0:
-		p.labio_sul = labio_sul
-	if ledge_sul >= 0.0:
-		p.ledge_sul = ledge_sul
-	if queda_sul >= 0.0:
-		p.queda_sul = queda_sul
+	if corpo >= 0.0:
+		p.corpo = corpo
+	if cap >= 0.0:
+		p.cap = cap
+	if sombra_de_contato >= 0.0:
+		p.sombra_de_contato = sombra_de_contato
 	if chanfro_de_canto >= 0.0:
 		p.chanfro_de_canto = chanfro_de_canto
 	if margem_exterior >= 0.0:

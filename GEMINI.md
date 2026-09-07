@@ -191,6 +191,8 @@ docs/
 | **Tipo de sala novo (loja, desafio...)** | criar `src/mapa/tipo_*.tres` e por na lista `tipos_de_sala` do `GerenciadorMapa` |
 | **Estilo novo de uma sala que ja existe** | arrastar a cena para `cenas` no `tipo_*.tres` correspondente |
 | **Quanto a parede varia (peso do comum, espacamento das especiais)** | grupo `Variacao` do `src/mapa/estilo_industrial_velho.tres` |
+| **A ESPESSURA desenhada da parede** | `corpo`, `cap` e `sombra_de_contato` em `src/mapa/estilo_industrial_velho.tres` -- **-1 herda o default**. Os quatro lados leem o MESMO numero; a assimetria de outro andar passa pelos `escala_*` do `PerfilDeParede`, e nunca por um campo por lado |
+| **Ver a geometria da parede sem a arte defende-la** | `godot --path . tools/comparar_caixa.tscn --resolution 960x544` -- o par ATUAL x ALVO em cores chapadas, mais as reducoes de 25%, 10% e cinza. Sem janela ele imprime a dispersao entre lados |
 | **O MATERIAL da parede de um andar** | `src/mapa/estilo_industrial_velho.tres` -- topo, cantos e face neutra. Os cinco `tipo_*.tres` apontam o MESMO kit, porque sao o mesmo setor; a face do TIPO continua em `texturas_face` |
 | **Implante novo (so numeros)** | criar `src/items/implante_*.tres` com a lista de `efeitos` e listar em `pool_padrao.tres` |
 | **Implante com comportamento novo** | enum em `DadosItem.Comportamento` + o codigo que le, em quem sofre o efeito |
@@ -1102,22 +1104,57 @@ em qualquer erro de script.
   tinha o mesmo ponto cego: `medir_moldura` montava a sala sem `DadosSala`, entao
   `_perfil()` devolvia null e ela media o DEFAULT enquanto o jogo desenhava
   outra coisa.
-- **A FACE tem a mesma profundidade nos tres lados que a mostram, e o SUL iguala
-  a profundidade sem ganhar face.** Por muito tempo o norte desenhava 104 px e as
-  laterais 32, com o argumento de que a lateral "mostra a face de esguelha". O
-  jogo desmentiu: medido com `tools/medir_moldura.tscn`, a mesma sala dava 22,8%
-  de moldura com o jogador ao norte e **6,1%** a leste. Mesma textura, um quarto
-  da espessura -- a lateral lia como uma BORDA. Hoje os tres lados vistos
-  desenham 72 px de face; o que difere e o TOPO (32 no norte, onde ele e
-  espessura vista de esguelha; 24 na lateral, onde e superficie de cima). O sul
-  vai a 104 tambem, todo em topo: profundidade igual e o que fecha a borda preta
-  embaixo, e face zero e o que impede pintar uma superficie que olha para longe
-  da camera. As duas metades sao afirmacoes opostas de proposito.
-- **A profundidade da lateral e 96 porque a GRADE fecha nela, e nao por gosto.**
-  Com 96, `contorno + margens` da 960 exato num contorno de 768 -- multiplo de
-  32, com meia-dimensao na grade de 16. Com 104 o contorno teria de ter 752, que
-  nao cai na grade, e o multiplo abaixo devolve 16 px de VAZIO PRETO em cada
-  borda. E o mesmo tipo de aritmetica que ja impede fechar o eixo Y.
+- **A SALA E UMA CAIXA ABERTA VISTA DE CIMA, e os quatro lados desenham a mesma
+  coisa.** `corpo 48 + cap 12 + sombra 4`, nos quatro. Esta regra ja foi o
+  contrario duas vezes, e a ultima virada tem medicao: o modelo direcional dava
+  norte 60, lateral 36 e sul 32, e o jogo mostrou que as quinas diziam "ha uma
+  moldura" enquanto os lados diziam "ha um acabamento". A dispersao entre lados
+  era de **40%** contra o teto de 10% que o plano pede. A perspectiva passa a vir
+  do chanfro, da sombra e da orientacao da textura -- **nunca da diferenca de
+  massa**. `tools/comparar_caixa.tscn` guarda o par, e
+  `baseline_assimetrico/` guarda a foto do estado anterior.
+- **A correcao nao foi igualar nove campos: foi TIRAR do recurso a capacidade de
+  divergir.** `PerfilDeParede` tinha `face_norte`, `face_lateral`, `labio_sul`,
+  `ledge_sul`... -- e foi essa liberdade que produziu a assimetria. Enquanto
+  houver um campo por lado, alguem os gira em separado. Hoje ha UM `corpo`, e os
+  quatro lados o leem; a assimetria de um andar futuro passa pelos `escala_*`,
+  que sao uma declaracao visivel num lugar so. Mesma ideia do sentinela negativo
+  do `EstiloDeParede`: campo que existe e campo que alguem gira.
+- **O SUL tem corpo, e ele cresce para FORA da area jogavel.** Ele ja foi face
+  cheia, depois campo de topo, depois soleira (`labio + ledge + queda`), e agora
+  a mesma parede dos outros tres. O medo que produziu a soleira era concreto --
+  uma face alta ao sul cobriria o jogador --, e a resposta nao e tirar a face: e
+  faze-la crescer para fora. A maior parte dela fica abaixo do piso na tela,
+  entao nao ha nada a esconder e nenhum foreground e necessario. Sem face, aquele
+  lado media 32 px contra 60 do norte e lia como uma linha.
+- **A SOMBRA DE CONTATO existe nos QUATRO lados, e o sul nao tinha nenhuma.** Era
+  isso que fazia o piso parecer TERMINAR ali em vez de descer. Ela e o segundo
+  anel: contorna a sala inteira, chanfro incluido -- e no chanfro ela precisou
+  passar a ser TRANSLUCIDA como no lado reto, senao o anel quebra na quina (N1
+  opaco mede luma 13 sobre um chao de 14 a 16, e some).
+- **O portao que mede espessura tem de ler o POLIGONO, e reconhecer o corpo pela
+  FRONTEIRA e nao pela cor.** A primeira versao procurava `COR_FACE` e mediu ZERO
+  nos quatro lados das nove formas, com o codigo certo: num `Polygon2D` com
+  textura, `color` MULTIPLICA a arte, entao `_superficie()` escreve ali a TINTA
+  (branco) e a cor de familia so sobrevive no modo silhueta. A fronteira nao
+  mente -- so o corpo comeca no contorno; a sombra comeca em -4, e o cap e a
+  flange comecam em 48.
+- **Decalque de cap nao e medido pela grade de 16: e medido pelo CAP.** As cinco
+  tiras foram desenhadas com 16 px para um cap de 40. Com o cap em 12,
+  `_decalque_no_trecho()` recusa toda peca que nao cabe e a decoracao inteira do
+  #244 SUMIRIA -- sem erro, com os cinco arquivos intactos em disco. Medido: 0%
+  dos trechos receberam decalque, contra os 2 a 35% esperados. Hoje elas tem 8 px
+  (`cap - borda - bisel`), e quem separa as duas familias e o campo `onde: cap`
+  em `AUTORADAS` -- e nao o prefixo do nome, porque renomear nao da erro nenhum.
+  Os atlas de decalque de CHAO continuam na grade.
+- **A profundidade tem de fechar a GRADE, e nao e escolha de gosto.** Com 60 px
+  por lado, `contorno + margens` cabe em 960 num contorno de 768 -- multiplo de
+  32, com meia-dimensao na grade de 16 -- e sobram 36 px de vazio de cada lado. E
+  o vao da parede compartilhada do #246 deriva disso: `60 x 2 = 120`, arredondado
+  para **128**. Esse numero e exatamente o limiar em que
+  `Corredor._montar_fita()` desiste de desenhar parede propria (`<= 128`), entao
+  a conexao continua nascendo como piso e colisao e mais nada. A coincidencia e
+  feliz e fragil: quem mexer no corpo tem de olhar aquele limiar junto.
 - **"A parede aparece?" e "aparece QUANTO?" sao portoes diferentes, e o primeiro
   sozinho aprovou 6,1%.** O regime de enquadramento respondia SIM para a lateral
   fina: o eixo estava FECHADO, a parede ESTAVA em quadro, ela so era fina demais

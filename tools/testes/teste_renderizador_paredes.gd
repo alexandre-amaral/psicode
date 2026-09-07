@@ -39,7 +39,7 @@ func executar() -> void:
 	_nada_vaza_pela_BOCA_de_um_lado_aberto()
 	_as_camadas_de_cada_lado_sao_uma_pilha_CONTIGUA()
 	await _o_desgaste_do_topo_e_RARO_e_cabe_na_chapa()
-	await _o_desgaste_do_topo_e_RARO_e_cabe_na_chapa()
+	await _a_espessura_desenhada_e_a_mesma_nos_quatro_lados()
 
 
 ## Toda forma de sala em disco monta a fita, e nenhuma monta vazia.
@@ -100,7 +100,7 @@ func _nenhuma_celula_invade_o_chao() -> void:
 		# onde o perfil declara. Uma peca 5 px dentro do piso continua reprovando,
 		# e e essa a diferenca entre a sombra e um erro de geometria.
 		var perfil := PerfilDeParede.new()
-		var fundo_permitido := maxf(perfil.sombra_norte, perfil.sombra_lateral)
+		var fundo_permitido := perfil.sombra_de_contato
 		var dentro := 0
 		for filho in fita.get_children():
 			var item := filho as Node2D
@@ -621,9 +621,10 @@ func _o_acabamento_existe_e_cabe_na_faixa() -> void:
 				var meio := poly.position
 				if Geometry2D.is_point_in_polygon(meio, contorno):
 					contatos += 1
-				# E o SUL nao tem face: ele tem SOLEIRA. Ela e reconhecida por
-				# crescer para FORA do contorno, do lado de baixo -- que e a
-				# diferenca entre emoldurar e competir com o piso.
+				# **E O SUL CONTA NA MESMA URNA.** Ele tinha soleira e nao
+				# sombra, entao era contado a parte, por crescer para fora. Hoje
+				# ele tem a mesma pilha dos outros e a mesma linha de contato --
+				# ela e o segundo anel, e anel nao tem excecao de lado.
 				elif meio.y > _caixa(contorno).end.y:
 					soleira_ao_sul += 1
 		var nome := caminho.get_file()
@@ -632,8 +633,8 @@ func _o_acabamento_existe_e_cabe_na_faixa() -> void:
 			% [nome, eixo.x, eixo.y, fora])
 		ok(contatos > 0,
 			"%s: a linha de contato existe e cresce para DENTRO (%d)" % [nome, contatos])
-		ok(soleira_ao_sul > 0,
-			"%s: o sul tem SOLEIRA para fora (%d) -- e nao face para dentro"
+		igual(soleira_ao_sul, 0,
+			"%s: nenhuma linha de contato cresce para FORA do sul (%d) -- o anel e continuo"
 				% [nome, soleira_ao_sul])
 		sala.free()
 
@@ -936,3 +937,117 @@ func _nascer_com(dados: DadosSala, celula: Vector2i) -> Sala:
 	sala.position = LONGE
 	Engine.get_main_loop().root.add_child(sala)
 	return sala
+
+
+## A ESPESSURA DESENHADA E A MESMA NOS QUATRO LADOS (CAIXA 04).
+##
+## **Este portao nao existia porque a assimetria era o alvo.** O modelo anterior
+## dava perfil proprio a cada lado, e o que se cobrava era que eles DIVERGISSEM.
+## Medido no jogo, o resultado era este (`baseline_assimetrico/norte_sala.png`):
+##
+##     norte 60 px   lateral 36 px   sul 32 px
+##
+## As quinas diziam "ha uma moldura"; os lados diziam "ha um acabamento". A sala
+## e uma caixa aberta vista de cima, e numa caixa as quatro paredes tem a mesma
+## espessura.
+##
+## **Ele mede o POLIGONO e nao o recurso, e a diferenca ja custou uma entrega.**
+## `teste_camada_visual` confere o `PerfilDeParede`, que e a intencao; aqui se
+## confere o que a fita desenhou. Foi exatamente essa distancia que deixou dois
+## epicos de parede inteiros fora do jogo -- o `EstiloDeParede` carregava uma
+## copia dos numeros e a copia vencia, entao o recurso dizia uma coisa e a tela
+## mostrava outra, com os dois portoes de recurso verdes.
+##
+## O CHANFRO fica de fora da conta de proposito: ele e a TRANSICAO entre dois
+## lados, nao um lado. A profundidade dele e medida em `_toda_quina_recebe_canto`.
+func _a_espessura_desenhada_e_a_mesma_nos_quatro_lados() -> void:
+	var perfil := PerfilDeParede.new()
+	var nomes := {
+		RenderizadorParedes.Lado.NORTE: "norte",
+		RenderizadorParedes.Lado.SUL: "sul",
+		RenderizadorParedes.Lado.LESTE: "leste",
+		RenderizadorParedes.Lado.OESTE: "oeste",
+	}
+	for caminho in _cenas():
+		var sala := _nascer(caminho)
+		if sala == null:
+			continue
+		await Engine.get_main_loop().process_frame
+		var nome := caminho.get_file()
+		var contorno := sala.contorno_local()
+		var fita := sala.get_node_or_null("ParedeModulos") as Node2D
+		if fita == null or contorno.size() < 3:
+			sala.free()
+			continue
+
+		# Por lado: ate onde o CORPO chega, e ate onde a pilha inteira chega.
+		var corpo := {}
+		var pilha := {}
+		for filho in fita.get_children():
+			var poly := filho as Polygon2D
+			if poly == null or poly.polygon.size() < 3:
+				continue
+			var centro := Vector2.ZERO
+			for v in poly.polygon:
+				centro += v
+			centro = poly.position + centro / float(poly.polygon.size())
+			# A aresta mais proxima decide o lado. Se ela for diagonal, este
+			# poligono e chanfro e nao entra na conta.
+			var normal := _normal_mais_proxima(centro, contorno)
+			if RenderizadorParedes._e_chanfro(normal):
+				continue
+			var lado := RenderizadorParedes.classificar(normal)
+			var alcance := -INF
+			var raso := INF
+			for v in poly.polygon:
+				var p: Vector2 = poly.position + v
+				var d := _profundidade_ate_contorno(p, contorno)
+				if Geometry2D.is_point_in_polygon(p, contorno):
+					d = -d
+				alcance = maxf(alcance, d)
+				raso = minf(raso, d)
+			pilha[lado] = maxf(float(pilha.get(lado, 0.0)), alcance)
+			# **O CORPO E RECONHECIDO POR ONDE ELE COMECA, e nao pela cor.**
+			#
+			# A primeira versao procurava `COR_FACE` e mediu ZERO nos quatro
+			# lados de todas as nove formas -- com o codigo certo. Num
+			# `Polygon2D` com textura, `color` MULTIPLICA a arte, entao
+			# `_superficie()` escreve ali a TINTA (branco) e nao a cor de
+			# familia; a cor so sobrevive quando nao ha textura, que e o modo
+			# silhueta.
+			#
+			# A fronteira nao mente: so o corpo comeca no contorno. A sombra
+			# comeca em -4, o cap em 48, e a flange -- que e face subindo alguns
+			# px para dentro do cap -- tambem comeca em 48.
+			if absf(raso) < 0.6:
+				corpo[lado] = maxf(float(corpo.get(lado, 0.0)), alcance)
+
+		for lado: int in nomes:
+			if not pilha.has(lado):
+				continue
+			var rotulo: String = nomes[lado]
+			# 48 +/- 1: o corpo e a autoridade estrutural, e um pixel de erro
+			# aqui e um lado que voltou a ter perfil proprio.
+			perto(float(corpo.get(lado, 0.0)), perfil.corpo,
+				"%s: o corpo do %s desenha o que o perfil pede" % [nome, rotulo], 1.0)
+			# E o CAP nao cresce para compensar. Ele foi aprovado fino e a
+			# tentacao registrada e engrossa-lo quando a parede parecer rasa --
+			# isso reabre o defeito do topo de 40 px lendo como faixa de piso.
+			var cap: float = float(pilha[lado]) - float(corpo.get(lado, 0.0))
+			entre(cap, 10.0, 12.0,
+				"%s: o cap do %s continua fino (%.1f px)" % [nome, rotulo, cap])
+		sala.free()
+
+
+## A normal externa da aresta mais proxima deste ponto.
+func _normal_mais_proxima(ponto: Vector2, contorno: PackedVector2Array) -> Vector2:
+	var melhor := INF
+	var normal := Vector2.UP
+	for i in contorno.size():
+		var a := contorno[i]
+		var b := contorno[(i + 1) % contorno.size()]
+		var d := ponto.distance_to(Geometry2D.get_closest_point_to_segment(ponto, a, b))
+		if d < melhor:
+			melhor = d
+			normal = RenderizadorParedes.normal_externa(contorno, a, b)
+	return normal

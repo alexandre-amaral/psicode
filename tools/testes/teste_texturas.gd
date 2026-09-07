@@ -751,11 +751,11 @@ const AUTORADAS: Dictionary = {
 	# matiz 330-355 dele. Separado do andar1 porque o decalque tem de pertencer a
 	# sala em que ele cai -- e a faixa de perigo AMARELA seria a da sala de ARMA.
 	"decalques_boss.png": {&"familia": &"decalque", &"tipo": &"boss"},
-	"topo_decalque_oleo.png": {&"familia": &"decalque", &"tipo": &"andar1"},
-	"topo_decalque_ferrugem.png": {&"familia": &"decalque", &"tipo": &"andar1"},
-	"topo_decalque_solda.png": {&"familia": &"decalque", &"tipo": &"andar1"},
-	"topo_decalque_parafusos.png": {&"familia": &"decalque", &"tipo": &"andar1"},
-	"topo_decalque_risco.png": {&"familia": &"decalque", &"tipo": &"andar1"},
+	"topo_decalque_oleo.png": {&"familia": &"decalque", &"tipo": &"andar1", &"onde": &"cap"},
+	"topo_decalque_ferrugem.png": {&"familia": &"decalque", &"tipo": &"andar1", &"onde": &"cap"},
+	"topo_decalque_solda.png": {&"familia": &"decalque", &"tipo": &"andar1", &"onde": &"cap"},
+	"topo_decalque_parafusos.png": {&"familia": &"decalque", &"tipo": &"andar1", &"onde": &"cap"},
+	"topo_decalque_risco.png": {&"familia": &"decalque", &"tipo": &"andar1", &"onde": &"cap"},
 	"parede_topo_a.png": {&"familia": &"parede", &"tipo": &"andar1"},
 	"parede_topo_b.png": {&"familia": &"parede", &"tipo": &"andar1"},
 	"parede_topo_c.png": {&"familia": &"parede", &"tipo": &"andar1"},
@@ -1001,8 +1001,11 @@ func _arquivos() -> void:
 			ok(false, "%s existe em disco (rode preparar_textura.py)" % nome)
 			continue
 		autoradas += 1
-		_grade(imagem, nome)
 		var d: Dictionary = AUTORADAS[nome]
+		if d.get(&"onde", &"") == &"cap":
+			_encaixe_no_cap(imagem, nome)
+		else:
+			_grade(imagem, nome)
 		_regra_de_gamut(imagem, nome, d[&"familia"], d[&"tipo"])
 		# Atlas nao ladrilha: ele e uma grade de CELULAS, e a borda direita dele
 		# nao encosta na esquerda em lugar nenhum. Medir costura ali cobraria
@@ -1018,6 +1021,40 @@ func _arquivos() -> void:
 			_costura(imagem, nome)
 
 	igual(autoradas, AUTORADAS.size(), "todas as texturas autoradas foram abertas")
+
+
+## O DECALQUE DE CAP NAO E MEDIDO PELA GRADE DE 16: ele e medido pelo CAP.
+##
+## **Ele e DECLARADO por `onde: cap`, e nao deduzido do nome.** A familia
+## `decalque` tem dois moradores muito diferentes: as marcas finas que pousam na
+## chapa do topo, e os atlas de decalque de CHAO (`decalques_andar1`,
+## `decalques_boss`, `baia_chefe`), que sao grades de celulas de 64 e 128 px e
+## continuam sendo medidos pela grade. Deduzir pelo prefixo faria a regra
+## depender de ninguem renomear o arquivo -- e renomear nao da erro nenhum.
+##
+## A grade existe para quem LADRILHA -- um tile fora dela nao encaixa no proximo.
+## O decalque e colocado UMA vez, num ponto escolhido ao longo da parede, e nao
+## se repete; a mesma razao que ja o tira do portao de costura logo acima.
+##
+## **O que o substitui e um portao mais duro, e ele nasceu de um defeito real.**
+## As cinco pecas foram desenhadas com 16 px de espessura para um cap de 40. Com
+## o cap em 12, `_decalque_no_trecho()` recusa qualquer peca que nao caiba e a
+## decoracao inteira do #244 SUMIRIA da tela -- sem erro, sem aviso, com os cinco
+## arquivos intactos em disco. Medido antes da correcao: 0% dos trechos de topo
+## receberam decalque, contra os 2 a 35% que o portao de cobertura espera.
+##
+## O que sobra dentro do cap e `cap - borda - bisel`. As duas faixas nao sao
+## folga decorativa: sem elas a marca encosta na quebra de valor entre o corpo e
+## o cap, e le como defeito de renderizacao em vez de desgaste.
+func _encaixe_no_cap(imagem: Image, nome: String) -> void:
+	var perfil := PerfilDeParede.new()
+	var disponivel := perfil.cap - perfil.borda_do_topo - perfil.bisel_do_topo
+	var fina := mini(imagem.get_width(), imagem.get_height())
+	ok(
+		float(fina) <= disponivel,
+		"%s cabe na chapa do cap (%d px contra %.0f disponiveis)"
+			% [nome, fina, disponivel]
+	)
 
 
 func _grade(imagem: Image, nome: String) -> void:

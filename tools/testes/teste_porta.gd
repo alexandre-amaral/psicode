@@ -861,14 +861,14 @@ func _a_FACE_nao_e_mais_funda_que_a_moldura() -> void:
 	var acima_do_contorno := float(imagem.get_height()) * 0.5 - float(primeira)
 	var perfil := PerfilDeParede.new()
 	ok(
-		perfil.face_norte <= acima_do_contorno,
+		perfil.fim_da_face(RenderizadorParedes.Lado.NORTE) <= acima_do_contorno,
 		"a face (%.0f) cabe na moldura (%.0f px acima do contorno)"
-			% [perfil.face_norte, acima_do_contorno]
+			% [perfil.fim_da_face(RenderizadorParedes.Lado.NORTE), acima_do_contorno]
 	)
 	# O outro lado: uma face MUITO menor que a moldura tambem e defeito -- ai a
 	# moldura invade o topo e a verga deixa de ler como verga.
 	ok(
-		perfil.face_norte >= acima_do_contorno - 16.0,
+		perfil.fim_da_face(RenderizadorParedes.Lado.NORTE) >= acima_do_contorno - 16.0,
 		"e nao sobra moldura demais sobre o topo (%.0f contra %.0f)"
-			% [perfil.face_norte, acima_do_contorno]
+			% [perfil.fim_da_face(RenderizadorParedes.Lado.NORTE), acima_do_contorno]
 	)

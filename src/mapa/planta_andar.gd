@@ -15,14 +15,17 @@ extends Resource
 ## Um andar futuro pode ter outra planta sem que a geracao logica mude uma linha,
 ## e nenhum andar que existe muda de graca.
 ##
-## ## Por que os vaos sao POR EIXO
+## ## Por que os vaos continuam sendo POR EIXO
 ##
-## A parede e assimetrica desde o epico da profundidade: o norte desenha 60 px, a
-## lateral 36 e o sul 32. Entao o que se encontra entre duas salas depende do
-## eixo -- 92 px no vertical (sul 32 + norte 60) contra 72 no horizontal (36 x 2).
+## Eles nasceram assim porque a parede era assimetrica -- 92 px de encontro no
+## vertical (sul 32 + norte 60) contra 72 no horizontal (36 x 2) --, e um numero
+## unico obrigaria o eixo folgado a usar o do apertado.
 ##
-## Um numero unico obrigaria o eixo folgado a usar o do apertado, e sobraria piso
-## de corredor num deles -- que e exatamente o que este epico existe para tirar.
+## **Com a parede simetrica os dois eixos coincidem em 128**, e o par podia virar
+## um numero so. Ele nao vira: os `escala_*` do perfil existem justamente para
+## um andar futuro poder engrossar um lado, e ali os eixos voltam a divergir. Um
+## campo que hoje guarda dois valores iguais custa nada; recriar o eixo depois
+## custaria mexer em toda planta ja salva.
 ##
 ## ## E por que a escolha e por FRONTEIRA, e nao por aresta
 ##
@@ -70,13 +73,19 @@ enum Conexao { PAREDE_COMPARTILHADA, PASSAGEM_CURTA, CORREDOR_TECNICO }
 @export var peso_corredor_entre_clusters: float = 0.40
 
 @export_group("Vaos (horizontal, vertical)")
-## O vao em que as duas faixas se ENCONTRAM, medido: 80 no horizontal (36 x 2
-## arredondado para a grade de 16) e 96 no vertical (32 + 60 = 92, arredondado).
+## O vao em que as duas faixas se ENCONTRAM: **128 nos dois eixos**, que e
+## `profundidade x 2 = 120` arredondado para a grade de 16.
 ##
 ## `teste_grade.gd` cobra o vao entre bandas na grade de 16, entao o
-## arredondamento nao e opcional -- e o que sobra depois dele (8 px e 4 px) e o
-## que a soleira cobre.
-@export var vao_parede_compartilhada := Vector2(80.0, 96.0)
+## arredondamento nao e opcional; os 8 px que sobram sao o respiro entre as duas
+## faixas de cap.
+##
+## **E 128 e exatamente o limiar em que `Corredor._montar_fita()` desiste de
+## desenhar parede propria** (`comprimento <= 128`). A coincidencia e feliz e
+## fragil: com 144 a conexao passaria a vestir uma faixa de parede propria por
+## cima das duas que ja se encontram ali. Quem mexer no corpo tem de olhar esse
+## limiar junto.
+@export var vao_parede_compartilhada := Vector2(128.0, 128.0)
 ## Curto o bastante para nao virar um lugar: a travessia dura menos de meio
 ## segundo a 220 px/s.
 @export var vao_passagem_curta := Vector2(144.0, 160.0)

@@ -132,6 +132,19 @@ var _corredores: Array[Dictionary] = []
 var _tipo_fronteira_x: Dictionary = {}
 var _tipo_fronteira_y: Dictionary = {}
 
+## A que CLUSTER cada celula pertence, e o tema daquele cluster.
+##
+## Antes o tema era sorteado por sala, independentemente. Isso da variedade e nao
+## da ORGANIZACAO: uma fabrica tem setores, e duas salas do mesmo setor sao
+## arquitetonicamente mais integradas que duas de setores diferentes.
+##
+## **Cluster nao e vies de distancia**, e a diferenca importa: um andar que
+## ficasse mais degradado a cada sala anunciaria o chefe desde a terceira porta,
+## e o jogador leria o mapa pela parede. Cluster e agrupamento por VIZINHANCA --
+## as sequencias acontecem sozinhas, sem gradiente.
+var _cluster_por_celula: Dictionary = {}
+var _tema_por_cluster: Dictionary = {}
+
 
 var _em_travessia: bool = false
 var _sala_destino: Sala = null
@@ -865,6 +878,9 @@ func _montar_andar() -> void:
 	# ANTES de posicionar: e o tipo da conexao que define o vao, e o vao define
 	# onde as salas ficam. Na ordem inversa o corredor se esticaria para caber
 	# num vao ja escolhido, que e o modelo que este epico substitui.
+	# ANTES das conexoes: e o cluster que decide se uma fronteira e interna a um
+	# setor ou entre dois, e isso muda o peso do sorteio.
+	_sortear_clusters()
 	_sortear_conexoes()
 	var centros := _centros_das_bandas()
 	# Uma vez so, fora do laco: `_distancias()` roda um BFS no andar inteiro.
@@ -882,7 +898,7 @@ func _montar_andar() -> void:
 		# sem vizinho, monta a parede em cima delas e veste a sala com as
 		# texturas do tipo -- inclusive escolhendo a variante pela fracao acima.
 		sala.definir_visual(_dados_por_celula.get(celula))
-		sala.definir_tema(_sortear_tema())
+		sala.definir_tema(_tema_da_celula(celula))
 		if celula == celula_rara:
 			sala.permitir_props_raros()
 		sala.configurar_conexoes(vizinhos_de(celula))
@@ -1269,9 +1285,118 @@ func _sortear_conexoes() -> void:
 			elif passo.y > 0:
 				ys[celula.y] = true
 	for indice in xs:
-		_tipo_fronteira_x[indice] = planta.sortear(rng)
+		_tipo_fronteira_x[indice] = planta.sortear(rng, _fronteira_entre_clusters(indice, false))
 	for indice in ys:
-		_tipo_fronteira_y[indice] = planta.sortear(rng)
+		_tipo_fronteira_y[indice] = planta.sortear(rng, _fronteira_entre_clusters(indice, true))
+	_reservar_corredor_do_chefe()
+
+
+## Esta fronteira separa dois setores, ou corre por dentro de um?
+##
+## Pela MAIORIA das arestas que a cruzam: a fronteira e uma so e as arestas podem
+## discordar. Empate cai em "dentro", porque a parede compartilhada e o caso
+## padrao do andar 1.
+func _fronteira_entre_clusters(indice: int, vertical: bool) -> bool:
+	var dentro := 0
+	var entre := 0
+	for celula in _arestas:
+		var i: int = celula.y if vertical else celula.x
+		if i != indice:
+			continue
+		var direcao := Vector2.DOWN if vertical else Vector2.RIGHT
+		if not vizinhos_de(celula).has(direcao):
+			continue
+		var vizinha: Vector2i = celula + _para_grid(direcao)
+		if _cluster_por_celula.get(celula, -1) == _cluster_por_celula.get(vizinha, -2):
+			dentro += 1
+		else:
+			entre += 1
+	return entre > dentro
+
+
+## Agrupa as celulas em setores funcionais por inundacao.
+##
+## Sementes espalhadas e o resto absorvido pela vizinha mais proxima no grafo --
+## o mesmo BFS que ja decide onde os inimigos podem nascer, reusado em vez de um
+## segundo "quao longe" que acabaria divergindo do primeiro sem ninguem notar.
+##
+## Um cluster a cada tres salas: menos que isso e o andar inteiro vira um setor
+## so, mais e cada sala vira o proprio -- e nos dois extremos a regra deixa de
+## dizer alguma coisa.
+func _sortear_clusters() -> void:
+	_cluster_por_celula.clear()
+	_tema_por_cluster.clear()
+	var celulas: Array = _arestas.keys()
+	if celulas.is_empty():
+		return
+	celulas.sort()
+	var quantos := maxi(2, int(ceilf(float(celulas.size()) / 3.0)))
+	var sementes: Array[Vector2i] = []
+	var passo := maxf(1.0, float(celulas.size()) / float(quantos))
+	for i in quantos:
+		var indice := mini(int(float(i) * passo), celulas.size() - 1)
+		sementes.append(celulas[indice])
+
+	# INUNDACAO simultanea: cada semente cresce um passo por rodada, entao o
+	# resultado depende da distancia no GRAFO e nao da ordem da lista.
+	var fila: Array[Vector2i] = []
+	for i in sementes.size():
+		_cluster_por_celula[sementes[i]] = i
+		fila.append(sementes[i])
+	var cabeca := 0
+	while cabeca < fila.size():
+		var atual: Vector2i = fila[cabeca]
+		cabeca += 1
+		for direcao in vizinhos_de(atual):
+			var vizinha: Vector2i = atual + _para_grid(direcao)
+			if _cluster_por_celula.has(vizinha) or not _arestas.has(vizinha):
+				continue
+			_cluster_por_celula[vizinha] = _cluster_por_celula[atual]
+			fila.append(vizinha)
+
+	for i in quantos:
+		_tema_por_cluster[i] = _sortear_tema()
+
+
+## O tema desta celula: o do cluster dela.
+##
+## Sem cluster -- andar montado antes do sorteio, ou celula fora do grafo -- cai
+## no sorteio por sala, que e o comportamento de antes.
+func _tema_da_celula(celula: Vector2i) -> TemaDeSala:
+	var cluster: int = _cluster_por_celula.get(celula, -1)
+	if cluster < 0 or not _tema_por_cluster.has(cluster):
+		return _sortear_tema()
+	return _tema_por_cluster[cluster]
+
+
+## A que cluster esta celula pertence. Publico para o portao medir a correlacao
+## com a distancia da entrada -- que tem de ficar perto de zero.
+func cluster_da_celula(celula: Vector2i) -> int:
+	return _cluster_por_celula.get(celula, -1)
+
+
+## A conexao que entra na sala do chefe e SEMPRE corredor tecnico.
+##
+## **Sem esta reserva o anuncio do chefe some, e sem uma linha no console.** O
+## corredor pre-chefe e a UNICA excecao autorizada a regra da noite base -- ele
+## existe para a virada acontecer num lugar so --, e com corredor em 10% das
+## arestas ele simplesmente pode nao ser sorteado. Uma parede compartilhada de 96
+## px ainda troca a textura de chao, entao o anuncio viraria uma mancha de dois
+## passos em vez de um trecho.
+##
+## E `celula_do_chefe()` devolve ZERO quando NAO ha chefe, e zero e uma celula
+## valida -- a inicial mora nela. Sem conferir a reserva antes, um andar sem
+## chefe vestiria a fronteira da ENTRADA com o corredor dele.
+func _reservar_corredor_do_chefe() -> void:
+	var chefe := celula_do_chefe()
+	if _reservadas.get(chefe) != DadosSala.ID_BOSS:
+		return
+	for direcao in vizinhos_de(chefe):
+		var passo := _para_grid(direcao)
+		if passo.x != 0:
+			_tipo_fronteira_x[mini(chefe.x, chefe.x + passo.x)] = 				PlantaDoAndar.Conexao.CORREDOR_TECNICO
+		else:
+			_tipo_fronteira_y[mini(chefe.y, chefe.y + passo.y)] = 				PlantaDoAndar.Conexao.CORREDOR_TECNICO
 
 
 ## O tipo da conexao entre duas celulas vizinhas.

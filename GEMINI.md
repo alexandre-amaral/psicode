@@ -192,7 +192,8 @@ docs/
 | **O que o chefe le do jogador** | `src/enemies/perfil_jogador.gd` (logica pura, testada) |
 | **As travas de identidade do chefe** | `tools/testes/teste_diretora.gd` + a secao no `docs/GDD.md` |
 | Layout e conexao das salas | `src/mapa/gerenciador_mapa.gd`, `src/mapa/sala_*.tscn` |
-| **Tipo de sala novo (loja, desafio...)** | criar `src/mapa/tipo_*.tres` e por na lista `tipos_de_sala` do `GerenciadorMapa` |
+| **Tipo de sala novo (desafio, forja...)** | criar `src/mapa/tipo_*.tres` e por na lista `tipos_de_sala` do `GerenciadorMapa`. A Loja foi feita assim, sem uma linha no gerador |
+| **Onde a Loja pode nascer** | `distancia_minima_da_origem` e `distancia_maxima_da_origem` no `src/mapa/tipo_loja.tres`; o teto e ZERO em todos os outros tipos, e zero desliga |
 | **O que um CORREDOR_TECNICO representa** | `src/mapa/corredor_*.tres` (`PerfilDeCorredor`), na lista `perfis_de_corredor` do `GerenciadorMapa`. Ele decora pelo CHAO e pelo DECALQUE -- nunca pela face, que anunciaria a sala vizinha |
 | **Quao raro o corredor e** | `peso_corredor_*` em `src/mapa/planta_andar1.tres`; o do chefe e reservado a parte e nao passa pelo sorteio |
 | **Estilo novo de uma sala que ja existe** | arrastar a cena para `cenas` no `tipo_*.tres` correspondente |
@@ -970,6 +971,15 @@ em qualquer erro de script.
   nunca entravam em grupo nenhum -- os projeteis atravessavam parede. Hoje quem
   resolve isso e o raycast de `projetil.gd`, que tambem devolve a normal que o
   ricochete precisa.
+- **`distancia_maxima_da_origem` ZERO e "sem teto", e nao "na origem".** Todos os
+  tipos anteriores a esse campo valem zero, e um teto real de zero os prenderia
+  na entrada -- e a mesma armadilha do sentinela negativo do `EstiloDeParede` e
+  do `Escalonamento` dos inimigos, vista de outro angulo: aqui o valor neutro e
+  zero porque o campo conta DISTANCIA, e distancia zero ja significa a origem.
+- **Cena de sala clonada herda o `uid` da original.** Copiar `sala_7_arma.tscn`
+  para criar a Loja levou junto o `uid://` -- dois recursos com o mesmo
+  identificador, e o Godot resolve um deles em silencio. Trocar o `uid` faz parte
+  de clonar cena, e nao ha aviso.
 - **Os quatro alvos de comprabilidade do plano da Loja NAO coexistem, e a
   medicao mostra por que.** Ele pede "ao menos uma compra em 70-85%" e
   "exatamente duas em 15-35%" ao mesmo tempo: subir a renda para o segundo cair

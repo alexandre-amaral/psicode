@@ -647,7 +647,7 @@ func _celula_aceita(celula: Vector2i, dados: DadosSala, distancias: Dictionary) 
 			# pendurada. Ambas podem ter porta unica e o par se estrangula.
 			return false
 
-	if dados.distancia_minima_da_origem <= 0:
+	if dados.distancia_minima_da_origem <= 0 and dados.distancia_maxima_da_origem <= 0:
 		return true
 
 	# A celula nova ainda nao esta no grafo, entao a distancia dela e a da
@@ -660,7 +660,16 @@ func _celula_aceita(celula: Vector2i, dados: DadosSala, distancias: Dictionary) 
 		var d := int(distancias[vizinha]) + 1
 		if menor < 0 or d < menor:
 			menor = d
-	return menor < 0 or menor >= dados.distancia_minima_da_origem
+	if menor < 0:
+		return true
+	if menor < dados.distancia_minima_da_origem:
+		return false
+	# **O TETO SO MORDE QUANDO DECLARADO.** Zero aqui e "sem teto", e nao "na
+	# origem" -- todos os tipos anteriores a este campo valem zero, e um teto real
+	# de zero os prenderia todos na entrada.
+	if dados.distancia_maxima_da_origem > 0 			and menor > dados.distancia_maxima_da_origem:
+		return false
+	return true
 ## Escolhe a cena de cada celula em ordem BFS. A ordem importa: quando nenhuma
 ## cena cobre todas as portas que a celula usa, a aresta aparada e sempre a que
 ## leva a um ramo ainda nao processado -- assim nada fica inalcancavel.

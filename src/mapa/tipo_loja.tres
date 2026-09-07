@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="DadosSala" load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
+[ext_resource type="Texture2D" path="res://assets/texturas/decalques_andar1.png" id="99_dec"]
+[ext_resource type="Texture2D" path="res://assets/texturas/chao_arma.png" id="30_c0"]
+[ext_resource type="Texture2D" path="res://assets/texturas/parede_face_arma.png" id="40_fa"]
+[ext_resource type="Texture2D" path="res://assets/texturas/props_atlas.png" id="23_atlas"]
+[ext_resource type="Texture2D" path="res://assets/texturas/props_volume.png" id="24_pvol"]
+[ext_resource type="PackedScene" path="res://src/mapa/sala_10_loja.tscn" id="2_loja"]
+[ext_resource type="Resource" path="res://src/mapa/estilo_industrial_velho.tres" id="41_estilo"]
+[ext_resource type="Texture2D" path="res://assets/texturas/parede_face_arma_tubulacao.png" id="42_fm0"]
+[ext_resource type="Texture2D" path="res://assets/texturas/parede_face_arma_tecnica.png" id="42_fm1"]
+[ext_resource type="Texture2D" path="res://assets/texturas/parede_face_arma_deteriorada.png" id="42_fm2"]
+[ext_resource type="Texture2D" path="res://assets/texturas/parede_face_arma_ventilada.png" id="42_fm3"]
+
+[resource]
+script = ExtResource("1_ds")
+id = &"loja"
+cenas = Array[PackedScene]([ExtResource("2_loja")])
+colocacao = 1
+quantidade = 1
+prioridade = 12
+exige_beco = true
+distancia_minima_da_origem = 2
+distancia_maxima_da_origem = 5
+opcional = false
+inimigos = Array[Resource]([])
+densidade = 0.0
+orcamento_minimo = 0
+orcamento_maximo = 0
+deterioracao_ao_limpar = 0.0
+deterioracao_minima_ao_entrar = -1.0
+cor_mapa = Color(0.62, 0.86, 0.72, 1)
+icone = "$"
+texturas_chao = Array[Texture2D]([ExtResource("30_c0")])
+texturas_face = Array[Texture2D]([ExtResource("40_fa"), ExtResource("42_fm0"), ExtResource("42_fm1"), ExtResource("42_fm2"), ExtResource("42_fm3")])
+estilo_de_parede = ExtResource("41_estilo")
+atlas_props = ExtResource("23_atlas")
+regioes_props = Array[Rect2i]([Rect2i(0, 0, 32, 32), Rect2i(32, 0, 32, 32), Rect2i(128, 0, 32, 32), Rect2i(224, 0, 32, 32), Rect2i(0, 32, 32, 32), Rect2i(64, 32, 32, 32), Rect2i(96, 32, 32, 32), Rect2i(64, 64, 32, 32), Rect2i(64, 96, 32, 32)])
+quantidade_props = 6
+atlas_decalques = ExtResource("99_dec")
+regioes_decalques = Array[Rect2i]([Rect2i(0, 0, 64, 32), Rect2i(64, 0, 64, 32), Rect2i(0, 32, 64, 32), Rect2i(64, 32, 64, 64), Rect2i(0, 96, 64, 32), Rect2i(64, 96, 64, 32)])
+quantidade_decalques = 1
+atlas_props_volume = ExtResource("24_pvol")
+regioes_props_volume = Array[Rect2i]([Rect2i(32, 0, 32, 64), Rect2i(64, 64, 64, 64), Rect2i(96, 0, 32, 64), Rect2i(64, 0, 32, 64), Rect2i(0, 128, 32, 64), Rect2i(32, 128, 32, 64), Rect2i(64, 128, 32, 64), Rect2i(96, 128, 32, 64), Rect2i(160, 128, 32, 64), Rect2i(0, 192, 64, 64), Rect2i(64, 192, 64, 64), Rect2i(128, 192, 32, 64), Rect2i(160, 192, 32, 64), Rect2i(192, 192, 64, 64)])
+quantidade_props_volume = 3

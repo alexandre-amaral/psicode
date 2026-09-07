@@ -1,0 +1,31 @@
+[gd_scene load_steps=3 format=3 uid="uid://byp6veof0vhdv"]
+
+[ext_resource type="Script" path="res://src/mapa/sala.gd" id="1_s"]
+[ext_resource type="PackedScene" uid="uid://d1p2q3r4s5t6u" path="res://src/mapa/porta.tscn" id="2_p"]
+
+[node name="Sala_7_Arma" type="Node2D"]
+script = ExtResource("1_s")
+tipo = &"arma"
+area_spawn = Rect2(-288, -224, 576, 448)
+
+[node name="Parede" type="Line2D" parent="."]
+points = PackedVector2Array(-384, -320, 384, -320, 384, 320, -384, 320, -384, -320)
+width = 8.0
+default_color = Color(1, 0.8, 0.2, 0.6)
+
+[node name="Portas" type="Node2D" parent="."]
+
+[node name="Porta_Norte" parent="Portas" instance=ExtResource("2_p")]
+position = Vector2(0, -320)
+
+[node name="Porta_Sul" parent="Portas" instance=ExtResource("2_p")]
+position = Vector2(0, 320)
+direcao = 1
+
+[node name="Porta_Leste" parent="Portas" instance=ExtResource("2_p")]
+position = Vector2(384, 0)
+direcao = 2
+
+[node name="Porta_Oeste" parent="Portas" instance=ExtResource("2_p")]
+position = Vector2(-384, 0)
+direcao = 3

@@ -23,6 +23,7 @@ func executar() -> void:
 	_nada_vai_a_prateleira_de_graca()
 	_a_loja_le_a_pool_REAL()
 	_a_vaga_livre_nao_pende_para_um_lado()
+	_a_loja_nasce_uma_vez_e_no_meio_do_andar()
 
 
 ## SEMPRE UMA ARMA E UM ITEM, e a terceira e surpresa.
@@ -217,3 +218,71 @@ func _a_vaga_livre_nao_pende_para_um_lado() -> void:
 	var fracao := float(armas_na_terceira) / float(contadas)
 	entre(fracao, 0.35, 0.65,
 		"a terceira vaga e arma em %.0f%% das lojas" % (fracao * 100.0))
+
+
+## A LOJA NASCE UMA VEZ POR ANDAR, E NO MEIO DELE (#285).
+##
+## Duas regras que so falham em SILENCIO: uma Loja a mais dobra a economia do
+## andar sem nada acusar, e uma Loja no lugar errado a torna inutil -- colada na
+## entrada o jogador chega sem dinheiro, no fim nao sobra run para aproveitar a
+## compra.
+##
+## **E ela e obrigatoria, como a de arma e a de item.** Se nao couber no grafo
+## sorteado, o andar inteiro e sorteado de novo: sem isso a run pode acontecer
+## inteira sem Loja, e a economia deixa de ter para onde ir. E o mesmo argumento
+## que ja torna a sala de arma obrigatoria, porque ela e a unica fonte de arma.
+func _a_loja_nasce_uma_vez_e_no_meio_do_andar() -> void:
+	var tipo := load("res://src/mapa/tipo_loja.tres") as DadosSala
+	ok(tipo != null, "o tipo loja carrega")
+	if tipo == null:
+		return
+	ok(not tipo.opcional, "a Loja e obrigatoria, como a de arma e a de item")
+	ok(tipo.inimigos.is_empty(), "e ela nao tem combate")
+	perto(tipo.chance_de_aprimorada, 0.0,
+		"nem Unidade Aprimorada", 0.0001)
+	ok(tipo.distancia_minima_da_origem > 0,
+		"ela nao nasce colada na entrada (minimo %d)" % tipo.distancia_minima_da_origem)
+	ok(tipo.distancia_maxima_da_origem > tipo.distancia_minima_da_origem,
+		"e nao nasce no fim do andar (maximo %d)" % tipo.distancia_maxima_da_origem)
+
+	# O ICONE e a COR sao proprios: reusar os da arma ou do item faria o jogador
+	# ler o minimapa errado, que e o unico lugar onde ele decide o desvio.
+	var arma := load("res://src/mapa/tipo_arma.tres") as DadosSala
+	var item := load("res://src/mapa/tipo_item.tres") as DadosSala
+	if arma != null:
+		ok(tipo.icone != arma.icone, "o icone dela nao e o da arma")
+		ok(not tipo.cor_mapa.is_equal_approx(arma.cor_mapa), "nem a cor")
+	if item != null:
+		ok(tipo.icone != item.icone, "nem o do item")
+
+	# E O ANDAR: uma por andar, sempre, medido montando de verdade.
+	var fora := 0
+	var sem_loja := 0
+	for i in 12:
+		seed(5500 + i * 43)
+		var mapa := _montar_andar()
+		if mapa == null:
+			continue
+		var quantas := 0
+		for celula: Vector2i in mapa._reservadas:
+			if mapa._reservadas[celula] == &"loja":
+				quantas += 1
+		if quantas == 0:
+			sem_loja += 1
+		elif quantas != 1:
+			fora += 1
+		mapa.get_parent().remove_child(mapa)
+		mapa.free()
+	igual(sem_loja, 0, "todo andar tem Loja (%d sem)" % sem_loja)
+	igual(fora, 0, "e nunca mais de uma (%d andares com outra contagem)" % fora)
+
+
+func _montar_andar() -> GerenciadorMapa:
+	var cena: PackedScene = load("res://src/main/main.tscn")
+	var main := cena.instantiate()
+	Engine.get_main_loop().root.add_child(main)
+	var jogador := main.find_child("Player", true, false)
+	if jogador != null:
+		jogador.get_parent().remove_child(jogador)
+		jogador.free()
+	return main.find_child("GerenciadorMapa", true, false) as GerenciadorMapa

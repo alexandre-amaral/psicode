@@ -68,6 +68,16 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## porta so, e o par se estrangularia. Um campo para reconfigurar isso seria
 ## decorativo.
 @export var distancia_minima_da_origem: int = 0
+## E quantas, no maximo. **Zero desliga o teto**, e nao "nunca sai da origem":
+## zero e o valor de todos os tipos que existiam antes deste campo, e um teto
+## real de zero prenderia a sala na entrada.
+##
+## Ele nasceu com a Loja, e a razao e a mesma dos dois lados: o piso impede que
+## ela nasca colada na entrada, quando o jogador ainda nao tem dinheiro; o teto
+## impede que ela nasca no fim, quando nao sobra run para aproveitar a compra. O
+## plano pede a Loja entre 35% e 70% da progressao, e sem teto so metade disso e
+## exigivel.
+@export var distancia_maxima_da_origem: int = 0
 ## Se falso e o tipo nao couber, o andar inteiro e sorteado de novo. O chefe e
 ## o unico obrigatorio: sem ele a run nao tem como terminar em vitoria.
 @export var opcional: bool = true

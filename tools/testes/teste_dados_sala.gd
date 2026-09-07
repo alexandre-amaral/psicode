@@ -28,6 +28,7 @@ func nome() -> String:
 
 
 func executar() -> void:
+	_o_tipo_da_cena_concorda_com_o_tipo_que_a_lista()
 	var catalogo := _carregar()
 	_contrato(catalogo)
 	_regras_do_andar(catalogo)
@@ -274,3 +275,50 @@ func _contornos_desenhaveis(catalogo: Array[DadosSala]) -> void:
 	# Guarda contra a assercao virar decoracao: se um dia so restarem
 	# retangulos, o teste acima passaria sem nunca exercitar o caso dificil.
 	ok(concavas > 0, "existe ao menos uma sala nao-retangular para exercitar a triangulacao")
+
+
+## O `tipo` DA CENA CONCORDA COM O `id` DO TIPO QUE A LISTA.
+##
+## **`Sala.tipo` e um `@export` gravado no `.tscn`, e nao algo derivado do
+## `DadosSala`.** Sao duas fontes para a mesma verdade, e elas divergiram no dia
+## em que a Loja nasceu como COPIA da sala de arma: o `.tscn` clonado trouxe
+## `tipo = &"arma"` junto, e a Loja passou a se apresentar como sala de arma para
+## todo mundo que pergunta.
+##
+## O sintoma foi o teste de fumaca reprovando em ~25% das execucoes com *"a sala
+## tipo=arma nao tem nenhum pickup"* -- ele visitava a LOJA, via o tipo `arma`, e
+## procurava uma arma no chao que nunca existiu ali. Nada no console, e a
+## intermitencia vinha de qual das duas salas o jogador visitava primeiro.
+##
+## Clonar cena e o caminho normal para criar sala nova, e o campo que mente nao
+## da erro nenhum. Por isso o portao cruza as duas fontes em vez de confiar numa.
+func _o_tipo_da_cena_concorda_com_o_tipo_que_a_lista() -> void:
+	var conferidas := 0
+	var divergentes: Array[String] = []
+	for caminho in _tipos_em_disco():
+		var dados := load(caminho) as DadosSala
+		if dados == null:
+			continue
+		for cena in dados.cenas_validas():
+			var sala := cena.instantiate() as Sala
+			if sala == null:
+				continue
+			conferidas += 1
+			if sala.tipo != dados.id:
+				divergentes.append("%s diz tipo=%s mas e listada por %s" % [
+					cena.resource_path.get_file(), sala.tipo, dados.id])
+			sala.free()
+	ok(conferidas > 0, "houve cena para conferir (%d)" % conferidas)
+	igual(divergentes.size(), 0,
+		"toda cena declara o tipo de quem a lista (%s)" % ", ".join(divergentes))
+
+
+func _tipos_em_disco() -> Array[String]:
+	var saida: Array[String] = []
+	var pasta := DirAccess.open("res://src/mapa/")
+	if pasta == null:
+		return saida
+	for nome_do_arquivo in pasta.get_files():
+		if nome_do_arquivo.begins_with("tipo_") and nome_do_arquivo.ends_with(".tres"):
+			saida.append("res://src/mapa/" + nome_do_arquivo)
+	return saida

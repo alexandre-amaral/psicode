@@ -974,6 +974,22 @@ em qualquer erro de script.
   nunca entravam em grupo nenhum -- os projeteis atravessavam parede. Hoje quem
   resolve isso e o raycast de `projetil.gd`, que tambem devolve a normal que o
   ricochete precisa.
+- **`Sala.tipo` e um `@export` do `.tscn`, e nao algo derivado do `DadosSala`.**
+  Sao duas fontes para a mesma verdade, e elas divergiram no dia em que a Loja
+  nasceu como COPIA da sala de arma: o `.tscn` clonado trouxe `tipo = &"arma"`
+  junto, e a Loja passou a se apresentar como sala de arma para todo mundo que
+  pergunta. O sintoma foi o teste de fumaca reprovando em **~25% das execucoes**
+  com *"a sala tipo=arma nao tem nenhum pickup"* -- ele visitava a LOJA, lia o
+  tipo `arma` e procurava uma arma que nunca existiu ali. A intermitencia vinha
+  de qual das duas o jogador visitava primeiro, porque a conferencia acontece uma
+  vez por tipo. **Clonar cena e o caminho normal para criar sala nova, e campo
+  que mente nao da erro**: hoje `teste_dados_sala.gd` cruza as duas fontes.
+- **Diagnostico por `git stash` mente se o bug ja esta COMMITADO.** Conclui que a
+  intermitencia acima era anterior ao epico porque ela aparecia com o stash
+  aplicado -- mas o stash foi feito sobre um commit que ja continha a Loja, entao
+  os dois lados tinham o defeito. `git stash` compara o nao-commitado; para
+  perguntar "isto e meu?" a comparacao tem de ser contra o commit ANTERIOR a
+  mudanca, e nao contra a arvore suja.
 - **A ORDEM da compra e o contrato, e nao um detalhe de implementacao.**
   Entregar ANTES de debitar: `Modificadores.aplicar()` RECUSA um implante unico
   que o jogador ja tenha e devolve `false` justamente para quem chama nao

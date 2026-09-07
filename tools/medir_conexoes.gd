@@ -61,12 +61,27 @@ func _ready() -> void:
 		main.free()
 		await get_tree().process_frame
 
+	# **O PAR E ASSIMETRICO, e somar o mesmo lado duas vezes esconde isso.**
+	#
+	# Numa aresta VERTICAL o que se encontra e o SUL da sala de cima com o NORTE
+	# da de baixo -- 32 px contra 60. A primeira versao desta regua usava
+	# `profundidade(SUL)` duas vezes e reportava 64 onde ha 92, e o erro apontava
+	# para o lado errado: ela dizia que sobra mais piso de corredor do que sobra.
 	var perfil := PerfilDeParede.new()
-	var faixa_v := perfil.profundidade(RenderizadorParedes.Lado.SUL)
-	var faixa_h := perfil.profundidade(RenderizadorParedes.Lado.LESTE)
-	print("  faixa de parede desenhada: %.0f px no eixo vertical, %.0f no horizontal"
-		% [faixa_v, faixa_h])
-	print("  (cada lado desenha isso, entao entre duas salas ha o DOBRO)\n")
+	var norte := perfil.profundidade(RenderizadorParedes.Lado.NORTE)
+	var sul := perfil.profundidade(RenderizadorParedes.Lado.SUL)
+	var lateral := perfil.profundidade(RenderizadorParedes.Lado.LESTE)
+	var faixa_v := sul + norte
+	var faixa_h := lateral * 2.0
+	print("  parede entre duas salas: %.0f px no vertical (sul %.0f + norte %.0f)"
+		% [faixa_v, sul, norte])
+	print("                           %.0f px no horizontal (lateral %.0f x 2)"
+		% [faixa_h, lateral])
+	# O VAO EM QUE AS DUAS FAIXAS SE ENCONTRAM, arredondado para a grade de 16 --
+	# `teste_grade.gd` cobra o vao entre bandas nela. E o numero central do epico
+	# dos setores: com ele nao sobra piso de corredor nenhum.
+	print("  vao em que elas se ENCONTRAM: %.0f vertical, %.0f horizontal" % [ceilf(faixa_v / 16.0) * 16.0, ceilf(faixa_h / 16.0) * 16.0])
+	print("")
 
 	for eixo: String in por_eixo:
 		var lista: Array = por_eixo[eixo]
@@ -77,9 +92,9 @@ func _ready() -> void:
 		for v: float in lista:
 			soma += v
 		var media := soma / float(lista.size())
-		var piso := media - faixa * 2.0
+		var piso := media - faixa
 		print("  %-11s %3d arestas   vao medio %.0f px   parede %.0f (%.0f%%)   piso de corredor %.0f (%.0f%%)"
-			% [eixo, lista.size(), media, faixa * 2.0, faixa * 2.0 / media * 100.0,
+			% [eixo, lista.size(), media, faixa, faixa / media * 100.0,
 				piso, piso / media * 100.0])
 
 	print("\n  %d arestas em %d andares (%.1f por andar)"

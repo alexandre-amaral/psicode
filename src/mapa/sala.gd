@@ -1224,6 +1224,7 @@ func _montar_decoracao() -> void:
 	_montar_props_animados(dados, contorno, aberto, bocas, colocados, rng)
 	_montar_props_volumetricos(dados, contorno, aberto, bocas, colocados, rng)
 	_montar_props_frente(dados, contorno, aberto, bocas, colocados, rng)
+	_montar_decalques(dados, contorno, aberto, bocas, colocados, rng)
 
 
 ## A familia CHAPADA, como sempre foi: uma raiz so, numa faixa de z propria.
@@ -1251,6 +1252,64 @@ func _montar_props_chapados(
 			sprite.region_enabled = true
 			sprite.region_rect = Rect2(dados.regioes_props[rng.randi_range(0, dados.regioes_props.size() - 1)])
 			sprite.flip_h = rng.randf() < 0.5
+			sprite.position = ponto
+			raiz.add_child(sprite)
+			colocados.append(ponto)
+			break
+
+
+## Os DECALQUES INDUSTRIAIS: o que nao cabe num tile (#233).
+##
+## O tile de 64x64 e usado com wrap nos dois eixos e deslocamento arbitrario,
+## entao **nenhuma linha ou coluna pode ser especial**. Um numero estampado
+## dentro da textura aparece tres vezes por sala em posicoes sorteadas, e a sala
+## deixa de TER um numero -- ela passa a ter um padrao de numeros. Tudo que e
+## elemento unico e posicionado sai da textura e vira isto.
+##
+## **Eles NAO espelham, e essa e a unica coisa que os separa de um prop
+## chapado.** `_montar_props_chapados` sorteia `flip_h` para multiplicar a
+## variedade de graca; num decalque com texto isso escreve `30-A` na metade das
+## salas, e nao ha erro no console para uma placa lida ao contrario. Espelhar
+## REFLETE, e a mesma razao pela qual `flip_v` e proibido na porta.
+##
+## Eles dividem `colocados` com as outras familias pelo mesmo motivo que elas se
+## dividem entre si: nao se conhecem, mas disputam o mesmo chao.
+func _montar_decalques(
+	dados: DadosSala, contorno: PackedVector2Array, aberto: PackedVector2Array,
+	bocas: Array[Vector2], colocados: Array[Vector2], rng: RandomNumberGenerator
+) -> void:
+	if dados.atlas_decalques == null or dados.regioes_decalques.is_empty():
+		return
+	if dados.quantidade_decalques <= 0:
+		return
+
+	var raiz := Node2D.new()
+	raiz.name = "Decalques"
+	# A MESMA faixa dos props chapados, e nao uma nova. Zero e onde ficam
+	# telegrafo, projetil e atores: um decalque ali poderia cair na frente do
+	# aviso que torna um ataque justo. Dar volume a um decalque o levaria para
+	# `Z_MUNDO` e reabriria a pergunta -- e por isso ele e chapado por
+	# construcao, como o prop animado.
+	raiz.z_index = Z_CHAO_DETALHE
+	add_child(raiz)
+
+	for _i in dados.quantidade_decalques:
+		for _tentativa in PROP_TENTATIVAS:
+			var regiao := dados.regioes_decalques[
+				rng.randi_range(0, dados.regioes_decalques.size() - 1)]
+			# O RAIO da peca, e nao `PROP_LADO`: o decalque e maior que um prop
+			# de 32 ("poucos por sala, GRANDES e gastos"), e usar a folga do prop
+			# deixaria metade dele por cima da parede.
+			var lado := float(maxi(regiao.size.x, regiao.size.y))
+			var ponto := _sortear_ponto_de_prop(rng, contorno, aberto, lado)
+			if ponto == Vector2.INF:
+				continue
+			if not _cabe_prop(ponto, aberto, bocas, colocados, lado):
+				continue
+			var sprite := Sprite2D.new()
+			sprite.texture = dados.atlas_decalques
+			sprite.region_enabled = true
+			sprite.region_rect = Rect2(regiao)
 			sprite.position = ponto
 			raiz.add_child(sprite)
 			colocados.append(ponto)

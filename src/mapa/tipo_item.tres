@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="DadosSala" load_steps=13 format=3]
+[gd_resource type="Resource" script_class="DadosSala" load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
+[ext_resource type="Texture2D" path="res://assets/texturas/decalques_andar1.png" id="99_dec"]
 [ext_resource type="Texture2D" path="res://assets/texturas/chao_item.png" id="30_c0"]
 [ext_resource type="Texture2D" path="res://assets/texturas/parede_face_item.png" id="40_ft"]
 [ext_resource type="Texture2D" path="res://assets/texturas/props_atlas.png" id="23_atlas"]
@@ -36,6 +37,9 @@ estilo_de_parede = ExtResource("41_estilo")
 atlas_props = ExtResource("23_atlas")
 regioes_props = Array[Rect2i]([Rect2i(64, 0, 32, 32), Rect2i(128, 0, 32, 32), Rect2i(224, 0, 32, 32), Rect2i(32, 32, 32, 32), Rect2i(64, 32, 32, 32), Rect2i(160, 32, 32, 32), Rect2i(96, 64, 32, 32), Rect2i(96, 96, 32, 32)])
 quantidade_props = 6
+atlas_decalques = ExtResource("99_dec")
+regioes_decalques = Array[Rect2i]([Rect2i(0, 0, 64, 32), Rect2i(64, 0, 64, 32), Rect2i(0, 32, 64, 32), Rect2i(64, 32, 64, 64)])
+quantidade_decalques = 1
 atlas_props_volume = ExtResource("24_pvol")
 regioes_props_volume = Array[Rect2i]([Rect2i(96, 0, 32, 64), Rect2i(224, 0, 32, 64), Rect2i(0, 0, 32, 64), Rect2i(192, 0, 32, 64), Rect2i(0, 128, 32, 64), Rect2i(32, 128, 32, 64), Rect2i(64, 128, 32, 64), Rect2i(96, 128, 32, 64), Rect2i(160, 128, 32, 64)])
 quantidade_props_volume = 3

@@ -145,3 +145,50 @@ extends Resource
 @export var espalhamento: float = 96.0
 ## Quanto tempo a brasa fica no chao depois do estouro. Zero desliga.
 @export var tempo_residual: float = 0.0
+
+@export_group("Tags")
+## O que este inimigo E, para as classes de aprimoramento poderem ter excecoes
+## sem um `if` por especie.
+##
+## **Nenhuma das tres classes do MVP usa tag: as tres funcionam em todos.** O
+## sistema entra assim mesmo porque `tags_incompativeis` num `.tres` sem suporte
+## no codigo e um campo que MENTE -- quem o preencher nao recebe erro nenhum, e o
+## aprimoramento nasce onde nao devia sem uma linha no console.
+##
+## Rastejante, Vigia e Diretora nao tem `.tres` e continuam sem tags. `dados` e
+## OPCIONAL e tem de continuar sendo: torna-lo obrigatorio quebraria os tres.
+##
+## Valor novo entra sempre NO FIM. Enum e gravado como INT no `.tres`, e inserir
+## no meio reescreve em silencio o que todo inimigo ja salvo declara -- a mesma
+## armadilha de `DadosArma.Comportamento` e `DadosItem`.
+enum Tag {
+	CORPO_A_CORPO,
+	DISTANCIA,
+	MOVEL,
+	PARADO,
+	VOADOR,
+	TERRESTRE,
+	TANQUE,
+	SUPORTE,
+	CONTROLE_DE_AREA,
+	RAJADA,
+	INVOCADOR,
+}
+
+@export var tags: Array[Tag] = []
+
+
+## Se este inimigo carrega a tag pedida.
+func tem_tag(tag: Tag) -> bool:
+	return tags.has(tag)
+
+## Quanto este inimigo e provavel de receber uma classe de aprimoramento.
+##
+## Ele NAO desqualifica ninguem: todos continuam elegiveis, e o peso so controla
+## a frequencia. Um zero aqui tiraria o inimigo do sistema inteiro em silencio, e
+## e o tipo de campo que alguem gira sem perceber o que desligou.
+##
+## O Hacker entra mais baixo porque ele ja e o inimigo que mais muda a sala
+## sozinho -- somar uma classe nele e o caso em que o custo de ameaca mais tem de
+## acertar. O Drone e a Cyber-Besta entram em 1,0 por serem os mais legiveis.
+@export var peso_de_aprimoramento: float = 1.0

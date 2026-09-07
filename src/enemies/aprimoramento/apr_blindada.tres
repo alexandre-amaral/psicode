@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="DadosAprimoramento" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/enemies/aprimoramento/dados_aprimoramento.gd" id="1_apr"]
+
+[resource]
+script = ExtResource("1_apr")
+id = &"blindada"
+nome_exibicao = "Blindada"
+classe = 1
+custo_ameaca = 2
+peso = 0.9
+reducao_de_dano = 0.15
+tempo_protegida = 5.0
+tempo_vulneravel = 2.0
+dano_extra_vulneravel = 0.1
+cor = Color(0.62, 0.78, 0.95, 1)

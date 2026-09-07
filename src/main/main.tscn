@@ -11,6 +11,9 @@
 [ext_resource type="Resource" path="res://src/mapa/tipo_item.tres" id="9_item"]
 [ext_resource type="Resource" path="res://src/mapa/tipo_inicial.tres" id="11_inicial"]
 [ext_resource type="Resource" path="res://src/mapa/planta_andar1.tres" id="60_planta"]
+[ext_resource type="Resource" path="res://src/enemies/aprimoramento/apr_regeneradora.tres" id="71_apr"]
+[ext_resource type="Resource" path="res://src/enemies/aprimoramento/apr_blindada.tres" id="72_apr"]
+[ext_resource type="Resource" path="res://src/enemies/aprimoramento/apr_sobrecarregada.tres" id="73_apr"]
 [ext_resource type="Resource" path="res://src/mapa/corredor_tunel_de_servico.tres" id="61_perfil"]
 [ext_resource type="Resource" path="res://src/mapa/corredor_acesso_hidraulico.tres" id="62_perfil"]
 [ext_resource type="Resource" path="res://src/mapa/corredor_linha_de_forca.tres" id="63_perfil"]
@@ -43,6 +46,7 @@ ambiente_do_andar = ExtResource("40_amb")
 tipos_de_sala = Array[Resource]([ExtResource("6_combate"), ExtResource("7_boss"), ExtResource("8_arma"), ExtResource("9_item"), ExtResource("11_inicial")])
 temas = Array[Resource]([ExtResource("50_tema"), ExtResource("51_tema"), ExtResource("52_tema"), ExtResource("53_tema"), ExtResource("54_tema"), ExtResource("55_tema")])
 perfis_de_corredor = Array[Resource]([ExtResource("61_perfil"), ExtResource("62_perfil"), ExtResource("63_perfil"), ExtResource("64_perfil")])
+aprimoramentos = Array[Resource]([ExtResource("71_apr"), ExtResource("72_apr"), ExtResource("73_apr")])
 planta = ExtResource("60_planta")
 
 [node name="Player" parent="Mundo" unique_id=220117599 groups=["player"] instance=ExtResource("10_km7bn")]

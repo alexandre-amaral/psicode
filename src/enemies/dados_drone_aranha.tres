@@ -20,3 +20,4 @@ alcance = 260.0
 projeteis = 8
 peso_lateral = 0.85
 projeteis_avancados = 12
+tags = Array[int]([1,2,9])

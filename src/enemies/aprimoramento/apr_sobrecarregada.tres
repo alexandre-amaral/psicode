@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="DadosAprimoramento" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/enemies/aprimoramento/dados_aprimoramento.gd" id="1_apr"]
+
+[resource]
+script = ExtResource("1_apr")
+id = &"sobrecarregada"
+nome_exibicao = "Sobrecarregada"
+classe = 2
+custo_ameaca = 2
+peso = 0.8
+multiplicador_vida = 0.9
+multiplicador_cadencia = 1.25
+multiplicador_telegrafo = 0.9
+irregularidade_do_pulso = 0.35
+cor = Color(0.95, 0.66, 0.35, 1)

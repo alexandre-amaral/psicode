@@ -11,6 +11,13 @@ signal morreu(posicao: Vector2)
 
 const GRUPO := "inimigo"
 
+## Quantas classes de aprimoramento um inimigo aceita.
+##
+## UM no MVP. O array e o teto entram juntos porque o teto sem array nao e
+## extensivel, e o array sem teto deixa duas classes se empilharem no dia em que
+## alguem chamar a funcao duas vezes -- sem erro nenhum.
+const MAX_APRIMORAMENTOS := 1
+
 ## Para onde a cor do corpo puxa enquanto o inimigo esta hackeado. Verde do
 ## Cipher: quem hackeou tem de ser reconhecivel no alvo, nao so no cano.
 const COR_HACK := Color(0.45, 1.0, 0.3)
@@ -73,6 +80,18 @@ var _visual: Node2D
 ## que escolhe o canal certo pelo tipo. Tipar como Polygon2D fazia a atribuicao
 ## explodir em runtime no primeiro inimigo com arte.
 var _corpo: CanvasItem
+## As classes de Unidade Aprimorada penduradas neste inimigo.
+##
+## **E um Array com teto 1, e nao um campo.** Duas classes juntas nao entram no
+## MVP -- mas trocar um campo por um array depois de o `.tres` existir e onde os
+## saves divergem, e a mesma licao que fez `DadosArma.Comportamento` receber
+## valores novos so no fim.
+##
+## O inimigo hospeda sem saber o que a classe faz: ele chama quatro funcoes que
+## nao mencionam classe nenhuma. E isso que faz uma classe nova entrar sem tocar
+## nos cinco.
+var aprimoramentos: Array[Aprimoramento] = []
+
 var _tween_flash: Tween
 ## Quando o ultimo clarao TERMINOU, em ms de relogio de parede. Ver `_flash()`.
 var _fim_do_ultimo_flash: int = 0
@@ -194,6 +213,28 @@ func velocidade_atual() -> float:
 	return velocidade_base * Deterioracao.multiplicador_velocidade()
 
 
+## Quao rapido o relogio de ataque deste inimigo anda AGORA.
+##
+## **Ele existe porque nao existia, e a falta era uma copia por inimigo.** Os
+## cinco refinados escreviam, cada um a sua:
+##
+##     _t_intervalo -= delta * Deterioracao.multiplicador_cadencia()
+##
+## Cinco copias da mesma linha, e nenhum lugar onde outra coisa pudesse entrar --
+## a classe Sobrecarregada precisaria de codigo por especie, que e exatamente o
+## que o sistema de aprimoramentos existe para nao ter. Mesma historia do mapa de
+## angulos que saiu de `DadosPersonagem` e da tangente que saiu dos cinco: duas
+## copias divergem, e o sintoma aparece em TELA e nunca no console.
+##
+## Lido no FRAME, nunca guardado -- e a regra que faz a barra subindo afetar o
+## inimigo que ja esta em tela.
+func cadencia_agora() -> float:
+	var multiplicador := Deterioracao.multiplicador_cadencia()
+	for a in aprimoramentos:
+		multiplicador *= a.multiplicador_de_cadencia()
+	return multiplicador
+
+
 ## Quanto o aviso dura AGORA: o numero do `.tres` encurtado pela Deterioracao,
 ## com o piso do `Telegrafo` por baixo.
 ##
@@ -205,7 +246,42 @@ func velocidade_atual() -> float:
 ## Lido no frame, nunca guardado: a barra subindo tem de encurtar o aviso do
 ## inimigo que ja esta em tela.
 func duracao_do_telegrafo(base: float) -> float:
-	return Telegrafo.duracao_segura(base * Deterioracao.multiplicador_telegrafo())
+	var encurtado := base * Deterioracao.multiplicador_telegrafo()
+	# O aprimoramento encurta DEPOIS da Deterioracao e ANTES do piso, e a ordem e
+	# a garantia: o pior caso e a barra cheia MAIS a classe, e nao um dos dois
+	# sozinho. E a mesma conta que o chefe faz contra `1,30 x 1,7`.
+	for a in aprimoramentos:
+		encurtado *= a.multiplicador_de_telegrafo()
+	return Telegrafo.duracao_segura(encurtado)
+
+
+## Pendura uma classe de Unidade Aprimorada neste inimigo.
+##
+## Chamado pela `Sala` DEPOIS do `add_child`, porque so ali o inimigo existe na
+## arvore. Devolve `false` quando a classe nao cabe -- e quem sorteia precisa
+## desse retorno para tentar outra em vez de deixar a sala sem a aprimorada que
+## o orcamento ja pagou.
+func aplicar_aprimoramento(d: DadosAprimoramento) -> bool:
+	if d == null or aprimoramentos.size() >= MAX_APRIMORAMENTOS:
+		return false
+	if not d.cabe_em(dados):
+		return false
+	for existente in aprimoramentos:
+		if existente.dados != null 				and existente.dados.aprimoramentos_incompativeis.has(d.id):
+			return false
+		if d.aprimoramentos_incompativeis.has(existente.dados.id):
+			return false
+	var no := Aprimoramento.new()
+	no.name = "Aprimoramento"
+	add_child(no)
+	no.configurar(self, d)
+	aprimoramentos.append(no)
+	return true
+
+
+## Se este inimigo carrega alguma classe. A HUD e o loot perguntam por aqui.
+func esta_aprimorado() -> bool:
+	return not aprimoramentos.is_empty()
 
 
 func direcao_para_alvo() -> Vector2:
@@ -262,6 +338,22 @@ func atrair_para(ponto: Vector2, forca: float) -> void:
 func receber_dano(quantidade: int, impulso: Vector2 = Vector2.ZERO) -> bool:
 	if morto:
 		return false
+	# **A CLASSE MODIFICA A RECEPCAO, e e por isso que a Blindada funciona nos
+	# cinco.** Ela nao sabe que ataque a acertou nem de onde -- so que chegou
+	# dano --, e nenhum inimigo sabe que ela existe.
+	#
+	# **O PISO DE 1 APAGAVA A CLASSE, e o laboratorio mediu: +0% de TTK nas cinco
+	# especies.** Dano e `int` e os tiros valem 1 ou 2, entao 25% de 1 arredondava
+	# de volta para 1 em todo acerto -- a mesma armadilha que `DANO_PERCENTUAL` ja
+	# registra. Quem resolve e `dano_efetivo()`, que acumula a fracao e cobra
+	# quando ela fecha um ponto.
+	for a in aprimoramentos:
+		quantidade = a.dano_efetivo(quantidade)
+	for a in aprimoramentos:
+		a.ao_receber_dano()
+	# O acerto que entrega ZERO continua acendendo o clarao e pedindo hitstop: o
+	# jogador tem de ver que acertou. Ver o acerto sem ver a vida cair e a leitura
+	# que a blindagem promete -- um acerto silencioso leria como bug de colisao.
 	vida -= quantidade
 	EventBus.dano_a_inimigo.emit(quantidade)
 	_knockback += impulso

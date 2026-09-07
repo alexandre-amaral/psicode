@@ -396,6 +396,19 @@ func tem_combate() -> bool:
 ## `densidade` zerada nao significa "sala vazia": significa "nao escale por
 ## tamanho". O que sobra e o piso, e e assim que a sala do chefe recebe
 ## exatamente 1 (minimo = maximo = 1) e a de recompensa exatamente 0.
+## Chance de esta sala conter uma Unidade Aprimorada.
+##
+## **Zero na inicial, na de arma, na de item e na do chefe**, e isso e a mesma
+## garantia em duas pontas que ja impede inimigo nelas: o tipo declara, e o
+## portao cobra. No chefe a razao e outra e mais forte -- ele ja e a excecao do
+## andar, e uma aprimorada ali competiria com a leitura dele.
+##
+## 0,25 na sala de combate da uma a cada tres a seis salas com o cooldown do
+## gerenciador por cima. **Chance por sala e frequencia percebida nao sao o mesmo
+## numero**, e e o cooldown que separa os dois.
+@export var chance_de_aprimorada: float = 0.0
+
+
 func orcamento_para(area_px: float) -> int:
 	var teto := maxi(orcamento_maximo, orcamento_minimo)
 	if densidade <= 0.0 or area_px <= 0.0:

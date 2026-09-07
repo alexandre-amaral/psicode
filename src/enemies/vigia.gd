@@ -71,7 +71,7 @@ func _comportamento(delta: float) -> void:
 
 	match _fase:
 		Fase.REPOSICIONANDO:
-			_t_ciclo -= delta * Deterioracao.multiplicador_cadencia()
+			_t_ciclo -= delta * cadencia_agora()
 			if _t_ciclo <= 0.0:
 				_fase = Fase.MIRANDO
 				_telegrafo.acender(tempo_mira)

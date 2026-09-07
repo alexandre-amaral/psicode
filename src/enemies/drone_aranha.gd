@@ -163,7 +163,7 @@ func _ler_dados(d: DadosInimigo) -> void:
 # ------------------------------------------------------------- estados ------
 
 func _perseguir(delta: float) -> void:
-	_t_intervalo -= delta * Deterioracao.multiplicador_cadencia()
+	_t_intervalo -= delta * cadencia_agora()
 	Movimento.perseguir(self, delta)
 	if _pronto_para_o_anel():
 		_maquina.trocar(CARREGAR)
@@ -184,7 +184,7 @@ func _perseguir(delta: float) -> void:
 ## todos convergirem para a mesma circunferencia, que e o empilhamento de novo,
 ## so que em anel.
 func _posicionar(delta: float) -> void:
-	_t_intervalo -= delta * Deterioracao.multiplicador_cadencia()
+	_t_intervalo -= delta * cadencia_agora()
 	if _pronto_para_o_anel():
 		_maquina.trocar(CARREGAR)
 		return

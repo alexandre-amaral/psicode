@@ -21,3 +21,5 @@ tiros_ate_salva = 3
 fator_aviso_salva = 1.6
 correcao_radial = 0.55
 tiros_ate_salva_avancado = 1
+tags = Array[int]([1,2])
+peso_de_aprimoramento = 0.9

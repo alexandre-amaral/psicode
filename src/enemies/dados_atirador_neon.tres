@@ -19,3 +19,5 @@ margem_de_distancia = 50.0
 distancia_minima = 120.0
 impulso_arranque = 1.9
 duracao_arranque = 0.4
+tags = Array[int]([1,2,9])
+peso_de_aprimoramento = 0.8

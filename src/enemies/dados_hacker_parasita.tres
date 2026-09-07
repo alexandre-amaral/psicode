@@ -19,3 +19,5 @@ raio_area = 60.0
 espalhamento = 96.0
 tempo_residual = 1.5
 max_areas_avancado = 3
+tags = Array[int]([1,7,8])
+peso_de_aprimoramento = 0.7

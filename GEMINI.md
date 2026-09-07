@@ -168,6 +168,10 @@ docs/
 | Dispersao que cresce com o gatilho preso | `dispersao_*` em `src/weapons/*.tres` — zero desliga |
 | **Vida, velocidade, dano e todo botao de combate dos cinco inimigos refinados** | `src/enemies/dados_*.tres` (Drone Aranha, Atirador Neon, Cyber-Besta, Sentinela Orbital, Hacker Parasita) |
 | Vida e velocidade dos que ainda nao migraram | `@export` em `src/enemies/*.tscn` -- Rastejante, Vigia, Diretora e as pecas da arena dela |
+| **Uma CLASSE de Unidade Aprimorada (regeneradora, blindada...)** | `src/enemies/aprimoramento/apr_*.tres`, na lista `aprimoramentos` do `GerenciadorMapa`. Nenhum script de inimigo a conhece |
+| **Quao rara a aprimorada e** | `chance_de_aprimorada` no `src/mapa/tipo_*.tres` mais `salas_sem_aprimorada_depois` no `GerenciadorMapa` -- chance por sala e frequencia percebida NAO sao o mesmo numero |
+| **Quais inimigos recebem classe com mais frequencia** | `peso_de_aprimoramento` em `src/enemies/dados_*.tres`; zero tiraria o inimigo do sistema em silencio |
+| **Ver as 15 combinacoes e o TTK de cada uma** | `godot --headless --path . tools/aprimoramentos/laboratorio.tscn` |
 | **Variante de um inimigo que ja existe (um "de elite")** | criar um `dados_*.tres` novo e apontar `dados` na instancia; NAO duplicar o `.tscn` |
 | Limiares de 50% e 85% | `src/autoload/deterioracao.gd` |
 | **Quanto o telegrafo encurta com a barra** | `multiplicador_telegrafo()` em `src/autoload/deterioracao.gd`; o PISO fica em `Telegrafo.DURACAO_MINIMA` e nao aqui |
@@ -513,6 +517,46 @@ em qualquer erro de script.
   Velocidade maior encurtaria a janela de leitura que o agachamento abriu;
   duracao maior cobra a mesma leitura de mais longe. E a recuperacao encolhe
   junto, mas nao some -- acertar a esquiva tem de continuar rendendo.
+- **Percentual sobre `int` some, e isso ja apagou uma classe inteira.** A
+  Blindada reduzia 25% do dano com um piso de 1 por acerto -- e os tiros do jogo
+  valem 1 ou 2, entao `round(1 x 0.75)` devolvia 1 em TODO acerto. O laboratorio
+  mediu **+0% de TTK nas cinco especies**: a classe existia, desenhava a aura e
+  nao fazia nada. A saida e acumular a fracao e cobrar quando ela fecha um ponto,
+  que e o que a cura ja fazia ao lado. Mesma armadilha que `DANO_PERCENTUAL` ja
+  registra para o jogador.
+- **E a vida ser `int` limita a reducao a DEGRAUS DE UM ACERTO.** Num inimigo de
+  5 de vida: 15-17% de reducao da 6 acertos (+20% de TTK), 18-25% da 7 (+40%).
+  Nao ha nada entre os dois. Foi por isso que a Blindada saiu com 0,15 e nao com
+  os 0,25 que o plano pedia -- 40% passa do teto de 35% que separa "decisao" de
+  "esponja de dano".
+- **Campo de classe com default UTIL faz todo `.tres` mentir.**
+  `regeneracao_por_segundo = 0.02` no script era herdado pelas tres classes,
+  entao qualquer regua que perguntasse *"esta classe cura?"* olhando o campo
+  respondia SIM para todas. Nada quebrava em jogo (o controlador decide pela
+  classe), e a linha de base do laboratorio saltou de 0,50 s para 4,50 s sem um
+  pixel ter mudado. Campo de classe nasce em ZERO.
+- **A aura da classe NAO pode escrever em `_corpo.color` nem em
+  `_visual.modulate`.** Os dois ja tem dono -- o Hack pinta o corpo e o nanite so
+  pinta se nao houver Hack; o modulate e do clarao de dano, que termina sempre em
+  branco. Um terceiro escritor produz uma cor que depende da ordem das chamadas.
+  A `AuraDeAprimoramento` e no IRMAO do `Visual`, e o sprite do inimigo nao muda
+  em pixel nenhum.
+- **O que separa as tres classes e o MOVIMENTO da arte, e nao a cor.** O jogo e
+  escuro e matiz e a primeira coisa que se perde: a Regeneradora tem particulas
+  que CONVERGEM, a Blindada placas solidas que ORBITAM e ABREM, a Sobrecarregada
+  faiscas que SAEM. Tres leituras diferentes a um segundo, e diferentes tambem em
+  cinza.
+- **Aprimorada de vida CHEIA tem de ser reconhecivel.** A primeira Regeneradora
+  so desenhava durante a cura -- entao ela era indistinguivel de um inimigo
+  normal ate o jogador ja ter atirado e parado, e a decisao que ela existe para
+  criar acontece ANTES disso. Hoje o anel existe sempre e as particulas sao a
+  escalada.
+- **Nao existia funil de cadencia, e os cinco tinham copia propria.**
+  `_t_intervalo -= delta * Deterioracao.multiplicador_cadencia()` aparecia cinco
+  vezes, entao qualquer coisa que quisesse mexer no ritmo precisaria de codigo
+  por especie. Hoje ha `InimigoBase.cadencia_agora()`. A RECUPERACAO continua sem
+  funil, e por isso a Sobrecarregada compensa em vida em vez de em recuperacao --
+  divida declarada, nao esquecimento.
 - **`DadosInimigo` e aplicado no TOPO do `_ready()`, e a linha seguinte
   congela.** `InimigoBase._ready()` faz `vida = vida_maxima` logo abaixo de
   `_aplicar_dados()`. Invertidas as duas, todo inimigo com `.tres` nasceria com

@@ -21,3 +21,4 @@ duracao_arranque = 0.42
 tempo_atordoado = 1.0
 duracao_arranque_avancada = 0.58
 tempo_recuperacao_avancado = 0.7
+tags = Array[int]([0,2,6])

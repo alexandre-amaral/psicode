@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="DadosAprimoramento" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/enemies/aprimoramento/dados_aprimoramento.gd" id="1_apr"]
+
+[resource]
+script = ExtResource("1_apr")
+id = &"regeneradora"
+nome_exibicao = "Regeneradora"
+classe = 0
+custo_ameaca = 2
+peso = 1.0
+espera_para_regenerar = 3.0
+regeneracao_por_segundo = 0.10
+cor = Color(0.35, 0.95, 0.7, 1)

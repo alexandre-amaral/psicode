@@ -277,6 +277,7 @@ var _raiz_portas: Node2D = null
 ## Cenas que esta sala vai colocar quando o jogador entrar. Vazia = sala sem
 ## combate, e e so isso que separa a de recompensa da de briga.
 var _composicao: Array[PackedScene] = []
+var _aprimoramento: DadosAprimoramento = null
 var _vivos: Array[Node] = []
 var _container: Node2D = null
 ## Sala de recompensa nasce LIMPA no _ready, antes de o jogador existir por
@@ -404,6 +405,16 @@ func permitir_props_raros() -> void:
 ## item recebem.
 func definir_composicao(cenas: Array[PackedScene]) -> void:
 	_composicao = cenas.duplicate()
+
+
+## A classe de Unidade Aprimorada desta sala, ou `null`.
+##
+## Ela chega separada da composicao porque a composicao e `Array[PackedScene]` e
+## nao cabe um aprimoramento -- e mudar aquela assinatura mexeria em dez lugares
+## que so querem cenas. Quem DECIDE e o gerenciador, que ja gasta o orcamento de
+## ameaca; quem APLICA e esta sala, ao instanciar.
+func definir_aprimoramento(dados_da_classe: DadosAprimoramento) -> void:
+	_aprimoramento = dados_da_classe
 
 
 ## Area do contorno em pixels quadrados, pela formula do shoelace.
@@ -544,6 +555,7 @@ func _povoar() -> void:
 		if inimigo.has_signal("morreu"):
 			inimigo.morreu.connect(_ao_morrer_inimigo)
 
+	_aprimorar_um_dos_vivos()
 	EventBus.contagem_inimigos_mudou.emit(_contar_vivos())
 
 	# Composicao que nao produziu ninguem (cena quebrada, array de nulos) nao
@@ -556,6 +568,55 @@ func _povoar() -> void:
 ## para combate sem que quem a desenhou precise lembrar de um no de
 ## infraestrutura -- e a Diretora continua achando o container por get_parent(),
 ## como sempre fez.
+## Poe a classe num dos inimigos recem-colocados.
+##
+## **A escolha e por PESO e nao pelo primeiro da lista.** O primeiro seria sempre
+## o mesmo tipo, porque a composicao sai do sorteio de grupos na mesma ordem --
+## e a aprimorada passaria a ser "aquele inimigo", que e variante fixa de
+## especie, exatamente o que o sistema nao e.
+##
+## O peso mora no `DadosInimigo`, entao um inimigo sem `.tres` (Rastejante,
+## Vigia) entra com peso 1,0 em vez de ficar de fora: `dados` e OPCIONAL e tem de
+## continuar sendo.
+##
+## E ela e CONSUMIDA: `_aprimoramento` zera antes de aplicar, pela mesma razao
+## que `_povoar()` zera `_composicao` -- uma reativacao nao pode aprimorar um
+## segundo inimigo.
+func _aprimorar_um_dos_vivos() -> void:
+	var classe := _aprimoramento
+	_aprimoramento = null
+	if classe == null or _vivos.is_empty():
+		return
+
+	var candidatos: Array[InimigoBase] = []
+	var pesos: Array[float] = []
+	var soma := 0.0
+	for vivo in _vivos:
+		var inimigo := vivo as InimigoBase
+		if inimigo == null or not classe.cabe_em(inimigo.dados):
+			continue
+		var peso := 1.0
+		if inimigo.dados != null:
+			peso = maxf(inimigo.dados.peso_de_aprimoramento, 0.0)
+		if peso <= 0.0:
+			continue
+		candidatos.append(inimigo)
+		pesos.append(peso)
+		soma += peso
+	if candidatos.is_empty() or soma <= 0.0:
+		return
+
+	var alvo := randf() * soma
+	var escolhido: InimigoBase = candidatos[candidatos.size() - 1]
+	for i in candidatos.size():
+		alvo -= pesos[i]
+		if alvo <= 0.0:
+			escolhido = candidatos[i]
+			break
+	if escolhido.aplicar_aprimoramento(classe):
+		EventBus.aprimorado_nasceu.emit(escolhido, classe.id)
+
+
 func _container_de_inimigos() -> Node2D:
 	if _container != null and is_instance_valid(_container):
 		return _container

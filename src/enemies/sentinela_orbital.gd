@@ -137,7 +137,7 @@ func _aproximar(delta: float) -> void:
 
 func _orbitar(delta: float) -> void:
 	_circular(delta, 1.0)
-	_t_intervalo -= delta * Deterioracao.multiplicador_cadencia()
+	_t_intervalo -= delta * cadencia_agora()
 	if _t_intervalo <= 0.0:
 		_maquina.trocar(DISPARAR)
 	elif absf(distancia_do_alvo() - raio_orbita) > margem * 3.0:

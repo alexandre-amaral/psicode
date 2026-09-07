@@ -50,7 +50,7 @@ func _comportamento(delta: float) -> void:
 		_t_subida -= delta
 		return
 
-	_t_ciclo -= delta * Deterioracao.multiplicador_cadencia()
+	_t_ciclo -= delta * cadencia_agora()
 	if _mirando:
 		if _t_ciclo <= 0.0:
 			_disparar()

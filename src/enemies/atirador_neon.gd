@@ -129,7 +129,7 @@ func _ler_dados(d: DadosInimigo) -> void:
 # ------------------------------------------------------------- estados ------
 
 func _procurar(delta: float) -> void:
-	_t_intervalo -= delta * Deterioracao.multiplicador_cadencia()
+	_t_intervalo -= delta * cadencia_agora()
 	_mover(delta, 1.0)
 	if _t_intervalo <= 0.0:
 		_maquina.trocar(MIRAR)

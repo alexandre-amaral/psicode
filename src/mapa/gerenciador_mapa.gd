@@ -85,6 +85,21 @@ const MAX_TENTATIVAS := 24
 ## parece um corredor de servico de verdade porque e raro.
 @export var perfis_de_corredor: Array[PerfilDeCorredor] = []
 
+## As classes de Unidade Aprimorada que este andar pode sortear (#268).
+##
+## Lista vazia = nenhuma aprimorada, que e o estado de qualquer cena que nao as
+## declare -- o mesmo default que mantem `planta` e `temas` opcionais.
+@export var aprimoramentos: Array[DadosAprimoramento] = []
+
+## Quantas salas depois de uma aprimorada ficam sem sorteio.
+##
+## **Sem ele o sorteio independente produz sequencias de tres**, e a raridade que
+## faz a classe significar algo desaparece: o jogador para de perguntar "qual e a
+## aprimorada?" quando a resposta e "todas". Um por padrao, entao a taxa de 25%
+## por sala vira uma a cada tres a seis salas de combate -- que e a frequencia
+## PERCEBIDA que o plano pede, e ela nao e a mesma coisa que a chance por sala.
+@export var salas_sem_aprimorada_depois: int = 1
+
 ## COMO as arestas deste andar viram geometria (#248).
 ##
 ## Nulo = o comportamento de sempre: corredor para toda aresta, no `vao_corredor`
@@ -155,6 +170,9 @@ var _tipo_fronteira_y: Dictionary = {}
 ## e o jogador leria o mapa pela parede. Cluster e agrupamento por VIZINHANCA --
 ## as sequencias acontecem sozinhas, sem gradiente.
 var _cluster_por_celula: Dictionary = {}
+
+## Quantas salas passaram desde a ultima com aprimorada. E o cooldown do #275.
+var _celulas_desde_aprimorada: int = 0
 var _tema_por_cluster: Dictionary = {}
 
 
@@ -1082,6 +1100,9 @@ func _sortear_tema() -> TemaDeSala:
 
 func _sortear_composicoes() -> void:
 	_composicao_por_celula.clear()
+	# Comeca ACIMA do cooldown para a primeira sala de combate poder sortear: se
+	# comecasse em zero, o andar inteiro perderia a primeira chance sem motivo.
+	_celulas_desde_aprimorada = salas_sem_aprimorada_depois
 	# Uma vez para o andar todo: a distancia de cada celula ate a entrada e o
 	# que estima a Deterioracao que o jogador tera ao chegar la.
 	var distancias := _distancias()
@@ -1118,6 +1139,20 @@ func _sortear_composicao(
 
 	var estimada := _deterioracao_estimada(celula, dados, distancias)
 	var restante := dados.orcamento_para(sala.area_do_contorno())
+
+	# **O CUSTO SAI DO ORCAMENTO, e este e o epico inteiro.**
+	#
+	# Sem esta linha a sala fica com os mesmos corpos MAIS uma ameaca, que e
+	# dificuldade por quantidade com um chapeu. Com ela, um Hacker Regenerador
+	# (3 + 2) ocupa o lugar de um Hacker e dois Drones: a sala tem MENOS corpos e
+	# mais decisao, que e a frase inteira do sistema.
+	var classe := _sortear_aprimoramento(dados, restante)
+	if classe != null:
+		restante -= classe.custo_ameaca
+		_celulas_desde_aprimorada = 0
+	else:
+		_celulas_desde_aprimorada += 1
+	sala.definir_aprimoramento(classe)
 	# Trava de seguranca: com custo_real() >= 1 o restante sempre cai, mas um
 	# laco que gasta orcamento nao pode depender disso para terminar.
 	var seguranca := restante + 8
@@ -1144,6 +1179,43 @@ func _sortear_composicao(
 ## As celulas soltas que `_distancias()` marca com 9999 sao ignoradas na hora de
 ## achar o fundo -- uma delas puxaria o divisor para 9999 e achataria o andar
 ## inteiro no primeiro terco.
+## A classe que esta sala recebe, ou `null`.
+##
+## **A chance vem do TIPO da sala**, e nao de um numero global: a inicial, a de
+## arma, a de item e a do chefe declaram zero, e isso e a mesma garantia em duas
+## pontas que ja impede inimigo nelas.
+##
+## E o orcamento tem de SOBRAR depois do custo. Uma sala cujo orcamento inteiro
+## fosse a aprimorada nasceria com ela sozinha -- e uma unidade sozinha nao cria
+## decisao de foco, porque nao ha para onde trocar o alvo.
+func _sortear_aprimoramento(dados: DadosSala, orcamento: int) -> DadosAprimoramento:
+	if aprimoramentos.is_empty() or dados.chance_de_aprimorada <= 0.0:
+		return null
+	if _celulas_desde_aprimorada < salas_sem_aprimorada_depois:
+		return null
+	# **A COMPOSICAO E SORTEADA COM A BARRA EM ZERO**, entao nada aqui pode ler
+	# `Deterioracao.valor` -- e a armadilha que a porta por Deterioracao ja
+	# documenta, e que barraria tudo para sempre sem uma linha no console.
+	if randf() >= dados.chance_de_aprimorada:
+		return null
+	var sobra := orcamento
+	var candidatas: Array[DadosAprimoramento] = []
+	var soma := 0.0
+	for a in aprimoramentos:
+		if a == null or a.custo_ameaca >= sobra:
+			continue
+		candidatas.append(a)
+		soma += maxf(a.peso, 0.0)
+	if candidatas.is_empty() or soma <= 0.0:
+		return null
+	var alvo := randf() * soma
+	for a in candidatas:
+		alvo -= maxf(a.peso, 0.0)
+		if alvo <= 0.0:
+			return a
+	return candidatas[candidatas.size() - 1]
+
+
 func _fracao_do_andar(celula: Vector2i, distancias: Dictionary) -> float:
 	var fundo := 0
 	for valor: int in distancias.values():

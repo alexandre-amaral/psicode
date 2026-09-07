@@ -39,6 +39,19 @@ signal dano_a_inimigo(quantidade: int)
 signal inimigo_morreu(posicao: Vector2, creditos: int)
 signal inimigo_spawnou(inimigo: Node2D)
 
+## Uma Unidade Aprimorada curou. Quem escuta e o laboratorio e as metricas -- o
+## jogo nao precisa saber, porque a leitura ja esta na aura.
+signal inimigo_regenerou(inimigo: Node2D, pontos: int)
+
+## Uma Unidade Aprimorada trocou de estado de ciclo (a Blindada abrindo ou
+## fechando). O som da classe pendura aqui, e nao dentro do controlador: quem
+## toca o que e do `Audio`, e ele ja escuta o EventBus.
+signal aprimorado_mudou_de_estado(inimigo: Node2D, protegido: bool)
+
+## Uma Unidade Aprimorada nasceu. E por aqui que as metricas da run contam sem
+## que a sala precise avisar ninguem.
+signal aprimorado_nasceu(inimigo: Node2D, classe_id: StringName)
+
 # --- Combate na sala ---
 ## Quantos inimigos ainda respiram na sala em que o jogador esta. Emitido pela
 ## propria Sala, que e quem os colocou. Os tres sinais de onda que viviam aqui

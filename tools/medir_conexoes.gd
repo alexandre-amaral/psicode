@@ -25,6 +25,8 @@ func _ready() -> void:
 
 	var por_eixo := {"horizontal": [], "vertical": []}
 	var por_tipo := {}
+	var folgas: Array[float] = []
+	var folgas_eixo := {"horizontal": [], "vertical": []}
 	var total_arestas := 0
 	var comprimentos: Array[float] = []
 
@@ -58,6 +60,11 @@ func _ready() -> void:
 			por_eixo[eixo].append(vao)
 			var tipo_da: int = ligacao["tipo"]
 			por_tipo[tipo_da] = int(por_tipo.get(tipo_da, 0)) + 1
+			if mapa.planta != null:
+				var declarado := mapa.planta.vao(
+					tipo_da as PlantaDoAndar.Conexao, eixo == "vertical")
+				folgas.append(vao - declarado)
+				folgas_eixo[eixo].append(vao - declarado)
 			comprimentos.append(vao)
 			total_arestas += 1
 
@@ -136,6 +143,44 @@ func _ready() -> void:
 	var corredores: int = int(por_tipo.get(PlantaDoAndar.Conexao.CORREDOR_TECNICO, 0))
 	print("  corredores por andar: %.2f  (a issue pede uma, as vezes duas)"
 		% (float(corredores) / float(ANDARES)))
+
+	# **A FOLGA DE CENTRAGEM (#251): quanto o vao real passa do declarado.**
+	#
+	# A largura de cada coluna e a da sala MAIS LARGA dela e cada sala e CENTRADA
+	# na celula, entao uma sala de 768 numa coluna que contem a `sala_3_grande`
+	# (1440) ganha 336 px de sobra de cada lado. Metade do que parece corredor nao
+	# e corredor: e sobra de layout, e ela e INVISIVEL -- nao ha numero em lugar
+	# nenhum que a declare.
+	if not folgas.is_empty():
+		folgas.sort()
+		var soma_f := 0.0
+		var zeradas := 0
+		for f: float in folgas:
+			soma_f += f
+			if f < 1.0:
+				zeradas += 1
+		print("  folga sobre o vao DECLARADO: mediana %.0f  media %.0f  max %.0f"
+			% [folgas[folgas.size() / 2], soma_f / float(folgas.size()),
+				folgas[folgas.size() - 1]])
+		print("  arestas sem folga nenhuma: %d de %d (%.0f%%)"
+			% [zeradas, folgas.size(), float(zeradas) / float(folgas.size()) * 100.0])
+		# **O EIXO SEPARA as duas causas, e a issue previu isso.** As nove salas tem
+		# 768 px de largura, entao toda conexao NORTE-SUL alinha de graca. No eixo
+		# horizontal as ALTURAS variam (640, 736, 800, 960, 1024) e a coluna herda a
+		# largura da `sala_3_grande` -- e ali a sobra e de layout, nao de vao.
+		for eixo_f: String in folgas_eixo:
+			var lista_f: Array = folgas_eixo[eixo_f]
+			if lista_f.is_empty():
+				continue
+			lista_f.sort()
+			var zero_f := 0
+			for f: float in lista_f:
+				if f < 1.0:
+					zero_f += 1
+			print("    %-11s mediana %3.0f  max %3.0f  sem folga %d de %d (%.0f%%)"
+				% [eixo_f, lista_f[lista_f.size() / 2], lista_f[lista_f.size() - 1],
+					zero_f, lista_f.size(),
+					float(zero_f) / float(lista_f.size()) * 100.0])
 	print("\n  %d arestas em %d andares (%.1f por andar)"
 		% [total_arestas, ANDARES, float(total_arestas) / float(ANDARES)])
 	print("  a pe, o jogador atravessa %.0f px entre um chao e o proximo"

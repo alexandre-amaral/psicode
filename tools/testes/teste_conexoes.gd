@@ -38,6 +38,7 @@ func executar() -> void:
 	await _o_cluster_agrupa_sem_virar_gradiente()
 	_o_perfil_de_corredor_nao_anuncia_a_vizinha()
 	await _o_corredor_e_raro_e_por_isso_significa_algo()
+	await _sem_chefe_nenhuma_conexao_veste_o_chefe()
 
 
 ## Sobe o andar inteiro e devolve o gerenciador ja montado.
@@ -476,3 +477,57 @@ func _o_corredor_e_raro_e_por_isso_significa_algo() -> void:
 	# passa a ser vista tantas vezes que ela vira o padrao em vez do desvio.
 	entre(media, 1.0, 2.0,
 		"o corredor e raro: %.2f por andar (a issue pede uma, as vezes duas)" % media)
+
+
+## NUM ANDAR SEM CHEFE, NADA ANUNCIA O CHEFE (SETOR 11).
+##
+## **`celula_do_chefe()` devolve ZERO quando nao ha chefe, e ZERO e uma celula
+## VALIDA -- a inicial mora nela.** Sem a guarda, um andar sem chefe vestiria os
+## corredores da ENTRADA com as texturas dele: o jogo anunciaria a luta na
+## primeira porta, que e o oposto exato do que a excecao existe para fazer.
+##
+## Isto e uma armadilha JA REGISTRADA, e por isso ela precisa de portao: guarda
+## que existe so no comentario volta a sumir no proximo refactor. E ela ganhou um
+## segundo consumidor com os perfis de corredor, que tambem forcam
+## `linha_de_forca` no trecho pre-chefe -- dois caminhos lendo a mesma pergunta.
+##
+## O que ele NAO cobra: que `linha_de_forca` nunca seja sorteado num andar sem
+## chefe. Ele pode, e deve -- o perfil nao e o anuncio. O anuncio sao as texturas
+## da sala do chefe, e e nelas que a guarda morde.
+func _sem_chefe_nenhuma_conexao_veste_o_chefe() -> void:
+	seed(8811)
+	var mapa := _montar(true)
+	ok(mapa != null, "o andar sobe")
+	if mapa == null:
+		return
+	var chefe := mapa.celula_do_chefe()
+	# 1. COM chefe, a celula dele anuncia -- senao o portao passaria por medir a
+	#    coisa errada, e um `_e_trecho_pre_chefe` que devolvesse `false` sempre
+	#    ficaria verde nos dois lados.
+	var vizinhas := mapa.vizinhos_de(chefe)
+	ok(not vizinhas.is_empty(), "a sala do chefe tem vizinha (%d)" % vizinhas.size())
+	var anunciou := false
+	for direcao: Vector2 in vizinhas:
+		if mapa._e_trecho_pre_chefe(chefe, chefe + Vector2i(int(direcao.x), int(direcao.y))):
+			anunciou = true
+	ok(anunciou, "a conexao que entra no chefe anuncia")
+
+	# 2. SEM chefe reservado, NADA anuncia -- inclusive a celula ZERO, que e onde
+	#    a armadilha mora.
+	mapa._reservadas.clear()
+	var falsos := 0
+	for ligacao in mapa.ligacoes():
+		if mapa._e_trecho_pre_chefe(ligacao["a"], ligacao["b"]):
+			falsos += 1
+		if mapa._perfil_do_corredor(ligacao["a"], ligacao["b"]) != null \
+				and mapa._perfil_do_corredor(ligacao["a"], ligacao["b"]).id == &"linha_de_forca":
+			# Sortear `linha_de_forca` por afinidade continua valido -- o perfil
+			# nao e o anuncio. O que nao pode e ele ser FORCADO sem chefe.
+			pass
+	igual(falsos, 0,
+		"sem chefe reservado, nenhuma conexao anuncia (%d anunciaram)" % falsos)
+	ok(not mapa._e_trecho_pre_chefe(Vector2i.ZERO, Vector2i(1, 0)),
+		"e a celula ZERO em especial nao anuncia -- ela e a INICIAL")
+
+	mapa.get_parent().remove_child(mapa)
+	mapa.free()

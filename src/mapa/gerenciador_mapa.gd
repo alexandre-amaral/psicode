@@ -72,6 +72,13 @@ const MAX_TENTATIVAS := 24
 ## Lista vazia = nenhuma sala recebe tema, e a face volta ao sorteio de sempre.
 ## E o estado de qualquer cena que nao os declare.
 @export var temas: Array[TemaDeSala] = []
+
+## COMO as arestas deste andar viram geometria (#248).
+##
+## Nulo = o comportamento de sempre: corredor para toda aresta, no `vao_corredor`
+## abaixo. E o default do campo, entao nenhum andar que existe muda de graca --
+## a mesma regra que mantem o Rastejante funcionando sem `DadosInimigo`.
+@export var planta: PlantaDoAndar = null
 ## Distancia livre entre duas bandas vizinhas: e o comprimento do corredor.
 @export var vao_corredor: float = 256.0
 ## Quantas salas o andar tenta ter, contando as penduradas.
@@ -115,6 +122,15 @@ var _salas: Dictionary = {}
 var _visitadas: Dictionary = {}
 ## Cada item: { "a": Vector2i, "b": Vector2i, "no": Corredor }
 var _corredores: Array[Dictionary] = []
+
+## O tipo de conexao de cada FRONTEIRA de banda, por eixo.
+##
+## A chave e o indice da coluna (ou linha) e o valor vale para o vao DEPOIS dela.
+## Por fronteira e nao por aresta porque o layout e em bandas: um vao separa duas
+## fileiras inteiras, e duas salas na mesma fronteira nao podem ter vaos
+## diferentes.
+var _tipo_fronteira_x: Dictionary = {}
+var _tipo_fronteira_y: Dictionary = {}
 
 
 var _em_travessia: bool = false
@@ -846,6 +862,10 @@ func _montar_andar() -> void:
 	_visitadas.clear()
 	_corredores.clear()
 
+	# ANTES de posicionar: e o tipo da conexao que define o vao, e o vao define
+	# onde as salas ficam. Na ordem inversa o corredor se esticaria para caber
+	# num vao ja escolhido, que e o modelo que este epico substitui.
+	_sortear_conexoes()
 	var centros := _centros_das_bandas()
 	# Uma vez so, fora do laco: `_distancias()` roda um BFS no andar inteiro.
 	var distancias_visuais := _distancias()
@@ -1126,6 +1146,10 @@ func _cachear_geometria() -> void:
 			"a": ligacao["a"],
 			"b": ligacao["b"],
 			"caixa": no.obter_limites(),
+			# O TIPO vai junto porque o minimapa precisa dele: uma parede
+			# compartilhada nao tem caixa de corredor para desenhar, e uma ligacao
+			# sem representacao faz duas salas conectadas parecerem desconectadas.
+			"tipo": ligacao.get("tipo", PlantaDoAndar.Conexao.CORREDOR_TECNICO),
 		})
 
 
@@ -1141,8 +1165,10 @@ func _centros_das_bandas() -> Dictionary:
 		larguras[celula.x] = maxf(larguras.get(celula.x, 0.0), caixa.size.x)
 		alturas[celula.y] = maxf(alturas.get(celula.y, 0.0), caixa.size.y)
 
-	var centros_x := _prefixo(larguras)
-	var centros_y := _prefixo(alturas)
+	var centros_x := _prefixo(larguras, _tipo_fronteira_x, false)
+	var centros_y := _prefixo(alturas, _tipo_fronteira_y, true)
+	# NOTA: os dois usam o tamanho REAL das salas que se ligam, e nao o da banda.
+	# Ver `_espacamento_da_fronteira()`.
 
 	var origem := Vector2(centros_x.get(0, 0.0), centros_y.get(0, 0.0))
 	var centros: Dictionary = {}
@@ -1151,18 +1177,128 @@ func _centros_das_bandas() -> Dictionary:
 	return centros
 
 
-func _prefixo(tamanhos: Dictionary) -> Dictionary:
+## O vao deixou de ser um numero so: ele sai do TIPO da fronteira.
+##
+## `vao_corredor` continua sendo o default e o unico caminho quando nao ha planta
+## -- e por isso um andar sem planta fica identico ao de sempre.
+func _prefixo(tamanhos: Dictionary, tipos: Dictionary, vertical: bool) -> Dictionary:
 	var indices: Array = tamanhos.keys()
 	indices.sort()
 	var centros: Dictionary = {}
 	var acumulado := 0.0
-	for indice in indices:
+	for i in indices.size():
+		var indice: int = indices[i]
 		var tamanho: float = tamanhos[indice]
 		centros[indice] = acumulado + tamanho * 0.5
-		acumulado += tamanho + vao_corredor
+		if i + 1 >= indices.size():
+			break
+		acumulado = centros[indice] + _espacamento_da_fronteira(
+			indice, indices[i + 1], tamanhos, tipos, vertical) - tamanhos[indices[i + 1]] * 0.5
 	return centros
 
 
+## Distancia de CENTRO a centro entre duas bandas vizinhas.
+##
+## **A folga de centragem era metade do corredor, e ninguem a escolheu.** A banda
+## tem o tamanho da MAIOR sala dela e a sala e centrada: uma de 768 numa coluna
+## que contem a `sala_3_grande` (1440) ganhava 336 px de cada lado. Medido, o vao
+## entre duas salas dava 439 px na horizontal onde `vao_corredor` diz 256 -- e o
+## numero 439 nao existia em lugar nenhum do codigo.
+##
+## O conserto e medir pelo tamanho REAL das salas que se ligam, e nao pelo da
+## banda. O espacamento passa a ser o maior `meia + vao + meia` entre os pares
+## que de fato cruzam esta fronteira; onde nao ha par, cai no tamanho da banda,
+## que e o comportamento de antes.
+##
+## Sobra folga quando duas salas de tamanhos diferentes dividem a mesma
+## fronteira, e essa e inerente ao layout em bandas: o centro da linha e um so, e
+## uma sala baixa ao lado de uma alta tem mais espaco ao redor por construcao. O
+## que sumiu foi a folga que nao vinha de nada.
+func _espacamento_da_fronteira(a: int, b: int, tamanhos: Dictionary,
+		tipos: Dictionary, vertical: bool) -> float:
+	var vao := _vao_da_fronteira(tipos, a, vertical)
+	var maior := 0.0
+	for celula in _arestas:
+		var indice: int = celula.y if vertical else celula.x
+		if indice != a:
+			continue
+		var direcao := Vector2.DOWN if vertical else Vector2.RIGHT
+		if not vizinhos_de(celula).has(direcao):
+			continue
+		var vizinha: Vector2i = celula + _para_grid(direcao)
+		var caixa_a := _caixa_da_cena(_cena_por_celula[celula])
+		var caixa_b := _caixa_da_cena(_cena_por_celula[vizinha])
+		var meia_a: float = (caixa_a.size.y if vertical else caixa_a.size.x) * 0.5
+		var meia_b: float = (caixa_b.size.y if vertical else caixa_b.size.x) * 0.5
+		maior = maxf(maior, meia_a + vao + meia_b)
+	if maior <= 0.0:
+		# Sem par que cruze: as duas bandas so precisam nao se encostar.
+		return (tamanhos[a] + tamanhos[b]) * 0.5 + vao
+	# E ele nunca pode ser menor que as bandas encostando, senao duas salas de
+	# outra coluna se sobrepoem.
+	return maxf(maior, (tamanhos[a] + tamanhos[b]) * 0.5)
+
+
+## Quanto de vao vem DEPOIS desta banda.
+func _vao_da_fronteira(tipos: Dictionary, indice: int, vertical: bool) -> float:
+	if planta == null or not tipos.has(indice):
+		return vao_corredor
+	return planta.vao(tipos[indice] as PlantaDoAndar.Conexao, vertical)
+
+
+## Sorteia um tipo de conexao para cada FRONTEIRA de banda.
+##
+## Por fronteira e nao por aresta, e a razao e o layout: a banda separa duas
+## fileiras inteiras, entao um vao vale para todas as arestas que a cruzam. Uma
+## parede compartilhada ao lado de um corredor tecnico forcaria as duas ao vao do
+## corredor, e a primeira ficaria com 300 px de chao entre as faixas dela -- que
+## e o defeito que o epico existe para tirar, reintroduzido pela porta de tras.
+func _sortear_conexoes() -> void:
+	_tipo_fronteira_x.clear()
+	_tipo_fronteira_y.clear()
+	if planta == null:
+		return
+	var rng := RandomNumberGenerator.new()
+	var xs := {}
+	var ys := {}
+	for celula in _arestas:
+		for direcao in vizinhos_de(celula):
+			var passo := _para_grid(direcao)
+			if passo.x > 0:
+				xs[celula.x] = true
+			elif passo.y > 0:
+				ys[celula.y] = true
+	for indice in xs:
+		_tipo_fronteira_x[indice] = planta.sortear(rng)
+	for indice in ys:
+		_tipo_fronteira_y[indice] = planta.sortear(rng)
+
+
+## O tipo da conexao entre duas celulas vizinhas.
+##
+## Publico porque o minimapa precisa dele: sem corredor nao ha caixa para
+## desenhar, e uma ligacao sem representacao faz duas salas conectadas parecerem
+## desconectadas -- um defeito de leitura de mapa que nao da erro nenhum.
+func tipo_da_conexao(a: Vector2i, b: Vector2i) -> PlantaDoAndar.Conexao:
+	if planta == null:
+		return PlantaDoAndar.Conexao.CORREDOR_TECNICO
+	if b.y != a.y:
+		return _tipo_fronteira_y.get(mini(a.y, b.y),
+			PlantaDoAndar.Conexao.CORREDOR_TECNICO) as PlantaDoAndar.Conexao
+	return _tipo_fronteira_x.get(mini(a.x, b.x),
+		PlantaDoAndar.Conexao.CORREDOR_TECNICO) as PlantaDoAndar.Conexao
+
+
+## Uma aresta deixa de significar `criar_corredor` e passa a significar
+## `criar_conexao`.
+##
+## O NO continua sendo `Corredor` nos tres tipos, e isso nao e preguica: ele ja
+## desiste de desenhar parede propria quando o vao e curto -- `_montar_fita()`
+## retorna cedo abaixo de `ESPESSURA_PAREDE * 2` --, entao uma parede
+## compartilhada de 96 px nasce como piso e colisao e mais nada, que e
+## exatamente o que ela e. E tudo que consome conexao (`_corredor_entre`,
+## `_uniao_da_travessia`, `ligacoes()`, o minimapa) continua funcionando sem
+## caminho novo.
 func _montar_corredores() -> void:
 	for celula in _arestas:
 		for direcao in vizinhos_de(celula):
@@ -1174,6 +1310,7 @@ func _montar_corredores() -> void:
 			var para: Sala = _salas.get(vizinha)
 			if de == null or para == null:
 				continue
+			var tipo := tipo_da_conexao(celula, vizinha)
 			var corredor := Corredor.new()
 			# ANTES do `configurar()`: e ele que monta a geometria e veste as
 			# texturas, e depois dele a bandeira nao muda mais nada.
@@ -1181,7 +1318,7 @@ func _montar_corredores() -> void:
 			add_child(corredor)
 			corredor.configurar(de.boca_da_porta(direcao), para.boca_da_porta(-direcao), largura_corredor)
 			corredor.visible = false
-			_corredores.append({"a": celula, "b": vizinha, "no": corredor})
+			_corredores.append({"a": celula, "b": vizinha, "no": corredor, "tipo": tipo})
 
 
 # ------------------------------------------------------------ revelacao -----

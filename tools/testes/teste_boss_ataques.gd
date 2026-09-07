@@ -38,6 +38,7 @@ func executar() -> void:
 	await _o_pisao_deixa_vao_passavel()
 	await _a_investida_trava_a_direcao_e_a_parede_atordoa()
 	_a_cadencia_da_arma_nao_engole_um_beat()
+	_a_sequencia_de_investidas_TERMINA()
 	Deterioracao.valor = _barra_original
 
 
@@ -482,3 +483,60 @@ func _limpar(container: Node) -> void:
 	for filho in container.get_children():
 		container.remove_child(filho)
 		filho.free()
+
+
+## A SEQUENCIA DE INVESTIDAS TERMINA (#226).
+##
+## Medido em `tools/chefe/arena_chefe.tscn` com o alvo PARADO, a 65% de vida: em
+## 90 segundos o chefe visitou DESPERTAR, ESCOLHER_ATAQUE, PREPARAR e EXECUTAR,
+## executou **so INVESTIDA**, e `RECUPERAR` nunca aconteceu. Os outros tres
+## ataques da fase 2 sumiam do repertorio, e nada no console dizia nada.
+##
+## **A causa era um contador reusado, e o defeito era invisivel por construcao.**
+## A investida encadeada volta de EXECUTAR para PREPARAR -- e nao pode ser
+## diferente, porque cada corrida precisa do proprio telegrafo, senao a segunda
+## sai sem aviso. Mas `_preparar_entrar()` zera `_beats`, que conta beats DENTRO
+## de um EXECUTAR (a rajada, o pisao). A condicao `_beats < investidas_da_fase()`
+## lia `0 < 2` a cada volta.
+##
+## O soco da fase 3 sempre fez isto certo, com `_golpes_restantes`. Contador de
+## SEQUENCIA e contador de BEAT sao coisas diferentes, e o que os separa e quem
+## os zera -- por isso este caso cobra os DOIS lados: que a sequencia sobreviva a
+## uma volta por PREPARAR, e que o beat continue sendo zerado por ela.
+func _a_sequencia_de_investidas_TERMINA() -> void:
+	var cenario := _montar()
+	var chefe = cenario["chefe"]
+	chefe.fase_chefe = 3
+	chefe._ataque = chefe.INVESTIDA
+	chefe._investidas_restantes = chefe._investidas_da_fase()
+	chefe._beats = 7
+
+	var antes: int = chefe._investidas_restantes
+	ok(antes >= 2, "a fase 3 encadeia mais de uma investida (%d)" % antes)
+
+	# 1. A VOLTA POR PREPARAR NAO REARMA A SEQUENCIA. E o defeito inteiro.
+	chefe._preparar_entrar()
+	igual(chefe._investidas_restantes, antes,
+		"voltar a PREPARAR nao rearma a sequencia (%d de %d)"
+			% [chefe._investidas_restantes, antes])
+
+	# 2. MAS ELA ZERA O BEAT, que e o que a rajada e o pisao precisam. Sem esta
+	#    metade, "consertar" o defeito de cima trocando o zero de lugar passaria
+	#    no primeiro caso e quebraria os ataques de beat em silencio.
+	igual(chefe._beats, 0, "e ela continua zerando o beat (rajada e pisao contam nele)")
+
+	# 3. E A SEQUENCIA CHEGA AO FIM. Cada corrida consome uma; a ultima tem de
+	#    devolver o chefe a RECUPERAR, que e a janela de dano da luta.
+	var voltas := 0
+	while voltas < antes + 4:
+		voltas += 1
+		chefe._fim_da_investida()
+		if chefe._maquina.estado == chefe.RECUPERAR:
+			break
+		chefe._preparar_entrar()
+	igual(voltas, antes,
+		"a sequencia acaba em %d corridas (levou %d)" % [antes, voltas])
+	ok(chefe._maquina.estado == chefe.RECUPERAR,
+		"e ela termina em RECUPERAR (%s)" % chefe._maquina.estado)
+
+	cenario["raiz"].free()

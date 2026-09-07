@@ -297,6 +297,26 @@ var _beats: int = 0
 ## um com telegrafo PROPRIO -- por isso ele volta a PREPARAR em vez de repetir
 ## dentro de EXECUTAR.
 var _golpes_restantes: int = 1
+
+## Quantas investidas ainda faltam nesta sequencia.
+##
+## **Ela existe porque `_beats` NAO servia, e o motivo e sutil.** A investida
+## encadeada volta de EXECUTAR para PREPARAR -- e nao pode ser diferente, porque
+## cada corrida precisa do proprio telegrafo, senao a segunda sai sem aviso. Mas
+## `_preparar_entrar()` zera `_beats`, que e o contador de beats DENTRO de um
+## EXECUTAR (a rajada, o pisao). Entao a condicao `_beats < investidas_da_fase()`
+## lia `0 < 2` a cada volta e nunca era falsa: **o chefe investia para sempre.**
+##
+## Medido em `tools/chefe/arena_chefe.tscn` a 65% de vida com o alvo parado: em
+## 90 s ele visitou DESPERTAR, ESCOLHER_ATAQUE, PREPARAR e EXECUTAR, executou
+## SO investida, e `RECUPERAR` -- que e a janela de dano da luta -- nunca
+## aconteceu. Os outros tres ataques sumiam do repertorio, e nada no console
+## dizia nada.
+##
+## O soco da fase 3 ja fazia isto certo com `_golpes_restantes`, e e por isso que
+## ele nunca teve o defeito: contador de SEQUENCIA e contador de BEAT sao coisas
+## diferentes, e o que os separa e quem os zera.
+var _investidas_restantes: int = 1
 ## Travada em PREPARAR e NAO atualizada durante a execucao. E a regra que torna
 ## a investida justa, e a mesma que a Cyber-Besta ja segue: investida que
 ## persegue durante a execucao nao da para esquivar, so para sobreviver.
@@ -870,6 +890,11 @@ func _escolher_ataque() -> void:
 
 	_ultimo_ataque = _ataque
 	_golpes_restantes = _golpes_do_soco() if _ataque == SOCO else 1
+	# **AQUI, e nao em `_preparar_entrar()`.** O encadeamento pula
+	# `ESCOLHER_ATAQUE` de proposito -- e isso que o torna uma sequencia so em vez
+	# de tres ataques sorteados --, entao este e o unico ponto do ciclo que uma
+	# sequencia nova atravessa e uma continuacao nao.
+	_investidas_restantes = _investidas_da_fase() if _ataque == INVESTIDA else 1
 
 
 ## O telegrafo. Ele trava o corpo, e o corpo travado E metade do aviso.
@@ -1280,9 +1305,14 @@ func vao_do_cerco() -> float:
 ## melhor janela de dano da luta -- e o pagamento por um ataque que atravessa a
 ## sala. Entre uma investida e a seguinte ele volta a PREPARAR, entao a direcao e
 ## RECALCULADA e telegrafada de novo: sem isso a segunda sairia sem aviso.
+##
+## **O contador e `_investidas_restantes` e nao `_beats`, e a troca e o conserto
+## da #226.** Voltar a PREPARAR passa por `_preparar_entrar()`, que zera `_beats`
+## -- entao a condicao antiga lia `0 < 2` a cada volta e o chefe investia para
+## sempre contra um alvo parado.
 func _fim_da_investida() -> void:
-	_beats += 1
-	if _beats < _investidas_da_fase():
+	_investidas_restantes -= 1
+	if _investidas_restantes > 0:
 		_maquina.trocar(PREPARAR)
 		return
 	_maquina.trocar(RECUPERAR)

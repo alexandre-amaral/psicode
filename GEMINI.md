@@ -444,6 +444,16 @@ em qualquer erro de script.
   caso e 1,30 combinado com a barra cheia. `tempo_real()` divide pelos DOIS e so
   entao aplica o piso -- um piso conferido so contra 1,30 passa no teste e fura
   em jogo.
+- **Contador de SEQUENCIA e contador de BEAT sao coisas diferentes, e o que os
+  separa e quem os zera.** A investida encadeada usava `_beats`, que
+  `_preparar_entrar()` zera -- e a investida volta a PREPARAR entre uma corrida e
+  a seguinte, porque cada uma precisa do proprio telegrafo. Entao
+  `_beats < investidas_da_fase()` lia `0 < 2` a cada volta e **o chefe investia
+  para sempre**: medido a 65% de vida com o alvo parado, em 90 s ele executou SO
+  investida e `RECUPERAR` -- a janela de dano da luta -- nunca aconteceu. O soco
+  da fase 3 sempre fez isto certo com `_golpes_restantes`; hoje a investida tem
+  `_investidas_restantes`, zerado em `_escolher_ataque()`, que e o unico ponto do
+  ciclo que uma sequencia NOVA atravessa e uma continuacao nao.
 - **A fase do chefe muda na ENTRADA da transicao, e nao quando o HP cruza o
   limiar.** Subindo `fase_chefe` no `_checar_fase`, o ataque em curso terminaria
   com o timing da fase NOVA no meio do proprio gesto: o jogador leria o

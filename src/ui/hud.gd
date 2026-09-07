@@ -30,6 +30,10 @@ var _tween_leitura: Tween = null
 @onready var _rotulo_arma: Label = $Rodape/Arma
 @onready var _rotulo_municao: Label = $Rodape/Municao
 @onready var _rotulo_tempo: Label = $Tempo
+## O saldo da run. Canto oposto ao da municao de proposito: os dois sao numeros
+## que o jogador consulta, e lado a lado eles competem -- municao decide o
+## proximo segundo, credito decide a proxima sala.
+@onready var _rotulo_creditos: Label = $Creditos
 @onready var _aviso: Label = $Aviso
 @onready var _aviso_sub: Label = $AvisoSub
 @onready var _boss: Control = $Boss
@@ -54,6 +58,12 @@ func _ready() -> void:
 	_aviso_item.modulate.a = 0.0
 
 	EventBus.deterioracao_mudou.connect(_ao_deterioracao)
+	EventBus.creditos_mudaram.connect(_ao_creditos)
+	# PUXA o saldo em vez de esperar o proximo sinal: a HUD pode nascer depois de
+	# a run comecar (troca de cena, reinicio), e ai o primeiro credito so
+	# apareceria no proximo abate. Mesma armadilha que `equipar()` ja paga com
+	# `municao_alterada`.
+	_ao_creditos(GameState.creditos_atuais(), 0)
 	# Sem isto, desligar o glitch no meio da run so faria efeito no proximo
 	# tique da Deterioracao.
 	EventBus.configuracao_mudou.connect(
@@ -278,3 +288,14 @@ func _ao_boss_morreu() -> void:
 	var t := create_tween()
 	t.tween_property(_boss, "modulate:a", 0.0, 0.8)
 	t.tween_callback(func() -> void: _boss.visible = false)
+
+
+## O marcador e um LOSANGO, a mesma silhueta da ficha no chao.
+##
+## Ele existe para o jogador ligar as duas coisas sem que nada explique: o que
+## ele pega no chao e o que sobe no canto. Uma moeda desenhada aqui e um losango
+## la seriam dois recursos diferentes para quem esta jogando.
+func _ao_creditos(saldo: int, _delta: int) -> void:
+	if _rotulo_creditos == null:
+		return
+	_rotulo_creditos.text = "◆ %d" % saldo

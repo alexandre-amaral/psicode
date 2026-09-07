@@ -285,6 +285,12 @@ var _container: Node2D = null
 ## "9 / 10" numa run completa; anunciar no _ready contaria as dez salas do
 ## andar de uma vez, inclusive as que ninguem visitou.
 var _anunciou_limpa: bool = false
+## **BANDEIRA PROPRIA, e nao `_anunciou_limpa`.** As duas acontecem uma vez, e
+## sao coisas diferentes: uma e o sinal que a HUD e o gerenciador escutam, a
+## outra e dinheiro. Compartilhar a bandeira faria mexer numa mudar a outra --
+## e o dia em que alguem reemitisse o sinal por outro motivo seria o dia em que
+## a sala pagaria duas vezes.
+var _pagou_premio: bool = false
 
 ## Area do contorno em pixels quadrados. Nao muda em runtime, e quem pergunta e
 ## o sorteio de composicao -- vale a pena pagar a conta uma vez so.
@@ -666,6 +672,7 @@ func _limpar() -> void:
 		return
 	estado = Estado.LIMPA
 	_abrir_portas()
+	_pagar_premio_de_limpeza()
 	_anunciar_limpa()
 
 
@@ -713,6 +720,40 @@ func _sortear_posicao() -> Vector2:
 
 ## Uma sala so conta como limpa uma vez. Quem escuta sala_limpa incrementa
 ## contador, entao reemitir ao reentrar inflaria a estatistica da run.
+## O premio de limpar a sala, e ele sai UMA VEZ.
+##
+## **A trava nao e zelo: `ativar()` de sala ja recomecou o combate uma vez** ao
+## nao ser idempotente, e o `GEMINI.md` registra o caso. Uma sala que pague a
+## cada reativacao vira uma fonte de credito infinita, e o jogador que descobrir
+## isso para de jogar o jogo para andar em circulos.
+##
+## A chance e a faixa saem do `tipo_*.tres`, como todo botao de balanceamento --
+## e as salas sem combate declaram zero.
+func _pagar_premio_de_limpeza() -> void:
+	if _pagou_premio:
+		return
+	_pagou_premio = true
+	if _dados_visual == null or _dados_visual.chance_de_premio <= 0.0:
+		return
+	if randf() >= _dados_visual.chance_de_premio:
+		return
+	var quanto := randi_range(
+		_dados_visual.premio_minimo,
+		maxi(_dados_visual.premio_maximo, _dados_visual.premio_minimo))
+	if quanto <= 0:
+		return
+	# Ele cai no chao como as fichas dos inimigos, e nao entra direto no saldo:
+	# credito que aparece sozinho na HUD nao tem de onde ter vindo, e o jogador
+	# aprende a economia olhando o que ele coleta.
+	var cena := load(InimigoBase.CENA_FICHA) as PackedScene
+	if cena == null:
+		GameState.adicionar_creditos(quanto)
+		return
+	var ficha := cena.instantiate() as PickupCredito
+	add_child(ficha)
+	ficha.configurar(global_position, quanto)
+
+
 func _anunciar_limpa() -> void:
 	if _anunciou_limpa:
 		return

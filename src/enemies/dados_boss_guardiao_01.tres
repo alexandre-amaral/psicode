@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="DadosInimigo" load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://src/enemies/dados_inimigo.gd" id="1_dados"]
+[ext_resource type="Resource" path="res://src/items/drop_credito_andar1.tres" id="9_drop"]
 
 [resource]
 script = ExtResource("1_dados")
@@ -14,3 +15,5 @@ intervalo_dano_contato = 0.9
 cooldown_ataque = 0.5
 tempo_telegrafo = 0.8
 tempo_recuperacao = 1.0
+
+drop_de_credito = ExtResource("9_drop")

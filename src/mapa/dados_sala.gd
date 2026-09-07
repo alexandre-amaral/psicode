@@ -408,6 +408,17 @@ func tem_combate() -> bool:
 ## numero**, e e o cooldown que separa os dois.
 @export var chance_de_aprimorada: float = 0.0
 
+@export_group("Premio de limpeza")
+## Chance de limpar esta sala pagar creditos, e a faixa do que ela paga.
+##
+## **Zero nas salas sem combate**, e nao por economia: pagar por "limpar" uma
+## sala que nunca teve inimigo transformaria atravessar o andar numa fonte de
+## renda, e o jogador passaria a andar em circulos em vez de lutar. A garantia e
+## a mesma de duas pontas que ja impede inimigo nelas.
+@export var chance_de_premio: float = 0.0
+@export var premio_minimo: int = 2
+@export var premio_maximo: int = 5
+
 
 func orcamento_para(area_px: float) -> int:
 	var teto := maxi(orcamento_maximo, orcamento_minimo)

@@ -37,6 +37,15 @@ signal recarga_concluida()
 ## estaria espalhada por dez arquivos que nao tem nada a ver com ela.
 signal dano_a_inimigo(quantidade: int)
 signal inimigo_morreu(posicao: Vector2, creditos: int)
+## O saldo da run mudou. `delta` vem junto para o feedback de coleta (`+5`) nao
+## ter de guardar o saldo anterior -- e guardar estado para calcular uma
+## diferenca e como duas copias comecam a divergir.
+signal creditos_mudaram(saldo: int, delta: int)
+
+## Uma ficha foi coletada. A HUD usa para o `+5` flutuante e o `Audio` para o
+## som -- nenhum dos dois precisa conhecer o pickup.
+signal credito_coletado(posicao: Vector2, valor: int)
+
 signal inimigo_spawnou(inimigo: Node2D)
 
 ## Uma Unidade Aprimorada curou. Quem escuta e o laboratorio e as metricas -- o

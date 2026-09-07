@@ -62,3 +62,6 @@ atlas_props_frente = ExtResource("25_pfr")
 regioes_props_frente = Array[Rect2i]([Rect2i(0, 0, 64, 32), Rect2i(64, 0, 64, 32), Rect2i(128, 0, 64, 32)])
 quantidade_props_frente = 2
 chance_de_aprimorada = 0.25
+chance_de_premio = 0.45
+premio_minimo = 2
+premio_maximo = 5

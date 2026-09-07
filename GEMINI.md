@@ -200,6 +200,9 @@ docs/
 | **A ESPESSURA desenhada da parede** | `corpo`, `cap` e `sombra_de_contato` em `src/mapa/estilo_industrial_velho.tres` -- **-1 herda o default**. Os quatro lados leem o MESMO numero; a assimetria de outro andar passa pelos `escala_*` do `PerfilDeParede`, e nunca por um campo por lado |
 | **Ver a geometria da parede sem a arte defende-la** | `godot --path . tools/comparar_caixa.tscn --resolution 960x544` -- o par ATUAL x ALVO em cores chapadas, mais as reducoes de 25%, 10% e cinza. Sem janela ele imprime a dispersao entre lados |
 | **O MATERIAL da parede de um andar** | `src/mapa/estilo_industrial_velho.tres` -- topo, cantos e face neutra. Os cinco `tipo_*.tres` apontam o MESMO kit, porque sao o mesmo setor; a face do TIPO continua em `texturas_face` |
+| **Quanto um inimigo paga de credito** | `creditos` em `src/enemies/dados_*.tres` -- ele e o valor ESPERADO, e o sorteio de fichas converge para ele |
+| **Como o credito vira ficha no chao** | `src/items/drop_credito_andar1.tres` (`DadosDropCredito`): os tres valores, a fracao paga e o teto de fichas por abate |
+| **Quanto limpar uma sala paga** | `chance_de_premio`, `premio_minimo` e `premio_maximo` no `src/mapa/tipo_*.tres`; zero nas salas sem combate |
 | **Implante novo (so numeros)** | criar `src/items/implante_*.tres` com a lista de `efeitos` e listar em `pool_padrao.tres` |
 | **Implante com comportamento novo** | enum em `DadosItem.Comportamento` + o codigo que le, em quem sofre o efeito |
 | Pente, tempo de recarga e reserva | `tamanho_pente`, `tempo_recarga`, `municao_maxima` em `src/weapons/*.tres` |
@@ -964,6 +967,37 @@ em qualquer erro de script.
   nunca entravam em grupo nenhum -- os projeteis atravessavam parede. Hoje quem
   resolve isso e o raycast de `projetil.gd`, que tambem devolve a normal que o
   ricochete precisa.
+- **`GameState.creditos` so muda pela API, e `teste_creditos.gd` LE O CODIGO
+  para provar.** Nenhum teste de comportamento pega uma atribuicao direta: ela
+  funciona, some do sinal `creditos_mudaram`, e a HUD para de atualizar naquele
+  caminho especifico. E `gastar_creditos()` devolve `bool` e nao altera nada
+  quando recusa -- debitar e deixar o chamador conferir depois e a forma de o
+  jogador pagar por uma arma que nao recebeu, e numa economia isso nao tem
+  desfazer.
+- **Campo novo do inimigo vai para `DadosInimigo`, e nao para um `@export` do
+  nó.** Escrevi `drop_de_credito` no `.tres` e declarei o `@export` no
+  `InimigoBase`: **o Godot ignora a propriedade desconhecida em SILENCIO**, o
+  campo do no fica nulo, e a run rendeu 11 creditos em vez de 173. Nada no
+  console. `teste_dados_inimigo.gd` ja cobra o inverso (numero que foi para o
+  `.tres` tem de sair do `.tscn`), e esta e a mesma fronteira vista do outro
+  lado.
+- **A ficha de credito nao pode depender de o jogador PASSAR por cima dela.**
+  Medido no teste de fumaca: so com atracao por raio, uma run de 33 abates
+  terminou com **zero** creditos -- as fichas caem onde o inimigo morreu e o
+  jogador sai da sala. Ao limpar a sala elas passam a ir ate ele de qualquer
+  distancia, e o voo TERMINA em credito depois de 2 s: com o voo sendo uma
+  corrida que da para perder, a run rendeu 12 de 266. Renda que depende de
+  geometria nao e economia, e sorte.
+- **A ficha e LOSANGO e desenha em `Z_CHAO_DETALHE`, e as duas coisas sao a
+  mesma regra.** Circulo pequeno e brilhante e exatamente o que um projetil e
+  neste jogo, e a faixa zero e onde o telegrafo desenha. Dinheiro que se confunde
+  com perigo, ou que cobre o aviso, e o pior defeito que a economia pode
+  introduzir.
+- **A RENDA ATUAL E 3 A 5 VEZES A QUE O PLANO DA LOJA ASSUME.** Medido numa run
+  completa: **173 creditos** contra os 35-55 que o plano propoe como total do
+  andar 1. `DadosDropCredito.fracao_do_valor` existe para baixar isso sem tocar
+  em inimigo nenhum -- mas a escolha entre baixar a renda e subir os precos e da
+  simulacao economica (#284), e nao de gosto.
 - **Todo ganho de Deterioracao passa por `adicionar()`.** O multiplicador de
   implante mora la, e nao no `_process`: antes ele valia so para o ganho passivo
   e escapava de tudo que sobe a barra por evento.

@@ -47,6 +47,11 @@ extends Resource
 @export var velocidade: float = 120.0
 @export var dano_contato: int = 1
 @export var creditos: int = 3
+
+## Como o valor acima vira fichas no chao. Nulo cai na tabela padrao do projeto:
+## um inimigo sem `.tres` (Rastejante, Vigia, Diretora) continua pagando, porque
+## `dados` e OPCIONAL e tem de continuar sendo.
+@export var drop_de_credito: DadosDropCredito
 ## Quanto este inimigo soma na barra ao morrer. Zero por padrao -- quem move a
 ## barra e limpar a sala, nao a matanca.
 @export var deterioracao_ao_morrer: float = 0.0

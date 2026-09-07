@@ -10,6 +10,12 @@ extends CharacterBody2D
 signal morreu(posicao: Vector2)
 
 const GRUPO := "inimigo"
+const CENA_FICHA := "res://src/items/pickup_credito.tscn"
+## A tabela de drop do projeto, usada por quem nao declara a propria.
+##
+## **Ela e um FALLBACK e nao um default de campo**: um inimigo sem `DadosInimigo`
+## continua pagando, e nenhum `.tres` precisa repetir a mesma linha cinco vezes.
+const DROP_PADRAO := "res://src/items/drop_credito_andar1.tres"
 
 ## Quantas classes de aprimoramento um inimigo aceita.
 ##
@@ -36,6 +42,7 @@ const COR_HACK := Color(0.45, 1.0, 0.3)
 @export var velocidade_base: float = 120.0
 @export var dano_contato: int = 1
 @export var creditos: int = 3
+
 ## Quanto este inimigo soma na barra de Deterioracao ao morrer. Zero por
 ## padrao -- quem move a barra e o fim de onda, nao a matanca.
 @export var deterioracao_ao_morrer: float = 0.0
@@ -418,7 +425,14 @@ func morrer() -> void:
 	get_parent().add_child(fx)
 
 	GameState.inimigos_mortos += 1
-	GameState.creditos += creditos
+	# **O CREDITO DEIXA DE VIRAR SALDO EM SILENCIO.** Ate a #281 esta era a unica
+	# escrita de credito do jogo inteiro, instantanea e invisivel -- e com uma
+	# Loja para gastar, o credito precisa ser uma COISA que cai, que se ve, e que
+	# o jogador decide se vale atravessar a sala para pegar.
+	#
+	# O valor declarado no `.tres` vira o valor ESPERADO das fichas: a media de
+	# muitos abates bate o numero, e nenhum abate isolado e previsivel.
+	_derrubar_creditos()
 	if deterioracao_ao_morrer > 0.0:
 		Deterioracao.adicionar(deterioracao_ao_morrer)
 
@@ -441,6 +455,37 @@ func morrer() -> void:
 ## deste tipo de inimigo. Ficar aqui, na base, e o que faz a garantia valer para
 ## todo inimigo que ganhar telegrafo depois -- inclusive o que ninguem lembrar
 ## de sobrescrever `morrer()`.
+## As fichas deste abate, no chao.
+##
+## Elas nascem no CONTAINER e nao como filhas do inimigo: ele esta morrendo, e
+## `queue_free()` levaria as fichas junto no mesmo frame. E a mesma licao que a
+## `AreaDePerigo` do Parasita e o arco do nanite ja pagaram.
+func _derrubar_creditos() -> void:
+	if creditos <= 0:
+		return
+	var tabela: DadosDropCredito = null
+	if dados != null:
+		tabela = dados.drop_de_credito
+	if tabela == null:
+		tabela = load(DROP_PADRAO) as DadosDropCredito
+	if tabela == null:
+		return
+	var cena := load(CENA_FICHA) as PackedScene
+	if cena == null:
+		return
+	var onde := get_parent()
+	if onde == null:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	for valor in tabela.sortear(creditos, rng):
+		var ficha := cena.instantiate() as PickupCredito
+		if ficha == null:
+			continue
+		onde.add_child(ficha)
+		ficha.configurar(global_position, valor)
+
+
 func _apagar_telegrafos() -> void:
 	for filho in get_children():
 		var t := filho as Telegrafo

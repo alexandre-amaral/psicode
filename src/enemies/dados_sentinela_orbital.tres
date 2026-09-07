@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="DadosInimigo" load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://src/enemies/dados_inimigo.gd" id="1_dados"]
+[ext_resource type="Resource" path="res://src/items/drop_credito_andar1.tres" id="9_drop"]
 
 [resource]
 script = ExtResource("1_dados")
@@ -23,3 +24,5 @@ correcao_radial = 0.55
 tiros_ate_salva_avancado = 1
 tags = Array[int]([1,2])
 peso_de_aprimoramento = 0.9
+
+drop_de_credito = ExtResource("9_drop")

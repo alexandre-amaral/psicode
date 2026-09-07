@@ -27,6 +27,18 @@ var estado: int = Estado.MENU
 ## montagem do andar nao existe mais indice de onda para contar.
 var salas_limpas: int = 0
 var total_salas: int = 0
+## O saldo da RUN, e ele nunca se mistura com moeda permanente de Lobby.
+##
+## **ESCREVER NELE DIRETO E O DEFEITO, e ate a #280 era o unico jeito.** Havia
+## uma atribuicao so no jogo inteiro (`GameState.creditos += creditos`, na morte
+## do inimigo) e nenhuma forma de GASTAR -- a semente parada que o M1 do roadmap
+## existe para fechar.
+##
+## Hoje tudo passa por `adicionar_creditos`, `pode_pagar` e `gastar_creditos`, e
+## `teste_creditos.gd` varre o codigo cobrando que ninguem escreva aqui fora
+## deste arquivo. A razao nao e arrumacao: sem uma porta unica, uma transacao
+## nao tem como recusar sem deixar rastro, e o jogador paga por uma arma que nao
+## recebeu.
 var creditos: int = 0
 var inimigos_mortos: int = 0
 var tempo_run: float = 0.0
@@ -120,12 +132,49 @@ func entrar_lobby() -> void:
 	Engine.time_scale = 1.0
 
 
+## Credita, e avisa quem escuta.
+##
+## Quantidade nao positiva e ignorada em silencio de proposito: um drop que
+## sorteie zero e caso normal, e nao erro. O que NAO e normal e debitar por aqui
+## -- para isso ha `gastar_creditos`, que devolve `bool`.
+func adicionar_creditos(quantidade: int) -> void:
+	if quantidade <= 0:
+		return
+	creditos += quantidade
+	EventBus.creditos_mudaram.emit(creditos, quantidade)
+
+
+func pode_pagar(quantidade: int) -> bool:
+	return quantidade >= 0 and creditos >= quantidade
+
+
+## Debita, e devolve se conseguiu.
+##
+## **Quando devolve `false` ela nao muda NADA**, e isso e contrato e nao detalhe:
+## a transacao da Loja valida a entrega antes de pagar, e uma funcao que debita e
+## deixa o chamador conferir depois e a forma de o jogador pagar por uma arma que
+## nao recebeu. Numa economia isso nao tem desfazer.
+func gastar_creditos(quantidade: int) -> bool:
+	if not pode_pagar(quantidade):
+		return false
+	creditos -= quantidade
+	EventBus.creditos_mudaram.emit(creditos, -quantidade)
+	return true
+
+
+func creditos_atuais() -> int:
+	return creditos
+
+
 func iniciar_run() -> void:
 	modo = Modo.RUN
 	estado = Estado.JOGANDO
 	salas_limpas = 0
 	total_salas = 0
 	creditos = 0
+	# O saldo zerado tambem e uma mudanca: a HUD tem de largar o numero da run
+	# anterior, e ela so sabe pelo sinal.
+	EventBus.creditos_mudaram.emit(0, 0)
 	inimigos_mortos = 0
 	tempo_run = 0.0
 	tempo_chefe = 0.0

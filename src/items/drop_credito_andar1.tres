@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="DadosDropCredito" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/items/dados_drop_credito.gd" id="1_dd"]
+
+[resource]
+script = ExtResource("1_dd")
+valores = Array[int]([10, 5, 2])
+fracao_do_valor = 1.0
+max_fichas = 4

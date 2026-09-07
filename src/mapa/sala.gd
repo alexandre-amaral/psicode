@@ -689,6 +689,18 @@ func contorno_local() -> PackedVector2Array:
 
 ## Pontos do contorno em coordenadas locais da sala. O Line2D pode ter offset
 ## proprio, entao a transform dele entra na conta.
+##
+## **E aqui que o CHANFRO entra, e por isso ele nao esta em cena nenhuma.** A
+## dimensao logica da sala continua sendo o retangulo desenhado no `.tscn` --
+## multipla de 32, com as portas na grade de 16, medida por `teste_grade.gd` --,
+## e o chanfro e derivado dela em codigo. Desenha-lo nas nove cenas transformaria
+## uma decisao de ARQUITETURA num numero copiado nove vezes, que diverge no dia
+## em que alguem mudar oito.
+##
+## Como todo o resto sai daqui -- chao, colisao, fita, sombra, minimapa --, o
+## chanfro chega inteiro a todos eles de uma vez. Era o requisito: "o chanfrado
+## deve existir na geometria do poligono do piso E nas faixas de parede, para a
+## sombra, a face e o cap acompanharem exatamente a mesma diagonal".
 func _pontos_do_contorno() -> PackedVector2Array:
 	var parede := get_node_or_null("Parede") as Line2D
 	if parede == null:
@@ -696,7 +708,63 @@ func _pontos_do_contorno() -> PackedVector2Array:
 	var pontos := PackedVector2Array()
 	for ponto in parede.points:
 		pontos.append(parede.transform * ponto)
-	return pontos
+	return _chanfrar(pontos)
+
+
+## Recua cada quina do contorno na diagonal.
+##
+## Uma quina de 90 graus comunica planta baixa; a diagonal comunica que a
+## superficie converge para o piso. Ela vale para as quinas CONCAVAS tambem -- na
+## sala em L o corte tambem existe, e sem ele o unico canto interno do jogo
+## continuaria em esquadro.
+##
+## **O corte e limitado pelo lado mais curto**, e a trava nao e teorica: sem ela
+## um lado de 64 px com 48 de corte em cada ponta viraria um lado de -32, e o
+## poligono se dobra sobre si mesmo -- `Geometry2D.triangulate_polygon` devolve
+## vazio e a sala fica sem chao, sem uma linha no console.
+##
+## E ele desce para o multiplo de 16 mais proximo, porque `teste_grade.gd` cobra
+## todo ponto do contorno na grade -- inclusive os que este metodo inventa.
+func _chanfrar(pontos: PackedVector2Array) -> PackedVector2Array:
+	var fechado := pontos.size() >= 2 and pontos[0].is_equal_approx(pontos[pontos.size() - 1])
+	var abertos := pontos
+	if fechado:
+		abertos = pontos.slice(0, pontos.size() - 1)
+	var total := abertos.size()
+	if total < 3:
+		return pontos
+
+	var perfil := _perfil()
+	var quanto: float = perfil.chanfro_de_canto if perfil != null \
+		else PerfilDeParede.new().chanfro_de_canto
+	if quanto < 16.0:
+		return pontos
+
+	var saida := PackedVector2Array()
+	for i in total:
+		var v := abertos[i]
+		var anterior := abertos[(i - 1 + total) % total]
+		var proximo := abertos[(i + 1) % total]
+		var entra := v - anterior
+		var sai := proximo - v
+		if entra.length() < 1.0 or sai.length() < 1.0:
+			saida.append(v)
+			continue
+		# Colinear: nao ha quina para chanfrar.
+		if absf(entra.normalized().cross(sai.normalized())) < 0.01:
+			saida.append(v)
+			continue
+		var corte := minf(quanto, minf(entra.length(), sai.length()) * 0.4)
+		corte = floorf(corte / 16.0) * 16.0
+		if corte < 16.0:
+			saida.append(v)
+			continue
+		saida.append(v - entra.normalized() * corte)
+		saida.append(v + sai.normalized() * corte)
+
+	if fechado:
+		saida.append(saida[0])
+	return saida
 
 
 ## Varredura determinista em coordenadas locais. O centro do bounding box e

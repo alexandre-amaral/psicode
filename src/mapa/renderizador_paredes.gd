@@ -113,6 +113,22 @@ const COR_FACE := Color("1a1e2b")
 ## O BISEL entre os dois, e o degrau entre as tres cores e o proprio teste: se em
 ## silhueta a faixa ainda parecer um bloco, nao ha arte que conserte.
 const COR_BISEL := N4
+## A QUEDA externa do sul, no modo silhueta: mais escura que o cap, porque ela
+## esta virada para longe da camera e e o ultimo degrau antes do vazio.
+const COR_QUEDA := Color("1f2432")
+
+## A LINHA DE CONTATO, e ela e translucida de proposito.
+##
+## Ela desenha SOBRE o chao (`Z_FITA` fica acima de `Z_CHAO`), entao o que ela
+## precisa e escurecer, e nao pintar. Um valor absoluto so funcionaria se por
+## acaso fosse mais escuro que aquele piso -- e o piso do andar 1 mede luma 14 a
+## 16 contra os 13 do N1: a primeira versao existia em disco e nao aparecia.
+##
+## O alfa e o mesmo `ALFA_PERTO` da `SombraDeParede`, que ja e a sombra que
+## assenta a parede. As duas fazem o mesmo trabalho em escalas diferentes -- esta
+## e a linha, aquela e o gradiente -- e falarem o mesmo alfa e o que impede uma
+## de anular a outra.
+const COR_CONTATO := Color(0.02, 0.024, 0.043, 0.55)
 
 ## Quanto o BISEL escurece a chapa que ele corta.
 ##
@@ -132,6 +148,13 @@ const TINTA_DO_BISEL := Color(0.55, 0.57, 0.66)
 ## viraria uma segunda costura preta e a juncao voltaria a ler como duas pecas
 ## empilhadas -- que e exatamente o que ela existe para desfazer.
 const TINTA_DA_FLANGE := Color(0.72, 0.74, 0.82)
+
+## Quanto a QUEDA escurece a chapa que ela termina.
+##
+## Mais que o bisel: ela e a face externa do sul, virada para longe da camera, e
+## o que vem depois dela e o vazio. Um degrau raso ali faz a moldura terminar sem
+## terminar.
+const TINTA_DA_QUEDA := Color(0.42, 0.44, 0.52)
 
 const COSTURA := 32.0
 const SOMBRA_DA_COSTURA := 2.0
@@ -205,131 +228,215 @@ static func construir(contorno: PackedVector2Array, portas: Array[Porta],
 			continue
 		_vestir_lado(raiz, contorno, a, b, portas, semente ^ (i * 0x9e3779b1),
 			semente, topos, faces, peso_comum, espacamento, regra, ancora, silhueta,
-			decalques, chance_decalque)
+			decalques, chance_decalque, i)
 	_fechar_quinas(raiz, contorno, regra, topos, faces, ancora, silhueta,
-		abertos, semente)
+		abertos, semente, peso_comum)
 	return raiz
 
 
-## Um lado vira UMA FAIXA CONTINUA por trecho, e nao N celulas de 32.
+## Um lado vira uma PILHA DE CAMADAS, e a pilha e diferente em cada direcao.
 ##
-## **Esta e a mudanca que o epico da moldura existe para fazer.** Antes, cada
-## lado instanciava dois `Sprite2D` por celula -- cerca de 360 por sala --, e
-## cada um deles recomecava a textura do zero. O resultado era o defeito que o
-## dono do projeto descreveu: a parede lia como `|tile|tile|tile|`, uma fileira
-## de blocos em volta da sala, e nao como uma superficie que a delimita.
+## Ate aqui os quatro lados desenhavam a mesma coisa -- 56 de face mais 40 de
+## topo --, e o dono mediu o resultado e reprovou: o piso e as bandas continuavam
+## parecendo o mesmo plano. O topo largo lia como faixa de piso, as laterais como
+## bordas retas e as quinas como encontros de 90 graus sem profundidade.
 ##
-## A grade de 32 NAO morreu -- ela so parou de ser desenhada. Colisao, geracao,
-## porta, mapa e posicionamento continuam nela. **Grade logica nao e grade
-## visual**, e separar as duas e o plano inteiro.
+## O que produz cavidade nao e espessura, e sim ASSIMETRIA: a camera e uma so, e
+## cada lado esta numa relacao diferente com ela. O norte mostra a face de
+## frente; a lateral mostra de esguelha; o sul e visto de CIMA e por isso ganha
+## uma soleira que cresce para FORA em vez de uma face que cresce para dentro.
 ##
-## O trecho vem PRIMEIRO agora. Antes ele era acumulado dentro do laco de
-## celulas, para o acabamento; agora ele e a primeira etapa e a superficie nasce
-## dele. E isso traz de graca o corte da porta: um vao parte a faixa em duas em
-## vez de abrir um buraco de celulas puladas.
+## Quem sabe disso e `PerfilDeParede.camadas()`. Este arquivo nao le campo nenhum
+## do perfil -- so a lista. Foi assim que os quatro lados deixaram de poder voltar
+## a ser a mesma coisa por acidente.
+##
+## A camada FACE e a unica que abre no vao da porta. As outras atravessam: sobre a
+## porta ha verga, e a superficie de cima passa por cima da passagem de verdade.
 static func _vestir_lado(raiz: Node2D, contorno: PackedVector2Array, a: Vector2,
 		b: Vector2, portas: Array[Porta], semente: int, semente_da_sala: int,
 		topos: Array[Texture2D],
 		faces: Array[Texture2D], peso_comum: float, espacamento: int,
 		perfil: PerfilDeParede, ancora: Vector2, silhueta: bool,
-		decalques: Array[Texture2D] = [], chance_decalque: float = 0.0) -> void:
+		decalques: Array[Texture2D] = [], chance_decalque: float = 0.0,
+		indice: int = -1) -> void:
+	var normal := normal_externa(contorno, a, b)
+
+	# O TRECHO DE CHANFRO nao e um lado: ele e a TRANSICAO entre dois.
+	#
+	# Desenhado como lado, com profundidade propria e normal diagonal, ele
+	# ultrapassa o limite dos vizinhos: medido, a lateral reservava 36 px e o
+	# chanfro alcancava 44. E ele nao pode ter profundidade propria mesmo -- se o
+	# norte desenha 60 e a lateral 36, a transicao TEM de ir de um a outro.
+	#
+	# Entao cada ponta dele e deslocada pela normal do SEU vizinho, e a banda vira
+	# um trapezio que encosta exatamente onde as duas vizinhas terminaram. A
+	# consequencia boa: nao sobra cunha nenhuma para fechar depois -- o chanfro E
+	# a quina.
+	if indice >= 0 and _e_chanfro(normal):
+		_vestir_chanfro(raiz, contorno, indice, perfil, topos, faces, peso_comum,
+			ancora, silhueta, semente_da_sala)
+		return
+
 	var comprimento := a.distance_to(b)
 	if comprimento < LADO_MINIMO:
 		return
-	var normal := normal_externa(contorno, a, b)
 	var lado := classificar(normal)
 
-	var fim_face := perfil.fim_da_face(lado)
-	var fundo := perfil.profundidade(lado)
-	if fundo <= 0.0:
-		return
-
-	# A textura de cada superficie e sorteada UMA VEZ por lado, e nao por celula.
-	#
-	# Sortear por celula era o que produzia a variedade -- e tambem o que
-	# denunciava a celula. Com uma escolha por lado, a variedade passa a
-	# acontecer entre SALAS e entre LADOS, que e onde o jogador consegue le-la
-	# como material e nao como grade.
 	# O TOPO e sorteado UMA VEZ POR SALA; a FACE, uma vez por lado.
 	#
-	# Os dois ja sairam do mesmo sorteio por lado, e o resultado era a sala
-	# vestir tres tijolos diferentes ao mesmo tempo -- norte com um, leste com
-	# outro, sul com um terceiro. O dono descreveu como "cada orientacao recebe um
-	# tamanho e uma quantidade diferentes de tijolos".
-	#
-	# A distincao nao e capricho: o topo e a superficie NEUTRA e CONTINUA, a
-	# mesma que da a volta na sala e atravessa as quinas com a UV ancorada no
-	# contorno. Duas variantes na mesma volta quebram essa continuidade num lugar
-	# onde ela e a unica coisa que segura a leitura. A FACE e o oposto -- ela
-	# carrega identidade, e a variedade entre lados e o que produz a biblioteca.
+	# O topo e a superficie continua que da a volta na sala e atravessa as
+	# quinas com a UV ancorada no contorno; duas variantes na mesma volta quebram
+	# a continuidade no unico lugar onde ela segura a leitura. A FACE e o oposto
+	# -- ela carrega identidade, e a variedade entre lados e o que produz a
+	# biblioteca.
 	var textura_topo := _sorteia(topos, semente_da_sala)
 	var textura_face := _face_da_celula(faces, semente,
 		_quer_especial(semente, peso_comum))
 
-	# O TOPO ATRAVESSA O VAO; a FACE e que abre. E a regra que o projeto ja
-	# escreve e que o codigo nao cumpria.
-	#
-	# Sobre a porta ha verga: a superficie de cima da parede passa por cima da
-	# passagem de verdade. Cortando o topo junto com a face, o que sobrava alem da
-	# porta era um retangulo do tamanho do vao vezes a profundidade da faixa --
-	# **sem nada desenhado**. Com o perfil C, 32 px de faixa, a arte da porta
-	# cobria quase tudo e ninguem via; com 96 e 104, o buraco virou uma janela
-	# preta de 64x96 px em cada porta. Medido: 1,9% do quadro numa sala de quatro
-	# portas, e o dono viu antes de a regua achar.
-	#
-	# Quem tem abertura e a face, e so ela -- o resto do acabamento (linha de
-	# contato, costura, bisel) acompanha a face, porque e ela que termina ali.
-	var fim_topo := fundo
-	var borda := perfil.borda_externa_sul if lado == Lado.SUL else 0.0
-	if borda > 0.0:
-		fim_topo = fundo - borda
-	_superficie(raiz, a, b, normal, fim_face, fim_topo, textura_topo,
-		ancora, silhueta, COR_TOPO)
-	if borda > 0.0:
-		_borda_externa_do_sul(raiz, a, b, normal, fim_topo, fundo)
+	var fim_face := perfil.fim_da_face(lado)
+	var fundo := perfil.profundidade(lado)
+	var camadas := perfil.camadas(lado)
 
-	# A SUBDIVISAO DO TOPO (#241), e ela acompanha o TOPO e nao a face: o topo
-	# atravessa o vao da porta, entao desenhar bisel e borda por trecho os
-	# interromperia em cima de cada porta -- a mesma falha que a face teve por
-	# seis issues, so que ao contrario.
-	var bisel := perfil.bisel_do_topo
-	if bisel > 0.0 and fim_face + bisel <= fim_topo:
-		_superficie(raiz, a, b, normal, fim_face, fim_face + bisel, textura_topo,
-			ancora, silhueta, COR_BISEL, TINTA_DO_BISEL)
-	var borda_topo := perfil.borda_do_topo
-	if borda_topo > 0.0 and fim_topo - borda_topo > fim_face:
-		_banda(raiz, a, b, normal, fim_topo - borda_topo, fim_topo, N1)
-
+	# A PORTA E UM RECORTE REAL, e ela atravessa a PILHA INTEIRA.
+	#
+	# Antes so a face abria, e o resto passava por cima do vao com o argumento de
+	# que sobre a porta ha verga. O argumento vale para uma parede de 96 px vista
+	# quase de frente; com o perfil direcional ele deixa de valer no SUL, onde a
+	# pilha e uma soleira de 32 px vista de CIMA -- a verga ali cobriria a
+	# passagem inteira, e o jogador atravessaria por baixo do desenho.
+	#
+	# E o recorte inteiro e o que a porta precisa para participar do volume: e o
+	# batente que mostra a espessura, e sem cortar o cap nao ha batente.
 	for trecho in trechos_livres(contorno, a, b, portas):
 		var de: Vector2 = trecho[0]
 		var ate: Vector2 = trecho[1]
 		if de.distance_to(ate) < 1.0:
 			continue
-		if fim_face > 0.0:
-			_superficie(raiz, de, ate, normal, 0.0, fim_face, textura_face,
-				ancora, silhueta, COR_FACE)
-			# A FLANGE, e ela mora AQUI e nao em `_vestir_acabamento`.
-			#
-			# Aquela funcao desenha tira chapada -- ela nao conhece textura nem
-			# ancora, e e essa ignorancia que a deixa ser chamada por trecho sem
-			# se preocupar com continuidade de UV. A flange e MATERIAL: ela e a
-			# propria face subindo, com a mesma ancora, e por isso precisa das
-			# duas coisas.
-			#
-			# E ela acompanha a FACE, entao abre no vao da porta junto com ela.
-			# Uma flange que atravessasse o vao poria material de parede em cima
-			# da passagem -- o defeito que o topo evita ter porque sobre a porta
-			# ha verga, e a flange nao e verga.
-			if fim_face + FLANGE <= fundo:
-				_superficie(raiz, de, ate, normal, fim_face, fim_face + FLANGE,
-					textura_face, ancora, silhueta, COR_FACE, TINTA_DA_FLANGE)
-		_vestir_acabamento(raiz, de, ate, normal, lado, fim_face <= 0.0, fundo,
-			fim_face, perfil.borda_do_topo > 0.0,
-			FLANGE if fim_face > 0.0 else 0.0)
+		for camada in camadas:
+			if int(camada.z) == PerfilDeParede.Camada.FACE:
+				_superficie(raiz, de, ate, normal, camada.x, camada.y, textura_face,
+					ancora, silhueta, COR_FACE)
+				# A FLANGE: a nervura da face sobe alguns px para dentro do cap, e
+				# a juncao passa a dizer "essa chapa e a cobertura desta parede"
+				# em vez de "esse bloco esta em cima daquela parede".
+				if camada.y + FLANGE <= fundo:
+					_superficie(raiz, de, ate, normal, camada.y, camada.y + FLANGE,
+						textura_face, ancora, silhueta, COR_FACE, TINTA_DA_FLANGE)
+			else:
+				_camada_continua(raiz, de, ate, normal, camada, textura_topo,
+					ancora, silhueta)
+		# O DECALQUE nao depende mais de haver face: quem decide e o ENCAIXE.
+		#
+		# Com o perfil direcional o unico lado largo o bastante para uma peca de
+		# 16 px e o SUL, cujo ledge tem 20 -- e ele e justamente o que nao tem
+		# face. Amarrar o decalque a `fim_face > 0` o excluia do unico lugar onde
+		# ele cabe, e nao havia erro nenhum: a decoracao simplesmente sumia.
 		if not silhueta:
 			_decalque_no_trecho(raiz, de, ate, normal, lado, perfil, fim_face,
-				fim_topo, decalques, chance_decalque, semente ^ int(de.x) ^ int(de.y))
+				fundo, decalques, chance_decalque,
+				semente ^ int(de.x) ^ int(de.y))
 
+
+## Um trecho cuja normal aponta na diagonal e um chanfro de quina.
+##
+## O contorno so tem diagonais porque `Sala._chanfrar()` as criou: as nove salas
+## sao retangulos e um L, todos ortogonais em disco.
+static func _e_chanfro(normal: Vector2) -> bool:
+	return absf(absf(normal.x) - absf(normal.y)) < 0.2
+
+
+## O trapezio que liga as bandas de dois lados vizinhos.
+##
+## Cada ponta usa a normal e as camadas do SEU vizinho, entao a borda externa
+## passa de 60 px (norte) para 36 (lateral) ao longo do chanfro, sem degrau e sem
+## ultrapassar nenhum dos dois.
+##
+## As camadas sao pareadas por INDICE. Nas quinas norte-lateral isso alinha
+## sombra com sombra, face com face e cap com reveal, que e o certo. Nas
+## sul-lateral ele pareia o labio (que cresce para fora) com a sombra (que cresce
+## para dentro), e a tira resultante atravessa o contorno -- sao 4 px, e o que se
+## ve ali e uma linha escura virando a quina, que e o que se quer de qualquer
+## jeito.
+static func _vestir_chanfro(raiz: Node2D, contorno: PackedVector2Array, indice: int,
+		perfil: PerfilDeParede, topos: Array[Texture2D], faces: Array[Texture2D],
+		peso_comum: float, ancora: Vector2, silhueta: bool,
+		semente_da_sala: int) -> void:
+	var total := contorno.size()
+	var a := contorno[indice]
+	var b := contorno[(indice + 1) % total]
+	var antes := (indice - 1 + total) % total
+	var depois := (indice + 1) % total
+	var n_a := normal_externa(contorno, contorno[antes], a)
+	var n_b := normal_externa(contorno, b, contorno[(depois + 1) % total])
+	if _e_chanfro(n_a) or _e_chanfro(n_b):
+		return
+
+	var camadas_a := perfil.camadas(classificar(n_a))
+	var camadas_b := perfil.camadas(classificar(n_b))
+	var textura_topo := _sorteia(topos, semente_da_sala)
+	var chave := semente_da_sala ^ (antes * 0x9e3779b1)
+	var textura_face := _face_da_celula(faces, chave, _quer_especial(chave, peso_comum))
+
+	for k in mini(camadas_a.size(), camadas_b.size()):
+		var ca: Vector3 = camadas_a[k]
+		var cb: Vector3 = camadas_b[k]
+		var poligono := PackedVector2Array([
+			a + n_a * ca.x,
+			b + n_b * cb.x,
+			b + n_b * cb.y,
+			a + n_a * ca.y,
+		])
+		match int(ca.z):
+			PerfilDeParede.Camada.SOMBRA, PerfilDeParede.Camada.LABIO:
+				_poligono_chapado(raiz, poligono, N1)
+			PerfilDeParede.Camada.FACE:
+				_poligono_texturizado(raiz, poligono, textura_face, ancora, silhueta,
+					COR_FACE, Color.WHITE)
+			PerfilDeParede.Camada.QUEDA:
+				_poligono_texturizado(raiz, poligono, textura_topo, ancora, silhueta,
+					COR_QUEDA, TINTA_DA_QUEDA)
+			_:
+				_poligono_texturizado(raiz, poligono, textura_topo, ancora, silhueta,
+					COR_TOPO, Color.WHITE)
+
+
+## Uma camada que ATRAVESSA o lado inteiro, sem abrir na porta.
+##
+## Cap, reveal, ledge, queda, labio e sombra passam por cima do vao: sobre a
+## porta ha verga. So a FACE abre, e ela e desenhada por trecho.
+static func _camada_continua(raiz: Node2D, a: Vector2, b: Vector2, normal: Vector2,
+		camada: Vector3, textura_topo: Texture2D, ancora: Vector2,
+		silhueta: bool) -> void:
+	var tipo := int(camada.z)
+	var inicio: float = camada.x
+	var fim: float = camada.y
+	if fim - inicio < 0.5:
+		return
+	match tipo:
+		PerfilDeParede.Camada.SOMBRA, PerfilDeParede.Camada.LABIO:
+			# A LINHA DE CONTATO, e ela cresce para DENTRO do piso.
+			#
+			# E a peca que faz o piso parecer estar ABAIXO da face em vez de ao
+			# lado dela. No sul o papel e o mesmo com os lados trocados: ali a
+			# face esta acima do piso, aqui a soleira esta abaixo.
+			#
+			# **Ela e TRANSLUCIDA, e a primeira versao opaca era invisivel.**
+			# Medido na captura: com N1 opaco (luma 13) sobre um chao que ja mede
+			# 14 a 16, a linha existia em disco e nao aparecia em tela. Contato e
+			# sombra, e sombra escurece o que esta embaixo -- um valor absoluto so
+			# funciona se por acaso ele for mais escuro que aquele piso.
+			_banda(raiz, a, b, normal, inicio, fim, COR_CONTATO)
+		PerfilDeParede.Camada.QUEDA:
+			# A queda externa termina a moldura antes do vazio. Ela e a MESMA
+			# chapa escurecida, e nao uma faixa chapada: material que some, e nao
+			# uma linha desenhada por cima.
+			_superficie(raiz, a, b, normal, inicio, fim, textura_topo, ancora,
+				silhueta, COR_QUEDA, TINTA_DA_QUEDA)
+		_:
+			# CAP, REVEAL e LEDGE sao a mesma cobertura estrutural. O que muda e
+			# quanto dela se ve, e isso e o lado que decide.
+			_superficie(raiz, a, b, normal, inicio, fim, textura_topo, ancora,
+				silhueta, COR_TOPO)
 
 
 ## UM decalque de desgaste na chapa deste trecho, ou nenhum.
@@ -436,39 +543,6 @@ static func trechos_livres(contorno: PackedVector2Array, a: Vector2, b: Vector2,
 	return achados
 
 
-## A ESPESSURA DO SUL, em dois degraus de valor ate o vazio.
-##
-## O §15 do plano pede que a sul seja construida ao contrario da norte: chao,
-## topo, e entao altura para BAIXO, em direcao ao exterior. E o que faz o piso
-## parecer encaixado numa caixa em vez de terminar numa linha.
-##
-## Ela NAO usa textura de face, e a distincao nao e de nome. Face e superficie
-## vista de FRENTE, e o lado sul olha para longe da camera -- desenhar
-## `parede_face` ali seria pintar o que o jogador nao ve, e e por isso que
-## `teste_camada_visual.gd` proibe textura de face abaixo da borda sul. O que a
-## espessura precisa dizer nao e "material": e "isto continua, e acaba".
-##
-## Dois degraus e nao um gradiente, pela mesma razao da `SombraDeParede`: e pixel
-## art, e o §64 pede passos de valor claros em vez de rampa suave que pareca 3D
-## pre-renderizado.
-static func _borda_externa_do_sul(raiz: Node2D, de: Vector2, ate: Vector2,
-		normal: Vector2, inicio: float, fim: float) -> void:
-	var meio := inicio + (fim - inicio) * 0.5
-	_banda(raiz, de, ate, normal, inicio, meio, N1)
-	_banda(raiz, de, ate, normal, meio, fim, Color("05060b"))
-
-
-## Uma SUPERFICIE continua: um quad texturizado que cobre o trecho inteiro.
-##
-## `Polygon2D` com `texture_repeat` e nao um sprite por celula, e a diferenca
-## nao e de desempenho: um sprite por celula so sabe desenhar a textura inteira,
-## entao cada celula recomeca o desenho e a emenda aparece. Um quad longo com UV
-## ancorada na SALA deixa a textura correr por cima da grade -- ela continua
-## ladrilhando de 64 em 64, mas nao ha nada dizendo onde uma peca acaba.
-##
-## `silhueta` desenha em cor CHAPADA, sem textura. E o modo de diagnostico do
-## plano: se a sala parecer uma grade de construcao mesmo sem textura nenhuma, o
-## problema e a geometria, e nao a arte -- e nao adianta avancar.
 static func _superficie(raiz: Node2D, de: Vector2, ate: Vector2, normal: Vector2,
 		inicio: float, fim: float, textura: Texture2D, ancora: Vector2,
 		silhueta: bool, cor: Color, tinta: Color = Color.WHITE) -> void:
@@ -507,110 +581,6 @@ static func _superficie(raiz: Node2D, de: Vector2, ate: Vector2, normal: Vector2
 	raiz.add_child(quad)
 
 
-## O ACABAMENTO de um trecho: a costura onde a superficie vira, e o bisel da
-## aresta externa.
-##
-## **Isto e a banda que faltava, e ela faltava de forma literal.** Ate aqui NADA
-## desenhava em `n*32`: a celula de topo e a de face eram dois recortes de 32x32
-## de texturas diferentes coladas lado a lado, e o olho lia "a textura mudou
-## aqui" em vez de "a superficie virou aqui". Medido no perfil vertical da
-## captura, a passagem de topo para face acontecia em ZERO pixel de transicao.
-##
-## Na referencia (`docs/objetivo/isaac.png`) o que faz a faixa ler como parede
-## nao e a textura dela: e onde as bandas comecam e acabam. Medido la, do chao
-## para fora: 3 px de linha de contato a 0,85x o chao, a superficie, um labio
-## aceso de 3 px, e so entao a aresta externa.
-##
-## **Desenhado em CODIGO, e nao em arte, por uma razao de arquitetura e nao de
-## economia.** As duas bandas sao direcionais, e `_peca()` sorteia um dos quatro
-## quadrantes por hash: arte direcional cairia num lado aleatorio na orientacao
-## errada. Assar a costura no topo obrigaria o topo a ter versao por lado -- 3
-## variantes x 4 lados = 12 PNGs -- que e a explosao de arquivo que o
-## `EstiloDeParede` existe para evitar. E um retangulo nao tem orientacao para
-## violar: ele nasce de coordenadas, nao de uma arte girada, entao o portao de
-## giro nao precisa de excecao nenhuma.
-##
-## Cabe na regra que o cabecalho deste arquivo ja escreve: **a ESTRUTURA e
-## gerada, a SUPERFICIE e autorada.** Costura e bisel sao onde duas superficies
-## se encontram, e nao de que material elas sao.
-##
-## **A luz vem de cima e da esquerda** (`LOW_TOPDOWN_SQUARED.md` §18), e a tabela
-## abaixo nao e nova: e a mesma que `gerar_modulo_n/s/l/o()` ja aplica e ja
-## defende. Em especial o OESTE nao e o LESTE espelhado -- espelhar inverteria a
-## luz junto, que e o comentario que aquele gerador carrega desde que nasceu.
-##
-## | lado | aresta interna | costura em `n*32` | aresta externa |
-## |---|---|---|---|
-## | NORTE | -- (o pe da face ja traz sombra na arte) | sombra + labio | bisel |
-## | SUL | N4 e N7: o chanfro aceso virado para a sala | -- (sem face) | bisel |
-## | LESTE | N7: a aresta virada para a sala pega a luz | sombra + labio | bisel |
-## | OESTE | -- | sombra, SEM labio | bisel, e o labio vai AQUI |
-##
-## O par claro/escuro e mudanca de VALOR e nao brilho, e isso e deliberado: uma
-## linha clara e continua na borda da sala e exatamente o filete de neon que o
-## projeto ja removeu uma vez. O labio tem 1 px, e no meio da faixa.
-static func _vestir_acabamento(raiz: Node2D, de: Vector2, ate: Vector2,
-		normal: Vector2, lado: Lado, so_topo: bool, fundo: float,
-		costura: float, tem_borda_de_topo: bool = false,
-		flange: float = 0.0) -> void:
-	# A COSTURA: onde o topo vira face. Nao existe no sul, que nao tem face.
-	if not so_topo and costura > SOMBRA_DA_COSTURA:
-		_banda(raiz, de, ate, normal, costura - SOMBRA_DA_COSTURA, costura, N4)
-		# O LABIO MARCA A ARESTA EXTERNA DA FLANGE, e nao a da face.
-		#
-		# Ele e a aresta acesa da dobra: com a flange no lugar, a dobra deixou de
-		# ficar em `costura` e passou a ficar `FLANGE` px acima. Desenhado no
-		# lugar antigo ele viraria uma linha clara NO MEIO da flange, partindo em
-		# duas a peca que existe justamente para juntar as outras duas. E nao e
-		# peca nova: e a mesma linha de 1 px, deslocada por quem a empurrou.
-		if lado != Lado.OESTE:
-			_banda(raiz, de, ate, normal, costura + flange,
-				costura + flange + LABIO, N7)
-
-	# A LINHA DE CONTATO: onde a parede encontra o chao, e ela e CONTINUA.
-	#
-	# Ela e a peca mais barata do epico e uma das que mais paga. Sem ela o olho
-	# tem de deduzir onde a arena comeca a partir da textura; com ela, a resposta
-	# esta desenhada. O plano a chama de `inner_wall_line` e pede 1 a 3 px
-	# acompanhando **todo** o contorno interno.
-	#
-	# **Em todos os quatro lados**, e nao so nos que pegam luz. Uma linha que
-	# aparece em tres lados e some no quarto e pior que nenhuma: ela ensina uma
-	# regra e depois a quebra, e o lado sem ela passa a ler como um vao. E ela e
-	# ESCURA e nao acesa -- o contato entre duas superficies e sombra, e uma
-	# linha clara continua na borda da sala e o filete de neon que o projeto ja
-	# removeu uma vez.
-	_banda(raiz, de, ate, normal, 0.0, CONTATO, N1)
-
-	# A ARESTA ACESA, logo depois dela e so onde a luz bate.
-	if lado == Lado.SUL:
-		_banda(raiz, de, ate, normal, CONTATO, CONTATO + LABIO, N7)
-	elif lado == Lado.LESTE:
-		_banda(raiz, de, ate, normal, CONTATO, CONTATO + LABIO, N7)
-
-	# O BISEL EXTERNO: a faixa cai de valor antes de encontrar o vazio.
-	#
-	# Contra o vazio ele quase nao aparece -- `default_clear_color` do projeto JA
-	# e N0 --, e nao e para ele que existe: e para a boca do corredor, onde duas
-	# faixas se encontram sem separacao, e para a quina, onde o canto encosta nos
-	# dois lados.
-	#
-	# **Ele SAI quando o topo tem borda propria.** A borda de #241 e a mesma
-	# ideia com 4 px e desenhada ao longo do lado inteiro; manter os dois somaria
-	# duas faixas escuras encostadas, e a de cima ficaria interrompida em cada
-	# porta enquanto a de baixo atravessa -- duas respostas para onde a parede
-	# acaba, que e o defeito que a face ja pagou.
-	if not tem_borda_de_topo:
-		_banda(raiz, de, ate, normal, fundo - BISEL, fundo, N1)
-		if lado == Lado.OESTE:
-			_banda(raiz, de, ate, normal, fundo - BISEL - LABIO, fundo - BISEL, N7)
-
-
-## Uma tira retangular ao longo de um trecho do contorno.
-##
-## `position` no meio e o poligono RELATIVO a ela: os portoes que medem onde a
-## fita chegou leem `position` mais a caixa local, e um poligono em coordenada
-## absoluta com `position` em zero faria todos eles medirem a origem da sala.
 static func _banda(raiz: Node2D, de: Vector2, ate: Vector2, normal: Vector2,
 		inicio: float, fim: float, cor: Color) -> void:
 	if fim - inicio < 0.5 or de.distance_to(ate) < 0.5:
@@ -717,161 +687,158 @@ static func _sorteia(lista: Array[Texture2D], chave: int) -> Texture2D:
 	return lista[absi(chave) % lista.size()]
 
 
-## A QUINA E FECHADA, e nao decorada.
+## A QUINA e onde a superficie VIRA, e e ela que faz a sala ler como cavidade.
 ##
-## Antes cada quina recebia um sprite de **64x64** desenhado POR CIMA das
-## celulas vizinhas: uma laje com um pilar, com aresta acesa, cinta e rebites.
-## Ele existia porque a quina era um DEGRAU entre um lado com face e outro sem,
-## e o pilar escondia o degrau.
+## Reduzir o topo sozinho nao resolveria: um encontro reto de duas bandas
+## comunica planta baixa, e nao volume. Com o contorno chanfrado, cada quina de
+## 90 graus vira dois vertices de 135, e o que sobra entre duas bandas vizinhas e
+## uma cunha de 45 -- pequena, mas suficiente para abrir um buraco contra o vazio
+## se ninguem a fechar.
 ##
-## Com a faixa fina do perfil C -- 16 a 24 px -- aquela peca passou a ser tres
-## vezes maior que a parede que ela fecha, e virou o defeito mais visivel da
-## sala: **quatro blocos dominantes nos cantos fazem a sala inteira parecer
-## construida com cubos.** E a §28 do plano: o canto CONECTA superficies, ele
-## nao e um pilar.
+## Ela e MEIA ESQUADRIA e nao um quad de cobertura: o vao e cortado na bissetriz,
+## e cada metade recebe as CAMADAS DO SEU LADO, com a mesma textura e a mesma
+## ancora de UV. A superficie vira, em vez de uma peca entrar por cima -- e e
+## isso que faz face, cap e sombra convergirem para o piso em vez de se
+## encontrarem em esquadro.
 ##
-## Entao ele deixa de ser arte e vira geometria: um quad do tamanho exato do vao
-## entre as duas faixas, com a MESMA textura de topo e a MESMA ancora de UV. Ele
-## nao se ve -- e esse e o ponto. A quina passa a ser o lugar onde duas
-## superficies se encontram, e nao uma peca em cima delas.
+## As quinas CONCAVAS caem no mesmo tratamento, de proposito: medindo a
+## geometria, as duas familias pedem a mesma coisa, e o que muda e so de que lado
+## a superficie vira.
 ##
-## **O kit de cantos SAIU.** Ele sobreviveu a esta mudanca como campo declarado e
-## nunca desenhado, e ficou assim porque campo nao usado nao aparece na tela --
-## o que e justamente o problema: a proxima encomenda de arte abriria a pasta de
-## texturas e desenharia quatro cantos que ninguem consome.
-## As quinas CONCAVAS caem no mesmo tratamento das convexas, de proposito.
-##
-## Medindo a geometria, as duas familias pedem a mesma coisa: em ambas a
-## superficie VIRA na quina, e o que muda e so de que lado ela vira. Numa convexa
-## as duas faixas contornam o vertice por fora; numa concava elas se sobrepoem
-## debaixo dele. O plano previa oito pecas de arte; a meia-esquadria nao precisa
-## de nenhuma -- ela corta o retangulo na diagonal e da a cada metade as bandas
-## do SEU lado, com a mesma textura e a mesma ancora de UV.
+## **Quina de lado ABERTO nao se fecha.** Na boca de um corredor uma das direcoes
+## aponta ao longo dele -- para DENTRO da sala vizinha --, e o quad invadiria a
+## sala pela porta.
 static func _fechar_quinas(raiz: Node2D, contorno: PackedVector2Array,
 		perfil: PerfilDeParede, topos: Array[Texture2D],
 		faces: Array[Texture2D], ancora: Vector2,
 		silhueta: bool, abertos: Array[Vector2] = [],
-		semente_da_sala: int = 0) -> void:
+		semente_da_sala: int = 0, peso_comum: float = 0.65) -> void:
 	var total := contorno.size()
+	if total < 3:
+		return
+	var textura_topo := _sorteia(topos, semente_da_sala)
 	for i in total:
-		var anterior := contorno[(i - 1 + total) % total]
+		var anterior := (i - 1 + total) % total
 		var v := contorno[i]
-		var proximo := contorno[(i + 1) % total]
-		if anterior.distance_to(v) < LADO_MINIMO or v.distance_to(proximo) < LADO_MINIMO:
+		var n1 := normal_externa(contorno, contorno[anterior], v)
+		var n2 := normal_externa(contorno, v, contorno[(i + 1) % total])
+		if n1.dot(n2) > 0.999:
 			continue
-		var n1 := normal_externa(contorno, anterior, v)
-		var n2 := normal_externa(contorno, v, proximo)
-		if n1 == Vector2.ZERO or n2 == Vector2.ZERO:
-			continue
-		# Quina de LADO ABERTO nao se fecha, e isso e o conserto do corredor.
-		#
-		# `abertos` ja impedia a FITA de vestir a boca; a quina nao sabia disso e
-		# fechava as quatro do retangulo. Na boca, uma das duas direcoes aponta ao
-		# longo do corredor -- ou seja, para DENTRO da sala vizinha --, entao o
-		# quad da quina invadia a sala com `profundidade x profundidade`.
-		#
-		# Com o perfil C, 16 a 24 px, aquilo cabia debaixo da parede da propria
-		# sala e ninguem via. Com 96 e 104 virou um bloco entrando pela porta: o
-		# dono viu como "os pilares do corredor vazam para a proxima sala, e
-		# voltando vazam para a anterior" -- as DUAS bocas, que e exatamente o
-		# numero de bocas que um corredor tem.
 		if _e_aberto(n1, abertos) or _e_aberto(n2, abertos):
 			continue
-		# Quina reta: as duas normais sao perpendiculares. Num contorno
-		# degenerado elas podem ser iguais, e ai nao ha vao para fechar.
-		if absf(n1.dot(n2)) > 0.5:
+		# O CHANFRO ja fecha a quina: o trapezio dele encosta nas duas vizinhas.
+		# Uma cunha por cima aqui desenharia duas vezes no mesmo lugar, e a de
+		# cima tem profundidade propria -- ela e que ultrapassava o limite.
+		if _e_chanfro(n1) or _e_chanfro(n2):
 			continue
-		var d1 := perfil.profundidade(classificar(n1))
-		var d2 := perfil.profundidade(classificar(n2))
-		if d1 <= 0.0 or d2 <= 0.0:
+		var soma := n1 + n2
+		if soma.length_squared() < 0.001:
 			continue
-		# MEIA ESQUADRIA, e nao um quad unico de topo.
-		#
-		# O vao da quina e o retangulo que os dois lados nao alcancam. Preenche-lo
-		# inteiro com a textura de TOPO funcionava com a faixa fina do perfil C --
-		# 16 a 24 px --, mas com 96 e 104 aquele retangulo virou um bloco de
-		# 96x104 px de pedra entre duas faces estriadas: a sala voltou a parecer
-		# construida com cubos, que e exatamente o defeito que tirar o pilar
-		# desenhado existia para resolver.
-		#
-		# Na referencia (`inspiração/cantos.png`) a quina e uma JUNTA: a
-		# superficie de cada lado vira 45 graus e encontra a do outro numa
-		# diagonal. Nada e desenhado por cima; o que muda e para onde cada
-		# superficie continua.
-		#
-		# Entao o retangulo e cortado pela diagonal que vai da quina INTERNA (`v`)
-		# a EXTERNA (`v + n1*d1 + n2*d2`), e cada metade recebe as bandas do SEU
-		# lado -- face colada no contorno, topo por fora. A textura e a mesma e a
-		# ancora de UV e a mesma, entao a junta nao aparece como emenda: aparece
-		# como a superficie virando.
-		var externo := v + n1 * d1 + n2 * d2
-		var f1 := perfil.fim_da_face(classificar(n1))
-		var f2 := perfil.fim_da_face(classificar(n2))
-		var textura_topo_q := _sorteia(topos, semente_da_sala)
-		var textura_face_q := _sorteia(faces, semente_da_sala)
-		_meia_quina(raiz, v, n1, d1, f1, n2, d2, externo,
-			textura_face_q, textura_topo_q, ancora, silhueta)
-		_meia_quina(raiz, v, n2, d2, f2, n1, d1, externo,
-			textura_face_q, textura_topo_q, ancora, silhueta)
+
+		var c1 := perfil.camadas(classificar(n1))
+		var c2 := perfil.camadas(classificar(n2))
+		var face1 := _face_da_celula(faces, semente_da_sala ^ (anterior * 0x9e3779b1),
+			_quer_especial(semente_da_sala ^ (anterior * 0x9e3779b1), peso_comum))
+		var face2 := _face_da_celula(faces, semente_da_sala ^ (i * 0x9e3779b1),
+			_quer_especial(semente_da_sala ^ (i * 0x9e3779b1), peso_comum))
+		for k in mini(c1.size(), c2.size()):
+			_meia_quina(raiz, v, n1, n2, c1[k], c2[k], textura_topo, face1,
+				ancora, silhueta)
+			_meia_quina(raiz, v, n2, n1, c2[k], c1[k], textura_topo, face2,
+				ancora, silhueta)
 
 
-## Uma das duas metades da quina: as bandas de UM lado, cortadas na diagonal.
+## O ponto da BISSETRIZ a `d` px do vertice.
 ##
-## `n` e a normal do lado que esta metade continua, `fundo` a profundidade dele e
-## `fim_face` onde a face dele acaba. `n_outro`/`fundo_outro` descrevem o vizinho,
-## e servem so para medir o retangulo do vao.
+## **Ele NAO estende ate o canto do quadrado, e a escolha e deliberada.** A
+## esquadria geometrica poria o ponto a `d/cos(meio angulo)` -- 1,08x num vertice
+## de 135 graus, 1,41x num de 90 --, e isso ultrapassaria a profundidade que a
+## camera reserva para aquele lado. O clamp cresce por `profundidade(lado)`; um
+## pixel alem e o quadro passa a mostrar vazio na borda, sem erro no console.
 ##
-## O corte usa `Geometry2D.intersect_polygons` e nao um triangulo escrito a mao
-## porque as bandas nao chegam todas ate a diagonal: a face acaba antes do topo,
-## e cada uma cruza a diagonal num lugar diferente. Recortar cada banda pelo
-## triangulo resolve as duas de uma vez, e continua valendo se um lado tiver face
-## zero.
-static func _meia_quina(raiz: Node2D, v: Vector2, n: Vector2, fundo: float,
-		fim_face: float, n_outro: Vector2, fundo_outro: float, externo: Vector2,
-		textura_face: Texture2D, textura_topo: Texture2D, ancora: Vector2,
-		silhueta: bool) -> void:
-	var triangulo := PackedVector2Array([v, v + n * fundo, externo])
-	if fim_face > 0.0:
-		_banda_da_quina(raiz, v, n, 0.0, fim_face, n_outro, fundo_outro,
-			triangulo, textura_face, ancora, silhueta, COR_FACE)
-	if fundo > fim_face:
-		_banda_da_quina(raiz, v, n, fim_face, fundo, n_outro, fundo_outro,
-			triangulo, textura_topo, ancora, silhueta, COR_TOPO)
+## O preco e um pequeno recuo na quina: 8% da profundidade num vertice de 135
+## graus, que e o que o contorno chanfrado produz. Contra o vazio N0 ele nao
+## aparece, e a margem exterior ja mostra vazio ali de qualquer jeito.
+static func _mitra(n1: Vector2, n2: Vector2, d: float) -> Vector2:
+	return (n1 + n2).normalized() * d
 
 
-## Uma banda (face ou topo) da quina, recortada pelo triangulo daquela metade.
-static func _banda_da_quina(raiz: Node2D, v: Vector2, n: Vector2, de: float,
-		ate: float, n_outro: Vector2, fundo_outro: float,
-		triangulo: PackedVector2Array, textura: Texture2D, ancora: Vector2,
-		silhueta: bool, cor: Color) -> void:
-	var banda := PackedVector2Array([
-		v + n * de,
-		v + n * ate,
-		v + n * ate + n_outro * fundo_outro,
-		v + n * de + n_outro * fundo_outro,
+## Metade de uma quina: do lado `n` ate a bissetriz, para UMA camada.
+##
+## `camada_outro` entra so para a profundidade do encontro ser a media dos dois
+## lados -- e o que faz a borda externa passar de um lado para o outro sem
+## degrau, mesmo com norte em 60 e lateral em 36.
+static func _meia_quina(raiz: Node2D, v: Vector2, n: Vector2, n_outro: Vector2,
+		camada: Vector3, camada_outro: Vector3, textura_topo: Texture2D,
+		textura_face: Texture2D, ancora: Vector2, silhueta: bool) -> void:
+	var inicio: float = camada.x
+	var fim: float = camada.y
+	if fim - inicio < 0.5:
+		return
+	var inicio_m := (inicio + camada_outro.x) * 0.5
+	var fim_m := (fim + camada_outro.y) * 0.5
+	var poligono := PackedVector2Array([
+		v + n * inicio,
+		v + n * fim,
+		v + _mitra(n, n_outro, fim_m),
+		v + _mitra(n, n_outro, inicio_m),
 	])
-	for pedaco in Geometry2D.intersect_polygons(banda, triangulo):
-		if pedaco.size() < 3:
-			continue
-		var caixa := Rect2(pedaco[0], Vector2.ZERO)
-		for ponto in pedaco:
-			caixa = caixa.expand(ponto)
-		var centro := caixa.get_center()
-		var quad := Polygon2D.new()
-		quad.position = centro
-		var relativos := PackedVector2Array()
-		for ponto in pedaco:
-			relativos.append(ponto - centro)
-		quad.polygon = relativos
-		if silhueta or textura == null:
-			quad.color = cor
-		else:
-			quad.texture = textura
-			quad.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-			# A MESMA ancora das faixas: e isso que faz a quina ser a continuacao
-			# do desenho em vez de um remendo com textura propria.
-			quad.texture_offset = centro - ancora
-		raiz.add_child(quad)
+	var tipo := int(camada.z)
+	match tipo:
+		PerfilDeParede.Camada.SOMBRA, PerfilDeParede.Camada.LABIO:
+			_poligono_chapado(raiz, poligono, N1)
+		PerfilDeParede.Camada.FACE:
+			_poligono_texturizado(raiz, poligono, textura_face, ancora, silhueta,
+				COR_FACE, Color.WHITE)
+		PerfilDeParede.Camada.QUEDA:
+			_poligono_texturizado(raiz, poligono, textura_topo, ancora, silhueta,
+				COR_QUEDA, TINTA_DA_QUEDA)
+		_:
+			_poligono_texturizado(raiz, poligono, textura_topo, ancora, silhueta,
+				COR_TOPO, Color.WHITE)
+
+
+static func _poligono_chapado(raiz: Node2D, pontos: PackedVector2Array,
+		cor: Color) -> void:
+	var centro := _centro(pontos)
+	var poly := Polygon2D.new()
+	poly.color = cor
+	poly.position = centro
+	poly.polygon = _relativo(pontos, centro)
+	raiz.add_child(poly)
+
+
+## A MESMA ancora de UV das faixas: e isso que faz a quina ser a continuacao do
+## desenho em vez de um remendo com textura propria.
+static func _poligono_texturizado(raiz: Node2D, pontos: PackedVector2Array,
+		textura: Texture2D, ancora: Vector2, silhueta: bool, cor: Color,
+		tinta: Color) -> void:
+	var centro := _centro(pontos)
+	var poly := Polygon2D.new()
+	poly.position = centro
+	poly.polygon = _relativo(pontos, centro)
+	if silhueta or textura == null:
+		poly.color = cor
+	else:
+		poly.color = tinta
+		poly.texture = textura
+		poly.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+		poly.texture_offset = centro - ancora
+	raiz.add_child(poly)
+
+
+static func _centro(pontos: PackedVector2Array) -> Vector2:
+	var soma := Vector2.ZERO
+	for p in pontos:
+		soma += p
+	return soma / float(maxi(pontos.size(), 1))
+
+
+static func _relativo(pontos: PackedVector2Array, centro: Vector2) -> PackedVector2Array:
+	var saida := PackedVector2Array()
+	for p in pontos:
+		saida.append(p - centro)
+	return saida
 
 
 static func classificar(normal: Vector2) -> Lado:

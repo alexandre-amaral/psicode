@@ -113,9 +113,18 @@ func _medir(nome_cena: String, rotulo: String, sala: Sala, perfil: PerfilDePared
 	var canto := camera.get_screen_center_position() - tela * 0.5
 
 	var contorno := sala.contorno_local()
-	var m_perfil := perfil.margens()
-	var fundo: float = maxf(maxf(m_perfil.x, m_perfil.y), maxf(m_perfil.z, m_perfil.w))
+	# A FAIXA e o que a parede DESENHA, e nao o que a camera reserva.
+	#
+	# `margens()` passou a incluir a margem exterior -- o vazio declarado que faz
+	# a arquitetura ler como caixa dentro de um negativo. Inflando por ela, a
+	# regua contava aquele vazio como "faixa que ninguem pintou": medido, `crua`
+	# saltou de 0,9% para 9,5% sem um pixel ter mudado de dono. A regua mediria um
+	# defeito que e o entregavel.
+	var fundo := maxf(maxf(perfil.profundidade(RenderizadorParedes.Lado.NORTE),
+			perfil.profundidade(RenderizadorParedes.Lado.SUL)),
+		perfil.profundidade(RenderizadorParedes.Lado.LESTE))
 	var inflados := Geometry2D.offset_polygon(contorno, fundo)
+	var limites_locais := _caixa_de(contorno)
 
 	var chao := 0
 	var faixa_pintada := 0
@@ -130,7 +139,18 @@ func _medir(nome_cena: String, rotulo: String, sala: Sala, perfil: PerfilDePared
 		while x < imagem.get_width():
 			total += 1
 			var mundo := canto + Vector2(float(x), float(y))
-			var regiao := _regiao(mundo - sala.global_position, contorno, inflados)
+			var local := mundo - sala.global_position
+			var regiao := _regiao(local, contorno, inflados)
+			# A FAIXA E ASSIMETRICA, e um anel unico nao a descreve.
+			#
+			# `offset_polygon` infla por um numero so, e o maior lado tem 60 px
+			# contra 32 do sul. Sem esta correcao, os 28 px que o sul NAO desenha
+			# entram na conta como "faixa que ninguem pintou" -- medido, `crua`
+			# saltou de 0,9% para 9,5% sem um pixel ter mudado de dono, e a regua
+			# passaria a reportar como defeito exatamente a assimetria que este
+			# epico existe para produzir.
+			if regiao == 1 and not _cabe_na_faixa_do_lado(local, limites_locais, perfil):
+				regiao = 2
 			match regiao:
 				0:
 					chao += 1
@@ -180,6 +200,35 @@ func _regiao(local: Vector2, contorno: PackedVector2Array,
 		if Geometry2D.is_point_in_polygon(local, inflado):
 			return 1
 	return 2
+
+
+## Este ponto cabe na profundidade que o SEU lado desenha?
+##
+## Pelo bounding box e nao pela distancia ao segmento: sao 130 mil pontos por
+## captura e 45 capturas por rodada, e a distancia exata poe um laco de arestas
+## dentro do laco de pixels. Para os retangulos do jogo o box e exato; no L e nos
+## chanfros ele erra por alguns pixels, e o veredicto e uma fracao.
+func _cabe_na_faixa_do_lado(local: Vector2, limites: Rect2,
+		perfil: PerfilDeParede) -> bool:
+	var acima := limites.position.y - local.y
+	var abaixo := local.y - limites.end.y
+	var esquerda := limites.position.x - local.x
+	var direita := local.x - limites.end.x
+	if acima > 0.0 and acima > perfil.profundidade(RenderizadorParedes.Lado.NORTE):
+		return false
+	if abaixo > 0.0 and abaixo > perfil.profundidade(RenderizadorParedes.Lado.SUL):
+		return false
+	var lateral := maxf(esquerda, direita)
+	if lateral > 0.0 and lateral > perfil.profundidade(RenderizadorParedes.Lado.LESTE):
+		return false
+	return true
+
+
+func _caixa_de(pontos: PackedVector2Array) -> Rect2:
+	var caixa := Rect2(pontos[0], Vector2.ZERO)
+	for ponto in pontos:
+		caixa = caixa.expand(ponto)
+	return caixa
 
 
 ## ONDE na faixa este pixel cru caiu: um dos quatro lados, ou uma quina.

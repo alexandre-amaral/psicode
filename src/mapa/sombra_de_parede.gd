@@ -92,6 +92,14 @@ static func construir(trechos: Array[PackedVector2Array],
 		var fora := RenderizadorParedes.normal_externa(contorno, a, b)
 		if fora == Vector2.ZERO:
 			continue
+		# O CHANFRO DE QUINA nao projeta sombra propria.
+		#
+		# Ele e a transicao entre dois lados, e as sombras dos dois ja se
+		# encontram ali -- uma terceira banda na diagonal soma por cima das duas.
+		# Medido na sala em L, que tem seis quinas: a sombra saltou de 8% do chao
+		# para 12,8%, e o teto existe porque sombra e o que come area de combate.
+		if RenderizadorParedes._e_chanfro(fora):
+			continue
 		var dentro := -fora
 		var fundo := _profundidade(RenderizadorParedes.classificar(fora))
 		var perto := fundo * FRACAO_PERTO

@@ -32,6 +32,12 @@ extends Area2D
 ## A faixa chapada, a mesma do prop e da aura.
 const Z_FICHA := -18
 
+## Os dois sons da ficha. **Pequena e grande sao o MESMO gerador com outra
+## altura** -- peca maior, som mais grave --, entao eles nao sao dois recursos
+## para o jogador: sao o mesmo, e ele sabe quanto pegou sem ler numero.
+const SOM_PEQUENA := "res://assets/audio/ficha_pequena.wav"
+const SOM_GRANDE := "res://assets/audio/ficha_grande.wav"
+
 ## Quanto ela atrai, e quao forte.
 ##
 ## **O jogador nao pode ter de PARAR para coletar** -- parar num bullet hell e o
@@ -154,6 +160,10 @@ func _process(delta: float) -> void:
 
 func _coletar() -> void:
 	_coletada = true
+	# O som sai ANTES do `queue_free`: `Audio.tocar` usa as vozes do autoload e
+	# nao um player deste no, entao ele sobrevive a morte da ficha -- a mesma
+	# razao pela qual o arco do nanite nasce na cena e nao no projetil.
+	Audio.tocar(load(SOM_GRANDE if valor >= 5 else SOM_PEQUENA) as AudioStream)
 	GameState.adicionar_creditos(valor)
 	EventBus.credito_coletado.emit(global_position, valor)
 	queue_free()

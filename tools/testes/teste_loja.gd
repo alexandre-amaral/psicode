@@ -27,6 +27,7 @@ func executar() -> void:
 	_a_compra_nao_mexe_em_nada_quando_recusa()
 	_o_que_foi_vendido_continua_vendido()
 	_o_sucateiro_nao_atrapalha_a_compra()
+	_os_gestos_do_sucateiro_existem()
 
 
 ## SEMPRE UMA ARMA E UM ITEM, e a terceira e surpresa.
@@ -423,3 +424,54 @@ func _o_sucateiro_nao_atrapalha_a_compra() -> void:
 	# `GEMINI.md` ja registra a Diretora ficando anos assim.
 	ok(ResourceLoader.exists(Sucateiro.CAMINHO_DA_ARTE),
 		"a arte dele existe (%s)" % Sucateiro.CAMINHO_DA_ARTE)
+
+
+## OS TRES GESTOS DO SUCATEIRO EXISTEM E SAO DESENHAVEIS.
+##
+## **Clipe declarado nao prova que alguem o DESENHA**, e o projeto ja pagou esse
+## preco: o chefe do andar 1 declarou as oito poses na cena e passou a luta
+## inteira no quadro que o `_ready` escreve, porque ninguem chamava `apontar()`.
+## Nada acusou, porque os arquivos estavam certos e casados.
+##
+## Aqui o portao confere as duas pontas: que a fita EXISTA em disco com a
+## contagem declarada, e que `hframes` acompanhe a textura -- trocar uma sem a
+## outra desenha os nove quadros espremidos no lugar do corpo, e nenhum dos dois
+## da erro.
+func _os_gestos_do_sucateiro_existem() -> void:
+	var npc := Sucateiro.new()
+	Engine.get_main_loop().root.add_child(npc)
+
+	for qual: StringName in Sucateiro.CLIPES:
+		var clipe: Dictionary = Sucateiro.CLIPES[qual]
+		var caminho: String = clipe["caminho"]
+		ok(ResourceLoader.exists(caminho), "a fita de %s existe (%s)"
+			% [qual, caminho.get_file()])
+		var textura := load(caminho) as Texture2D
+		if textura == null:
+			continue
+		var quadros := int(clipe["quadros"])
+		# A LARGURA prova a contagem: uma fita de 9 quadros declarada como 7
+		# desenharia pedacos de dois quadros de uma vez, sem erro nenhum.
+		igual(textura.get_width() % quadros, 0,
+			"a fita de %s divide em %d quadros (%d px)"
+				% [qual, quadros, textura.get_width()])
+
+		npc._encenar(qual)
+		var sprite := npc.get_node_or_null("Corpo") as Sprite2D
+		ok(sprite != null and sprite.texture == textura,
+			"encenar(%s) troca a textura" % qual)
+		if sprite != null:
+			igual(sprite.hframes, quadros,
+				"e o hframes acompanha (%d)" % sprite.hframes)
+
+	# **O GESTO QUE ACABA DEVOLVE O CORPO AO PARADO.** Sem isso ele congela no
+	# ultimo quadro -- com o braco estendido, no caso da venda --, e o NPC fica
+	# num gesto que nao termina para o resto da run.
+	npc._encenar(&"venda")
+	var quadros_venda := int(Sucateiro.CLIPES[&"venda"]["quadros"])
+	var fps: float = Sucateiro.CLIPES[&"venda"]["fps"]
+	npc._avancar_clipe(float(quadros_venda) / fps + 0.2)
+	igual(npc._clipe, &"parado",
+		"a venda termina e ele volta ao parado (%s)" % npc._clipe)
+
+	npc.free()

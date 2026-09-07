@@ -56,6 +56,23 @@ const COR_TAMPO := Color(0.28, 0.31, 0.38)
 ## visivel da sala -- o que o jogador precisa achar sao as tres bancadas.
 const COR_LUZ := Color(0.95, 0.84, 0.62, 0.045)
 const RAIO_DA_LUZ := 150.0
+
+## O zumbido do transformador da Loja.
+##
+## **Ele NAO passa por `Audio.definir_ambiente()`, e a razao e uma armadilha
+## registrada.** Aquele metodo troca o ambiente GLOBAL, e o `GEMINI.md` guarda o
+## caso: os `AudioStreamPlayer` moram no autoload e nao na cena, entao trocar o
+## ambiente ao entrar exigiria alguem lembrar de restaurar o do andar ao sair --
+## e "quem liga desliga" ja custou um som de setor tocando em laco por cima do
+## menu inicial.
+##
+## Aqui o som e um `AudioStreamPlayer2D` FILHO da sala: ele nasce e morre com
+## ela, sem estado global para restaurar. O ambiente do andar continua tocando
+## por baixo, que e o certo -- a Loja e um pedaco da mesma fabrica.
+const SOM_AMBIENTE := "res://assets/audio/ambiente_loja.wav"
+## Baixo de proposito: ele diz "ha energia aqui" e nao pode competir com o
+## ambiente do setor nem cobrir o passo do jogador.
+const VOLUME_AMBIENTE_DB := -14.0
 ## Quanto a poca e achatada. Menor que 1 = mais larga que alta.
 const ACHATAMENTO_DA_LUZ := 0.45
 
@@ -94,6 +111,26 @@ func _montar_loja() -> void:
 	luz.z_as_relative = false
 	luz.position = Vector2(0.0, ALTURA_DAS_BANCADAS)
 	add_child(luz)
+
+	# O zumbido, ancorado no balcao: ele fica mais alto perto de onde a energia
+	# esta ligada, e some quando o jogador se afasta -- que e o que uma fonte de
+	# som posicional faz de graca e um ambiente global nao faz de jeito nenhum.
+	var fluxo := load(SOM_AMBIENTE) as AudioStream
+	if fluxo != null:
+		if fluxo is AudioStreamWAV:
+			# O LOOP e forcado por quem TOCA, e nao herdado do arquivo:
+			# `save_to_wav` grava um RIFF simples, sem o bloco `smpl` de onde o
+			# importador leria a marca. Mesma linha que `Audio.definir_ambiente`.
+			(fluxo as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
+		var zumbido := AudioStreamPlayer2D.new()
+		zumbido.name = "Zumbido"
+		zumbido.stream = fluxo
+		zumbido.bus = String(Audio.BUS_AMBIENTE)
+		zumbido.volume_db = VOLUME_AMBIENTE_DB
+		zumbido.max_distance = 420.0
+		zumbido.position = Vector2(0.0, ALTURA_DO_BALCAO)
+		add_child(zumbido)
+		zumbido.play()
 
 	var balcao := _Balcao.new()
 	balcao.position = Vector2(0.0, ALTURA_DO_BALCAO)

@@ -42,6 +42,8 @@ const FALA := "O que está na bancada está à venda."
 var _sprite: Sprite2D
 var _jogador: Node2D = null
 var _perto: bool = false
+var _clipe: StringName = &"parado"
+var _t_clipe: float = 0.0
 
 
 func _ready() -> void:
@@ -63,14 +65,77 @@ func _ready() -> void:
 		# 63, entao o centro esta 31 px acima deles.
 		_sprite.offset = Vector2(0.0, -DESLOCAMENTO_DO_PE)
 	add_child(_sprite)
+	_encenar(&"parado")
+
+	# A reacao de venda escuta o EVENTO e nao a bancada: ele nao precisa saber
+	# quantas ha nem qual delas foi. Mesma razao pela qual a HUD nao conhece o
+	# Player.
+	EventBus.compra_concluida.connect(func(_o: RefCounted) -> void:
+		_encenar(&"venda"))
+	conversou.connect(func() -> void: _encenar(&"conversa"))
 
 
 const CAMINHO_DA_ARTE := "res://assets/npc/sucateiro/south.png"
 ## Quanto o centro da textura esta acima dos pes, medido no alfa do arquivo.
+##
+## **O MESMO numero serve a rotacao e as fitas, e isso nao foi sorte.** A parada
+## tem 64 px com os pes em 63; as fitas vem em 88 com os pes em 75. Nos dois
+## casos os pes ficam 31 px abaixo do centro do quadro, entao um `offset` so
+## atende os quatro clipes -- e um numero por clipe seria quatro lugares para
+## errar por 4 px, que e o erro que so aparece quando dois corpos se cruzam.
 const DESLOCAMENTO_DO_PE := 31.0
+
+## Os tres gestos. **`parado` e o unico que repete**; os outros dois acontecem e
+## devolvem o corpo a ele.
+const CLIPES := {
+	&"parado": {"caminho": "res://assets/npc/sucateiro/parado.png",
+		"quadros": 9, "fps": 6.0, "laco": true},
+	&"conversa": {"caminho": "res://assets/npc/sucateiro/conversa.png",
+		"quadros": 7, "fps": 11.0, "laco": false},
+	&"venda": {"caminho": "res://assets/npc/sucateiro/venda.png",
+		"quadros": 7, "fps": 10.0, "laco": false},
+}
+
+
+## Troca o gesto. Um clipe que nao existe cai no `parado` em vez de estourar --
+## a arte pode chegar por partes, e uma sala que quebra por falta de um PNG e
+## pior que uma sala com o NPC parado.
+func _encenar(qual: StringName) -> void:
+	var clipe: Dictionary = CLIPES.get(qual, {})
+	var textura := load(clipe.get("caminho", "")) as Texture2D
+	if textura == null:
+		if qual != &"parado":
+			_encenar(&"parado")
+		return
+	_clipe = qual
+	_t_clipe = 0.0
+	# `hframes` anda JUNTO de `texture`, sempre. Trocar uma sem a outra desenha
+	# os nove quadros espremidos no lugar do corpo, e nenhum dos dois da erro.
+	_sprite.texture = textura
+	_sprite.hframes = int(clipe.get("quadros", 1))
+	_sprite.frame = 0
+
+
+func _avancar_clipe(delta: float) -> void:
+	var clipe: Dictionary = CLIPES.get(_clipe, {})
+	if clipe.is_empty():
+		return
+	var quadros := int(clipe.get("quadros", 1))
+	_t_clipe += delta * float(clipe.get("fps", 8.0))
+	if int(_t_clipe) < quadros:
+		_sprite.frame = int(_t_clipe)
+		return
+	if bool(clipe.get("laco", false)):
+		_t_clipe = 0.0
+		_sprite.frame = 0
+		return
+	# Gesto que acabou devolve o corpo ao parado. Sem isto ele congelaria no
+	# ultimo quadro -- com o braco estendido, no caso da venda.
+	_encenar(&"parado")
 
 
 func _process(_delta: float) -> void:
+	_avancar_clipe(_delta)
 	if _jogador == null or not is_instance_valid(_jogador):
 		_jogador = get_tree().get_first_node_in_group("player") as Node2D
 	var estava := _perto

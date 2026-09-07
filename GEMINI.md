@@ -233,6 +233,8 @@ docs/
 | **Uma cor nova no cenario** | `tools/texturas/paleta.gd` + a tabela de `docs/IDENTIDADE_VISUAL.md`; `teste_texturas.gd` recusa cor que compete com projetil |
 | Enquadramento e cores do minimapa | `@export` do no `Minimapa` em `src/ui/hud.tscn` |
 | **Volume, buses e quem toca o que** | `src/autoload/audio.gd`; os tres volumes ficam em `Configuracao`, junto das outras preferencias |
+| **Os sons da Loja** | `tools/audio/gerar_sons.gd` -- ficha, compra e o zumbido do transformador. As duas fichas sao o MESMO gerador com outra altura |
+| **Os gestos do Sucateiro** | `Sucateiro.CLIPES` -- fita, contagem de quadros, fps e se repete. So `parado` repete |
 | **Os sons do andar 1** | `tools/audio/gerar_sons.gd` -- procedural, como o gerador de texturas. Rode e regrave; nunca edite o `.wav` a mao |
 | **O ambiente que toca num andar** | `ambiente_do_andar` no no `GerenciadorMapa` do `main.tscn` |
 | **O som de cada fase do chefe** | `som_por_fase` no `src/enemies/boss_guardiao_01.tscn` |
@@ -997,6 +999,19 @@ em qualquer erro de script.
   consumir o pickup. Com o debito primeiro, o jogador paga por um implante que
   nao recebe -- e numa economia isso nao tem desfazer. `teste_loja.gd` inverteu a
   ordem de proposito e o portao acusou 22 creditos sumindo sem entrega.
+- **O ambiente da Loja e POSICIONAL, e nao passa por `definir_ambiente()`.**
+  Aquele metodo troca o ambiente GLOBAL, e trocar ao entrar exigiria alguem
+  lembrar de restaurar o do andar ao sair -- "quem liga desliga" ja custou um som
+  de setor tocando em laco por cima do menu inicial. O zumbido e um
+  `AudioStreamPlayer2D` FILHO da sala: nasce e morre com ela, sem estado global
+  para restaurar, e o ambiente do andar continua por baixo (a Loja e um pedaco da
+  mesma fabrica).
+- **A fita de um clipe do PixelLab NAO se reancora quadro a quadro.** Ele entrega
+  todos na mesma tela, entao concatenar preserva o gesto; ancorar cada quadro
+  pela propria base CANCELA a animacao -- o braco que se estende volta ao lugar.
+  E as fitas vem em tela MAIOR que a rotacao (88 contra 64), com os pes em 75
+  contra 63: nos dois casos 31 px abaixo do centro, entao um `offset` so atende
+  os quatro clipes.
 - **Glifo que a fonte nao tem SOME sem erro.** O preco na bancada saia como
   `12   [E]`, com um buraco onde deveria estar o losango da moeda:
   `ThemeDB.fallback_font` nao tem `◆`, e a fonte do projeto tem -- a HUD

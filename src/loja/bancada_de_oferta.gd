@@ -31,6 +31,12 @@ signal comprada(oferta: OfertaDeLoja)
 ## Quanto o jogador precisa chegar perto para o prompt aparecer.
 const RAIO_DE_INTERACAO := 44.0
 
+## Os dois sons da transacao. Eles sao o MESMO gesto -- a trava do balcao
+## girando --, e o que muda e se ela completa: dois sons sem relacao fariam a
+## recusa parecer erro do jogo em vez de resposta do lugar.
+const SOM_OK := "res://assets/audio/compra_ok.wav"
+const SOM_FALHA := "res://assets/audio/compra_falha.wav"
+
 ## A chapa da bancada, em px. 64 de largura da o vao de 64 a 96 entre centros que
 ## o plano pede sem os prompts se sobreporem.
 const LARGURA := 56.0
@@ -105,11 +111,13 @@ func pode_comprar() -> bool:
 func comprar() -> bool:
 	if not pode_comprar():
 		if oferta != null and not oferta.vendida:
+			Audio.tocar(load(SOM_FALHA) as AudioStream)
 			EventBus.compra_recusada.emit(oferta)
 		return false
 
 	if not _entregar():
 		# A entrega falhou e NADA saiu do bolso. E por isso que ela vem antes.
+		Audio.tocar(load(SOM_FALHA) as AudioStream)
 		EventBus.compra_recusada.emit(oferta)
 		return false
 
@@ -120,6 +128,7 @@ func comprar() -> bool:
 		return false
 
 	oferta.vendida = true
+	Audio.tocar(load(SOM_OK) as AudioStream)
 	comprada.emit(oferta)
 	EventBus.compra_concluida.emit(oferta)
 	queue_redraw()

@@ -55,6 +55,15 @@ func _ready() -> void:
 	_escrever("motor_firme", _motor(2.4, 1.0, 0.12, 0.0))
 	_escrever("motor_alem", _motor(2.4, 1.45, 0.20, 0.55))
 
+	# A LOJA. Quatro pecas, e as duas de ficha sao o MESMO gerador com um
+	# parametro -- mesma razao dos tres de motor: dois timbres diferentes diriam
+	# que sao dois recursos, e sao o mesmo em tamanhos diferentes.
+	_escrever("ficha_pequena", _ficha(0.14, 1.0))
+	_escrever("ficha_grande", _ficha(0.20, 0.72))
+	_escrever("compra_ok", _compra(0.34, true))
+	_escrever("compra_falha", _compra(0.26, false))
+	_escrever("ambiente_loja", _ambiente_da_loja(6.0))
+
 	print("\nok\n")
 	get_tree().quit(0)
 
@@ -132,6 +141,98 @@ func _faisca(segundos: float) -> PackedFloat32Array:
 		anterior = bruto
 		saida[i] = alto * pow(1.0 - p, 12.0) * 0.5
 	return saida
+
+
+## A FICHA de credito caindo no bolso: chapa fina batendo em chapa fina.
+##
+## **Ela nao pode soar como moeda de jogo de plataforma.** O credito do psicode e
+## sucata industrial reaproveitada, e um "ding" cristalino diria tesouro -- que e
+## a ficcao errada e, pior, a mesma familia sonora que um pickup de vida usaria.
+##
+## Duas parciais nao harmonicas (razao 1,63) mais um transiente de contato: o
+## intervalo dissonante e o que faz metal fino soar como CHAPA e nao como sino.
+##
+## `altura` desce para a ficha grande -- peca maior, som mais grave. E a mesma
+## relacao fisica que o jogador conhece sem pensar, entao ela nao precisa de
+## legenda.
+func _ficha(segundos: float, altura: float) -> PackedFloat32Array:
+	var n := int(segundos * TAXA)
+	var saida := PackedFloat32Array()
+	saida.resize(n)
+	var base := 880.0 * altura
+	for i in n:
+		var t := float(i) / float(TAXA)
+		var p := float(i) / float(n)
+		# O decaimento e RAPIDO: ate quatro fichas podem ser coletadas no mesmo
+		# segundo, e cauda longa vira um borrao. Mesma disciplina que separa o
+		# estalo do ambiente.
+		var env := pow(1.0 - p, 9.0)
+		var corpo := sin(TAU * base * t) * 0.55 			+ sin(TAU * base * 1.63 * t) * 0.35
+		var contato := _rng.randf_range(-1.0, 1.0) * pow(1.0 - p, 45.0)
+		saida[i] = (corpo * 0.6 + contato * 0.5) * env
+	return saida
+
+
+## A TRANSACAO: trava mecanica que fecha, ou que recusa.
+##
+## As duas sao o mesmo gerador porque sao o mesmo GESTO -- a trava do balcao
+## girando --, e o que muda e se ela COMPLETA. Dois sons sem relacao fariam a
+## recusa parecer um erro do jogo em vez de uma resposta do lugar.
+##
+## Aceita: duas notas subindo, e a segunda sustenta. Recusa: a mesma primeira
+## nota e uma segunda MAIS GRAVE que morre curta -- a trava que gira e volta.
+func _compra(segundos: float, aceita: bool) -> PackedFloat32Array:
+	var n := int(segundos * TAXA)
+	var saida := PackedFloat32Array()
+	saida.resize(n)
+	var virada := int(float(n) * 0.38)
+	for i in n:
+		var t := float(i) / float(TAXA)
+		var p := float(i) / float(n)
+		var segunda := i >= virada
+		var altura := 300.0
+		if segunda:
+			altura = 470.0 if aceita else 210.0
+		# A cauda da recusa cai muito mais rapido: a diferenca de DURACAO e o que
+		# o jogador le antes de qualquer diferenca de altura.
+		var queda := 3.0 if aceita else 9.0
+		var env := pow(1.0 - p, queda)
+		var corpo := sin(TAU * altura * t) * 0.5 			+ sin(TAU * altura * 2.02 * t) * 0.22
+		# O clique da trava, uma vez por nota.
+		var borda := absi(i - virada) < 90 or i < 90
+		var clique := (_rng.randf_range(-1.0, 1.0) * 0.6) if borda else 0.0
+		saida[i] = (corpo * 0.7 + clique * 0.5) * env
+	return saida
+
+
+## O AMBIENTE DA LOJA: a mesma fabrica, com energia funcionando.
+##
+## Ele e o `ambiente_setor` com uma camada a mais e uma a menos. A fabrica esta
+## abandonada; a Loja nao -- entao entra um zumbido de transformador ESTAVEL, que
+## e o som de algo ligado de proposito, e sai a irregularidade do motor distante.
+##
+## **Ele nao pode ser agradavel demais.** Musica de loja diria showroom, e a sala
+## inteira existe para dizer o contrario. O que muda em relacao ao setor e ter
+## uma nota que se sustenta, e nada mais.
+func _ambiente_da_loja(segundos: float) -> PackedFloat32Array:
+	var n := int(segundos * TAXA)
+	var saida := PackedFloat32Array()
+	saida.resize(n)
+	var anterior := 0.0
+	for i in n:
+		var t := float(i) / float(TAXA)
+		# Transformador: a nota estavel. 120 Hz mais a terceira harmonica, que e
+		# o que da o carater de bobina em vez de tom puro.
+		var transformador := sin(TAU * 120.0 * t) * 0.30 			+ sin(TAU * 360.0 * t) * 0.10
+		# Ventilacao: ruido passa-baixa, como no setor.
+		var bruto := _rng.randf_range(-1.0, 1.0)
+		anterior = anterior * 0.96 + bruto * 0.04
+		var ar := anterior * 0.55
+		# E a lampada de trabalho, com um tremor lento e IRREGULAR: dois periodos
+		# que nao sao multiplos, para o loop de 6 s nao denunciar o proprio ciclo.
+		var tremor := 1.0 + sin(TAU * 0.31 * t) * 0.05 + sin(TAU * 0.73 * t) * 0.03
+		saida[i] = (transformador * tremor + ar) * 0.6
+	return _costurar_loop(saida, int(TAXA * 0.25))
 
 
 ## O motor do chefe, nas tres fases.

@@ -9,6 +9,8 @@
 [ext_resource type="Resource" path="res://src/mapa/tipo_boss.tres" id="7_boss"]
 [ext_resource type="Resource" path="res://src/mapa/tipo_arma.tres" id="8_arma"]
 [ext_resource type="Resource" path="res://src/mapa/tipo_loja.tres" id="12_loja"]
+[ext_resource type="Resource" path="res://src/loja/loja_andar1.tres" id="13_dloja"]
+[ext_resource type="Resource" path="res://src/items/pool_padrao.tres" id="14_pool"]
 [ext_resource type="Resource" path="res://src/mapa/tipo_item.tres" id="9_item"]
 [ext_resource type="Resource" path="res://src/mapa/tipo_inicial.tres" id="11_inicial"]
 [ext_resource type="Resource" path="res://src/mapa/planta_andar1.tres" id="60_planta"]
@@ -48,6 +50,8 @@ tipos_de_sala = Array[Resource]([ExtResource("6_combate"), ExtResource("7_boss")
 temas = Array[Resource]([ExtResource("50_tema"), ExtResource("51_tema"), ExtResource("52_tema"), ExtResource("53_tema"), ExtResource("54_tema"), ExtResource("55_tema")])
 perfis_de_corredor = Array[Resource]([ExtResource("61_perfil"), ExtResource("62_perfil"), ExtResource("63_perfil"), ExtResource("64_perfil")])
 aprimoramentos = Array[Resource]([ExtResource("71_apr"), ExtResource("72_apr"), ExtResource("73_apr")])
+dados_da_loja = ExtResource("13_dloja")
+pool_da_loja = ExtResource("14_pool")
 planta = ExtResource("60_planta")
 
 [node name="Player" parent="Mundo" unique_id=220117599 groups=["player"] instance=ExtResource("10_km7bn")]

@@ -91,6 +91,13 @@ const MAX_TENTATIVAS := 24
 ## declare -- o mesmo default que mantem `planta` e `temas` opcionais.
 @export var aprimoramentos: Array[DadosAprimoramento] = []
 
+## As regras da Loja deste andar, e a pool de onde ela tira o estoque.
+##
+## A pool e a MESMA do loot: uma lista propria divergiria, e o sintoma seria uma
+## arma nova aparecendo no chao e nunca na prateleira.
+@export var dados_da_loja: DadosLoja
+@export var pool_da_loja: PoolLoot
+
 ## Quantas salas depois de uma aprimorada ficam sem sorteio.
 ##
 ## **Sem ele o sorteio independente produz sequencias de tres**, e a raridade que
@@ -173,6 +180,10 @@ var _cluster_por_celula: Dictionary = {}
 
 ## Quantas salas passaram desde a ultima com aprimorada. E o cooldown do #275.
 var _celulas_desde_aprimorada: int = 0
+
+## O estoque de cada Loja do andar. Ele vive AQUI e nao na cena: a sala some
+## quando o jogador sai, e com ela sumiria o que ja foi vendido.
+var _ofertas_por_celula: Dictionary = {}
 var _tema_por_cluster: Dictionary = {}
 
 
@@ -1122,6 +1133,7 @@ func _sortear_composicoes() -> void:
 		var composicao := _sortear_composicao(celula, sala, distancias)
 		_composicao_por_celula[celula] = composicao
 		sala.definir_composicao(composicao)
+		_abastecer_loja(celula, sala)
 
 
 ## Gasta o orcamento da sala comprando inimigos sorteados por peso.
@@ -1197,6 +1209,25 @@ func _sortear_composicao(
 ## E o orcamento tem de SOBRAR depois do custo. Uma sala cujo orcamento inteiro
 ## fosse a aprimorada nasceria com ela sozinha -- e uma unidade sozinha nao cria
 ## decisao de foco, porque nao ha para onde trocar o alvo.
+## Enche a Loja daquela celula, se ela for uma.
+##
+## **As ofertas ficam GUARDADAS aqui e entregues por referencia.** A sala e
+## montada e desmontada conforme o jogador entra e sai; se ela copiasse a lista,
+## `vendida` morreria com a cena e o estoque voltaria reposto. O gerenciador vive
+## a run inteira, e e o lugar natural para o estado do andar -- como
+## `_composicao_por_celula` ja e.
+func _abastecer_loja(celula: Vector2i, sala: Sala) -> void:
+	if not sala.has_method("definir_ofertas"):
+		return
+	if dados_da_loja == null or pool_da_loja == null:
+		return
+	if not _ofertas_por_celula.has(celula):
+		_ofertas_por_celula[celula] = GeradorDeLoja.gerar(
+			dados_da_loja, pool_da_loja,
+			GeradorDeLoja.semente_de(hash(_arestas), celula))
+	sala.definir_ofertas(_ofertas_por_celula[celula])
+
+
 func _sortear_aprimoramento(dados: DadosSala, orcamento: int) -> DadosAprimoramento:
 	if aprimoramentos.is_empty() or dados.chance_de_aprimorada <= 0.0:
 		return null

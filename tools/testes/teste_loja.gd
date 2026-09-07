@@ -24,6 +24,8 @@ func executar() -> void:
 	_a_loja_le_a_pool_REAL()
 	_a_vaga_livre_nao_pende_para_um_lado()
 	_a_loja_nasce_uma_vez_e_no_meio_do_andar()
+	_a_compra_nao_mexe_em_nada_quando_recusa()
+	_o_que_foi_vendido_continua_vendido()
 
 
 ## SEMPRE UMA ARMA E UM ITEM, e a terceira e surpresa.
@@ -286,3 +288,106 @@ func _montar_andar() -> GerenciadorMapa:
 		jogador.get_parent().remove_child(jogador)
 		jogador.free()
 	return main.find_child("GerenciadorMapa", true, false) as GerenciadorMapa
+
+
+## A TRANSACAO E ATOMICA, e a ORDEM e o que a torna atomica (#288).
+##
+## **Validar a entrega ANTES de debitar.** `Modificadores.aplicar()` RECUSA um
+## implante unico que o jogador ja tenha, e devolve `false` exatamente para quem
+## chama nao consumir o pickup -- se o credito saisse primeiro, o jogador pagaria
+## por um implante que nao recebeu. Numa economia isso nao tem desfazer, e nao e
+## um cenario hipotetico: e o caminho normal de um implante `maximo_por_run = 1`.
+##
+## O portao cobra os TRES desfechos, porque so o feliz nao prova nada: uma
+## implementacao que debitasse sempre passaria nele.
+func _a_compra_nao_mexe_em_nada_quando_recusa() -> void:
+	var saldo := GameState.creditos
+	var bancada := BancadaDeOferta.new()
+	Engine.get_main_loop().root.add_child(bancada)
+
+	var arma := load("res://src/weapons/rail_x.tres") as DadosArma
+	ok(arma != null, "a arma de teste carrega")
+	if arma == null:
+		bancada.free()
+		return
+
+	var oferta := OfertaDeLoja.new()
+	oferta.tipo = OfertaDeLoja.Tipo.ARMA
+	oferta.conteudo = arma
+	oferta.preco = GeradorDeLoja.preco_de(arma)
+	bancada.definir_oferta(oferta)
+	ok(oferta.preco > 0, "e ela tem preco (%d)" % oferta.preco)
+
+	# 1. SEM SALDO: recusa, e nada se move.
+	GameState.creditos = oferta.preco - 1
+	ok(not bancada.pode_comprar(), "sem saldo, a compra nao pode acontecer")
+	ok(not bancada.comprar(), "e comprar RECUSA")
+	igual(GameState.creditos_atuais(), oferta.preco - 1,
+		"o saldo nao se move na recusa")
+	ok(not oferta.vendida, "e a oferta continua a venda")
+
+	# 2. SEM JOGADOR NA ARVORE a entrega falha, e o credito NAO sai.
+	#    E o caso que prova a ordem: com o debito antes, o saldo cairia aqui.
+	GameState.creditos = oferta.preco + 10
+	ok(not bancada.comprar(),
+		"sem quem receba, a compra RECUSA")
+	igual(GameState.creditos_atuais(), oferta.preco + 10,
+		"e o credito NAO saiu -- a entrega vem antes do debito")
+	ok(not oferta.vendida, "e nada foi marcado como vendido")
+
+	# 3. VENDIDO nao vende de novo.
+	oferta.vendida = true
+	ok(not bancada.pode_comprar(), "uma oferta vendida nao pode ser comprada")
+	ok(not bancada.comprar(), "e comprar de novo RECUSA")
+	igual(GameState.creditos_atuais(), oferta.preco + 10,
+		"sem tirar mais nada do bolso")
+
+	bancada.free()
+	GameState.creditos = saldo
+
+
+## O ESTOQUE SOBREVIVE A SAIDA DA SALA.
+##
+## A sala e montada e desmontada conforme o jogador entra e sai. Se ela copiasse
+## as ofertas, `vendida` morreria com a cena e o estoque voltaria reposto -- o
+## jogador sairia, voltaria, e compraria a mesma arma de novo.
+##
+## As ofertas sao os MESMOS objetos que o gerenciador guarda, por referencia: e
+## isso que faz a venda persistir sem estado duplicado.
+func _o_que_foi_vendido_continua_vendido() -> void:
+	seed(6161)
+	var mapa := _montar_andar()
+	ok(mapa != null, "o andar sobe")
+	if mapa == null:
+		return
+
+	var celula := Vector2i.ZERO
+	var achou := false
+	for c: Vector2i in mapa._reservadas:
+		if mapa._reservadas[c] == &"loja":
+			celula = c
+			achou = true
+	ok(achou, "o andar tem uma Loja")
+	if not achou:
+		mapa.get_parent().remove_child(mapa)
+		mapa.free()
+		return
+
+	var ofertas: Array = mapa._ofertas_por_celula.get(celula, [])
+	ok(ofertas.size() > 0, "e ela tem estoque (%d ofertas)" % ofertas.size())
+	if ofertas.is_empty():
+		mapa.get_parent().remove_child(mapa)
+		mapa.free()
+		return
+
+	# Vende a primeira, e pede o estoque de novo -- que e o que a sala faz ao ser
+	# reativada.
+	(ofertas[0] as OfertaDeLoja).vendida = true
+	var de_novo: Array = mapa._ofertas_por_celula.get(celula, [])
+	ok((de_novo[0] as OfertaDeLoja).vendida,
+		"o que foi vendido continua vendido depois de sair e voltar")
+	igual(de_novo.size(), ofertas.size(),
+		"e o estoque nao e reposto (%d ofertas)" % de_novo.size())
+
+	mapa.get_parent().remove_child(mapa)
+	mapa.free()

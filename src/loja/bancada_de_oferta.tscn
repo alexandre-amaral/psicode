@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/loja/bancada_de_oferta.gd" id="1_bo"]
+
+[node name="BancadaDeOferta" type="Area2D"]
+script = ExtResource("1_bo")

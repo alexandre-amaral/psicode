@@ -46,6 +46,12 @@ signal creditos_mudaram(saldo: int, delta: int)
 ## som -- nenhum dos dois precisa conhecer o pickup.
 signal credito_coletado(posicao: Vector2, valor: int)
 
+## A compra fechou, ou foi recusada. A recusa e um sinal proprio e nao um
+## `concluida` com bandeira: quem escuta uma quase nunca escuta a outra -- o som
+## de erro e a HUD de saldo nao tem nada em comum.
+signal compra_concluida(oferta: RefCounted)
+signal compra_recusada(oferta: RefCounted)
+
 signal inimigo_spawnou(inimigo: Node2D)
 
 ## Uma Unidade Aprimorada curou. Quem escuta e o laboratorio e as metricas -- o

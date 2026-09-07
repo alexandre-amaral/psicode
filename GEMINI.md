@@ -193,6 +193,9 @@ docs/
 | **As travas de identidade do chefe** | `tools/testes/teste_diretora.gd` + a secao no `docs/GDD.md` |
 | Layout e conexao das salas | `src/mapa/gerenciador_mapa.gd`, `src/mapa/sala_*.tscn` |
 | **Tipo de sala novo (desafio, forja...)** | criar `src/mapa/tipo_*.tres` e por na lista `tipos_de_sala` do `GerenciadorMapa`. A Loja foi feita assim, sem uma linha no gerador |
+| **O que a Loja vende e como ela e montada** | `src/loja/sala_loja.gd` -- balcao, tres bancadas e a luz de trabalho. A geometria da parede e a do andar, sem nada proprio |
+| **A transacao de compra** | `src/loja/bancada_de_oferta.gd:comprar()` -- a ORDEM e o contrato: entrega antes do debito |
+| **Ver a Loja no enquadramento do jogo** | `godot --path . tools/loja/olhar_loja.tscn --resolution 960x544` |
 | **Onde a Loja pode nascer** | `distancia_minima_da_origem` e `distancia_maxima_da_origem` no `src/mapa/tipo_loja.tres`; o teto e ZERO em todos os outros tipos, e zero desliga |
 | **O que um CORREDOR_TECNICO representa** | `src/mapa/corredor_*.tres` (`PerfilDeCorredor`), na lista `perfis_de_corredor` do `GerenciadorMapa`. Ele decora pelo CHAO e pelo DECALQUE -- nunca pela face, que anunciaria a sala vizinha |
 | **Quao raro o corredor e** | `peso_corredor_*` em `src/mapa/planta_andar1.tres`; o do chefe e reservado a parte e nao passa pelo sorteio |
@@ -971,6 +974,18 @@ em qualquer erro de script.
   nunca entravam em grupo nenhum -- os projeteis atravessavam parede. Hoje quem
   resolve isso e o raycast de `projetil.gd`, que tambem devolve a normal que o
   ricochete precisa.
+- **A ORDEM da compra e o contrato, e nao um detalhe de implementacao.**
+  Entregar ANTES de debitar: `Modificadores.aplicar()` RECUSA um implante unico
+  que o jogador ja tenha e devolve `false` justamente para quem chama nao
+  consumir o pickup. Com o debito primeiro, o jogador paga por um implante que
+  nao recebe -- e numa economia isso nao tem desfazer. `teste_loja.gd` inverteu a
+  ordem de proposito e o portao acusou 22 creditos sumindo sem entrega.
+- **A luz da Loja e ELIPSE e quase transparente, e a primeira versao lia como
+  DECALQUE.** Tres aneis concentricos de alfa 0,10 somam 0,30 no centro sobre um
+  chao de luma 20: o resultado e uma mancha laranja desenhada no piso. E o
+  circulo perfeito piora -- luminaria pendurada sobre bancada faz uma poca LARGA
+  e baixa; circulo le como holofote de vitrine, que e o primeiro item da lista
+  do que nao fazer.
 - **`distancia_maxima_da_origem` ZERO e "sem teto", e nao "na origem".** Todos os
   tipos anteriores a esse campo valem zero, e um teto real de zero os prenderia
   na entrada -- e a mesma armadilha do sentinela negativo do `EstiloDeParede` e

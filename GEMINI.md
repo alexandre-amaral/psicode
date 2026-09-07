@@ -204,6 +204,9 @@ docs/
 | **Arte de chao ou parede que nao nasceu na paleta** | o pre-passo de `preparar_textura.py`: `--desvinheta` (chapa a iluminacao), `--tingir GRAUS` + `--limiar-neon` (tinge o metal apagado e deixa o acento aceso intacto), `--grampear-matiz`, `--alvo-v`. Tudo desligado por default |
 | **Prop volumetrico novo** | desenhar na celula do `props_volume.png` ancorado no FUNDO dela, e declarar a regiao em `regioes_props_volume` do `tipo_*.tres` |
 | **Prop que so pode aparecer uma vez por andar (o Robo Desativado)** | `regioes_props_raras` do `tipo_*.tres`; quem escolhe a sala e `GerenciadorMapa._sortear_celula_de_prop_raro()` |
+| **Quanto CADA LADO da parede desenha** | `src/mapa/perfil_de_parede.gd`: norte `face 48 / cap 12 / sombra 4`, lateral `face 28 / reveal 8 / sombra 4`, sul `labio 4 / ledge 20 / queda 8`. Os quatro lados sao perfis DIFERENTES, e a simetria era o defeito |
+| **O chanfro das quinas** | `chanfro_de_canto` no mesmo perfil; quem o aplica e `Sala._chanfrar()`, em codigo -- as cenas continuam retangulares |
+| **Quanto de VAZIO se ve em volta da sala** | `margem_exterior` no perfil, somado em `margens()`. Medido: `vazio` foi de 0,0-0,7% para 12,3-16,3% do quadro |
 | **Que PARTE DA FABRICA uma sala era** | `src/mapa/tema_*.tres`, na lista `temas` do `GerenciadorMapa`. Tema novo = `.tres` novo; ele pesa a FACE e o DECALQUE de topo, e nao muda o tipo funcional |
 | **Como o topo se divide em borda, chapa e bisel** | `borda_do_topo` e `bisel_do_topo` em `src/mapa/perfil_de_parede.gd`; a chapa e DERIVADA, e `teste_renderizador_paredes` cobra que ela sobre |
 | **Os decalques de desgaste do TOPO, e com que frequencia** | `decalques_de_topo` e `chance_de_decalque` no `src/mapa/estilo_industrial_velho.tres` |
@@ -1254,6 +1257,32 @@ em qualquer erro de script.
   contra o default de 0,55 -- quase tres vezes os 0,19 que o funil aplicou ao
   escreve-la. Mesma armadilha que o `MATIZ_POR_TIPO` ja documenta: os dois lados
   tem de mudar juntos, e "esta no funil" nao quer dizer "esta cobrado".
+- **A porta tem de cortar a PILHA INTEIRA, e nao so a face.** A regra antiga --
+  "o topo atravessa o vao porque sobre a porta ha verga" -- vale para uma parede
+  de 96 px vista quase de frente. No SUL, onde a pilha e uma soleira de 32 px
+  vista de CIMA, a verga cobre a passagem inteira e o jogador atravessa por baixo
+  do desenho, sem erro nenhum no console.
+- **O chanfro de quina nao e um LADO: e a TRANSICAO entre dois.** Desenhado como
+  lado, com normal diagonal e profundidade propria, ele ultrapassa o limite dos
+  vizinhos -- medido, a lateral reservava 36 px e o chanfro alcancava 44, e o
+  quadro passava a mostrar vazio na borda. Cada ponta dele e deslocada pela
+  normal do SEU vizinho, e a banda vira um trapezio que encosta exatamente onde
+  as duas terminaram. De graca: nao sobra cunha nenhuma para fechar depois, e
+  `_fechar_quinas` pula todo vertice que e ponta de chanfro.
+- **E ele nao projeta SOMBRA propria.** As sombras dos dois lados ja se encontram
+  na quina; uma terceira na diagonal soma por cima. Medido na sala em L, que tem
+  seis quinas: a sombra saltou de 8% do chao para 12,8%, e o teto existe porque
+  sombra e o que come area de combate.
+- **Linha de contato opaca e invisivel.** N1 tem luma 13 e o piso do andar 1 mede
+  14 a 16: a primeira versao existia em disco e nao aparecia em tela. Contato e
+  SOMBRA, e sombra escurece o que esta embaixo -- um valor absoluto so funciona
+  se por acaso ele for mais escuro que aquele piso. Ela e translucida, no mesmo
+  alfa da `SombraDeParede`.
+- **Regua que mede "faixa de parede" tem de inflar por LADO.** `margens()` inclui
+  a margem exterior, e `medir_moldura` inflava por ela: o vazio declarado entrava
+  na conta como "faixa que ninguem pintou", e `crua` saltou de 0,9% para 9,5% sem
+  um pixel mudar de dono. Inflar por um numero so tambem nao serve com a parede
+  assimetrica -- os 28 px que o sul nao desenha viravam defeito.
 - **Decalque que apenas "nao e mais claro que o chao" SOME.** A regra estava
   escrita e nao bastava: com o default da familia (`alvo_v` 0,10) o decalque sai
   com luma mediana **0,080** contra **0,079** do `chao_andar1_a` -- ele nao fica

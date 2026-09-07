@@ -204,6 +204,10 @@ docs/
 | **Arte de chao ou parede que nao nasceu na paleta** | o pre-passo de `preparar_textura.py`: `--desvinheta` (chapa a iluminacao), `--tingir GRAUS` + `--limiar-neon` (tinge o metal apagado e deixa o acento aceso intacto), `--grampear-matiz`, `--alvo-v`. Tudo desligado por default |
 | **Prop volumetrico novo** | desenhar na celula do `props_volume.png` ancorado no FUNDO dela, e declarar a regiao em `regioes_props_volume` do `tipo_*.tres` |
 | **Prop que so pode aparecer uma vez por andar (o Robo Desativado)** | `regioes_props_raras` do `tipo_*.tres`; quem escolhe a sala e `GerenciadorMapa._sortear_celula_de_prop_raro()` |
+| **Que PARTE DA FABRICA uma sala era** | `src/mapa/tema_*.tres`, na lista `temas` do `GerenciadorMapa`. Tema novo = `.tres` novo; ele pesa a FACE e o DECALQUE de topo, e nao muda o tipo funcional |
+| **Como o topo se divide em borda, chapa e bisel** | `borda_do_topo` e `bisel_do_topo` em `src/mapa/perfil_de_parede.gd`; a chapa e DERIVADA, e `teste_renderizador_paredes` cobra que ela sobre |
+| **Os decalques de desgaste do TOPO, e com que frequencia** | `decalques_de_topo` e `chance_de_decalque` no `src/mapa/estilo_industrial_velho.tres` |
+| **Os decalques industriais do CHAO** | `atlas_decalques`, `regioes_decalques` e `quantidade_decalques` no `tipo_*.tres`; o andar 1 usa `decalques_andar1.png` e a sala do chefe tem `decalques_boss.png` |
 | **Uma cor nova no cenario** | `tools/texturas/paleta.gd` + a tabela de `docs/IDENTIDADE_VISUAL.md`; `teste_texturas.gd` recusa cor que compete com projetil |
 | Enquadramento e cores do minimapa | `@export` do no `Minimapa` em `src/ui/hud.tscn` |
 | **Volume, buses e quem toca o que** | `src/autoload/audio.gd`; os tres volumes ficam em `Configuracao`, junto das outras preferencias |
@@ -1250,6 +1254,37 @@ em qualquer erro de script.
   contra o default de 0,55 -- quase tres vezes os 0,19 que o funil aplicou ao
   escreve-la. Mesma armadilha que o `MATIZ_POR_TIPO` ja documenta: os dois lados
   tem de mudar juntos, e "esta no funil" nao quer dizer "esta cobrado".
+- **Decalque que apenas "nao e mais claro que o chao" SOME.** A regra estava
+  escrita e nao bastava: com o default da familia (`alvo_v` 0,10) o decalque sai
+  com luma mediana **0,080** contra **0,079** do `chao_andar1_a` -- ele nao fica
+  mais claro, ele fica EXATAMENTE em cima. Composta sobre o piso, a seta e a
+  faixa de perigo desapareciam e so a base de maquina se via, porque ela tem
+  parafusos claros. O que faz a peca ler e separar para BAIXO: `--alvo-v 0.055
+  --compressao-v 0.30` poe o p90 dela em 0,061, logo abaixo do p10 do chao, e ela
+  vira silhueta escura -- que e como uma marcacao gasta se ve. O chao do CHEFE e
+  mais escuro ainda (p10 0,042), entao o decalque dele desce junto, para 0,038.
+- **O TINGIMENTO muda a orientacao medida, e escolher composicao por um tipo so
+  aprova arte que reprova noutro.** A `parede_face_deteriorada` media +0,203 no
+  tingimento de combate (200 graus) e **+0,198** no do chefe (337) -- dois
+  milesimos abaixo do piso de `_a_face_le_como_superficie_VERTICAL`. Luma pesa os
+  canais de forma diferente, entao girar o matiz gira o balanco entre `energia_x`
+  e `energia_y`. Toda varredura de composicao mede os DOIS extremos da rampa.
+- **Reprocessar pelo funil um PNG que ja passou por ele COME detalhe.** Medido
+  nos tres chaos do andar 1: densidade de 16,4% / 16,9% / 12,3% cai para 8,1% /
+  6,1% / 4,0%, e a razao piso/parede sai do piso de 15% em duas das tres. A causa
+  e a requantizacao para a paleta, que acontece de novo. Arte pronta se
+  ACRESCENTA (decalque, prop, overlay); ela nao se "melhora" passando pelo funil
+  outra vez.
+- **A verticalidade da face e a distinguibilidade entre modulos PUXAM PARA LADOS
+  OPOSTOS.** `_a_face_le_como_superficie_VERTICAL` exige orientacao >= 0,20 de
+  toda face, o que comprime UM dos dois eixos da assinatura para todas ao mesmo
+  tempo -- sobra a densidade para separar cinco pecas. Numa composicao sobre a
+  mesma chapa da para ver a troca linha a linha: peca maior deixa o modulo
+  distinto e horizontal, peca menor faz o contrario. O ponto que passa nos dois
+  existe e nao se acha a olho: varra arranjo x escala e meca. Foi assim que
+  sairam o `energia` do chefe e a `deteriorada`; a `tubulacao` nao tem ponto
+  nenhum, porque tubo vertical sobre chapa vertical cai na regiao de `comum` e
+  `ventilada`.
 - **`teste_texturas.gd` compara o PNG em disco com o gerador.** Mudou uma cor
   em `paleta.gd` ou um traco em `gerar_texturas.gd`? Rode o gerador e o
   `--import` de novo, senao a suite reprova com "gerou e esqueceu de rodar?".

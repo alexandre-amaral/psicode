@@ -45,7 +45,7 @@ const SALA := "res://src/mapa/sala_1_retangular.tscn"
 ## Nome vazio de perfil = o perfil que o ESTILO daquela sala carrega, ou seja o
 ## jogo como ele esta hoje. Os prototipos entram aqui conforme forem existindo,
 ## e cada um e so um `PerfilDeParede` com a subdivisao do topo diferente.
-const COMPOSICOES: Array[String] = ["atual", "A", "B", "C"]
+const COMPOSICOES: Array[String] = ["atual"]
 
 
 func _ready() -> void:
@@ -54,7 +54,10 @@ func _ready() -> void:
 		DirAccess.make_dir_recursive_absolute("user://capturas")
 	print("COMPARAR_TOPOS  (%s)" % ("fotos" if com_janela else "medicao"))
 	for composicao in COMPOSICOES:
-		Sala.perfil_de_teste = PerfilDeParede.de_topo(composicao)
+		# O perfil vem do ESTILO da sala; a ferramenta nao inventa mais variantes.
+		# `de_topo()` descrevia a subdivisao de um topo unico, e o topo unico deixou
+		# de existir quando cada lado ganhou a propria pilha de camadas.
+		Sala.perfil_de_teste = null
 		await _medir(composicao)
 		if com_janela:
 			for silhueta in [false, true]:

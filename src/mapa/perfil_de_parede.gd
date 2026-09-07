@@ -96,234 +96,198 @@ extends RefCounted
 ## Isto e uma restricao de ARTE virada numero, e ela sobe junto no dia em que a
 ## moldura crescer: `teste_porta.gd` mede os 58 no alfa do arquivo, entao o teto
 ## nao e um literal que envelhece.
-var topo_norte: float = 40.0
-var face_norte: float = 56.0
-var topo_lateral: float = 40.0
-var face_lateral: float = 56.0
-## O SUL desenha face e topo como os outros tres. **Esta regra foi INVERTIDA.**
+## OS QUATRO LADOS SAO QUATRO PERFIS DIFERENTES, e a simetria que saiu daqui era
+## o defeito.
 ##
-## Ela dizia que o sul nao ganha face porque a face dele "olha para longe da
-## camera, escondida pela propria parede", e o argumento e geometricamente
-## correto: num solido real, a superficie interna da parede sul fica atras do
-## topo dela do ponto de vista de quem olha de cima.
+## A regra anterior -- 56 de face mais 40 de topo, igual nos quatro lados -- foi
+## medida no jogo e reprovada pelo dono: o piso e as bandas perifericas
+## continuavam parecendo o mesmo plano. O topo largo lia como uma faixa de PISO,
+## as laterais como bordas retas, e as quinas como encontros de 90 graus sem
+## profundidade nenhuma.
 ##
-## O que ele nao previu e o que o jogador ve. Sem face, o sul desenha um campo
-## liso da textura de TOPO -- um padrao de blocos de pedra -- enquanto os outros
-## tres lados mostram a face estriada. Tres paredes de um material, uma de outro:
-## a sala deixa de ler como uma cavidade e passa a ler como um chao de pedra
-## colado embaixo. O dono apontou isso tres vezes, em duas profundidades
-## diferentes (16 e 88), e nas duas o sintoma foi o mesmo.
+## O que produz a leitura de cavidade nao e a espessura: e a ASSIMETRIA. A camera
+## e uma so, e cada lado esta numa relacao diferente com ela.
 ##
-## A consistencia de MATERIAL entre os quatro lados vale mais aqui que a
-## fidelidade do solido, e essa e a decisao. A faixa abaixo da linha do chao le
-## como "a parede continua", e o que faz a sala parecer escavada e ela continuar
-## com a mesma cara nos quatro sentidos.
+##     NORTE     a unica face vista de frente. Ela carrega a altura, e o cap e
+##               so a espessura dela vista de esguelha.
+##     LATERAL   vista de esguelha. Face estreita, e um reveal que mostra a
+##               espessura sem virar coluna.
+##     SUL       vista de CIMA. Nao ha face para dentro: ha uma soleira que
+##               cresce para FORA da area jogavel, como um ledge.
 ##
-## `borda_externa_sul` vai a ZERO junto: ela existia como SUBSTITUTA da face --
-## era ela que dava ao sul alguma espessura em degraus de valor. Com a face de
-## verdade ali, manter as duas somaria 120 px de um lado so e quebraria a
-## simetria que a mudanca existe para produzir. O codigo dela fica, guardado por
-## `> 0`, porque um andar futuro pode querer o degrau sem a face.
-var topo_sul: float = 40.0
-var face_sul: float = 56.0
+##     NORTE                          LATERAL
+##       exterior                       exterior
+##       ---- cap 12 ----               | reveal 8
+##       #### face 48 ###               | face 28
+##       ~~~~ sombra 4 ~~               | sombra 4
+##            PISO                      | PISO
+##
+##     SUL
+##       PISO | labio 4 | ledge 20 | queda 8 | exterior
+##
+## **A ESPESSURA LOGICA E A VISUAL DEIXAM DE SER A MESMA COISA.** A grade
+## continua em 32 e a colisao continua no limite do piso; o que cada lado desenha
+## deixa de ter relacao com isso. Era essa amarra que obrigava os quatro lados a
+## medir igual.
+##
+## A sombra e o labio sao os unicos que crescem para DENTRO. Todo o resto cresce
+## para fora, e por isso `profundidade()` nao os conta.
+var face_norte: float = 48.0
+var cap_norte: float = 12.0
+var sombra_norte: float = 4.0
+
+var face_lateral: float = 28.0
+var reveal_lateral: float = 8.0
+var sombra_lateral: float = 4.0
+
+## O SUL NAO TEM FACE PARA DENTRO, e esta regra ja foi invertida uma vez.
+##
+## Ela dizia que o sul nao ganha face porque a face dele olha para longe da
+## camera. Depois foi invertida: o dono apontou tres vezes que o sul lia como um
+## campo de blocos de pedra, e a resposta foi dar face a ele, igual aos outros.
+##
+## **As duas leituras estavam certas sobre coisas diferentes.** O sul de fato nao
+## pode mostrar uma face alta virada para dentro -- ela olharia para longe da
+## camera. E de fato nao podia ser um campo liso de topo. O que ele e, e o que
+## nenhuma das duas versoes construiu, e uma SOLEIRA: um labio fino que contem o
+## piso, um ledge que cresce para fora, e uma queda que termina a moldura antes
+## do vazio.
+##
+## A diferenca entre soleira e faixa e para onde ela cresce. A faixa crescia para
+## dentro do quadro e competia com o piso; a soleira cresce para fora e emoldura.
+var labio_sul: float = 4.0
+var ledge_sul: float = 20.0
+var queda_sul: float = 8.0
+
+## O CHANFRO das quinas, e ele e a metade da mudanca.
+##
+## Reduzir o topo sozinho nao resolve: uma quina de 90 graus comunica planta
+## baixa, e nao volume. O contorno interno recua 48 px na diagonal em cada quina
+## convexa, e as faixas acompanham -- entao face, cap e sombra convergem para o
+## piso em vez de se encontrarem em esquadro.
+##
+## Ele vive na GEOMETRIA e nao em arte. Um PNG de canto voltaria a ser a peca
+## quadrada que a meia-esquadria removeu, e a textura precisa atravessar a quina.
+##
+## 48 e multiplo de 16, entao o contorno chanfrado continua na grade que
+## `teste_grade.gd` cobra.
+var chanfro_de_canto: float = 48.0
+
+## Quanto de VAZIO se quer ver alem da arquitetura, quando a sala cabe no quadro.
+##
+## Medido antes desta mudanca: `vazio` em 0,0% no centro da sala retangular e
+## 0,7% no pior canto. A arquitetura ocupava ate a borda da tela, e sem um
+## negativo em volta ela nao le como caixa.
+##
+## Ele nao desloca camera: ele e o piso que `GerenciadorMapa._cabendo_a_tela()`
+## tem de respeitar ao crescer o clamp.
+var margem_exterior: float = 20.0
+
+## Campos do modelo ANTIGO, mantidos so para os perfis de comparacao.
+##
+## Eles nao desenham mais nada -- quem desenha e a lista de camadas por lado.
+## Ficam porque `de_nome()` e a matriz de enquadramento ainda os escrevem, e
+## apaga-los mudaria o que aquelas ferramentas medem sem ninguem pedir.
 var borda_externa_sul: float = 0.0
-
-
-## COMO os 40 px de topo se dividem, do contorno para FORA.
-##
-##         vazio
-##     ------------------   borda do topo     4 px
-##     ##################   chapa superior   26 px   (derivada)
-##     ------------------   bisel do topo    10 px
-##     ##################   face             56 px
-##
-## **A hipotese e que o problema nao e TER 40 px: e os 40 px serem lidos como uma
-## massa homogenea.** Medida a energia de gradiente por pixel na captura real, o
-## topo dava 27,66 e a face 27,67 -- identicos --, contra 5,29 do chao. O topo e
-## espessura e deveria ser subordinado; ele competia de igual para igual.
-##
-## **A CHAPA e derivada, e nao um terceiro campo.** A issue pedia tres numeros com
-## a soma cobrada por um portao; derivar e estritamente melhor, porque a soma
-## deixa de poder divergir. O que sobra para o portao e a pergunta que ainda pode
-## falhar -- **a chapa continua existindo?** --, cobrada por
-## `teste_renderizador_paredes`. Um campo redundante guardado ao lado de um
-## portao que o confere e exatamente a duplicata que o `EstiloDeParede` custou.
-##
-## **Nada de contorno de sprite.** A borda e o bisel nascem de mudanca de VALOR,
-## sombra e material -- e por isso o bisel e a MESMA textura do topo escurecida,
-## e nao uma faixa chapada. Um outline artificial reintroduz a leitura de "peca
-## desenhada por cima", que e o defeito que a meia-esquadria removeu das quinas.
-##
-## Iguais nos quatro lados porque o topo tambem e: ele e a superficie continua que
-## da a volta na sala, e um bisel que mudasse de espessura ao virar a quina
-## quebraria a unica coisa que segura aquela leitura.
 var borda_do_topo: float = 4.0
 var bisel_do_topo: float = 10.0
 
 
-## Os quatro perfis da matriz de comparacao do plano.
+## O TIPO de cada camada, e ele decide o material e nao so a cor.
 ##
-## Eles existem para a escolha ser feita olhando a MESMA sala nos quatro, lado a
-## lado, e nao no editor um de cada vez. "Parece melhor" nao sobrevive a memoria
-## de dez minutos depois.
-static func de_nome(nome: String) -> PerfilDeParede:
-	var p := PerfilDeParede.new()
-	match nome:
-		"A":
-			# O estado de referencia: o que o epico existe para substituir.
-			p.topo_norte = 32.0
-			p.face_norte = 32.0
-			p.topo_lateral = 32.0
-			p.face_lateral = 32.0
-			p.topo_sul = 64.0
-			p.borda_externa_sul = 0.0
-		"B":
-			p.topo_norte = 24.0
-			p.face_norte = 24.0
-			p.topo_lateral = 24.0
-			p.face_lateral = 24.0
-			p.topo_sul = 24.0
-			p.borda_externa_sul = 0.0
-		"C":
-			p.topo_norte = 16.0
-			p.face_norte = 24.0
-			p.topo_lateral = 16.0
-			p.face_lateral = 16.0
-			p.topo_sul = 16.0
-			p.borda_externa_sul = 12.0
-		"E":
-			# O PERFIL QUE RODA. Ele gasta os px extras na FACE, e nao no topo.
-			#
-			# A face e a UNICA superficie vista de frente -- e dela que vem a
-			# altura da sala. Engordar o topo sobe a fracao de moldura sem subir a
-			# leitura, e foi isso que fez o perfil A parecer pesado: 64 px de topo
-			# SUL, superficie chapada vista de cima que nao carrega volume nenhum.
-			#
-			# Medido na matriz de enquadramento, na sala de 896x448:
-			#
-			#     C   norte  7,4% da tela   moldura 18,0%   piso 76,9%   vazio 5,1%
-			#     E   norte 10,3% da tela   moldura 23,1%   piso 76,9%   vazio 0,0%
-			#
-			# MESMA area jogavel, 40% mais altura de parede -- ele converte em
-			# moldura o vazio que o C desperdicava. E as margens verticais dele
-			# somam 96, entao 448 + 96 = 544 EXATO.
-			p.face_norte = 40.0
-			p.borda_externa_sul = 24.0
-		"D":
-			p.topo_norte = 16.0
-			p.face_norte = 16.0
-			p.topo_lateral = 12.0
-			p.face_lateral = 12.0
-			p.topo_sul = 12.0
-			p.borda_externa_sul = 0.0
-		_:
-			pass
-	return p
+## `FACE` recebe a textura do modulo -- e ela que carrega "fabrica abandonada".
+## `CAP`, `REVEAL`, `LEDGE` e `QUEDA` recebem a textura de topo, que e cobertura
+## estrutural e nao conteudo. `SOMBRA` e `LABIO` sao valor puro, sem textura.
+enum Camada { FACE, CAP, REVEAL, SOMBRA, LABIO, LEDGE, QUEDA }
 
 
-## As variantes de TOPO comparadas em `tools/comparar_topos.tscn`.
+## As camadas de um lado, do contorno para FORA.
 ##
-## Elas mudam **so a subdivisao**: profundidade, face e grade continuam as
-## mesmas. E o que torna a comparacao honesta -- se a variante mudasse tambem o
-## tamanho, "ficou melhor" nao diria qual das duas coisas melhorou.
+## Cada entrada e `(inicio, fim, tipo)` em px, e **inicio pode ser NEGATIVO**: a
+## sombra e o unico que cresce para dentro do piso, porque e ela que faz o piso
+## parecer estar abaixo da face. Todo o resto cresce para fora, e por isso
+## `profundidade()` conta so o que passa de zero.
 ##
-## `atual` e o estado ANTES da subdivisao, e ele existe para a comparacao ter um
-## antes. Zerar os dois campos devolve a faixa de 40 px chapada de textura, com o
-## bisel de 2 px que `_vestir_acabamento` ja desenhava.
-static func de_topo(nome: String) -> PerfilDeParede:
-	var p := PerfilDeParede.new()
-	match nome:
-		"atual":
-			p.borda_do_topo = 0.0
-			p.bisel_do_topo = 0.0
-		"A":
-			# So a borda: termina a arquitetura contra o vazio, sem transicao.
-			p.bisel_do_topo = 0.0
-		"B":
-			# O PROPOSTO, e o que roda. Iguala os defaults de proposito: a
-			# variante que o jogo usa tem de ser uma das comparadas, senao a
-			# ferramenta compara tres coisas e o jogo desenha uma quarta.
-			pass
-		"C":
-			# Bisel mais fundo: a chapa cai para 20 px. Ele existe para a
-			# comparacao ter um extremo -- se C ler melhor que B, o numero certo
-			# esta acima de 10 e nao abaixo.
-			p.bisel_do_topo = 16.0
-		_:
-			pass
-	return p
-
-
-## Quanto sobra para a CHAPA depois da borda e do bisel.
-##
-## Zero ou negativo quer dizer que os dois acabamentos comeram a superficie
-## inteira: a faixa deixa de ter material e vira so junta. `_o_topo_ainda_tem_CHAPA`
-## cobra que isto continue positivo.
-func chapa_do_topo(lado: int) -> float:
-	var topo := topo_sul
+## Ela e a unica fonte da geometria: o renderizador nao conhece campo nenhum
+## deste recurso, so esta lista. Foi assim que os quatro lados deixaram de poder
+## ser a mesma coisa por acidente.
+func camadas(lado: int) -> Array[Vector3]:
 	if lado == RenderizadorParedes.Lado.NORTE:
-		topo = topo_norte
-	elif lado != RenderizadorParedes.Lado.SUL:
-		topo = topo_lateral
-	return topo - borda_do_topo - bisel_do_topo
-
-
-## Quanto este lado desenha ao todo.
-func profundidade(lado: int) -> float:
+		return [
+			Vector3(-sombra_norte, 0.0, Camada.SOMBRA),
+			Vector3(0.0, face_norte, Camada.FACE),
+			Vector3(face_norte, face_norte + cap_norte, Camada.CAP),
+		]
 	if lado == RenderizadorParedes.Lado.SUL:
-		return topo_sul + face_sul + borda_externa_sul
-	if lado == RenderizadorParedes.Lado.NORTE:
-		return topo_norte + face_norte
-	return topo_lateral + face_lateral
+		return [
+			Vector3(0.0, labio_sul, Camada.LABIO),
+			Vector3(labio_sul, labio_sul + ledge_sul, Camada.LEDGE),
+			Vector3(labio_sul + ledge_sul, labio_sul + ledge_sul + queda_sul, Camada.QUEDA),
+		]
+	return [
+		Vector3(-sombra_lateral, 0.0, Camada.SOMBRA),
+		Vector3(0.0, face_lateral, Camada.FACE),
+		Vector3(face_lateral, face_lateral + reveal_lateral, Camada.REVEAL),
+	]
+
+
+## Quanto este lado desenha para FORA do contorno.
+##
+## A sombra fica de fora da conta de proposito: ela desenha sobre o piso, dentro
+## da area jogavel, e quem consome este numero e a CAMERA -- o clamp cresce por
+## ele para mostrar a parede inteira e nem um pixel do vazio depois dela.
+func profundidade(lado: int) -> float:
+	var fundo := 0.0
+	for camada in camadas(lado):
+		fundo = maxf(fundo, camada.y)
+	return fundo
 
 
 ## Onde a FACE deste lado acaba, medindo do contorno para fora. Zero = sem face.
 ##
-## Os QUATRO lados tem face desde que a regra do sul foi invertida -- o porque
-## esta no bloco de `face_sul`. Zero continua sendo um valor valido e util: um
-## estilo pode zerar a face de um lado, e o renderizador simplesmente nao a
-## desenha.
+## **O SUL devolve zero, e isso e a regra e nao uma falta.** Ele nao tem face
+## para dentro: tem soleira. Quem consome isto e o corte da porta e o
+## acabamento, e os dois ja tratam zero -- era assim antes de o sul ganhar face,
+## e voltou a ser.
 func fim_da_face(lado: int) -> float:
-	if lado == RenderizadorParedes.Lado.SUL:
-		return face_sul
-	if lado == RenderizadorParedes.Lado.NORTE:
-		return face_norte
-	return face_lateral
+	for camada in camadas(lado):
+		if int(camada.z) == Camada.FACE:
+			return camada.y
+	return 0.0
 
 
-## O maior alcance entre os lados.
-##
-## E o numero que a camera precisa: o clamp tem de mostrar a parede inteira do
-## lado mais fundo, e nem um pixel do vazio depois dela. Com a assimetria, os
-## lados rasos ficam com folga -- e isso e aceitavel, porque o quadro e um so.
+## O maior alcance entre os lados. E o que a camera precisa quando ela so pode
+## ter um numero.
 func alcance() -> float:
-	return maxf(maxf(topo_norte + face_norte, topo_lateral + face_lateral),
-		topo_sul + face_sul + borda_externa_sul)
+	return maxf(maxf(profundidade(RenderizadorParedes.Lado.NORTE),
+		profundidade(RenderizadorParedes.Lado.SUL)),
+		profundidade(RenderizadorParedes.Lado.LESTE))
 
 
 ## O alcance POR EIXO: o maior dos dois lados de cada eixo.
-##
-## Serve a quem precisa de UM numero por eixo -- portoes de "cabe na faixa". Para
-## a camera ele nao basta: ver `margens()`.
 func alcance_por_eixo() -> Vector2:
 	return Vector2(
-		topo_lateral + face_lateral,
-		maxf(topo_norte + face_norte, topo_sul + face_sul + borda_externa_sul)
+		profundidade(RenderizadorParedes.Lado.LESTE),
+		maxf(profundidade(RenderizadorParedes.Lado.NORTE),
+			profundidade(RenderizadorParedes.Lado.SUL))
 	)
 
 
 ## As quatro margens, na ordem (esquerda, cima, direita, baixo).
 ##
-## **A camera precisa das QUATRO, e nao de duas.** Com a assimetria do perfil C
-## o norte desenha 40 px e o sul 16: um unico numero vertical usaria 40 nos dois
-## e o quadro passaria a mostrar 24 px de VAZIO embaixo -- exatamente o que o
-## clamp existe para impedir, e o portao pegou isso na primeira montagem.
+## **A camera precisa das QUATRO, e agora mais do que antes.** Com os quatro
+## lados iguais um numero por eixo bastava; com norte 60, lateral 36 e sul 32 um
+## unico numero vertical usaria 60 nos dois e o quadro mostraria 28 px de VAZIO
+## a mais embaixo -- exatamente o que o clamp existe para controlar.
 ##
-## Esquerda e direita sao iguais porque leste e oeste desenham a mesma
-## profundidade; cima e baixo nao sao, e e essa diferenca que carrega a
-## perspectiva. Norte e sempre -Y neste jogo, entao o mapa lado -> margem e fixo
-## e nao depende da forma da sala.
+## A MARGEM EXTERIOR entra aqui, e nao no crescimento ate a tela. Ela e o negativo
+## que faz a arquitetura ler como caixa, e sem ela a parede encosta na borda do
+## quadro: medido antes desta mudanca, `vazio` era 0,0% no centro da sala
+## retangular e 0,7% no pior canto.
 func margens() -> Vector4:
-	var lateral := topo_lateral + face_lateral
-	return Vector4(lateral, topo_norte + face_norte, lateral,
-		topo_sul + face_sul + borda_externa_sul)
+	return Vector4(
+		profundidade(RenderizadorParedes.Lado.LESTE) + margem_exterior,
+		profundidade(RenderizadorParedes.Lado.NORTE) + margem_exterior,
+		profundidade(RenderizadorParedes.Lado.OESTE) + margem_exterior,
+		profundidade(RenderizadorParedes.Lado.SUL) + margem_exterior
+	)

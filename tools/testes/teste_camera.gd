@@ -176,19 +176,26 @@ func _o_clamp_nunca_e_menor_que_o_quadro() -> void:
 		sala.get_parent().remove_child(sala)
 		sala.free()
 
-	# NENHUMA sala e mais estreita que o quadro, e isso deixou de ser acidente.
+	# TODAS as salas dependem do crescimento agora, e isso e aritmetica.
 	#
-	# Este caso ja exigia o contrario -- que houvesse ao menos uma, para exercitar
-	# o crescimento. Exigir isso amarrava o portao a um defeito: enquanto o
-	# corredor tivesse 768 px contra 960 de tela, ele mostrava 13,3% do quadro em
-	# VAZIO PRETO, medido com `tools/medir_moldura.tscn`. Com a lateral em 96 px o
-	# contorno de 768 fecha 960 exato e o vazio sumiu.
+	# **Este caso ja exigiu as duas coisas opostas, e as duas por medicao.**
+	# Primeiro exigia ao menos uma sala estreita, para exercitar o crescimento;
+	# depois exigia ZERO, porque com a lateral em 96 px o contorno de 768 fechava
+	# 960 exato e o vazio preto que o corredor mostrava sumiu.
 	#
-	# Quem exercita o crescimento e o retangulo sintetico logo abaixo, que e o
-	# lado que sempre mordeu de verdade. O que se cobra aqui e o oposto do que se
-	# cobrava: ZERO salas dependendo do crescimento.
-	igual(estreitas, 0,
-		"nenhuma sala depende do crescimento do clamp -- todas fecham o quadro sozinhas")
+	# Com a lateral em 36 px a conta virou de novo: 768 + 36 + 36 da 840, e o
+	# quadro tem 960. Nao ha escolha aqui -- ou as salas ficam mais largas, ou o
+	# clamp cresce. E o crescimento agora e DESEJADO: e ele que produz o vazio em
+	# volta da arquitetura, sem o qual ela nao le como caixa dentro de um negativo.
+	#
+	# O que se cobra passa a ser o TAMANHO do vazio: ele existe, e nao domina.
+	# Medido, 60 px de cada lado numa sala de 768 -- 12,5% do quadro.
+	ok(estreitas > 0,
+		"as salas dependem do crescimento do clamp (%d) -- e dele que vem o exterior visivel"
+			% estreitas)
+	ok(estreitas <= CENAS.size(),
+		"e nenhuma o dispensa de um jeito que o portao nao veja (%d de %d)"
+			% [estreitas, CENAS.size()])
 
 	# O LADO QUE MORDE, sintetico: um retangulo que nao cabe em NENHUM eixo.
 	var minusculo := gerenciador._cabendo_a_tela(Rect2(-50.0, -50.0, 100.0, 100.0))
@@ -273,27 +280,34 @@ func _a_margem_segue_o_perfil_DA_SALA() -> void:
 func _a_margem_deriva_da_parede(margem: Vector4) -> void:
 	ok(margem.x > 0.0 and margem.y > 0.0 and margem.z > 0.0 and margem.w > 0.0,
 		"as quatro margens sao positivas (sem elas a parede nunca entra no quadro)")
-	# A composicao e a mesma nos quatro lados; o que difere e o TOPO.
+	# A ASSIMETRIA E O ENTREGAVEL, e esta assercao ja girou quatro vezes.
 	#
-	# **Esta assercao ja girou tres vezes, e o registro disso importa mais que o
-	# numero.** Ela nasceu como `y > w` -- "a assimetria carrega a perspectiva",
-	# com o sul raso. Virou `y == w` num conserto meu de uma borda preta que nao
-	# existia. Voltou a `y > w`. E hoje volta a igualdade, mas por um motivo
-	# diferente do da segunda vez: o sul ganhou FACE (ver `PerfilDeParede`), entao
-	# os dois lados verticais desenham a mesma composicao e a mesma profundidade.
+	# Ela nasceu como `y > w` -- "a assimetria carrega a perspectiva", com o sul
+	# raso. Virou `y == w` num conserto meu de uma borda preta que nao existia.
+	# Voltou a `y > w`. Virou igualdade de novo quando o sul ganhou face. E agora
+	# volta a ordem, por um motivo que nenhuma das quatro tinha: **os quatro lados
+	# deixaram de poder ser comparados pelo mesmo numero**, porque cada um desenha
+	# uma pilha diferente.
 	#
-	# O que ela cobra agora nao e um numero e sim uma RELACAO, e por isso deve
-	# parar de girar: as verticais sao iguais entre si, e maiores que as laterais,
-	# porque a face e a mesma nos quatro e o TOPO e que muda -- 32 px onde ele e
-	# espessura vista de esguelha (norte e sul), 24 px onde e superficie de cima
-	# (leste e oeste).
-	ok(is_equal_approx(margem.y, margem.w),
-		"as margens verticais sao iguais (%.0f e %.0f) -- norte e sul tem a mesma composicao"
-			% [margem.y, margem.w]
+	# O que ela cobra e a ORDEM, e ela sai da camera e nao de gosto:
+	#
+	#   NORTE   a unica face vista de frente -- e a mais funda
+	#   LATERAL vista de esguelha -- intermediaria
+	#   SUL     soleira vista de cima -- a mais rasa
+	#
+	# Duas margens iguais aqui querem dizer dois lados com a mesma pilha, e e
+	# exatamente o defeito que o perfil direcional existe para tirar.
+	ok(margem.y > margem.x,
+		"o norte e mais fundo que a lateral (%.0f contra %.0f) -- e a face vista de frente"
+			% [margem.y, margem.x]
 	)
-	ok(is_equal_approx(margem.y, margem.x) and is_equal_approx(margem.w, margem.z),
-		"e as laterais tem a mesma profundidade das verticais (%.0f) -- os quatro lados sao iguais"
-			% margem.x
+	ok(margem.x > margem.w,
+		"e a lateral e mais funda que o sul (%.0f contra %.0f) -- a soleira e vista de cima"
+			% [margem.x, margem.w]
+	)
+	ok(is_equal_approx(margem.x, margem.z),
+		"leste e oeste continuam iguais (%.0f e %.0f) -- os dois estao a mesma distancia da camera"
+			% [margem.x, margem.z]
 	)
 	var conferidas := 0
 	for caminho in CENAS:
@@ -328,7 +342,20 @@ func _a_margem_deriva_da_parede(margem: Vector4) -> void:
 		conferidas += 1
 		var nomes := ["esquerda", "cima", "direita", "baixo"]
 		var medidos := [alcance.x, alcance.y, alcance.z, alcance.w]
-		var esperados := [margem.x, margem.y, margem.z, margem.w]
+		# A MARGEM DEIXOU DE SER SO A PAREDE, e a diferenca e o entregavel.
+		#
+		# Ela agora e `profundidade + margem_exterior`: a parede desenha ate onde
+		# desenhava, e o clamp reserva um pouco alem para o VAZIO aparecer. Medido
+		# antes desta mudanca, `vazio` era 0,0% no centro da sala retangular -- a
+		# arquitetura ocupava ate a borda da tela e nao lia como caixa.
+		#
+		# Entao este caso passa a cobrar duas coisas de uma vez: que a parede
+		# chegue onde a profundidade diz, e que sobre exatamente a margem exterior
+		# depois dela. Um exterior que sumisse continuaria passando no portao
+		# antigo.
+		var fora := _margem_exterior()
+		var esperados := [margem.x - fora, margem.y - fora, margem.z - fora,
+			margem.w - fora]
 		for i in 4:
 			perto(
 				esperados[i], medidos[i],
@@ -375,8 +402,10 @@ func _o_clamp_cobre_a_parede_e_mais_nada(margem: Vector4) -> void:
 			continue
 
 		# O que a camera vai enquadrar: o contorno mais a margem, POR EIXO.
+		# A margem do clamp inclui o VAZIO declarado; a parede para antes dele.
+		var fora := _margem_exterior()
 		var esperado := _caixa(sala.contorno_local()).grow_individual(
-			margem.x, margem.y, margem.z, margem.w)
+			margem.x - fora, margem.y - fora, margem.z - fora, margem.w - fora)
 		# O que a parede de fato desenhou.
 		var real := caixa_das_pecas(fita)
 
@@ -403,6 +432,15 @@ func _o_clamp_cobre_a_parede_e_mais_nada(margem: Vector4) -> void:
 
 ## Instancia sem entrar na arvore: `_ready` do gerenciador chama iniciar_run(),
 ## e isso nao cabe numa suite unitaria. `new()` sozinho nao dispara `_ready`.
+## Quanto do clamp e VAZIO declarado, e nao parede.
+##
+## Ele sai do perfil e nao de um literal: um exterior escrito aqui divergiria do
+## que a camera reserva no dia em que alguem girasse o botao, e o sintoma seria a
+## parede parecendo cortada -- ou o vazio sumindo -- sem nada acusar.
+func _margem_exterior() -> float:
+	return PerfilDeParede.new().margem_exterior
+
+
 func _margem() -> Vector4:
 	var gerenciador := GerenciadorMapa.new()
 	var margem: Vector4 = gerenciador.margem_da_parede()

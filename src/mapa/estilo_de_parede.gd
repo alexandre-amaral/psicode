@@ -125,18 +125,17 @@ func vestivel() -> bool:
 ##
 ## A COLISAO nao muda: ela e um segmento sobre o contorno, e a grade logica
 ## continua 32. Isto descreve so o que se desenha.
-@export var topo_norte: float = -1.0
 @export var face_norte: float = -1.0
-@export var topo_lateral: float = -1.0
+@export var cap_norte: float = -1.0
+@export var sombra_norte: float = -1.0
 @export var face_lateral: float = -1.0
-@export var topo_sul: float = -1.0
-@export var face_sul: float = -1.0
-@export var borda_externa_sul: float = -1.0
-## Como o topo se divide (#241). Sentinela NEGATIVO como os de cima: -1 herda o
-## que `PerfilDeParede` declara, e so um andar que queira outra subdivisao
-## escreve aqui.
-@export var borda_do_topo: float = -1.0
-@export var bisel_do_topo: float = -1.0
+@export var reveal_lateral: float = -1.0
+@export var sombra_lateral: float = -1.0
+@export var labio_sul: float = -1.0
+@export var ledge_sul: float = -1.0
+@export var queda_sul: float = -1.0
+@export var chanfro_de_canto: float = -1.0
+@export var margem_exterior: float = -1.0
 
 
 ## O perfil que o renderizador consome.
@@ -146,22 +145,26 @@ func vestivel() -> bool:
 ## uma copia silenciosa da regra.
 func perfil() -> PerfilDeParede:
 	var p := PerfilDeParede.new()
-	if topo_norte >= 0.0:
-		p.topo_norte = topo_norte
 	if face_norte >= 0.0:
 		p.face_norte = face_norte
-	if topo_lateral >= 0.0:
-		p.topo_lateral = topo_lateral
+	if cap_norte >= 0.0:
+		p.cap_norte = cap_norte
+	if sombra_norte >= 0.0:
+		p.sombra_norte = sombra_norte
 	if face_lateral >= 0.0:
 		p.face_lateral = face_lateral
-	if topo_sul >= 0.0:
-		p.topo_sul = topo_sul
-	if face_sul >= 0.0:
-		p.face_sul = face_sul
-	if borda_externa_sul >= 0.0:
-		p.borda_externa_sul = borda_externa_sul
-	if borda_do_topo >= 0.0:
-		p.borda_do_topo = borda_do_topo
-	if bisel_do_topo >= 0.0:
-		p.bisel_do_topo = bisel_do_topo
+	if reveal_lateral >= 0.0:
+		p.reveal_lateral = reveal_lateral
+	if sombra_lateral >= 0.0:
+		p.sombra_lateral = sombra_lateral
+	if labio_sul >= 0.0:
+		p.labio_sul = labio_sul
+	if ledge_sul >= 0.0:
+		p.ledge_sul = ledge_sul
+	if queda_sul >= 0.0:
+		p.queda_sul = queda_sul
+	if chanfro_de_canto >= 0.0:
+		p.chanfro_de_canto = chanfro_de_canto
+	if margem_exterior >= 0.0:
+		p.margem_exterior = margem_exterior
 	return p

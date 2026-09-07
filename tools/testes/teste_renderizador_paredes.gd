@@ -37,7 +37,8 @@ func executar() -> void:
 	_a_variante_e_deterministica_e_o_espacamento_morde()
 	_as_duas_contas_de_onde_ha_parede_coincidem()
 	_nada_vaza_pela_BOCA_de_um_lado_aberto()
-	_o_topo_ainda_tem_CHAPA()
+	_as_camadas_de_cada_lado_sao_uma_pilha_CONTIGUA()
+	await _o_desgaste_do_topo_e_RARO_e_cabe_na_chapa()
 	await _o_desgaste_do_topo_e_RARO_e_cabe_na_chapa()
 
 
@@ -87,13 +88,36 @@ func _nenhuma_celula_invade_o_chao() -> void:
 		if fita == null:
 			sala.free()
 			continue
+		# A SOMBRA DE CONTATO cresce para DENTRO, e ela e a unica que pode.
+		#
+		# A afirmacao que autoriza a fita a desenhar acima do chao era "nenhuma
+		# peca encosta em area jogavel", e ela valia enquanto tudo crescia para
+		# fora. O perfil direcional acrescentou a linha de contato -- 4 px sobre o
+		# piso, colada na face --, e e ela que faz o piso parecer estar ABAIXO da
+		# face em vez de ao lado dela.
+		#
+		# Entao o portao passa a cobrar a versao forte: pode invadir, mas so ate
+		# onde o perfil declara. Uma peca 5 px dentro do piso continua reprovando,
+		# e e essa a diferenca entre a sombra e um erro de geometria.
+		var perfil := PerfilDeParede.new()
+		var fundo_permitido := maxf(perfil.sombra_norte, perfil.sombra_lateral)
 		var dentro := 0
 		for filho in fita.get_children():
 			var item := filho as Node2D
 			if item == null:
 				continue
 			conferidas += 1
-			if Geometry2D.is_point_in_polygon(item.position, contorno):
+			if not Geometry2D.is_point_in_polygon(item.position, contorno):
+				continue
+			# Quao fundo ela entrou. Uma sombra de 4 px tem o centro a 2 do
+			# contorno; qualquer coisa alem disso e peca no lugar errado.
+			var fundura := INF
+			var n := contorno.size()
+			for k in n:
+				fundura = minf(fundura, item.position.distance_to(
+					Geometry2D.get_closest_point_to_segment(
+						item.position, contorno[k], contorno[(k + 1) % n])))
+			if fundura > fundo_permitido:
 				dentro += 1
 		igual(
 			dentro, 0,
@@ -561,8 +585,8 @@ func _o_acabamento_existe_e_cabe_na_faixa() -> void:
 		var perfil := PerfilDeParede.new()
 		var tiras := 0
 		var fora := 0
-		var costuras_ao_sul := 0
-		var costuras := 0
+		var soleira_ao_sul := 0
+		var contatos := 0
 		for filho in fita.get_children():
 			var poly := filho as Polygon2D
 			if poly == null or poly.polygon.is_empty():
@@ -581,27 +605,36 @@ func _o_acabamento_existe_e_cabe_na_faixa() -> void:
 					or mundo.y < caixa_do_chao.position.y - eixo.y - 0.5 \
 					or mundo.y > caixa_do_chao.end.y + eixo.y + 0.5:
 					fora += 1
-			if poly.color.is_equal_approx(RenderizadorParedes.N4) 					or poly.color.is_equal_approx(RenderizadorParedes.N7):
+			# A COSTURA VIROU LINHA DE CONTATO, e a pergunta mudou de lugar.
+			#
+			# No modelo antigo a costura era uma tira clara/escura DESENHADA na
+			# fronteira entre topo e face, e o portao a procurava por cor. Com o
+			# perfil direcional essa fronteira e a propria juncao de duas camadas
+			# -- nao ha tira a procurar, e um portao que insistisse nela ficaria
+			# vermelho para sempre por medir uma peca que deixou de existir.
+			#
+			# O que continua valendo e o que ela protegia: **o piso tem de parecer
+			# estar ABAIXO da parede.** Quem faz isso agora e a linha de contato,
+			# 4 px de N1 crescendo para DENTRO do chao, e e por ela que se
+			# procura -- e ela e obrigatoria nos lados que mostram face.
+			if poly.color.is_equal_approx(RenderizadorParedes.COR_CONTATO):
 				var meio := poly.position
-				var d := _profundidade(meio, contorno)
-				# A costura saiu da const e passou a vir do PERFIL: com a
-				# parede assimetrica ela cai em 24 no norte e em 16 nas
-				# laterais, e um numero unico so acharia a de um dos lados.
-				if absf(d - perfil.face_norte) <= 3.0 						or absf(d - perfil.face_lateral) <= 3.0:
-					costuras += 1
-					# Ao sul TAMBEM ha costura, desde que o sul ganhou face.
-					# Ela era proibida aqui -- "la a fita e topo puro" --, e essa
-					# proibicao era o reflexo da regra antiga.
-					if meio.y > _caixa(contorno).end.y:
-						costuras_ao_sul += 1
+				if Geometry2D.is_point_in_polygon(meio, contorno):
+					contatos += 1
+				# E o SUL nao tem face: ele tem SOLEIRA. Ela e reconhecida por
+				# crescer para FORA do contorno, do lado de baixo -- que e a
+				# diferenca entre emoldurar e competir com o piso.
+				elif meio.y > _caixa(contorno).end.y:
+					soleira_ao_sul += 1
 		var nome := caminho.get_file()
 		ok(tiras > 0, "%s: a fita monta acabamento (%d tiras)" % [nome, tiras])
 		igual(fora, 0, "%s: nenhum vertice sai da faixa (%.0fx%.0f px) (%d)"
 			% [nome, eixo.x, eixo.y, fora])
-		ok(costuras > 0, "%s: a costura existe onde ha face (%d)" % [nome, costuras])
-		ok(costuras_ao_sul > 0,
-			"%s: a costura tambem existe ao SUL (%d) -- ele tem face como os outros tres"
-				% [nome, costuras_ao_sul])
+		ok(contatos > 0,
+			"%s: a linha de contato existe e cresce para DENTRO (%d)" % [nome, contatos])
+		ok(soleira_ao_sul > 0,
+			"%s: o sul tem SOLEIRA para fora (%d) -- e nao face para dentro"
+				% [nome, soleira_ao_sul])
 		sala.free()
 
 
@@ -727,46 +760,53 @@ func _nada_vaza_pela_BOCA_de_um_lado_aberto() -> void:
 	fita.free()
 
 
-## A subdivisao do topo nao pode comer a superficie inteira.
+## As CAMADAS de um lado formam uma pilha contigua e ordenada.
 ##
-## `borda_do_topo` e `bisel_do_topo` sao acabamento; entre eles fica a CHAPA, que
-## e o material -- e e ela que carrega a textura sorteada por sala. Somados acima
-## da profundidade do topo, os dois nao dao erro nenhum: `_superficie()` desiste
-## sozinha quando a banda tem menos de meio pixel, e a faixa passa a ser so
-## juntas, com a arte do topo simplesmente ausente da tela.
+## Este caso substitui `_o_topo_ainda_tem_CHAPA`, que perguntava se sobrava chapa
+## depois da borda e do bisel. Aquela pergunta era do modelo antigo -- um topo
+## unico subdividido em tres --, e o modelo novo nao tem topo unico: tem uma
+## pilha por lado, e cada lado tem a sua.
 ##
-## **A soma nao precisa ser cobrada porque a chapa e DERIVADA.** A issue pedia
-## tres campos com `borda + chapa + bisel == topo` conferido; guardar a chapa
-## como quarto numero e mante-lo em dia por portao e a duplicata que o
-## `EstiloDeParede` ja custou dois epicos. O que resta perguntar e o que ainda
-## pode falhar: sobrou chapa?
+## O que pode falhar em silencio agora e outra coisa, e sao tres coisas:
 ##
-## O piso e 16 e nao 1: uma chapa de 2 px existe e nao le como superficie
-## nenhuma, e um portao que aprovasse isso estaria carimbando.
-func _o_topo_ainda_tem_CHAPA() -> void:
+##   - **um buraco entre camadas.** Se o fim de uma nao for o inicio da proxima,
+##     sobra uma tira sem nada desenhado -- e contra o vazio N0 ela nao aparece
+##     como erro, aparece como um fio escuro que alguem vai achar que e sombra.
+##   - **camada invertida.** `fim < inicio` faz `_superficie()` desistir sozinha,
+##     e a camada some sem uma linha no console.
+##   - **a pilha nao cobrir a profundidade que a CAMERA reserva.** O clamp cresce
+##     por `profundidade(lado)`; se a pilha parar antes, o quadro mostra vazio
+##     onde deveria haver parede.
+func _as_camadas_de_cada_lado_sao_uma_pilha_CONTIGUA() -> void:
 	var perfil := PerfilDeParede.new()
 	for lado in [RenderizadorParedes.Lado.NORTE, RenderizadorParedes.Lado.SUL,
 			RenderizadorParedes.Lado.LESTE, RenderizadorParedes.Lado.OESTE]:
-		ok(perfil.chapa_do_topo(lado) >= 16.0,
-			"o lado %d guarda chapa para a textura do topo (%.0f px)"
-				% [lado, perfil.chapa_do_topo(lado)])
+		var camadas := perfil.camadas(lado)
+		ok(camadas.size() >= 2, "o lado %d tem pilha (%d camadas)" % [lado, camadas.size()])
+		var anterior: float = camadas[0].x
+		var contiguas := true
+		var invertidas := 0
+		for camada in camadas:
+			if not is_equal_approx(camada.x, anterior):
+				contiguas = false
+			if camada.y <= camada.x:
+				invertidas += 1
+			anterior = camada.y
+		ok(contiguas, "o lado %d nao tem buraco entre camadas" % lado)
+		igual(invertidas, 0, "nenhuma camada do lado %d esta invertida" % lado)
+		perto(anterior, perfil.profundidade(lado),
+			"a pilha do lado %d chega na profundidade que a camera reserva" % lado)
 
-	# O LADO QUE MORDE: acabamento maior que a faixa tem de reprovar. Sem este
-	# caso o de cima passaria para sempre com os defaults e nunca teria olhado a
-	# conta.
-	var estourado := PerfilDeParede.new()
-	estourado.bisel_do_topo = estourado.topo_norte
-	ok(estourado.chapa_do_topo(RenderizadorParedes.Lado.NORTE) < 16.0,
-		"um bisel do tamanho da faixa nao deixa chapa, e o portao ve isso")
-
-	# E as VARIANTES comparadas em `comparar_topos.tscn` tambem cabem: uma
-	# variante que nao coubesse seria fotografada e comparada mesmo assim, e a
-	# foto nao diz que a chapa sumiu -- ela mostra uma faixa escura plausivel.
-	for nome in ["atual", "A", "B", "C"]:
-		var variante := PerfilDeParede.de_topo(nome)
-		ok(variante.chapa_do_topo(RenderizadorParedes.Lado.NORTE) >= 16.0,
-			"a variante %s guarda chapa (%.0f px)"
-				% [nome, variante.chapa_do_topo(RenderizadorParedes.Lado.NORTE)])
+	# O LADO QUE MORDE: uma pilha com buraco tem de reprovar. Sem este caso o de
+	# cima passaria para sempre com os defaults e nunca teria olhado a conta.
+	var furada: Array[Vector3] = [Vector3(0.0, 10.0, 0.0), Vector3(20.0, 30.0, 1.0)]
+	var achou_buraco := false
+	var passo: float = furada[0].y
+	for camada in furada:
+		if not is_equal_approx(camada.x, passo) and camada.x != furada[0].x:
+			achou_buraco = true
+		passo = camada.y
+	ok(achou_buraco, "a conferencia enxerga um buraco quando ele existe")
 
 
 ## O decalque de topo e RARO, e ele cabe na chapa.
@@ -778,10 +818,15 @@ func _o_topo_ainda_tem_CHAPA() -> void:
 ## cujo default e 2 de proposito. Um `chance_de_decalque` girado para 1,0 nao da
 ## erro nenhum; ele so apaga a issue.
 ##
-## **Cabe.** O decalque desenha na CHAPA, entre o bisel e a borda. Uma peca mais
-## alta que a faixa vaza para a face de um lado ou para o vazio do outro, e o
-## portao de invasao so pega o primeiro caso -- o vazio nao e area jogavel, entao
-## sair por ali passa sem uma linha no console.
+## **Cabe.** O decalque desenha na cobertura estrutural do lado, e com o perfil
+## direcional ela ficou ESTREITA: cap 12 px no norte, reveal 8 nas laterais,
+## ledge 20 no sul. Uma peca de 16 px so cabe no ledge -- e isso nao e efeito
+## colateral, e a regra: **o cap nao recebe substantivos.** Ele e cobertura
+## estrutural, e desgaste desenhado nele faria o topo voltar a competir com a
+## face, que e o defeito que este epico existe para tirar.
+##
+## Quem decide continua sendo o ENCAIXE e nao uma lista: a peca so entra onde ela
+## cabe sem girar. Com o perfil novo, o unico lado que aceita e o sul.
 func _o_desgaste_do_topo_e_RARO_e_cabe_na_chapa() -> void:
 	var estilo := load("res://src/mapa/estilo_industrial_velho.tres") as EstiloDeParede
 	ok(estilo != null and not estilo.decalques_de_topo.is_empty(),

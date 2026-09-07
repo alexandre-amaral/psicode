@@ -80,15 +80,22 @@ enum Conexao { PAREDE_COMPARTILHADA, PASSAGEM_CURTA, CORREDOR_TECNICO }
 ## arredondamento nao e opcional; os 8 px que sobram sao o respiro entre as duas
 ## faixas de cap.
 ##
-## **E 128 e exatamente o limiar em que `Corredor._montar_fita()` desiste de
-## desenhar parede propria** (`comprimento <= 128`). A coincidencia e feliz e
-## fragil: com 144 a conexao passaria a vestir uma faixa de parede propria por
-## cima das duas que ja se encontram ali. Quem mexer no corpo tem de olhar esse
-## limiar junto.
+## **E `Corredor._montar_fita()` desiste abaixo desse mesmo numero**, porque ele
+## passou a DERIVAR do perfil em vez de ser `ESPESSURA_PAREDE * 2`. Escrito como
+## literal, aquilo funcionava por coincidencia -- 128 era o dobro da profundidade
+## de entao --, e o corpo indo a 56 fez o vao ir a 144: o corredor voltaria a
+## desenhar uma faixa POR CIMA das duas que ja se encontram ali, sem erro nenhum,
+## so uma emenda de parede no meio da passagem.
 @export var vao_parede_compartilhada := Vector2(128.0, 128.0)
-## Curto o bastante para nao virar um lugar: a travessia dura menos de meio
-## segundo a 220 px/s.
-@export var vao_passagem_curta := Vector2(144.0, 160.0)
+## Curto o bastante para nao virar um lugar: com 136 px ja ocupados pelas duas
+## faixas de parede, sobram 72 px de piso -- 0,33 s a 220 px/s.
+##
+## **Ele subiu de 144 junto com o corpo da parede, e nao por gosto.** Com o
+## encontro em 144, uma passagem de 144 seria a MESMA coisa que uma parede
+## compartilhada, e `teste_conexoes` cobra que os tres vaos fiquem em ordem
+## estrita -- dois tipos que produzem a mesma geometria sao um tipo so com dois
+## nomes.
+@export var vao_passagem_curta := Vector2(160.0, 176.0)
 ## Longo o bastante para ser um lugar, e raro o bastante para significar algo.
 @export var vao_corredor_tecnico := Vector2(384.0, 384.0)
 

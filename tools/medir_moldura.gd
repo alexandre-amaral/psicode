@@ -143,6 +143,13 @@ func _medir(nome_cena: String, rotulo: String, sala: Sala, perfil: PerfilDePared
 	var faixa_crua := 0
 	var fora := 0
 	var cruas_por_lugar := {}
+	# **O VALOR de cada classe, e nao so quantos pixels ela tem.**
+	#
+	# Uma parede pode ocupar 12% do quadro e nao ser vista: se ela tiver o MESMO
+	# valor do chao, o olho nao acha a borda e a moldura deixa de existir como
+	# forma. Fracao responde "quanto ha"; isto responde "da para ver".
+	var luma_chao: Array[float] = []
+	var luma_faixa: Array[float] = []
 	var passo := 2  # amostra de 2 em 2: o veredicto e uma fracao, nao um pixel
 	var total := 0
 	var y := 0
@@ -163,11 +170,15 @@ func _medir(nome_cena: String, rotulo: String, sala: Sala, perfil: PerfilDePared
 			# epico existe para produzir.
 			if regiao == 1 and not _cabe_na_faixa_do_lado(local, limites_locais, perfil):
 				regiao = 2
+			var cor_aqui := imagem.get_pixel(x, y)
+			var luma_aqui := cor_aqui.r * 0.299 + cor_aqui.g * 0.587 + cor_aqui.b * 0.114
 			match regiao:
 				0:
 					chao += 1
+					luma_chao.append(luma_aqui)
 				1:
-					if _mesma_cor(imagem.get_pixel(x, y), vazio):
+					luma_faixa.append(luma_aqui)
+					if _mesma_cor(cor_aqui, vazio):
 						faixa_crua += 1
 						var onde := _onde_na_faixa(mundo, limites)
 						cruas_por_lugar[onde] = int(cruas_por_lugar.get(onde, 0)) + 1
@@ -187,10 +198,12 @@ func _medir(nome_cena: String, rotulo: String, sala: Sala, perfil: PerfilDePared
 		for k: String in chaves:
 			partes.append("%s %.1f%%" % [k, int(cruas_por_lugar[k]) / n * 100.0])
 		detalhe = "   cru em: " + ", ".join(partes)
-	print("%-22s %-8s %6.1f%% %6.1f%% %6.1f%% %6.1f%% %7.3f%s" % [
+	print("%-22s %-8s %6.1f%% %6.1f%% %6.1f%% %6.1f%% %7.3f  chao %4.1f parede %4.1f (%.2fx)%s" % [
 		nome_cena, rotulo,
 		chao / n * 100.0, faixa_pintada / n * 100.0,
-		faixa_crua / n * 100.0, fora / n * 100.0, cavidade, detalhe])
+		faixa_crua / n * 100.0, fora / n * 100.0, cavidade,
+		_mediana(luma_chao) * 255.0, _mediana(luma_faixa) * 255.0,
+		_mediana(luma_faixa) / maxf(_mediana(luma_chao), 0.001), detalhe])
 
 
 ## 0 = chao, 1 = faixa de parede, 2 = alem de tudo.
@@ -305,3 +318,10 @@ func _dados_do_tipo(nome_cena: String) -> DadosSala:
 	elif nome_cena.ends_with("_inicial"):
 		tipo = "inicial"
 	return load("res://src/mapa/tipo_%s.tres" % tipo) as DadosSala
+
+
+static func _mediana(valores: Array[float]) -> float:
+	if valores.is_empty():
+		return 0.0
+	valores.sort()
+	return valores[valores.size() / 2]

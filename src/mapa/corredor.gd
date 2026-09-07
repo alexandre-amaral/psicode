@@ -176,7 +176,21 @@ func obter_limites() -> Rect2:
 ## por parede no meio da passagem. E nao ha canto, porque um corredor nao tem
 ## quina -- as pontas dele morrem dentro da parede da sala.
 func _montar_fita(eixo: Vector2, lado: Vector2, comprimento: float, largura: float) -> void:
-	if comprimento <= ESPESSURA_PAREDE * 2.0:
+	# **O LIMIAR SAI DO PERFIL, e nao de `ESPESSURA_PAREDE`.**
+	#
+	# Quando as duas faixas de parede das salas vizinhas ja se encontram no vao,
+	# o corredor nao tem o que vestir -- ele nasce como piso e colisao e mais
+	# nada, e e isso que faz a parede compartilhada do epico dos setores existir
+	# sem peca nova.
+	#
+	# Escrito como `ESPESSURA_PAREDE * 2` isso funcionava por COINCIDENCIA: 128
+	# era exatamente o dobro da profundidade de entao. Com o corpo em 56 a
+	# profundidade vai a 68, o vao vai a 144, e o corredor voltaria a desenhar uma
+	# faixa POR CIMA das duas que ja se encontram ali -- sem erro nenhum, so uma
+	# emenda de parede no meio da passagem.
+	var perfil := PerfilDeParede.new()
+	var encontro := perfil.profundidade(RenderizadorParedes.Lado.NORTE) 		+ perfil.profundidade(RenderizadorParedes.Lado.SUL)
+	if comprimento <= encontro:
 		return
 	# O mesmo recuo nas pontas que o corpo e a face ja usam: a parede da sala ja
 	# cobre esses pixels nas bocas, e pintar duas vezes o mesmo lugar costura.

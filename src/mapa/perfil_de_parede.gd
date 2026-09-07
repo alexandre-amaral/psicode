@@ -48,8 +48,31 @@ extends RefCounted
 ## suficiente para essas categorias voltarem a ser reconheciveis; abaixo disso a
 ## face vira uma tira e o material deixa de ler.
 ##
-## Se 48 precisar mudar, os unicos valores permitidos sao 44, 52 e 56, e **o
-## mesmo nos quatro lados**. E a razao de este recurso existir.
+## **48 CONTINUA, e o degrau de 56 foi testado e devolvido.** O dono olhou o jogo
+## e disse que a parede continuava fina. A medicao concordou com a queixa e
+## discordou do diagnostico:
+##
+##     corpo    chao     faixa    vazio      (sala_1, jogador no centro)
+##       48    80,2%     11,4%     7,3%
+##       52    80,2%     12,1%     6,5%
+##       56    80,2%     12,8%     5,6%
+##
+## **O chao nao se move.** A `sala_1_retangular` tem 768 px e o eixo X esta
+## FECHADO: `768 + 120 de parede + 72 de vazio = 960` exato. Entao a fracao de
+## chao e a razao `768/960`, e engrossar a parede so troca vazio por parede.
+##
+## O degrau de 56 tinha um ganho real -- o vazio ia de 35 px por lado para 27,
+## dentro da faixa de 16 a 24 que a secao 31 pede -- e um custo medido: a
+## `sala_5_pilar` caia de 3 para 2 patamares de valor em `formas_paredes`. Trocar
+## uma leitura que passa por 1,4 ponto de faixa nao paga.
+##
+## **Quem manda na dominancia do chao e o TAMANHO DA SALA, e nao esta constante.**
+## E 48 tem uma propriedade que 56 nao tem: com margens de 80, uma sala de 384 px
+## de altura fecha o eixo Y em 544 EXATO. Com 88 nao fecha em altura nenhuma da
+## grade.
+##
+## Os unicos valores permitidos sao 44, 48, 52 e 56, e **o mesmo nos quatro
+## lados**. E a razao de este recurso existir.
 var corpo: float = 48.0
 
 ## O CAP: o acabamento externo, e so isso.

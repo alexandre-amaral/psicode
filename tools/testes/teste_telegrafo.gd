@@ -28,6 +28,7 @@ func nome() -> String:
 
 func executar() -> void:
 	_as_invariantes_de_no()
+	_o_aviso_de_area_e_desenhavel_LONGE_da_origem()
 	_o_piso_de_duracao_vale_sempre()
 	_as_quatro_fases_estao_em_ordem()
 	_a_intensidade_cresce_e_pisca()
@@ -332,3 +333,58 @@ func _nascer(cena: PackedScene) -> Node:
 	no.position = LONGE
 	Engine.get_main_loop().root.add_child(no)
 	return no
+
+
+## O AVISO DE AREA E DESENHAVEL LONGE DA ORIGEM.
+##
+## **Ele nasceu de um erro que rodou por muito tempo sem dono.** A suite imprimia
+## duas linhas de `Invalid polygon data, triangulation failed` a cada execucao, e
+## elas passavam por ruido de headless -- ninguem as ligou a nada, porque erro de
+## rasterizacao nao volta como valor. Volta como uma linha no console.
+##
+## A causa: `_draw` somava `_centro` em cada vertice, entao o poligono chegava ao
+## rasterizador em coordenada de MUNDO, e ele trabalha em float32. Num aviso de
+## 12 px de raio a 71 mil px da origem -- que e onde as suites montam (`LONGE`)
+## --, a diferenca entre dois vertices vizinhos (~3 px) desaparece na cancelacao
+## contra numeros de cinco digitos. O disco existia, era convexo e nao desenhava.
+##
+## **No jogo isso nao aparecia**, porque o andar inteiro cabe em poucos milhares
+## de px -- e era exatamente por isso que valia consertar: um aviso que depende de
+## a sala ficar perto da origem some sem motivo no dia em que o mapa crescer, e
+## telegrafo que some e a fronteira entre dificil e injusto.
+##
+## Hoje o centro vai na TRANSFORMACAO e os vertices ficam locais. Este caso cobra
+## as duas metades: que os pontos sejam pequenos onde quer que o aviso esteja, e
+## que a forma seja de fato triangulavel.
+func _o_aviso_de_area_e_desenhavel_LONGE_da_origem() -> void:
+	const RAIO := 96.0
+	# Dez vezes mais longe que `LONGE`, e ainda assim uma coordenada que um andar
+	# grande pode alcancar. O portao nao vale nada medido perto da origem: perto
+	# dela o codigo ERRADO tambem passa.
+	for centro: Vector2 in [Vector2.ZERO, Vector2(6000.0, 4000.0),
+			Vector2(71092.0, 71000.0), Vector2(-710000.0, 710000.0)]:
+		var t := Telegrafo.new()
+		Engine.get_main_loop().root.add_child(t)
+		t.acender(0.5)
+		t.circulo(centro, RAIO)
+		t.avancar(0.5)
+
+		var pontos := t.poligono_desenhado()
+		ok(pontos.size() >= 3, "em %s o aviso tem poligono (%d pontos)"
+			% [centro, pontos.size()])
+
+		# 1. OS VERTICES SAO LOCAIS. Um so em coordenada de mundo devolve o
+		#    defeito inteiro, porque basta um para a escala do poligono explodir.
+		var maior := 0.0
+		for p in pontos:
+			maior = maxf(maior, maxf(absf(p.x), absf(p.y)))
+		ok(maior <= RAIO + 1.0,
+			"em %s os vertices ficam locais ao centro (o mais distante: %.1f px)"
+				% [centro, maior])
+
+		# 2. E A FORMA E TRIANGULAVEL. E a mesma pergunta que o rasterizador faz,
+		#    feita onde ela devolve um valor em vez de uma linha no console.
+		ok(not Geometry2D.triangulate_polygon(pontos).is_empty(),
+			"em %s o aviso e triangulavel" % centro)
+
+		t.free()

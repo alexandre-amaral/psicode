@@ -324,19 +324,31 @@ func _draw() -> void:
 		Forma.LINHA:
 			draw_line(_a, _b, c, largura)
 		Forma.AREA:
-			if _pontos.size() < 3:
+			var pontos := poligono_desenhado()
+			if pontos.size() < 3:
 				return
-			var f := crescimento()
-			var pontos := PackedVector2Array()
-			for ponto in _pontos:
-				pontos.append(_centro + ponto * f)
 			# O miolo e discreto e a borda e o aviso: um disco chapado do
 			# tamanho de meia sala esconderia o proprio chao, e o jogador
 			# precisa ver ONDE esta pisando enquanto sai de cima.
 			var preenchimento := c
 			preenchimento.a = c.a * 0.28
+			# **O CENTRO VAI NA TRANSFORMACAO, e nao somado em cada ponto.**
+			#
+			# Somado, o poligono chega ao rasterizador em coordenada de MUNDO --
+			# e ele trabalha em float32. Num aviso de 12 px de raio a 71 mil px
+			# da origem, as diferencas entre vertices vizinhos (~3 px) somem na
+			# cancelacao contra numeros de cinco digitos, e a triangulacao falha:
+			# `Invalid polygon data, triangulation failed`, uma linha por frame.
+			#
+			# Isso aparecia nas SUITES, que montam em `LONGE`, e nao no jogo, onde
+			# o andar inteiro cabe em poucos milhares de px. Mas um aviso que
+			# depende de a sala ficar perto da origem e um aviso que some sem
+			# motivo no dia em que o mapa crescer -- e telegrafo que some e a
+			# fronteira entre dificil e injusto.
+			draw_set_transform(_centro)
 			draw_colored_polygon(pontos, preenchimento)
 			draw_polyline(_fechar(pontos), c, largura)
+			draw_set_transform(Vector2.ZERO)
 		_:
 			pass
 
@@ -371,6 +383,22 @@ func _trocar_fase(nova: int) -> void:
 ## O `draw_polyline` precisa repetir o primeiro ponto para fechar; o
 ## `draw_colored_polygon` nao pode repetir. Mesma armadilha que
 ## `Sala.contorno_local()` documenta.
+## O poligono do aviso no instante atual, em coordenadas LOCAIS ao centro.
+##
+## Ele existe separado do `_draw` para ser conferivel: um portao que precisasse
+## renderizar para saber se a forma e valida nao existiria, porque erro de
+## rasterizacao nao volta como valor -- volta como uma linha no console que
+## ninguem le.
+func poligono_desenhado() -> PackedVector2Array:
+	if _pontos.size() < 3:
+		return PackedVector2Array()
+	var f := crescimento()
+	var saida := PackedVector2Array()
+	for ponto in _pontos:
+		saida.append(ponto * f)
+	return saida
+
+
 func _fechar(pontos: PackedVector2Array) -> PackedVector2Array:
 	var saida := PackedVector2Array(pontos)
 	if not saida.is_empty():

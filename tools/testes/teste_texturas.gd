@@ -84,6 +84,11 @@ const PASTAS_MEDIDAS: Dictionary = {
 const PASTAS_SEM_REGIME_AINDA: Array[String] = [
 	"res://assets/personagens/",
 	"res://assets/inimigos/",
+	# O Sucateiro entra pela mesma porta dos outros atores: arte gerada, sem
+	# portao de paleta. Declarar aqui e o que impede a pasta nova de virar um
+	# ponto cego SILENCIOSO -- que e exatamente o que esta lista existe para
+	# trocar por um ponto cego declarado.
+	"res://assets/npc/",
 ]
 
 const PASTA_PROJETEIS := "res://assets/projeteis/"

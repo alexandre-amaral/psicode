@@ -32,7 +32,12 @@ const VAO_ENTRE_BANCADAS := 96.0
 ## Elas ficam acima do centro, entre o balcao e a entrada -- o jogador entra pelo
 ## sul, ve as tres, e o NPC fica atras delas.
 const ALTURA_DAS_BANCADAS := -24.0
-const ALTURA_DO_BALCAO := -128.0
+## **A 128 o balcao ficava na borda do quadro e o Sucateiro FORA dele.** A sala
+## tem 640 de altura e o jogador entra pelo sul: com o clamp, o que ele ve na
+## chegada e o terco de baixo. Um comerciante que so aparece depois de o jogador
+## atravessar a sala nao diz "alguem ocupou este lugar" -- ele e uma surpresa
+## depois da leitura, e nao a leitura.
+const ALTURA_DO_BALCAO := -74.0
 
 const COR_BALCAO := Color(0.18, 0.20, 0.26)
 const COR_TAMPO := Color(0.28, 0.31, 0.38)
@@ -93,6 +98,17 @@ func _montar_loja() -> void:
 	var balcao := _Balcao.new()
 	balcao.position = Vector2(0.0, ALTURA_DO_BALCAO)
 	raiz.add_child(balcao)
+
+	# O SUCATEIRO fica ATRAS do balcao, e nao ao lado das bancadas.
+	#
+	# Duas razoes: o balcao entre ele e o jogador e o que diz "este e o dono do
+	# lugar" sem uma linha de texto, e a distancia mantem o prompt dele longe do
+	# das bancadas -- os dois alcances se tocando fariam o jogador conversar
+	# quando queria comprar.
+	var npc := Sucateiro.new()
+	npc.name = "Sucateiro"
+	npc.position = Vector2(0.0, ALTURA_DO_BALCAO - 18.0)
+	raiz.add_child(npc)
 
 	var cena := load("res://src/loja/bancada_de_oferta.tscn") as PackedScene
 	if cena == null:

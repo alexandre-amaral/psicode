@@ -17,6 +17,9 @@ func _ready() -> void:
 	# Ao SUL: e por onde o jogador entra, e a composicao que ele ve na chegada e
 	# o que o portao pergunta.
 	EnquadramentoDeSala.posicionar(jogador, sala, "sul")
+	# E depois JUNTO da bancada do meio: o portao visual pergunta pela chegada, e
+	# o prompt so existe perto -- as duas coisas precisam da mesma foto.
+	jogador.global_position = sala.global_position + Vector2(0.0, 6.0)
 	for i in 6:
 		await get_tree().process_frame
 	await get_tree().create_timer(0.4).timeout

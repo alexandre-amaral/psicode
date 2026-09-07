@@ -194,6 +194,7 @@ docs/
 | Layout e conexao das salas | `src/mapa/gerenciador_mapa.gd`, `src/mapa/sala_*.tscn` |
 | **Tipo de sala novo (desafio, forja...)** | criar `src/mapa/tipo_*.tres` e por na lista `tipos_de_sala` do `GerenciadorMapa`. A Loja foi feita assim, sem uma linha no gerador |
 | **O que a Loja vende e como ela e montada** | `src/loja/sala_loja.gd` -- balcao, tres bancadas e a luz de trabalho. A geometria da parede e a do andar, sem nada proprio |
+| **O Sucateiro (arte e prompt)** | `src/loja/sucateiro.gd` e `assets/npc/sucateiro/`. Gerado pelo PixelLab em `mode=v3`, 64 px, `low top-down` |
 | **A transacao de compra** | `src/loja/bancada_de_oferta.gd:comprar()` -- a ORDEM e o contrato: entrega antes do debito |
 | **Ver a Loja no enquadramento do jogo** | `godot --path . tools/loja/olhar_loja.tscn --resolution 960x544` |
 | **Onde a Loja pode nascer** | `distancia_minima_da_origem` e `distancia_maxima_da_origem` no `src/mapa/tipo_loja.tres`; o teto e ZERO em todos os outros tipos, e zero desliga |
@@ -996,6 +997,15 @@ em qualquer erro de script.
   consumir o pickup. Com o debito primeiro, o jogador paga por um implante que
   nao recebe -- e numa economia isso nao tem desfazer. `teste_loja.gd` inverteu a
   ordem de proposito e o portao acusou 22 creditos sumindo sem entrega.
+- **Glifo que a fonte nao tem SOME sem erro.** O preco na bancada saia como
+  `12   [E]`, com um buraco onde deveria estar o losango da moeda:
+  `ThemeDB.fallback_font` nao tem `◆`, e a fonte do projeto tem -- a HUD
+  mostrava certo e a bancada nao, o que faz parecer bug de layout. Onde o glifo
+  importa, desenhe a forma em vez de escreve-la.
+- **Ator com arte de 64 px ancora pelo PE, e o `Sprite2D` centra por padrao.**
+  Sem `offset`, o Y-sort poe a CINTURA do Sucateiro na linha de profundidade e
+  ele desenha atras do balcao que esta a frente dele. O numero sai do alfa do
+  arquivo (pes em 63 de 64), e nao de uma constante escrita a mao.
 - **A luz da Loja e ELIPSE e quase transparente, e a primeira versao lia como
   DECALQUE.** Tres aneis concentricos de alfa 0,10 somam 0,30 no centro sobre um
   chao de luma 20: o resultado e uma mancha laranja desenhada no piso. E o

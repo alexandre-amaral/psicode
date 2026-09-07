@@ -26,6 +26,7 @@ func executar() -> void:
 	_a_loja_nasce_uma_vez_e_no_meio_do_andar()
 	_a_compra_nao_mexe_em_nada_quando_recusa()
 	_o_que_foi_vendido_continua_vendido()
+	_o_sucateiro_nao_atrapalha_a_compra()
 
 
 ## SEMPRE UMA ARMA E UM ITEM, e a terceira e surpresa.
@@ -391,3 +392,34 @@ func _o_que_foi_vendido_continua_vendido() -> void:
 
 	mapa.get_parent().remove_child(mapa)
 	mapa.free()
+
+
+## O SUCATEIRO NAO ATRAPALHA A COMPRA (#287).
+##
+## Ele e sabor: a compra acontece nas bancadas, e amarra-la a falar com ele
+## transformaria uma decisao em pedagio. O que este portao guarda e que os dois
+## alcances nao se confundam -- **comprar errado por um pixel e o tipo de defeito
+## que so aparece com o jogador andando**, e nao numa captura.
+func _o_sucateiro_nao_atrapalha_a_compra() -> void:
+	ok(Sucateiro.RAIO_DE_INTERACAO < BancadaDeOferta.RAIO_DE_INTERACAO,
+		"o alcance dele (%.0f) e menor que o da bancada (%.0f)"
+			% [Sucateiro.RAIO_DE_INTERACAO, BancadaDeOferta.RAIO_DE_INTERACAO])
+
+	# E a distancia entre ele e a bancada mais proxima passa dos dois alcances
+	# somados: assim nem o desenho dos dois prompts se sobrepoe.
+	var separacao := absf(SalaLoja.ALTURA_DO_BALCAO - 18.0
+		- SalaLoja.ALTURA_DAS_BANCADAS)
+	ok(separacao > Sucateiro.RAIO_DE_INTERACAO,
+		"ele fica %.0f px acima das bancadas, fora do alcance delas" % separacao)
+
+	# **O VAO ENTRE BANCADAS e a outra metade**, e o plano crava a faixa: mais
+	# perto os prompts se sobrepoem e o jogador nao sabe qual esta selecionando.
+	entre(SalaLoja.VAO_ENTRE_BANCADAS, 64.0, 96.0,
+		"as bancadas ficam a %.0f px de centro a centro" % SalaLoja.VAO_ENTRE_BANCADAS)
+
+	# A ARTE existe. Ela nao passa por portao de paleta -- `assets/npc/` esta
+	# declarada em `PASTAS_SEM_REGIME_AINDA`, como `personagens` e `inimigos` --,
+	# mas faltar o arquivo deixaria a silhueta de reserva em jogo para sempre, e o
+	# `GEMINI.md` ja registra a Diretora ficando anos assim.
+	ok(ResourceLoader.exists(Sucateiro.CAMINHO_DA_ARTE),
+		"a arte dele existe (%s)" % Sucateiro.CAMINHO_DA_ARTE)

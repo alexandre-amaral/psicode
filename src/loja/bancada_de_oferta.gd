@@ -166,6 +166,39 @@ func _draw() -> void:
 	if oferta == null or not oferta.valida():
 		return
 
+	# O PROMPT so aparece perto, e ele e a UI inteira da compra.
+	#
+	# **Nada de menu de tela cheia.** Abrir um painel para comprar tiraria o
+	# jogador da sala -- e a sala e o que a Loja tem de dizer. O nome, o preco e a
+	# tecla cabem em duas linhas acima da bancada.
+	if _perto and oferta != null and oferta.valida() and not oferta.vendida:
+		var fonte := ThemeDB.fallback_font
+		var tamanho := 10
+		var titulo := oferta.nome()
+		# **O LOSANGO E DESENHADO, e nao escrito.** `ThemeDB.fallback_font` nao
+		# tem o glifo, e um caractere que nao existe some sem erro -- o preco
+		# aparecia como "12   [E]", com um buraco onde deveria estar a moeda.
+		var custo := "%d      [E]" % oferta.preco
+		# Vermelho quando nao da: a recusa tem de ser legivel ANTES de o jogador
+		# apertar, senao ele aprende a apertar e ser recusado.
+		var cor_do_custo := COR_PRECO if GameState.pode_pagar(oferta.preco) 			else COR_SEM_SALDO
+		var largura := fonte.get_string_size(titulo, HORIZONTAL_ALIGNMENT_LEFT,
+			-1.0, tamanho).x
+		draw_string(fonte, Vector2(-largura * 0.5, -34.0), titulo,
+			HORIZONTAL_ALIGNMENT_LEFT, -1.0, tamanho, Color(0.86, 0.88, 0.94))
+		var largura_custo := fonte.get_string_size(custo, HORIZONTAL_ALIGNMENT_LEFT,
+			-1.0, tamanho).x
+		draw_string(fonte, Vector2(-largura_custo * 0.5, -22.0), custo,
+			HORIZONTAL_ALIGNMENT_LEFT, -1.0, tamanho, cor_do_custo)
+		# A ficha, do mesmo tamanho do texto e na mesma cor: e ela que liga o
+		# preco ao que o jogador cata no chao.
+		var x := -largura_custo * 0.5 + fonte.get_string_size(
+			"%d " % oferta.preco, HORIZONTAL_ALIGNMENT_LEFT, -1.0, tamanho).x + 4.0
+		draw_colored_polygon(PackedVector2Array([
+			Vector2(x, -30.0), Vector2(x + 3.0, -26.0),
+			Vector2(x, -22.0), Vector2(x - 3.0, -26.0),
+		]), cor_do_custo)
+
 	if oferta.vendida:
 		# VENDIDO nao e ausencia: a bancada continua ali, vazia, e o vazio e a
 		# informacao. Um pedestal que sumisse faria o jogador duvidar de ter

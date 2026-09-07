@@ -160,6 +160,30 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## spawn. Zero desliga a decoracao.
 @export var quantidade_props: int = 0
 
+## O atlas de DECALQUES INDUSTRIAIS e as celulas dele que esta sala usa (#233).
+##
+## **Ele e separado do atlas de props chapados, e a separacao e de regime e nao
+## de arrumacao.** `props_atlas.png` e GERADO e trancado pelo determinismo: o
+## portao compara o PNG em disco com o que `gerar_texturas.gd` produz, byte a
+## byte. Um decalque autorado colado ali quebraria essa comparacao para os doze
+## props que ja estao la, e o sintoma seria "o gerador e o disco divergiram" --
+## uma mensagem que aponta para o lugar errado.
+##
+## O decalque tambem tem familia propria no funil (`decalque`, teto de valor
+## 0,19 contra 0,42 do prop), e por uma razao que o `TETO_VALOR` do teste ja
+## registra: prop vive na margem calma e pode ter volume; decalque e chapado e
+## vive ONDE O COMBATE ACONTECE -- o jogador anda por cima dele.
+@export var atlas_decalques: Texture2D
+@export var regioes_decalques: Array[Rect2i] = []
+
+## Quantos decalques a sala tenta colocar.
+##
+## **Poucos, e o numero e a issue.** O piso e a regiao visualmente mais calma da
+## sala e essa e a regra que o epico nao negocia. Se toda sala tiver um numero
+## estampado, nenhuma sala tem identidade -- e a mesma ideia de
+## `max_props_animados`, cujo default e 2 de proposito.
+@export var quantidade_decalques: int = 0
+
 ## O atlas VOLUMETRICO e as celulas dele que esta sala pode usar (LTD 09).
 ##
 ## E uma segunda lista, e nao uma bandeira na primeira, porque as duas familias

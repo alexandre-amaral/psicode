@@ -741,6 +741,11 @@ const AUTORADAS: Dictionary = {
 	# chapa. Familia `decalque` e nao `parede`, e o teto de valor de 0,19 e o que
 	# os mantem subordinados -- eles desenham SOBRE a faixa que a #239 cobra para
 	# nao chamar atencao, entao um decalque claro desfaria a issue inteira.
+	# O atlas de DECALQUES INDUSTRIAIS do chao (#233). Separado de
+	# `props_atlas.png` porque aquele e GERADO e trancado pelo determinismo:
+	# colar arte autorada nele quebraria a comparacao byte a byte dos doze props
+	# que ja moram la, e o erro apontaria para o gerador.
+	"decalques_andar1.png": {&"familia": &"decalque", &"tipo": &"andar1"},
 	"topo_decalque_oleo.png": {&"familia": &"decalque", &"tipo": &"andar1"},
 	"topo_decalque_ferrugem.png": {&"familia": &"decalque", &"tipo": &"andar1"},
 	"topo_decalque_solda.png": {&"familia": &"decalque", &"tipo": &"andar1"},

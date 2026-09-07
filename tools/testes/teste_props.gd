@@ -46,6 +46,7 @@ func executar() -> void:
 	_o_foreground_nunca_entra_na_area_util()
 	_o_prop_raro_aparece_numa_sala_por_andar()
 	_a_arena_reage_sem_cobrir_a_leitura()
+	_o_decalque_industrial_e_POUCO_e_nao_espelha()
 
 
 ## Metade 1 do contrato: a arte de cada celula encosta no FUNDO dela.
@@ -438,3 +439,88 @@ func _o_foreground_nunca_entra_na_area_util() -> void:
 				"elemento de Foreground nao tem sombra: ele nao encosta no chao"
 			)
 	amostra.free()
+
+
+## Quantas salas a varredura de contagem visita.
+##
+## Doze: com `PROP_TENTATIVAS` em 12 e a margem apertada, uma sala isolada pode
+## perder uma peca sem que nada esteja errado. O que o portao tem de pegar e a
+## decoracao sumir de VEZ -- e isso e uma media, nao um caso.
+const SALAS_MEDIDAS := 12
+
+
+## O decalque industrial e POUCO, ele nao espelha, e ele fica chapado.
+##
+## As tres coisas falham em silencio, e nenhuma aparece no console.
+##
+## **Pouco.** `_sortear_ponto_de_prop()` desiste depois de 12 tentativas sem
+## dizer nada, e `_cabe_prop()` recusa quem encosta em porta ou parede. Uma sala
+## com ZERO decalques passa por qualquer teste que pergunte `> 0` -- e essa era a
+## divida anotada no plano de enquadramento: "o portao de props precisa passar a
+## cobrar a CONTAGEM pedida, e nao `> 0`". Este caso cobra os dois lados: que
+## chegue perto do pedido, e que nao passe dele.
+##
+## **Nao espelha.** `_montar_props_chapados` sorteia `flip_h` para multiplicar a
+## variedade de graca. Num decalque com texto isso escreve `30-A` em metade das
+## salas -- e nao ha erro para uma placa lida ao contrario. Espelhar REFLETE, e e
+## a mesma razao pela qual `flip_v` e proibido na porta.
+##
+## **Chapado.** Zero e onde ficam telegrafo, projetil e atores. Um decalque ali
+## poderia cair na frente do aviso que torna um ataque justo.
+func _o_decalque_industrial_e_POUCO_e_nao_espelha() -> void:
+	var dados: DadosSala = load("res://src/mapa/tipo_combate.tres")
+	if dados == null:
+		ok(false, "o tipo de combate carrega")
+		return
+	ok(dados.atlas_decalques != null and not dados.regioes_decalques.is_empty(),
+		"o tipo de combate declara o atlas de decalques")
+	entre(float(dados.quantidade_decalques), 1.0, 3.0,
+		"a sala pede POUCOS decalques (%d)" % dados.quantidade_decalques)
+	if dados.atlas_decalques == null:
+		return
+
+	var total := 0
+	var espelhados := 0
+	var fora_da_faixa := 0
+	var regioes := {}
+	for r in dados.regioes_decalques:
+		regioes["%d,%d,%d,%d" % [r.position.x, r.position.y, r.size.x, r.size.y]] = true
+
+	for i in SALAS_MEDIDAS:
+		var sala := CENA_SALA.instantiate() as Sala
+		sala.coordenadas_grid = Vector2i(i * 7, i)
+		sala.definir_visual(dados)
+		sala.position = LONGE
+		Engine.get_main_loop().root.add_child(sala)
+		var raiz := sala.get_node_or_null("Decalques") as Node2D
+		if raiz != null:
+			if raiz.z_index != Sala.Z_CHAO_DETALHE:
+				fora_da_faixa += 1
+			for filho in raiz.get_children():
+				var s := filho as Sprite2D
+				if s == null:
+					continue
+				total += 1
+				if s.flip_h or s.flip_v:
+					espelhados += 1
+				var r := s.region_rect
+				var chave := "%d,%d,%d,%d" % [r.position.x, r.position.y, r.size.x, r.size.y]
+				if not regioes.has(chave):
+					fora_da_faixa += 1
+		sala.free()
+
+	igual(espelhados, 0,
+		"nenhum decalque espelha -- texto espelhado nao da erro nenhum (%d de %d)"
+			% [espelhados, total])
+	igual(fora_da_faixa, 0,
+		"todo decalque fica na faixa de detalhe de chao e numa regiao declarada (%d)"
+			% fora_da_faixa)
+
+	var pedido := dados.quantidade_decalques * SALAS_MEDIDAS
+	# O piso e 60% do pedido, e nao o pedido inteiro: a margem entre a parede e a
+	# area de spawn e apertada e uma peca de 64 nem sempre cabe longe da porta.
+	# O que este numero pega e a decoracao sumir de vez -- que e o modo de falha
+	# real, porque `_sortear_ponto_de_prop()` desiste em silencio.
+	entre(float(total), float(pedido) * 0.6, float(pedido),
+		"as salas receberam os decalques pedidos (%d de %d em %d salas)"
+			% [total, pedido, SALAS_MEDIDAS])

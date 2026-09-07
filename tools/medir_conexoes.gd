@@ -93,9 +93,18 @@ func _ready() -> void:
 			soma += v
 		var media := soma / float(lista.size())
 		var piso := media - faixa
-		print("  %-11s %3d arestas   vao medio %.0f px   parede %.0f (%.0f%%)   piso de corredor %.0f (%.0f%%)"
-			% [eixo, lista.size(), media, faixa, faixa / media * 100.0,
-				piso, piso / media * 100.0])
+		# A MEDIA sozinha esconde a forma da distribuicao, e aqui ela e o que
+		# importa: "quase toda conexao e curta e algumas sao longas" e um andar
+		# diferente de "todas sao medias". O minimo diz se o vao declarado chega a
+		# acontecer alguma vez.
+		lista.sort()
+		var minimo: float = lista[0]
+		var mediana: float = lista[lista.size() / 2]
+		var maximo: float = lista[lista.size() - 1]
+		print("  %-11s %3d arestas   vao min %.0f  mediana %.0f  medio %.0f  max %.0f"
+			% [eixo, lista.size(), minimo, mediana, media, maximo])
+		print("               parede %.0f (%.0f%% da mediana)   piso de corredor %.0f"
+			% [faixa, faixa / maxf(mediana, 1.0) * 100.0, mediana - faixa])
 
 	print("\n  %d arestas em %d andares (%.1f por andar)"
 		% [total_arestas, ANDARES, float(total_arestas) / float(ANDARES)])

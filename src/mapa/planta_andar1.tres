@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="PlantaDoAndar" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/mapa/planta_andar.gd" id="1_planta"]
+
+[resource]
+script = ExtResource("1_planta")
+id = &"andar1"
+peso_parede_compartilhada = 0.70
+peso_passagem_curta = 0.20
+peso_corredor_tecnico = 0.10
+vao_parede_compartilhada = Vector2(80, 96)
+vao_passagem_curta = Vector2(144, 160)
+vao_corredor_tecnico = Vector2(384, 384)

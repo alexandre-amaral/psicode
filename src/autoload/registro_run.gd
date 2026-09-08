@@ -39,6 +39,7 @@ func _ready() -> void:
 	EventBus.item_coletado.connect(_ao_item_coletado)
 	EventBus.arma_adquirida.connect(_ao_arma_adquirida)
 	EventBus.player_dano_recebido.connect(_ao_player_dano)
+	EventBus.aprimorado_nasceu.connect(_ao_aprimorado_nasceu)
 
 
 ## Ha run em curso?
@@ -127,3 +128,43 @@ func _ao_player_dano(vida_atual: int, _vida_max: int) -> void:
 	if _vida_anterior >= 0 and vida_atual < _vida_anterior:
 		_run.dano_recebido += _vida_anterior - vida_atual
 	_vida_anterior = vida_atual
+
+
+## Uma Unidade Aprimorada entrou na sala.
+##
+## A classe entra em `classes_vistas` sem repetir: a lista responde VARIEDADE
+## ("quantas classes diferentes este andar mostrou"), e a contagem de quantas
+## vezes cada uma apareceu ja esta em `aprimoradas_encontradas`. Uma lista com
+## repeticao responderia as duas coisas pela metade.
+func _ao_aprimorado_nasceu(inimigo: Node2D, classe_id: StringName) -> void:
+	if _run == null:
+		return
+	_run.aprimoradas_encontradas += 1
+	if not _run.classes_vistas.has(classe_id):
+		_run.classes_vistas.append(classe_id)
+
+	# **A MORTE NAO VEM DO `EventBus`, e isso e escolha e nao falta de sinal.**
+	# `inimigo_morreu` carrega (posicao, creditos) e NAO diz quem caiu -- de la
+	# nao ha como separar uma aprimorada de um Rastejante. As duas saidas obvias
+	# custam ao gameplay: um sinal novo (`aprimorado_morreu`) faz o inimigo
+	# passar a conhecer a metrica, e engrossar a assinatura de `inimigo_morreu`
+	# mexe num sinal que ja tem outros ouvintes so para servir a um deles.
+	#
+	# Aqui o NO chega no parametro. `InimigoBase.morreu` e emitido no mesmo
+	# instante, uma linha antes do sinal global, e ja existe: basta escutar o
+	# DESTE inimigo. `ONE_SHOT` porque um abate e um so, e a ligacao morre com o
+	# no -- nao ha o que desligar depois.
+	if inimigo == null or not inimigo.has_signal(&"morreu"):
+		return
+	# O `_run` vai AMARRADO porque uma aprimorada pode sobreviver ao fim da run
+	# -- quem abandona pelo menu deixa a sala cheia -- e cair enquanto a proxima
+	# ja comecou. Sem a amarra, aquele abate contaria na run seguinte.
+	inimigo.connect(
+		&"morreu", _ao_aprimorada_morrer.bind(_run), CONNECT_ONE_SHOT
+	)
+
+
+func _ao_aprimorada_morrer(_posicao: Vector2, run: DadosRun) -> void:
+	if _run == null or run != _run:
+		return
+	_run.aprimoradas_mortas += 1

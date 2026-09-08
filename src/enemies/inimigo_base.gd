@@ -273,17 +273,36 @@ func aplicar_aprimoramento(d: DadosAprimoramento) -> bool:
 		return false
 	if not d.cabe_em(dados):
 		return false
-	for existente in aprimoramentos:
-		if existente.dados != null 				and existente.dados.aprimoramentos_incompativeis.has(d.id):
-			return false
-		if d.aprimoramentos_incompativeis.has(existente.dados.id):
-			return false
+	if aprimoramento_incompativel(d):
+		return false
 	var no := Aprimoramento.new()
 	no.name = "Aprimoramento"
 	add_child(no)
 	no.configurar(self, d)
 	aprimoramentos.append(no)
 	return true
+
+
+## Se `d` briga com alguma classe ja pendurada -- nos DOIS sentidos.
+##
+## Ela e publica e mora fora de `aplicar_aprimoramento()` porque, embutida, esta
+## regra seria INALCANCAVEL: com `MAX_APRIMORAMENTOS` em 1 o teto recusa antes de
+## haver uma classe pendurada com quem brigar. E as duas recusas se parecem --
+## ambas devolvem `false` --, entao nenhum portao conseguiria separa-las, e
+## `aprimoramentos_incompativeis` passaria por lido estando morto. Campo de
+## compatibilidade que ninguem consegue provar e campo que MENTE, e os `tags_*`
+## ao lado ja tem portao pela mesma razao. Quem cobra e `teste_aprimoramento.gd`.
+func aprimoramento_incompativel(d: DadosAprimoramento) -> bool:
+	if d == null:
+		return false
+	for existente in aprimoramentos:
+		if existente.dados == null:
+			continue
+		if existente.dados.aprimoramentos_incompativeis.has(d.id):
+			return true
+		if d.aprimoramentos_incompativeis.has(existente.dados.id):
+			return true
+	return false
 
 
 ## Se este inimigo carrega alguma classe. A HUD e o loot perguntam por aqui.

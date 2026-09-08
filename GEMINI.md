@@ -999,6 +999,25 @@ em qualquer erro de script.
   consumir o pickup. Com o debito primeiro, o jogador paga por um implante que
   nao recebe -- e numa economia isso nao tem desfazer. `teste_loja.gd` inverteu a
   ordem de proposito e o portao acusou 22 creditos sumindo sem entrega.
+- **Chance por sala e frequencia PERCEBIDA sao numeros diferentes, e a diferenca
+  tem tamanho.** O `tipo_combate.tres` declara 25% de chance de aprimorada;
+  medido em 24 andares, a taxa e **21,7% das salas de combate** (1,08 por andar).
+  A distancia entre os dois e o cooldown: 22 das 120 salas sorteaveis nem chegam
+  a rolar o dado. Entre as 98 que rolam, o sorteio devolve os 26,5% declarados --
+  entao o `.tres` esta certo e o numero que o jogador sente e outro.
+- **A morte de uma aprimorada NAO vem do `EventBus`.** `inimigo_morreu` carrega
+  `(posicao, creditos)` e nao diz quem caiu. Um sinal novo faria o inimigo
+  conhecer a metrica; engrossar a assinatura mexeria num sinal com outros
+  ouvintes para servir a um so. `RegistroRun` escuta o `InimigoBase.morreu`
+  DAQUELE no, que chega no parametro de `aprimorado_nasceu` -- com o `DadosRun`
+  AMARRADO, porque uma aprimorada sobrevive ao abandono pelo menu e pode cair com
+  a run seguinte ja em curso: sem a amarra sairia `mortas > encontradas`.
+- **A incompatibilidade entre classes seria INALCANCAVEL dentro de
+  `aplicar_aprimoramento()`.** Com `MAX_APRIMORAMENTOS` em 1, o teto recusa antes
+  de haver classe pendurada com quem brigar -- e as duas recusas devolvem `false`,
+  entao nenhum portao as separaria e o campo passaria por lido estando morto. Por
+  isso a regra e `InimigoBase.aprimoramento_incompativel()`, publica e perguntada
+  direto.
 - **O ambiente da Loja e POSICIONAL, e nao passa por `definir_ambiente()`.**
   Aquele metodo troca o ambiente GLOBAL, e trocar ao entrar exigiria alguem
   lembrar de restaurar o do andar ao sair -- "quem liga desliga" ja custou um som

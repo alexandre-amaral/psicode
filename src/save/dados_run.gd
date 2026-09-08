@@ -35,6 +35,23 @@ var itens_coletados: Array[String] = []
 var armas_coletadas: Array[String] = []
 var salas_concluidas: int = 0
 
+## Quantas Unidades Aprimoradas a run VIU nascer, quantas dessas CAIRAM, e quais
+## classes apareceram -- cada uma uma vez so.
+##
+## Sao tres numeros e nao um porque eles respondem coisas diferentes: o primeiro
+## e frequencia (o `chance_de_aprimorada` esta girando o que se pensa que gira?),
+## o segundo e se o jogador aceitou a briga ou fugiu dela, e o terceiro e
+## VARIEDADE -- uma run que so viu Blindada e uma run em que o sorteio de classe
+## nao aconteceu, e a contagem sozinha nao distingue isso de tres Blindadas.
+##
+## **Nao ha recompensa pendurada aqui, e isso e decisao.** A versao original da
+## #276 pagava um bonus por classe abatida; o plano da Loja proibe recompensa
+## hardcoded por classe, e a aprimorada ja paga mais pelo custo de ameaca que ela
+## carrega. O que sobra e MEDICAO, que e o que a sessao de tuning precisa girar.
+var aprimoradas_encontradas: int = 0
+var aprimoradas_mortas: int = 0
+var classes_vistas: Array[StringName] = []
+
 var venceu: bool = false
 var motivo_fim: String = ""
 

@@ -69,6 +69,7 @@ const SUITES := [
 	"res://tools/testes/teste_boss_selecao.gd",
 	"res://tools/testes/teste_boss_animacao.gd",
 	"res://tools/testes/teste_renderizador_paredes.gd",
+	"res://tools/testes/teste_registro_aprimoradas.gd",
 ]
 
 

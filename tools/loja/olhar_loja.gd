@@ -19,7 +19,19 @@ func _ready() -> void:
 	EnquadramentoDeSala.posicionar(jogador, sala, "sul")
 	# E depois JUNTO da bancada do meio: o portao visual pergunta pela chegada, e
 	# o prompt so existe perto -- as duas coisas precisam da mesma foto.
-	jogador.global_position = sala.global_position + Vector2(0.0, 6.0)
+	#
+	# **De LADO, e nao em cima.** Centrado na bancada, o sprite do jogador cobria
+	# exatamente a mercadoria que flutua sobre ela: a foto provava o prompt e
+	# escondia o produto, que e a metade da bancada que a Loja existe para mostrar.
+	#
+	# E o desvio se mede a partir da BANCADA, nunca do centro da sala. As duas
+	# primeiras tentativas erraram por isso: `SalaLoja.ALTURA_DAS_BANCADAS` poe a
+	# do meio 24 px acima do centro, entao um deslocamento que parece caber conta
+	# 57 px de verdade e cai fora de `BancadaDeOferta.RAIO_DE_INTERACAO` -- e a foto
+	# troca um problema pelo outro, com o produto aparecendo e o prompt sumindo.
+	# Daqui dao 42,4 px contra os 44,0 do raio.
+	var meio := sala.global_position + Vector2(0.0, SalaLoja.ALTURA_DAS_BANCADAS)
+	jogador.global_position = meio + Vector2(-40.0, 14.0)
 	for i in 6:
 		await get_tree().process_frame
 	await get_tree().create_timer(0.4).timeout

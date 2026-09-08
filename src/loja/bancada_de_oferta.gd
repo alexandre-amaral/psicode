@@ -25,6 +25,17 @@ extends Area2D
 ## flutua acima da chapa -- e ele nao pode subir para a faixa do telegrafo. Uma
 ## Loja nao tem combate, mas o jogador atravessa a sala com projetil na tela
 ## quando entra fugindo de uma porta que acabou de abrir.
+##
+## ## O ICONE, e por que so no ITEM
+##
+## Esta e a leitura mais cara do jogo: a bancada cobra ate 30 creditos de uma
+## renda de andar medida em 35-55, e o jogador decide olhando o que flutua sobre
+## a chapa. Um hexagono de cor nao sustenta essa decisao, e o icone de 64 px do
+## implante sustenta.
+##
+## A oferta de ARMA nao muda. Arma esta fora do epico dos icones -- ela ja tem
+## identidade propria (silhueta de projetil, cor, rastro) -- e um placeholder
+## naquele lugar seria pior que o losango de hoje, que ao menos e consistente.
 
 signal comprada(oferta: OfertaDeLoja)
 
@@ -50,6 +61,33 @@ const COR_SOLDA := Color(0.42, 0.45, 0.52)
 const COR_PRECO := Color(0.62, 0.86, 0.72)
 const COR_SEM_SALDO := Color(0.86, 0.42, 0.44)
 const COR_VENDIDO := Color(0.38, 0.40, 0.46)
+
+## Onde o conteudo a venda flutua, e o quanto ele sobe e desce.
+const ALTURA_DO_CONTEUDO := -14.0
+const AMPLITUDE_DO_BOB := 2.0
+## As duas linhas do prompt, contadas do centro da bancada.
+const ALTURA_DO_NOME := -34.0
+const ALTURA_DO_PRECO := -22.0
+
+## O lado do icone desenhado, em px de tela -- e ele e METADE do arquivo.
+##
+## **Escala de pixel art e inteira**, e 64 -> 32 e a unica reducao aqui que nao
+## reamostra: cada pixel de tela cai sobre um pixel do arquivo. 48, o tamanho
+## que `tools/itens/laboratorio_icones.gd` supos para a bancada antes de este
+## layout existir, e 0,75 -- borra a peca e ainda cobriria o prompt inteiro.
+## E 32 e o pior contexto que a regua ja mede, entao nenhum icone chega aqui sem
+## ter provado que se distingue dos outros quinze neste tamanho.
+const ICONE_LADO := 32.0
+
+## Quanto o prompt sobe quando ha icone.
+##
+## O icone e mais alto que o losango, e o preco tem de continuar LEGIVEL: sem
+## esta subida a linha do preco cairia dentro da peca, e a ficha desenhada --
+## que existe porque o glifo da moeda nao existe na fonte -- sumiria no meio do
+## desenho. Ele sobe o bastante para o conteudo passar por baixo, e nem um pixel
+## alem: o prompt precisa continuar ancorado NESTA bancada e nao pairando entre
+## as tres.
+const SUBIDA_DO_PROMPT_COM_ICONE := 16.0
 
 var oferta: OfertaDeLoja = null
 
@@ -151,6 +189,27 @@ func _entregar() -> bool:
 	return Modificadores.aplicar(oferta.conteudo as DadosItem)
 
 
+## O icone do que esta a venda, ou `null` quando nao ha.
+##
+## Ela PERGUNTA a propriedade em vez de fingir interface, pelo mesmo caminho de
+## `OfertaDeLoja.nome()`: `DadosArma` e `DadosItem` nao tem base comum, e uma
+## oferta que ganhasse um campo `icone` passaria a carregar duas verdades sobre
+## o mesmo recurso -- a do `.tres` e a copiada.
+##
+## E o `null` nao e defensividade inutil. `DadosItem.icone` e OPCIONAL e tem de
+## continuar sendo: e ele que permite um implante novo nascer antes da arte
+## dele, e aqui a ausencia cai na forma de hoje em vez de deixar a bancada
+## vazia.
+func _icone_da_oferta() -> Texture2D:
+	if oferta == null or oferta.conteudo == null:
+		return null
+	# Arma fica de fora ate por engano: se um dia `DadosArma` ganhar um campo de
+	# mesmo nome, ela continua com o losango ate alguem decidir o contrario.
+	if oferta.tipo != OfertaDeLoja.Tipo.ITEM:
+		return null
+	return oferta.conteudo.get(&"icone") as Texture2D
+
+
 func _draw() -> void:
 	var meia := LARGURA * 0.5
 	var fundo := PROFUNDIDADE * 0.5
@@ -175,6 +234,13 @@ func _draw() -> void:
 	if oferta == null or not oferta.valida():
 		return
 
+	var icone := _icone_da_oferta()
+	# **O prompt sobe junto com o conteudo, e nunca o contrario.** O icone e mais
+	# alto que o losango, e cravar a linha do preco a deixaria DENTRO da peca --
+	# com a ficha desenhada, que existe porque o glifo da moeda nao existe na
+	# fonte, sumindo no meio do desenho.
+	var subida := SUBIDA_DO_PROMPT_COM_ICONE if icone != null else 0.0
+
 	# O PROMPT so aparece perto, e ele e a UI inteira da compra.
 	#
 	# **Nada de menu de tela cheia.** Abrir um painel para comprar tiraria o
@@ -193,19 +259,20 @@ func _draw() -> void:
 		var cor_do_custo := COR_PRECO if GameState.pode_pagar(oferta.preco) 			else COR_SEM_SALDO
 		var largura := fonte.get_string_size(titulo, HORIZONTAL_ALIGNMENT_LEFT,
 			-1.0, tamanho).x
-		draw_string(fonte, Vector2(-largura * 0.5, -34.0), titulo,
+		draw_string(fonte, Vector2(-largura * 0.5, ALTURA_DO_NOME - subida), titulo,
 			HORIZONTAL_ALIGNMENT_LEFT, -1.0, tamanho, Color(0.86, 0.88, 0.94))
 		var largura_custo := fonte.get_string_size(custo, HORIZONTAL_ALIGNMENT_LEFT,
 			-1.0, tamanho).x
-		draw_string(fonte, Vector2(-largura_custo * 0.5, -22.0), custo,
+		var linha := ALTURA_DO_PRECO - subida
+		draw_string(fonte, Vector2(-largura_custo * 0.5, linha), custo,
 			HORIZONTAL_ALIGNMENT_LEFT, -1.0, tamanho, cor_do_custo)
 		# A ficha, do mesmo tamanho do texto e na mesma cor: e ela que liga o
 		# preco ao que o jogador cata no chao.
 		var x := -largura_custo * 0.5 + fonte.get_string_size(
 			"%d " % oferta.preco, HORIZONTAL_ALIGNMENT_LEFT, -1.0, tamanho).x + 4.0
 		draw_colored_polygon(PackedVector2Array([
-			Vector2(x, -30.0), Vector2(x + 3.0, -26.0),
-			Vector2(x, -22.0), Vector2(x - 3.0, -26.0),
+			Vector2(x, linha - 8.0), Vector2(x + 3.0, linha - 4.0),
+			Vector2(x, linha), Vector2(x - 3.0, linha - 4.0),
 		]), cor_do_custo)
 
 	if oferta.vendida:
@@ -219,7 +286,16 @@ func _draw() -> void:
 	# O CONTEUDO flutua acima da chapa, com um bob curto. Ele nao sobe para a
 	# faixa do telegrafo -- este no desenha na propria faixa e o `z_index` da
 	# sala manda.
-	var altura := -14.0 + sin(_t * 2.2) * 2.0
+	var altura := ALTURA_DO_CONTEUDO + sin(_t * 2.2) * AMPLITUDE_DO_BOB
+	# O ICONE TOMA O LUGAR DA FORMA, e nao se soma a ela: dois desenhos do mesmo
+	# implante, um por cima do outro, sao ruido -- e a peca ja passou pela regua
+	# de distinguibilidade justamente para nao precisar de apoio.
+	if icone != null:
+		draw_texture_rect(icone, Rect2(
+			Vector2(-ICONE_LADO * 0.5, altura - ICONE_LADO * 0.5),
+			Vector2(ICONE_LADO, ICONE_LADO)), false)
+		return
+
 	var cor_do_conteudo := COR_PRECO if oferta.tipo == OfertaDeLoja.Tipo.ARMA \
 		else Color(0.72, 0.78, 0.95)
 	# ARMA e um losango deitado, ITEM e um hexagono: a forma diz o tipo antes de

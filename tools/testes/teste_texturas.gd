@@ -89,6 +89,15 @@ const PASTAS_SEM_REGIME_AINDA: Array[String] = [
 	# ponto cego SILENCIOSO -- que e exatamente o que esta lista existe para
 	# trocar por um ponto cego declarado.
 	"res://assets/npc/",
+	# Os icones de implante. Eles sao arte de INTERFACE -- desenhada sobre a HUD
+	# e sobre o pickup, e nao dentro do mundo --, entao nem o gamut de ambiente
+	# nem o piso de miolo de ator descrevem o que se cobra deles; o regime
+	# proprio e outra issue. Declarar a pasta aqui e o que impede ela de virar
+	# ponto cego SILENCIOSO: a varredura de regime olha `assets/texturas/`, e
+	# pasta nova nao declarada nao reprova -- ela SOME da conta, que e pior.
+	# Cinco arquivos ja passaram exatamente assim, em tres ondas de arte.
+	# Quem confere os icones enquanto isso e `teste_icones_de_item.gd`.
+	"res://assets/itens/",
 ]
 
 const PASTA_PROJETEIS := "res://assets/projeteis/"

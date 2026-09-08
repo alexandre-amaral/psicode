@@ -60,7 +60,23 @@ enum Comportamento {
 @export_group("Apresentacao")
 @export var cor: Color = Color("7cf7c4")
 ## Marca curta desenhada no pickup e na lista da HUD.
+##
+## Ela NAO sai com a chegada do `icone`: e o fallback DECLARADO. Enquanto um
+## implante nao tiver arte, o pickup e a HUD continuam desenhando o losango de
+## `cor` com esta letra dentro -- que e o que o jogo faz hoje, e o que permite a
+## integracao entrar antes da arte existir.
 @export var sigla: String = "+"
+## O icone de 64x64 desenhado no lugar do losango de `cor` + `sigla`.
+##
+## **OPCIONAL, e tem de continuar sendo.** Sem icone valem `cor` e `sigla`, pela
+## mesma razao que `DadosInimigo` e opcional no `InimigoBase` e o Rastejante
+## segue funcionando sem `.tres` nenhum: torna-lo obrigatorio quebraria todo
+## consumidor no dia em que um implante nascer antes da arte dele.
+##
+## Quem garante que a ausencia nao passa em SILENCIO nao e este campo, e sim o
+## portao `tools/testes/teste_icones_de_item.gd` -- a lista `SEM_ICONE_AINDA`
+## dele e a divida declarada, e ela morde dos dois lados.
+@export var icone: Texture2D
 
 
 ## Loop explicito em vez de filter(): Array.filter() devolve Array sem tipo e a

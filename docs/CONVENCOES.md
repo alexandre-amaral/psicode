@@ -88,6 +88,82 @@ quando acontece, é trivial de resolver.
 
 ---
 
+## Arte nova: arma, item ou cosmético
+
+**Toda adição que precisa de arte abre uma issue com a identidade visual dela —
+e a issue vem antes da arte.** Vale para arma, implante, cosmético, prop,
+ícone: qualquer peça que alguém vá desenhar ou gerar.
+
+Isso não é burocracia, é o que a última leva de arte mediu. Duas coisas que só
+aparecem quando a identidade está escrita antes:
+
+- **Peça que passa em toda régua e mesmo assim está errada.** O ícone do
+  Firewall Cognitivo saiu um escudo medieval — legível, bem desenhado, aprovado
+  em silhueta, em cinza e na faixa de valor. Ele estava errado porque as
+  dezesseis peças são *hardware da mesma fábrica*, e um brasão quebra a única
+  coisa que faz o conjunto parecer um conjunto. Nenhuma medição de cor ou de
+  forma pega isso. Uma linha de identidade escrita antes pega.
+- **Retrabalho que a régua não evita.** O ícone do Gatilho Overclock saiu uma
+  *pistola inteira* na primeira geração, porque o pedido dizia "grupo de gatilho
+  com solenoide" e não dizia "não é uma arma". Vinte gerações para dezesseis
+  peças, e quase toda a diferença foi identidade que faltou no pedido.
+
+### O que a issue tem de declarar
+
+Seis linhas. Curtas — é uma ficha, não um documento.
+
+1. **O que a peça É** — o objeto, descrito como objeto. Nunca o que ela *faz* no
+   jogo. "Módulo que dá +18% de cadência" não entra; "grupo de gatilho solto,
+   com solenoide e mola à vista" entra. Palavra de função e palavra de energia
+   viram efeito desenhado: `"exploding into a charge"` produziu literalmente uma
+   estrela de explosão amarela cobrindo o chefe.
+2. **A cor**, e de onde ela sai. Ela já existe no `.tres` (`cor` no `DadosItem`,
+   `cor_projetil` no `DadosArma`) e é lida pelo pickup e pela HUD — **a arte
+   obedece ao dado, e não o contrário.** Girar matiz na arte faz a ficha no chão
+   ter uma cor e o aviso na tela ter outra.
+3. **A silhueta que a separa das vizinhas**, nomeando contra quem ela corre
+   risco. "É um recipiente vermelho, como o Núcleo de Reserva — o que separa os
+   dois é a agulha."
+4. **A família**: de que conjunto ela faz parte, e qual paleta a governa
+   (ambiente, ator ou sinal — ver [IDENTIDADE_VISUAL.md](IDENTIDADE_VISUAL.md)).
+5. **Onde ela é desenhada e em que tamanho de tela.** É isso que decide o que a
+   régua mede — e o número tem de sair da `const` do consumidor, nunca de
+   suposição. A bandeja da HUD desenha ícone a 16 px, e por seis dias a régua
+   media a 32 porque foi escrita antes de o consumidor existir.
+6. **Qual portão a cobra.** Se não há nenhum, a issue diz isso com todas as
+   letras — arte sem portão é ponto cego, e ponto cego tem de ser **declarado**
+   (é o que `PASTAS_SEM_REGIME_AINDA` e `SEM_ICONE_AINDA` existem para fazer).
+
+### Se quem pediu não informou a identidade
+
+**Ela não fica em branco, e não se inventa em silêncio: preenche-se pelas
+convenções e diz-se que foi assim.** As linhas de
+[IDENTIDADE_VISUAL.md](IDENTIDADE_VISUAL.md) são o padrão — as três paletas, a
+grade, as regras de leitura de combate, e o regime da família a que a peça
+pertence.
+
+A issue então carrega uma linha do tipo:
+
+> Identidade não informada no pedido. Preenchida pelas convenções
+> (`IDENTIDADE_VISUAL.md`, regime ÍCONE): corpo de aço gasto com o acento na cor
+> do `.tres`, silhueta separada de `X` e `Y`, medida a 16 px.
+
+Isso existe para o pedido poder ser **corrigido antes da arte**, e não depois.
+Identidade preenchida por padrão e não anunciada é a mesma coisa que identidade
+inventada — só que sem ninguém para discordar.
+
+### E a régua vem antes da arte
+
+Peça nova que entra numa família **já medida** usa a régua que existe. Família
+**nova** ganha régua antes do primeiro pixel, e a régua tem de **morder dos dois
+lados** — alimentada com duas peças iguais de propósito, ela reprova. Régua que
+nunca reprova é carimbo.
+
+O caminho de um ícone, ponta a ponta, está em
+[IDENTIDADE_VISUAL.md](IDENTIDADE_VISUAL.md#o-regime-de-ícone).
+
+---
+
 ## Código
 
 **Idioma.** Código em português: nomes de variável, função, sinal e comentário.
@@ -229,6 +305,18 @@ promete.
 `tools/testes/`, herde de `TesteBase`, implemente `executar()` e liste em
 `SUITES` no `runner.gd`. Não há framework — `ok`, `igual`, `perto` e `entre`
 dão conta, e cada falha já diz o esperado e o obtido.
+
+**Trouxe arte nova?** A issue de identidade tem de existir e estar linkada no
+PR — ver [Arte nova](#arte-nova-arma-item-ou-cosmético). Um PR de arte sem ela é
+uma peça que ninguém consegue avaliar: dá para dizer se está bonita, não dá para
+dizer se está **certa**. O escudo medieval do Firewall passou em todas as réguas.
+
+E rode a régua da família junto dos dois portões acima. Ela não roda no CI de
+propósito — é medição, e medição sem alguém olhando o número é ruído:
+
+```bash
+godot --headless --path . tools/itens/laboratorio_icones.tscn   # ícones de loot
+```
 
 ### O que cada ferramenta prova — e o que ela NÃO prova
 

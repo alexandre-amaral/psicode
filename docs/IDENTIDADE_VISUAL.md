@@ -413,6 +413,74 @@ O desenho para na fração **segura** do `cast_motion`; a pergunta de *quem* é
 feita na **insegura**. Perguntando na segura, `intersect_shape` volta vazia justo
 no frame do acerto.
 
+## O regime de ÍCONE
+
+Ícone é a quarta situação de arte do projeto, ao lado de ambiente, ator e sinal
+— e ele não é nenhuma das três. Ele desenha **no chão** junto do pickup, **na
+bancada** da Loja e **na bandeja** da HUD, e em nenhum desses lugares ele pode
+virar tiro nem sumir no piso.
+
+Este é o padrão que uma peça segue quando o pedido não declarou identidade.
+
+### As seis linhas do regime
+
+| | |
+|---|---|
+| **Corpo** | Aço gasto da mesma fábrica: chanfro, rebite, cantoneira, parafuso. As peças de um andar são hardware de um fabricante só, e é isso que faz o conjunto ler como conjunto |
+| **Cor** | O acento é a `cor` do `.tres` (`cor_projetil` numa arma), **dominante o bastante para ler a 16 px**. A arte obedece ao dado, porque o pickup e a HUD já leem aquele campo |
+| **Vista** | 3/4 de cima, a mesma do jogo. Vista frontal chapada some ao lado das peças que têm volume |
+| **Fundo** | Transparente, sem chão e sem sombra projetada |
+| **Âncora** | O **CENTRO**. Arte de ator ancora nos pés; um ícone que herdasse aquela âncora desenha deslocado dentro do slot, sem uma linha no console |
+| **Tamanho** | Master de 256, entregue de 64. Arte se gera **grande** e se reduz no funil — gerar direto no tamanho final enche cada pixel de detalhe |
+
+### Os números que o portão cobra
+
+Medidos, não escolhidos. `tools/itens/laboratorio_icones.tscn` mede **todas as
+peças de todas as famílias na mesma matriz** — item e arma dividem as três
+bancadas da Loja, e é ali que dois ícones viram a mesma mancha.
+
+| Medida | Valor | De onde sai |
+|---|---|---|
+| Lado medido | **16 px** | O menor tamanho que o jogo desenha (a bandeja da HUD). 16 domina 32 nos dois eixos: célula maior borra silhueta e faz média de cinza sobre mais pixels |
+| Silhueta | IoU < **0,70** entre dois quaisquer | Medição: as formas que o projeto aceita como diferentes caem entre 0,24 e 0,63; o par idêntico dá 1,00 |
+| Cinza | separação ≥ **0,046** | O degrau mediano da rampa `Paleta.NEUTROS`, calculado em runtime |
+| Valor do miolo | entre **0,30 e 0,55** | Piso: o teto de valor do chão, para o ícone não afundar no piso de luma 14–16. Teto: `Paleta.LIMITE_VALOR`, o piso de ator, para o ícone não ler como projétil |
+| Competição | ≤ **70%** do miolo | Gêmeo invertido de `PISO_COMPETE`: lá é piso para o projétil ler como tiro, aqui é teto para o ícone não virar um |
+
+Um par **colide** quando falha em silhueta **E** em cinza — a leitura literal de
+*"duas armas com a mesma cor e a mesma forma são a mesma arma"*. Falhar num eixo
+só é `atenção`: não reprova, mas é onde a próxima peça vai encostar.
+
+### O caminho, ponta a ponta
+
+1. **A issue**, com a identidade — ver
+   [CONVENCOES.md](CONVENCOES.md#arte-nova-arma-item-ou-cosmético).
+2. **Gerar a 256** com fundo transparente. O prompt descreve o **objeto**;
+   palavra de função ou de energia vira efeito desenhado.
+3. **Passar pelo funil**: `python tools/itens/preparar_icone.py <id> <png>`
+   (`--familia arma` para arma). Ele recorta o fundo, assenta o valor, reduz por
+   vizinho mais próximo e gruda na paleta da fonte. Ele **só escurece** — peça
+   escura demais se redesenha, não se clareia.
+4. **Apontar do `.tres`**: `icone` em `DadosItem` ou `DadosArma`, com o caminho
+   casando com o id por construção.
+5. **Medir**: `godot --headless --path . tools/itens/laboratorio_icones.tscn`.
+   Peça que colide se **redesenha**; não se alarga o teto.
+6. **Olhar**: o mesmo comando com janela desenha a folha inteira sobre `N0` e
+   `N1`, nos três tamanhos de leitura.
+
+### As duas coisas que não se fazem
+
+**Família nova ganha pasta nova.** O portão de órfão é por pasta: todo PNG de
+`assets/itens/` precisa de um implante que o aponte, então um ícone de arma ali
+reprovaria — com razão. O que **não** se separa é a medição.
+
+**Master versionado não se reprocessa como fonte crua.** Ele já sai do funil com
+alfa; uma segunda passada leria o RGB dos pixels transparentes (preto) e comeria
+todo contorno escuro encostado na borda. O funil tem guarda para isso, e é ela
+que sustenta `refazer_icones.py --lado 48` sem uma geração nova.
+
+---
+
 ## Como adicionar uma textura nova
 
 Este é o roteiro que mantém o documento vivo. Não pule o passo 1.
@@ -464,3 +532,7 @@ rebaixe o `cor_mapa` em três degraus mantendo S alta e V ≤ 0,55.
 | Corredor | `src/mapa/corredor.gd` |
 | O vazio entre salas | `default_clear_color` em `project.godot` (= N0) |
 | Cor do minimapa | `cor_mapa` em `src/mapa/tipo_*.tres` — não muda com a textura |
+| Os ícones de loot | `assets/itens/` (implante) e `assets/armas/` (arma); masters em `tools/art_sources/` |
+| O funil de ícone | `tools/itens/preparar_icone.py`, e `refazer_icones.py` para a leva inteira |
+| A régua de ícone | `tools/itens/laboratorio_icones.tscn` — mede as duas famílias na mesma matriz |
+| O portão de ícone | `tools/testes/teste_icones_de_item.gd` (`IconesDeLoot`) |

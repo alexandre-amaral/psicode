@@ -213,6 +213,8 @@ docs/
 | **Quanto limpar uma sala paga** | `chance_de_premio`, `premio_minimo` e `premio_maximo` no `src/mapa/tipo_*.tres`; zero nas salas sem combate |
 | **Implante novo (so numeros)** | criar `src/items/implante_*.tres` com a lista de `efeitos` e listar em `pool_padrao.tres` |
 | **O ICONE de um implante** | `assets/itens/icone_<id>.png`, escrito por `tools/itens/preparar_icone.py` a partir do master de 256 em `tools/art_sources/itens/`. O `<id>` casa com `implante_<id>.tres` por construcao, e `teste_icones_de_item.gd` cobra os dois lados |
+| **Arma, item ou cosmetico NOVO que precisa de arte** | abrir issue pelo gabarito `.github/ISSUE_TEMPLATE/arte.md` ANTES da arte. A regra esta em `docs/CONVENCOES.md`; identidade nao informada se preenche por `docs/IDENTIDADE_VISUAL.md` e se DECLARA na issue |
+| **O regime de um ICONE (cor, vista, ancora, os numeros do portao)** | secao "O regime de ICONE" do `docs/IDENTIDADE_VISUAL.md` |
 | **O ICONE de uma arma** | `assets/armas/icone_<id>.png`, mesmo funil com `--familia arma`. Pasta SEPARADA da de item porque o portao de orfao e por pasta -- um icone de arma em `assets/itens/` nao tem implante que o aponte |
 | **Refazer os icones noutro tamanho** | `python tools/itens/refazer_icones.py --lado 48` (e `--familia arma` para as armas) -- ele le os masters versionados, sem uma geracao nova no PixelLab |
 | **Ver os icones lado a lado, e medir se dois se confundem** | `godot --path . tools/itens/laboratorio_icones.tscn --resolution 960x544`; sem janela ele mede os 120 pares e lista as colisoes |

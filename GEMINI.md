@@ -212,6 +212,10 @@ docs/
 | **Como o credito vira ficha no chao** | `src/items/drop_credito_andar1.tres` (`DadosDropCredito`): os tres valores, a fracao paga e o teto de fichas por abate |
 | **Quanto limpar uma sala paga** | `chance_de_premio`, `premio_minimo` e `premio_maximo` no `src/mapa/tipo_*.tres`; zero nas salas sem combate |
 | **Implante novo (so numeros)** | criar `src/items/implante_*.tres` com a lista de `efeitos` e listar em `pool_padrao.tres` |
+| **O ICONE de um implante** | `assets/itens/icone_<id>.png`, escrito por `tools/itens/preparar_icone.py` a partir do master de 256 em `tools/art_sources/itens/`. O `<id>` casa com `implante_<id>.tres` por construcao, e `teste_icones_de_item.gd` cobra os dois lados |
+| **Refazer os 16 icones noutro tamanho** | `python tools/itens/refazer_icones.py --lado 48` -- ele le os masters versionados, sem uma geracao nova no PixelLab |
+| **Ver os icones lado a lado, e medir se dois se confundem** | `godot --path . tools/itens/laboratorio_icones.tscn --resolution 960x544`; sem janela ele mede os 120 pares e lista as colisoes |
+| **Quanto um icone pode brilhar** | `ALVO_VALOR_MIOLO` em `tools/itens/preparar_icone.py` (o funil ASSENTA) e a faixa `PISO_VALOR_MIOLO`/`TETO_VALOR_MIOLO` em `tools/itens/laboratorio_icones.gd` (o portao COBRA). Os dois tem de andar juntos |
 | **Implante com comportamento novo** | enum em `DadosItem.Comportamento` + o codigo que le, em quem sofre o efeito |
 | Pente, tempo de recarga e reserva | `tamanho_pente`, `tempo_recarga`, `municao_maxima` em `src/weapons/*.tres` |
 | **Arma que pode cair de loot** | listar o `.tres` em `src/items/pool_padrao.tres` |
@@ -1920,6 +1924,57 @@ em qualquer erro de script.
   ainda nao foram coletados aparecem na busca, e quase todos ficam perto de
   (0,0). `teste_hack.gd` monta o cenario em (6000, 6000) por isso -- foi um dia
   de teste vermelho com o codigo certo.
+- **`no_background` do PixelLab NAO devolve alfa.** As 16 pecas de icone voltaram
+  **100% opacas**, com o fundo pintado de chapado -- e o passo "recorta no alfa"
+  do funil nao tinha no que morder. Pior que isso, o fundo vem em **dois tons
+  quase iguais** (medido: 73,6% de um e 26,4% de outro, a 9 de distancia), entao
+  uma tolerancia apertada deixa o segundo tom para tras e a peca sai com a
+  moldura inteira colada, bbox 256x256 onde o objeto tem 90x232. `preparar_icone.py`
+  recorta por PREENCHIMENTO A PARTIR DA BORDA com tolerancia 24 -- o MEIO do
+  plato medido, porque 24 e 32 dao resultado byte a byte identico.
+- **E o recorte tem de ser por conexao, nunca por cor.** O fundo do `vampirico` e
+  `(171,170,170)`, um cinza da mesma familia do aco da propria seringa: "apague
+  todo pixel igual a cor do fundo" abriria buraco DENTRO da peca. So sai o fundo
+  que ALCANCA a borda -- e de graca isso resolve os dois casos opostos, porque o
+  vao entre as metades do `fragmentador` alcanca a borda (e sai, certo) e o furo
+  cercado de um anel nao alcanca.
+- **Mas fundo CERCADO pelo desenho e furo, e nao desenho.** O miolo do anel do
+  `gatilho` saiu um disco BRANCO opaco, e o laco de cabo do `servo` tambem.
+  `--vazar-furos` apaga esses comparando por COR, e por isso nasce DESLIGADO e e
+  ligado peca a peca: `daemon` tem **12519 px** de fundo cercado que sao a face
+  lavanda do proprio chip, e vazar ali apagaria a peca inteira. A mesma bandeira
+  que salva uma arte destroi a vizinha.
+- **A arte generativa nasce clara demais para este jogo, e isso e um NUMERO.**
+  Cruas, **doze das dezesseis** reprovaram a faixa de leitura do
+  `laboratorio_icones`, e tres passaram do teto de competicao com projetil
+  (`gatilho` 82%, `dissipador` 80%, `celula_eco` 70%). Icone que compete com tiro
+  e o defeito que a ficha de credito ja existe em losango para evitar. O funil
+  assenta o VALOR ate a mediana do MIOLO cair em 0,42 -- e **so o valor**: girar
+  matiz faria o icone discordar do campo `cor` do `.tres`, que o pickup e a HUD ja
+  leem, e o jogador veria a ficha de uma cor e o aviso de outra.
+- **E o assentamento so DESCE.** As duas pecas que ficaram escuras demais
+  (`penetrador` 0,290 contra o piso de 0,30, `vampirico` 0,235) foram
+  REDESENHADAS com a cor do item pintando o corpo, e nao clareadas. Um funil que
+  clareia para passar num numero esta inventando iluminacao -- e o "suavizar para
+  caber num numero" que ja matou uma familia de textura aqui.
+- **Master que ja tem alfa nao pode ser rechaveado.** O master versionado e o que
+  faz `refazer_icones.py --lado 48` funcionar sem geracao nova; numa segunda
+  passada, `cor_de_fundo()` leria o RGB dos pixels TRANSPARENTES -- que e preto --
+  e o preenchimento comeria todo contorno escuro encostado na borda. A peca
+  perderia a silhueta com o arquivo intacto e sem uma linha no console. Com a
+  guarda, reprocessar o master e byte a byte identico.
+- **Prompt de icone descreve o OBJETO, e uma palavra de funcao vira outra coisa.**
+  "grupo de gatilho com solenoide" produziu uma **pistola inteira** -- e arma esta
+  fora do escopo, entao o jogador leria a ficha como pickup de arma. So
+  `"there is no gun, no barrel, no grip, only the trigger part"` resolveu. E o
+  mesmo defeito que "exploding into a charge" ja tinha produzido no chefe, visto
+  de outro angulo: o gerador desenha o que a frase diz, inclusive o que ela
+  sugere sem querer.
+- **Peca que "le otimo" pode estar errada pelo conjunto.** O `firewall` saiu um
+  escudo medieval bonito e legivel, e foi refeito: as 16 pecas sao hardware da
+  mesma fabrica, e um brasao ao lado de dezesseis modulos industriais quebra a
+  unica coisa que faz o conjunto parecer um conjunto. Nenhuma regua de cor ou de
+  silhueta pega isso -- ele passava em todas.
 
 ## Ambiente
 

@@ -68,16 +68,33 @@ const PREFIXO_ICONE := "icone_"
 const PREFIXO_IMPLANTE := "implante_"
 const SAIDA := "user://capturas"
 
-## Os tres contextos em que um icone de 64 px e lido, em pixels de TELA: 64 no
-## cartao, 48 na bancada da Loja, 32 no chao e na bandeja da HUD.
-const TAMANHOS_DE_LEITURA: Array[int] = [64, 48, 32]
+## Os quatro contextos em que um icone de 64 px e lido, em pixels de TELA.
+##
+## Eles nao sao suposicao: cada um sai de uma const do consumidor.
+##   64  o arquivo, e o cartao
+##   32  o chao          -- `PickupItem.ESCALA_ICONE` (0,5 sobre 64)
+##   32  a bancada       -- `BancadaDeOferta.ICONE_LADO`
+##   16  a bandeja da HUD -- `BandejaImplantes`, um quarto exato
+const TAMANHOS_DE_LEITURA: Array[int] = [64, 32, 16]
 
 ## A silhueta e o cinza sao medidos no PIOR contexto, e nao no arquivo.
 ##
-## Um icone que so se distingue de outro em 64 px ja falhou: o chao e a bandeja
-## da HUD leem a 32, e e la que dois deles viram a mesma mancha. A bandeja e o
-## contexto mais duro dos tres justamente porque ali eles aparecem em CONJUNTO.
-const LADO_MEDIDO := 32
+## **O pior contexto e a BANDEJA, e ela desenha a 16.** Esta const dizia 32, e
+## dizia isso porque foi escrita ANTES dos consumidores existirem -- a bandeja da
+## HUD acabou em 16 px, um quarto exato do arquivo, que e a maior reducao que a
+## grade aceita sem reamostrar. Uma regua que mede num tamanho e um jogo que
+## desenha noutro e um portao verde sobre uma pergunta que ninguem fez.
+##
+## 16 domina 32 nos DOIS eixos, e por isso medir so nele basta: celula maior
+## borra silhueta (mais interseccao) e faz media de cinza sobre mais pixels
+## (menos diferenca). Medido nos 16 icones: a 32 px o pior par da IoU 0,85 com
+## 0,121 de cinza; a 16 px da IoU 0,84 com **0,094** -- o mesmo empate de forma
+## com a folga de cinza encolhendo, que e o eixo que decide colisao.
+##
+## E a bandeja e o contexto mais duro tambem por outra razao: e o unico em que os
+## icones aparecem em CONJUNTO, lado a lado, onde a pergunta deixa de ser "este le?"
+## e vira "estes dois sao a mesma coisa?".
+const LADO_MEDIDO := 16
 
 ## Acima disto, duas mascaras de alfa sao a mesma forma.
 ##

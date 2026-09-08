@@ -286,6 +286,58 @@ def _canais(im):
 # identidade dele.
 
 
+def acalmar(im, corte_alto, realce_baixo, raio):
+    u"""Separa a textura em duas bandas e trata cada uma para o lado certo.
+
+    O TOPO da parede competia com a FACE: medido na captura, energia 13,54
+    contra 8,75 -- razao 1,547 para um teto de 0,75. Um topo com mais energia que
+    a face inverte a hierarquia que a parede existe para construir; o olho vai
+    para a superficie de cima, que e a peca menos informativa da sala.
+
+    Suavizar resolveria a energia e MATARIA a arte junto: medido, um borrao
+    simples derruba a energia de 9,52 para 4,11 e leva a amplitude de 0,614 para
+    0,507 -- abaixo do piso de 0,58, porque ele comprime as DUAS bandas. E a
+    tensao que a #242 antecipou: "amplitude e subordinacao puxam para lados
+    opostos".
+
+    A saida e nao trata-las juntas. A banda ALTA -- rebite, junta, risco -- e o
+    que produz energia, e ela e cortada; a BAIXA -- a chapa inteira indo do claro
+    ao escuro -- e o que produz amplitude, e ela e realcada. Medido em
+    `parede_topo_a` com corte 0,30 e realce 1,6: energia 3,58 e amplitude 0,609,
+    os dois dentro.
+
+    O raio e LARGO de proposito (3 px numa tela de 256): ele separa a chapa do
+    rebite. Um raio curto poria o rebite na banda baixa, e ai realca-lo faria
+    exatamente o contrario do que esta funcao existe para fazer.
+    """
+    from PIL import ImageFilter
+    rgba = im.convert("RGBA")
+    rgb = rgba.convert("RGB")
+    base = np.asarray(rgb, dtype=np.float32) / 255.0
+    # **O DESFOQUE DA A VOLTA, e sem isso ele QUEBRA A COSTURA.** O filtro do PIL
+    # grampeia na borda, entao a banda baixa perto do limite e calculada com o
+    # pixel de borda repetido em vez de com o outro lado do tile -- medido, a
+    # costura em x saiu de 0,96 para 1,45, acima do teto de 1,10, e a textura
+    # deixou de ladrilhar. Ladrilhar TRES por TRES e recortar o miolo faz o
+    # filtro enxergar a vizinhanca certa em toda borda.
+    l, a = rgb.size
+    campo = Image.new("RGB", (l * 3, a * 3))
+    for dx in range(3):
+        for dy in range(3):
+            campo.paste(rgb, (l * dx, a * dy))
+    larga = np.asarray(
+        campo.filter(ImageFilter.GaussianBlur(raio)).crop((l, a, l * 2, a * 2)),
+        dtype=np.float32) / 255.0
+    media = base.mean(axis=(0, 1), keepdims=True)
+    out = media + (larga - media) * realce_baixo + (base - larga) * corte_alto
+    out = (np.clip(out, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
+    # O ALFA passa intacto: ele nao tem banda alta nem baixa -- e recorte, e o
+    # projeto ja exige que ele seja so 0 ou 1. Borra-lo aqui criaria alfa parcial,
+    # que e um portao do funil logo adiante.
+    alfa = np.asarray(rgba, dtype=np.uint8)[:, :, 3:4]
+    return Image.fromarray(np.concatenate([out, alfa], axis=2), mode="RGBA")
+
+
 def desvinhetar(im):
     """Divide a imagem pelo proprio borrao: mata gradiente de iluminacao global.
 
@@ -665,6 +717,13 @@ def main():
                     help="pula a costura (para arte que ja nasceu ladrilhavel)")
     # Pre-passo: DESLIGADO por default, para nenhuma textura ja preparada mudar
     # de comportamento se alguem reprocessar. Ver o bloco "pre-passo" acima.
+    pr.add_argument("--acalmar", nargs=2, type=float, default=None,
+                    metavar=("CORTE_ALTO", "REALCE_BAIXO"),
+                    help="corta a banda alta (rebite, junta) e realca a baixa "
+                         "(a chapa): baixa a energia sem levar a amplitude junto")
+    pr.add_argument("--raio-de-banda", type=float, default=3.0, metavar="PX",
+                    help="onde a banda alta separa da baixa; largo separa chapa "
+                         "de rebite, curto poe o rebite na banda realcada")
     pr.add_argument("--desvinheta", action="store_true",
                     help="chapa a iluminacao global antes de costurar")
     pr.add_argument("--tingir", type=float, default=None, metavar="GRAUS",
@@ -705,6 +764,11 @@ def main():
         # O pre-passo vem ANTES da costura: costurar mistura a periferia com a
         # copia deslocada, entao desvinhetar depois dela espalharia a vinheta em
         # vez de apaga-la.
+        # ACALMAR vem antes de tudo: ele le a arte como ela foi desenhada. Depois
+        # do tingimento a separacao de bandas mediria o matiz girado, e depois da
+        # costura ela misturaria a periferia com a copia deslocada.
+        if a.acalmar is not None:
+            im = acalmar(im, a.acalmar[0], a.acalmar[1], a.raio_de_banda)
         if a.desvinheta:
             im = desvinhetar(im)
         if a.tingir is not None:

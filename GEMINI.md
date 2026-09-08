@@ -220,6 +220,7 @@ docs/
 | **Prop de cenario que se MEXE (ventilador, luz, pistao)** | `regioes_props_animados` no `src/mapa/tipo_*.tres`: uma regiao a mais na lista, e nada de cena nova |
 | **Quantos props podem se mexer numa sala** | `max_props_animados` no `tipo_*.tres` -- e o orcamento, e ele e baixo de proposito |
 | **Textura de chao, parede e props de um tipo de sala** | grupo `Visual` do `tipo_*.tres` para chao e face; o TOPO e os cantos vem do `estilo_de_parede`. Os PNGs sao arte autorada passada por `tools/texturas/preparar_textura.py`; porta, canto e props saem do gerador |
+| **Baixar a energia de uma textura sem achatar a faixa dinamica** | `--acalmar CORTE_ALTO REALCE_BAIXO` em `preparar_textura.py`: corta a banda alta (rebite, junta) e realca a baixa (a chapa). Desligado por default |
 | **Arte de chao ou parede que nao nasceu na paleta** | o pre-passo de `preparar_textura.py`: `--desvinheta` (chapa a iluminacao), `--tingir GRAUS` + `--limiar-neon` (tinge o metal apagado e deixa o acento aceso intacto), `--grampear-matiz`, `--alvo-v`. Tudo desligado por default |
 | **Prop volumetrico novo** | desenhar na celula do `props_volume.png` ancorado no FUNDO dela, e declarar a regiao em `regioes_props_volume` do `tipo_*.tres` |
 | **Prop que so pode aparecer uma vez por andar (o Robo Desativado)** | `regioes_props_raras` do `tipo_*.tres`; quem escolhe a sala e `GerenciadorMapa._sortear_celula_de_prop_raro()` |
@@ -1506,6 +1507,29 @@ em qualquer erro de script.
   64x64 sairam com 55% a 61% de densidade contra a faixa de 18-34% da parede; em
   256x256 reduzidas para 64 pelo BOX do funil, 24% a 31%. E o funil ja dizia isso
   ao explicar por que reduz ANTES de costurar.
+- **A SUBORDINACAO DO TOPO e a NAO-COMPETICAO DO CHAO sao dois portoes em
+  oposicao direta, e o gargalo e o CHAO.** A #242 pede o topo abaixo de 0,75 da
+  energia da face; ele esta em 1,547. Calmar o topo funciona -- medido, ele desce
+  a 0,780 --, mas cada ponto de calma tira detalhe da PAREDE, e
+  `_o_piso_nao_compete_com_a_parede` exige que o piso use no maximo 40% do
+  detalhe dela:
+
+      corte      subordinacao (teto 0,75)   detalhe da parede   chao/parede (teto 40%)
+      sem calmar         1,547                    49,7%                33%
+      0,70               1,213                    38,5%                43%
+      0,38               0,780                    22,5%                73%
+      0,34               0,786                    20,2%                81%
+
+  **Nao ha janela**: o calmante mais brando ja quebra o portao do chao, e a
+  subordinacao ESTACIONA em ~0,78 (de 0,38 para 0,34 ela piora). O piso de
+  16,4% de detalhe do chao e o que limita quao calma a parede pode ficar --
+  entao a proxima tentativa comeca pelo CHAO e nao pelo topo. A ferramenta
+  (`--acalmar`) fica pronta e desligada.
+- **Desfoque numa textura que LADRILHA tem de dar a volta.** O filtro do PIL
+  grampeia na borda, entao a banda baixa perto do limite sai calculada com o
+  pixel de borda repetido em vez de com o outro lado do tile: medido, a costura
+  em x saltou de 0,96 para 1,45 contra um teto de 1,10, e a textura deixou de
+  ladrilhar. Ladrilhar tres por tres e recortar o miolo resolve.
 - **Suavizar para caber num numero e o jeito errado.** Um filtro de mediana
   derrubou a densidade de 41% para 24% e MATOU a arte: os topos viraram borroes
   sem aresta, que nao leem como metal. Quantizar nao move nada (a densidade e

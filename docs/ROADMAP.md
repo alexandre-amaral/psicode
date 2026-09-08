@@ -249,6 +249,62 @@ caminho delas:
 > script fora do pacote, e o `mcp_runtime_bridge` lê `user://` todo frame. O
 > `BUILD.md` passou a ter esse passo no pré-voo, que era onde ele faltava.
 
+**`v0.5.0-alpha`.** A sala virou **caixa**, o inimigo ganhou **classe**, e o
+crédito ganhou **para onde ir** — o M1 fecha o loop que estava aberto desde a
+v0.2.0, quando `GameState.creditos` passou a acumular e nada consumia.
+
+**A parede reverteu a assimetria, e a reversão tem medição.** O modelo direcional
+dava norte 60, lateral 36 e sul 32; no jogo as quinas diziam *"há uma moldura"* e
+os lados diziam *"há um acabamento"* — 40% de dispersão contra o teto de 10%.
+Hoje são `corpo 48 + cap 12 + sombra 4` nos quatro lados, e a correção não foi
+escolher valores iguais: foi **tirar do recurso a capacidade de divergir**.
+Enquanto houvesse um campo por lado, alguém os giraria em separado — e foi
+exatamente o que aconteceu.
+
+- A régua que reprovava a `sala_5_pilar` **media metade da caixa**: ela varria só
+  colunas, e as laterais são bandas verticais. Com o jogador a leste, a
+  `sala_1_retangular` media 0,059 com a parede leste ocupando a beira do quadro.
+- E media o **zoom**: a janela de suavização é espacial, e na vista sintética o
+  cap de 12 px chega a 5,8 na tela.
+
+**Unidades Aprimoradas**: três classes modulares — Regeneradora, Blindada e
+Sobrecarregada — que qualquer inimigo aceita sem código de espécie. O que separa
+as três é o **movimento da arte** e não a cor: partículas que convergem, placas
+que orbitam e abrem, faíscas que saem. O jogo é escuro, e matiz é a primeira
+coisa que se perde.
+
+- O custo de ameaça sai do **orçamento da sala**: um Hacker Regenerador ocupa o
+  lugar de um Hacker e dois Drones. Menos corpos, mais decisão.
+- Medido em 24 andares: **1,08 aprimorada por andar**, 21,7% das salas de
+  combate. O tipo declara 25% — a diferença é o cooldown, e chance por sala não é
+  a mesma coisa que frequência percebida.
+- Dois números saíram da medição contra o plano: a redução da Blindada é **15% e
+  não 25%** (vida é `int`, e o efeito só existe em degraus de um acerto: 25% dá
+  +40%, acima do teto), e a cura é **10%/s e não 2%** (2% de 5 de vida é um ponto
+  a cada dez segundos). As 15 combinações ficam entre +20% e +33% de TTK.
+
+**A economia de run e a Loja.** O crédito deixou de virar saldo em silêncio e
+passou a cair no chão como ficha; a Loja vende três ofertas — uma arma, um item e
+uma surpresa — lendo a **pool real do loot**, com estoque determinístico pela
+semente. A transação entrega **antes** de debitar: `Modificadores.aplicar()`
+recusa um implante único que o jogador já tenha, e com o débito primeiro ele
+pagaria por algo que não recebe.
+
+- A renda foi calibrada contra simulação de 40 andares, e não por gosto: com o
+  valor cru o andar rendia **253 créditos** contra os 35–55 que o plano assume, e
+  100% das runs compravam as três ofertas.
+- **Os quatro alvos de comprabilidade do plano não coexistem**, e a tabela está
+  no `DadosDropCredito`: subir a renda para "exatamente duas compras" cair na
+  faixa derruba "ao menos uma" e "nenhuma" ao mesmo tempo.
+- O Sucateiro é o primeiro NPC não hostil do jogo, com três gestos.
+
+**E o `project.godot` voltou a carregar os autoloads do `godot_mcp` de novo** —
+o mesmo defeito que a preparação da v0.1.0 removeu e a v0.3.0 registrou aqui.
+`addons/*` está no `exclude_filter`, então uma build publicada assim sobe com
+autoload apontando para script fora do pacote. O passo do pré-voo do `BUILD.md`
+existe; o que falta é alguém executá-lo antes de tagear, e desta vez foi pego na
+preparação da tag.
+
 **`v0.4.0-alpha`.** A migração **Low Top-Down Squared** fechada — as nove issues
 da trilha LTD (#36 a #46) — mais o começo da identidade industrial do andar 1 e
 do refinamento de inimigos.

@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="DadosArma" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+[ext_resource type="Texture2D" path="res://assets/armas/icone_phase_blaster.png" id="9_ico"]
 
 [resource]
 script = ExtResource("1_dados")
@@ -23,6 +24,7 @@ velocidade_projetil = 820.0
 alcance = 620.0
 raio_projetil = 4.5
 cor_projetil = Color(1, 0.28, 0.8, 1)
+icone = ExtResource("9_ico")
 familia_impacto = 2
 familia_silhueta = 6
 rastro_comprimento = 6.0

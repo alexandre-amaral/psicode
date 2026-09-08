@@ -98,6 +98,11 @@ const PASTAS_SEM_REGIME_AINDA: Array[String] = [
 	# Cinco arquivos ja passaram exatamente assim, em tres ondas de arte.
 	# Quem confere os icones enquanto isso e `teste_icones_de_item.gd`.
 	"res://assets/itens/",
+	# Mesma familia, mesma razao: os icones de ARMA moram separados dos de item
+	# porque cada pasta responde pelo proprio portao de orfao em
+	# `teste_icones_de_item.gd`. O regime de leitura dos dois e o mesmo, e quem o
+	# cobra e `laboratorio_icones`, que le as duas pastas na MESMA matriz.
+	"res://assets/armas/",
 ]
 
 const PASTA_PROJETEIS := "res://assets/projeteis/"

@@ -213,7 +213,8 @@ docs/
 | **Quanto limpar uma sala paga** | `chance_de_premio`, `premio_minimo` e `premio_maximo` no `src/mapa/tipo_*.tres`; zero nas salas sem combate |
 | **Implante novo (so numeros)** | criar `src/items/implante_*.tres` com a lista de `efeitos` e listar em `pool_padrao.tres` |
 | **O ICONE de um implante** | `assets/itens/icone_<id>.png`, escrito por `tools/itens/preparar_icone.py` a partir do master de 256 em `tools/art_sources/itens/`. O `<id>` casa com `implante_<id>.tres` por construcao, e `teste_icones_de_item.gd` cobra os dois lados |
-| **Refazer os 16 icones noutro tamanho** | `python tools/itens/refazer_icones.py --lado 48` -- ele le os masters versionados, sem uma geracao nova no PixelLab |
+| **O ICONE de uma arma** | `assets/armas/icone_<id>.png`, mesmo funil com `--familia arma`. Pasta SEPARADA da de item porque o portao de orfao e por pasta -- um icone de arma em `assets/itens/` nao tem implante que o aponte |
+| **Refazer os icones noutro tamanho** | `python tools/itens/refazer_icones.py --lado 48` (e `--familia arma` para as armas) -- ele le os masters versionados, sem uma geracao nova no PixelLab |
 | **Ver os icones lado a lado, e medir se dois se confundem** | `godot --path . tools/itens/laboratorio_icones.tscn --resolution 960x544`; sem janela ele mede os 120 pares e lista as colisoes |
 | **Quanto um icone pode brilhar** | `ALVO_VALOR_MIOLO` em `tools/itens/preparar_icone.py` (o funil ASSENTA) e a faixa `PISO_VALOR_MIOLO`/`TETO_VALOR_MIOLO` em `tools/itens/laboratorio_icones.gd` (o portao COBRA). Os dois tem de andar juntos |
 | **Implante com comportamento novo** | enum em `DadosItem.Comportamento` + o codigo que le, em quem sofre o efeito |
@@ -1975,6 +1976,39 @@ em qualquer erro de script.
   mesma fabrica, e um brasao ao lado de dezesseis modulos industriais quebra a
   unica coisa que faz o conjunto parecer um conjunto. Nenhuma regua de cor ou de
   silhueta pega isso -- ele passava em todas.
+- **Prateleira metade ilustrada nao le como duas categorias: le como icone
+  quebrado.** Os icones entraram so nos implantes, com as armas declaradas fora de
+  escopo -- e o dono jogou e reportou "alguns icones nao estao funcionando na
+  Loja". Medido: **303 de 600** ofertas sao ARMA, entao mais da metade da
+  prateleira mostrava a forma antiga ao lado de uma peca desenhada. Nenhum portao
+  pegava isso, porque cada metade estava certa sozinha. Familia visual so pode
+  ser entregue INTEIRA, ou o que era "ainda nao" vira "quebrado".
+- **Familia nova de icone = PASTA nova, e isso e o portao mandando.**
+  `teste_icones_de_item.gd` exige que todo PNG de uma pasta tenha um `.tres` que o
+  aponte, entao um icone de arma dentro de `assets/itens/` seria orfao e
+  reprovaria -- com razao. O que NAO se separa e a medicao: `laboratorio_icones`
+  le as duas pastas na MESMA matriz, porque item e arma dividem as tres bancadas
+  da Loja e e ali que dois icones viram a mesma mancha. Separar o dono do arquivo
+  nao pode virar separar a pergunta. Sao 26 pecas e **325 pares**.
+- **Icone e losango solido juntos empilham duas respostas para a mesma
+  pergunta.** O pickup desenhava os dois: o icone dizia QUAL item, e o solido
+  dizia a mesma coisa numa linguagem mais pobre -- e sendo opaco ele nao ficava
+  atras, ele emoldurava o desenho e roubava a silhueta, que e justamente o que a
+  regua mede. O solido saiu e a cor dele passou para o HALO, que ja existia, ja
+  pulsa junto e nunca tinha recebido a cor da peca (era mint fixo para os
+  dezesseis). A leitura a distancia continua e vira EFEITO em vez de peca.
+- **Arte que nao passa por `Visual` nao flutua sozinha.** O icone mora FORA do
+  `Visual` de proposito (aquele no GIRA, e arte girando em angulo quebrado
+  reamostra fora da grade), so que e o `Visual` que faz o bob -- entao o icone
+  ficava parado enquanto o halo subia e descia debaixo dele. Copiar so a ALTURA
+  no `_process` pega o unico dos dois movimentos que ele pode acompanhar sem
+  pagar por isso.
+- **Quem precisa de icone e quem tem PRECO, e nao quem esta na pasta.**
+  `src/weapons/` guarda tambem a `pistola` (inicial, nunca vendida) e as duas
+  armas do chefe. Cobrar arte delas encomendaria desenho que ninguem ve, e a
+  lista de divida ficaria com tres nomes permanentes -- que e como uma lista de
+  divida deixa de ser lida. O portao usa `valor_de_loja > 0`, o mesmo teste que
+  `GeradorDeLoja._sortear()` ja faz para decidir o que vai a prateleira.
 
 ## Ambiente
 

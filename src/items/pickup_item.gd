@@ -59,9 +59,21 @@ func _ready() -> void:
 		dados = pool.sortear_item()
 
 	if dados != null:
-		# O Corpo continua na cor do implante mesmo quando ha icone: e a mancha
-		# colorida que diz "isto e loot" atravessando a sala, antes de um desenho
-		# de 32 px ter chance de ser lido.
+		# **O losango solido SAI quando ha icone, e o halo herda a cor dele.**
+		#
+		# Os dois desenhados juntos empilhavam duas respostas para a mesma
+		# pergunta: o icone dizia QUAL implante e o solido dizia a mesma coisa numa
+		# linguagem mais pobre, por cima da qual o icone ficava. E o solido e
+		# opaco, entao ele nao ficava atras -- ele emoldurava o desenho e roubava
+		# a silhueta, que e justamente o que a regua mede.
+		#
+		# O que o solido carregava e a mancha de cor que diz "isto e loot"
+		# atravessando a sala, antes de um desenho de 32 px ter chance de ser lido.
+		# Isso nao se perde: passa para o HALO, que ja existia e ja pulsa junto do
+		# resto -- ele so nunca tinha recebido a cor do implante, e era mint fixo
+		# para os dezesseis. A leitura a distancia continua, e vira EFEITO em vez
+		# de peca solida.
+		$Visual/Halo.color = Color(dados.cor, $Visual/Halo.color.a)
 		$Visual/Corpo.color = dados.cor
 		# O .tres guarda o portugues, que e a chave; a tela pode estar em ingles.
 		_rotulo.text = tr(dados.nome)
@@ -105,6 +117,8 @@ func _vestir_icone(arte: Texture2D) -> void:
 	_icone.texture = arte
 	_icone.visible = arte != null
 	$Sigla.visible = arte == null
+	# O solido e a LETRA sao a mesma peca de fallback, e saem juntos.
+	$Visual/Corpo.visible = arte == null
 
 
 func _process(delta: float) -> void:
@@ -113,6 +127,13 @@ func _process(delta: float) -> void:
 		_visual.position.y = sin(_t * 3.0) * 5.0
 		if gira:
 			_visual.rotation += delta * 1.2
+		# O icone e a letra flutuam JUNTO com o halo, mas de fora do `Visual`:
+		# aquele no tambem GIRA, e arte girando em angulo quebrado reamostra fora
+		# da grade (e texto girando fica de cabeca para baixo metade do tempo).
+		# Copiar so a altura pega o unico dos dois movimentos que eles podem
+		# acompanhar sem pagar por isso.
+		_icone.position.y = _visual.position.y
+		$Sigla.position.y = _visual.position.y
 
 
 func _ao_encostar(corpo: Node) -> void:

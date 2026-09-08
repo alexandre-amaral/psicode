@@ -114,8 +114,20 @@ from gerar_projeteis import (  # noqa: E402
     _paleta_de,
 )
 
-MESTRE = os.path.join(RAIZ, "tools", "art_sources", "itens")
-SAIDA = os.path.join(RAIZ, "assets", "itens")
+## As duas familias de loot, e as pastas de cada uma.
+##
+## Elas sao SEPARADAS porque os portoes sao separados: `teste_icones_de_item.gd`
+## exige que todo PNG de `assets/itens/` tenha um `implante_*.tres` que o aponte,
+## entao um icone de arma ali seria orfao -- reprovaria, e reprovaria com razao.
+##
+## O que NAO se separa e a medicao: `laboratorio_icones` le as duas pastas na
+## mesma matriz, porque as duas familias dividem a prateleira da Loja e e la que
+## dois icones viram a mesma mancha. Separar o dono do arquivo nao pode virar
+## separar a pergunta.
+FAMILIAS = {
+    "item": ("itens", "itens"),
+    "arma": ("armas", "armas"),
+}
 
 ## O lado que o jogo consome. Botao e nao literal: a moldura do slot pode
 ## encolher, e quando encolher o master ja esta em disco para ser reduzido de
@@ -608,14 +620,14 @@ def relatorio(id_item, origem, mestre, final, medidas, raio):
 
 # --------------------------------------------------------------------- cli ---
 
-def _recusar_reprocesso(origem, img, lado):
+def _recusar_reprocesso(origem, img, lado, saida_dir, mestre_dir):
     """A regra 5, com a deteccao que da para fazer barato."""
     pasta = os.path.abspath(os.path.dirname(os.path.abspath(origem)))
-    if pasta == os.path.abspath(SAIDA):
-        raise SystemExit("RECUSADO: a origem esta em assets/itens/ -- isso e o icone JA PRONTO.\n"
+    if pasta == os.path.abspath(saida_dir):
+        raise SystemExit("RECUSADO: a origem esta em %s -- isso e o icone JA PRONTO.\n"
                          "           Reprocessar come detalhe (medido: densidade de 16,4%% para "
                          "8,1%%).\n"
-                         "           Use o master em %s." % MESTRE)
+                         "           Use o master em %s." % (saida_dir, mestre_dir))
     if img.width <= lado or img.height <= lado:
         raise SystemExit("RECUSADO: a origem tem %dx%d e o final tem %d -- nao ha o que reduzir.\n"
                          "           Isto e o icone pronto, e nao a arte de %d que sai do "
@@ -641,6 +653,10 @@ def main(argv=None):
                         "chapado em dois tons quase iguais; %d e o meio do plato medido "
                         "nos 16 masters do andar 1. Zero desliga o recorte, para arte que "
                         "ja chega com alfa." % (TOLERANCIA_PADRAO, TOLERANCIA_PADRAO))
+    p.add_argument("--familia", choices=sorted(FAMILIAS), default="item",
+                   help="que loot este icone representa: 'item' (default) escreve em "
+                        "assets/itens/, 'arma' em assets/armas/. Cada pasta tem o proprio "
+                        "portao de orfao, e por isso elas nao se misturam.")
     p.add_argument("--alvo-valor", type=float, default=ALVO_VALOR_MIOLO, metavar="V",
                    help="desce o V do HSV ate a mediana do MIOLO cair em V "
                         "(default %.2f, o meio da faixa que o laboratorio cobra). "
@@ -668,12 +684,16 @@ def main(argv=None):
     if a.lado <= 0:
         raise SystemExit("--lado tem de ser positivo")
 
-    origem = a.origem or os.path.join(MESTRE, "icone_%s.png" % a.id)
+    pasta_mestre, pasta_saida = FAMILIAS[a.familia]
+    mestre_dir = os.path.join(RAIZ, "tools", "art_sources", pasta_mestre)
+    saida_dir = os.path.join(RAIZ, "assets", pasta_saida)
+
+    origem = a.origem or os.path.join(mestre_dir, "icone_%s.png" % a.id)
     if not os.path.isfile(origem):
         raise SystemExit("origem nao existe: %s" % origem)
 
     bruta = Image.open(origem)
-    _recusar_reprocesso(origem, bruta, a.lado)
+    _recusar_reprocesso(origem, bruta, a.lado, saida_dir, mestre_dir)
     if bruta.width != bruta.height:
         print("  aviso: origem %dx%d nao e quadrada -- a moldura cresce para o maior lado"
               % (bruta.width, bruta.height))
@@ -705,10 +725,10 @@ def main(argv=None):
     final, aparados, fechados = limpar(colado, a.raio_limpeza)
     pecas_depois = _pecas(final, a.raio_limpeza)
 
-    os.makedirs(MESTRE, exist_ok=True)
-    os.makedirs(SAIDA, exist_ok=True)
-    caminho_mestre = os.path.join(MESTRE, "icone_%s.png" % a.id)
-    caminho_final = os.path.join(SAIDA, "icone_%s.png" % a.id)
+    os.makedirs(mestre_dir, exist_ok=True)
+    os.makedirs(saida_dir, exist_ok=True)
+    caminho_mestre = os.path.join(mestre_dir, "icone_%s.png" % a.id)
+    caminho_final = os.path.join(saida_dir, "icone_%s.png" % a.id)
     mestre.save(caminho_mestre)
     final.save(caminho_final)
     print("escrito: %s  (master %dx%d)" % (caminho_mestre, mestre.width, mestre.height))

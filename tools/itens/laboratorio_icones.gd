@@ -62,10 +62,22 @@ extends Node
 ## e um `runner.tscn` esquecido ja acumulou 1574 s de CPU em tres horas girando
 ## num nucleo.
 
-const PASTA_ICONES := "res://assets/itens/"
-const PASTA_IMPLANTES := "res://src/items/"
+## As pastas de icone que a matriz varre, e o `.tres` de onde sai a cor de cada
+## peca.
+##
+## **As duas familias entram na MESMA matriz, e isso e o ponto.** Elas moram em
+## pastas separadas porque cada uma responde pelo proprio portao de orfao em
+## `teste_icones_de_item.gd` -- mas separar o DONO do arquivo nao pode virar
+## separar a PERGUNTA. Item e arma dividem a prateleira da Loja, tres bancadas
+## lado a lado, e e exatamente ali que dois icones viram a mesma mancha. Medir as
+## familias em matrizes separadas aprovaria um par que so se encontra em jogo.
+const FONTES: Array[Dictionary] = [
+	{&"icones": "res://assets/itens/", &"dados": "res://src/items/",
+		&"prefixo": "implante_", &"cor": &"cor"},
+	{&"icones": "res://assets/armas/", &"dados": "res://src/weapons/",
+		&"prefixo": "", &"cor": &"cor_projetil"},
+]
 const PREFIXO_ICONE := "icone_"
-const PREFIXO_IMPLANTE := "implante_"
 const SAIDA := "user://capturas"
 
 ## Os quatro contextos em que um icone de 64 px e lido, em pixels de TELA.
@@ -188,11 +200,11 @@ func _medir() -> void:
 	var pecas := _familia_sintetica() if _tem("--sinteticas") else _pecas_do_disco()
 	if pecas.is_empty():
 		print("\n--- os icones em disco ---\n")
+		var pastas: Array[String] = []
+		for fonte in FONTES:
+			pastas.append(fonte[&"icones"])
 		print("  nenhum %s*.png em %s -- so o auto-teste rodou."
-			% [PREFIXO_ICONE, PASTA_ICONES])
-		var faltando := _ids_de_implante()
-		print("  %d implante(s) esperando arte: %s"
-			% [faltando.size(), ", ".join(faltando)])
+			% [PREFIXO_ICONE, ", ".join(pastas)])
 		_encerrar(falhas)
 		return
 
@@ -585,44 +597,49 @@ func _com_luma(cor: Color, alvo: float) -> Color:
 ## com janela e no relatorio.
 func _pecas_do_disco() -> Array[Peca]:
 	var fora: Array[Peca] = []
-	var pasta := DirAccess.open(PASTA_ICONES)
-	if pasta == null:
-		return fora
-	var arquivos := pasta.get_files()
-	arquivos.sort()
-	var cores := _cor_de_cada_implante()
-	for arquivo in arquivos:
-		if not arquivo.begins_with(PREFIXO_ICONE) or not arquivo.ends_with(".png"):
+	for fonte in FONTES:
+		var caminho: String = fonte[&"icones"]
+		var pasta := DirAccess.open(caminho)
+		if pasta == null:
 			continue
-		var id := arquivo.get_basename().substr(PREFIXO_ICONE.length())
-		var imagem := _carregar_png(PASTA_ICONES + arquivo)
-		if imagem == null:
-			print("  %s nao carrega" % arquivo)
-			continue
-		fora.append(_medir_peca(id, imagem, cores.get(id, Color.WHITE) as Color))
+		var arquivos := pasta.get_files()
+		arquivos.sort()
+		var cores := _cor_de_cada_peca(fonte)
+		for arquivo in arquivos:
+			if not arquivo.begins_with(PREFIXO_ICONE) or not arquivo.ends_with(".png"):
+				continue
+			var id := arquivo.get_basename().substr(PREFIXO_ICONE.length())
+			var imagem := _carregar_png(caminho + arquivo)
+			if imagem == null:
+				print("  %s nao carrega" % arquivo)
+				continue
+			fora.append(_medir_peca(id, imagem, cores.get(id, Color.WHITE) as Color))
 	return fora
 
 
-func _ids_de_implante() -> Array[String]:
-	var fora: Array[String] = []
-	var pasta := DirAccess.open(PASTA_IMPLANTES)
-	if pasta == null:
-		return fora
-	var arquivos := pasta.get_files()
-	arquivos.sort()
-	for arquivo in arquivos:
-		if not arquivo.begins_with(PREFIXO_IMPLANTE) or not arquivo.ends_with(".tres"):
-			continue
-		fora.append(arquivo.get_basename().substr(PREFIXO_IMPLANTE.length()))
-	return fora
-
-
-func _cor_de_cada_implante() -> Dictionary:
+## A cor declarada de cada peca de uma fonte.
+##
+## Ela nao entra em medida nenhuma -- matiz nunca defende um par -- mas aparece
+## na folha com janela e no relatorio. O campo e perguntado por nome porque
+## `DadosItem` guarda `cor` e `DadosArma` guarda `cor_projetil`, e os dois nao tem
+## base comum.
+func _cor_de_cada_peca(fonte: Dictionary) -> Dictionary:
 	var fora := {}
-	for id in _ids_de_implante():
-		var dados := load("%s%s%s.tres" % [PASTA_IMPLANTES, PREFIXO_IMPLANTE, id]) as DadosItem
-		if dados != null:
-			fora[id] = dados.cor
+	var caminho: String = fonte[&"dados"]
+	var prefixo: String = fonte[&"prefixo"]
+	var campo: StringName = fonte[&"cor"]
+	var pasta := DirAccess.open(caminho)
+	if pasta == null:
+		return fora
+	for arquivo in pasta.get_files():
+		if not arquivo.begins_with(prefixo) or not arquivo.ends_with(".tres"):
+			continue
+		var dados := load(caminho + arquivo) as Resource
+		if dados == null:
+			continue
+		var cor: Variant = dados.get(campo)
+		if cor is Color:
+			fora[arquivo.get_basename().trim_prefix(prefixo)] = cor
 	return fora
 
 

@@ -28,15 +28,31 @@ import subprocess
 import sys
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-MESTRE = os.path.join(RAIZ, "tools", "art_sources", "itens")
 FUNIL = os.path.join(RAIZ, "tools", "itens", "preparar_icone.py")
+
+## As familias, com a pasta de master de cada uma.
+##
+## Ela e lida do proprio funil em vez de repetida aqui: duas tabelas de pastas
+## divergiriam no dia em que uma familia nova entrasse, e o sintoma seria este
+## script varrendo a pasta errada em silencio -- exatamente o que aconteceu na
+## primeira versao, que era fixa em `itens` e "reprovou" as dezesseis armas.
+sys.path.insert(0, os.path.join(RAIZ, "tools", "itens"))
+from preparar_icone import FAMILIAS  # noqa: E402
 
 
 def main(argv=None):
     extras = list(argv if argv is not None else sys.argv[1:])
-    masters = sorted(glob.glob(os.path.join(MESTRE, "icone_*.png")))
+    familia = "item"
+    if "--familia" in extras:
+        i = extras.index("--familia")
+        familia = extras[i + 1]
+    if familia not in FAMILIAS:
+        sys.exit("familia desconhecida: %s (use %s)" % (familia, ", ".join(sorted(FAMILIAS))))
+
+    mestre_dir = os.path.join(RAIZ, "tools", "art_sources", FAMILIAS[familia][0])
+    masters = sorted(glob.glob(os.path.join(mestre_dir, "icone_*.png")))
     if not masters:
-        sys.exit("nenhum master em %s" % MESTRE)
+        sys.exit("nenhum master em %s" % mestre_dir)
 
     ruins = []
     for caminho in masters:

@@ -203,10 +203,15 @@ func _entregar() -> bool:
 func _icone_da_oferta() -> Texture2D:
 	if oferta == null or oferta.conteudo == null:
 		return null
-	# Arma fica de fora ate por engano: se um dia `DadosArma` ganhar um campo de
-	# mesmo nome, ela continua com o losango ate alguem decidir o contrario.
-	if oferta.tipo != OfertaDeLoja.Tipo.ITEM:
-		return null
+	# **Arma e item passam pelo MESMO caminho, e isso foi uma correcao.** Ele
+	# excluia `Tipo.ARMA` de proposito, enquanto so os implantes tinham arte --
+	# mas 303 de 600 ofertas medidas sao arma, entao mais de metade da prateleira
+	# mostrava a forma antiga ao lado de uma peca ilustrada. Prateleira metade
+	# ilustrada nao le como duas categorias; le como icone quebrado.
+	#
+	# Perguntar a propriedade, e nao o tipo, e o que faz os dois caberem numa
+	# linha so: `DadosArma` e `DadosItem` nao tem base comum, e e o mesmo motivo
+	# pelo qual `OfertaDeLoja.nome()` pergunta em vez de fingir uma interface.
 	return oferta.conteudo.get(&"icone") as Texture2D
 
 

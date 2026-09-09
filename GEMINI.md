@@ -237,7 +237,9 @@ docs/
 | Regras de onde cada sala nasce | `@export` do `tipo_*.tres` (beco, distancia da origem, prioridade) |
 | Cor e icone de uma sala no minimapa | `cor_mapa` e `icone` do `tipo_*.tres` |
 | **ONDE um prop pode ficar** | `DecoradorDeSala.posicoes()`. **Fonte unica**: a `Sala` NAO decide mais isso. Faixa, folga de meia peca, `area_spawn`, bocas de porta e espaco entre pecas moram todos la |
-| **QUANTOS props uma sala recebe** | ainda `quantidade_props*` em `src/mapa/tipo_*.tres`. A migracao para `PerfilDeDecoracao` esta declarada no `PLANO_FABRICA_ANDAR1.md` |
+| **QUANTOS props uma sala recebe** | `src/mapa/decoracao_*.tres` (`PerfilDeDecoracao`), apontado por `perfil_de_decoracao` no `tipo_*.tres`. Os `quantidade_props*` do `DadosSala` SAIRAM; a traducao familia -> porte esta nos `DadosSala.faixa_de_*()` |
+| **QUAO FUNDO a decoracao entra na sala** | `largura_da_faixa_de_perimetro` no `decoracao_*.tres`. Era `Sala.PROP_AFASTAMENTO_MAXIMO = 44` em paralelo, e o 44 era quem valia |
+| **Ver quanto da decoracao pedida a sala REAL coloca** | `godot --headless --path . tools/fabrica/medir_sala.tscn` -- pedido contra colocado, por tipo e por familia. O `laboratorio_decoracao` mede o DECORADOR; este mede a `Sala` montada |
 | **A composicao de uma sala decorada (clusters, hero, vazio)** | `src/mapa/decoracao_*.tres` (`PerfilDeDecoracao`) e `src/mapa/agrupamento_*.tres` |
 | **Ver a decoracao antes de existir arte** | `godot --path . tools/fabrica/laboratorio_decoracao.tscn`; sem janela ele mede 288 salas |
 | **Ver e medir a luz da fabrica** | `godot --path . tools/fabrica/laboratorio_luz.tscn` |
@@ -325,6 +327,32 @@ em qualquer erro de script.
   passaram a reprovar apontando para o DECORADOR, com o defeito no helper. E a
   mesma familia do `regeneracao_por_segundo = 0.02` que fazia todo `.tres` de
   classe mentir.
+- **Duas fontes para a mesma densidade, e a que valia era a errada.** O
+  `PerfilDeDecoracao` declarava faixa de perimetro 96 e contagens por porte; a
+  `Sala` lia `PROP_AFASTAMENTO_MAXIMO = 44` e `quantidade_props*` do
+  `DadosSala`, e os perfis do `[FAB 18]` nao eram apontados por NINGUEM -- seis
+  `.tres` orfaos em disco. As cenas de sala autoram exatamente 96 px entre o
+  contorno e a `area_spawn`, e `posicoes()` cobra meio prop de folga contra a
+  parede: com faixa 44, a fatia util de uma peca de 64 media **DOZE pixels**. A
+  sala montada com as 12 pecas do Batch 1 continuava parecendo vazia e a
+  conclusao natural era "falta arte". Medido depois da migracao, a sala de
+  combate foi de ~16 para **33,8 pecas**, entregando 97% do que o perfil pede.
+- **`add_child` renomeia o filho repetido, e contar por NOME acha sempre UM.**
+  O prop volumetrico e a unica familia sem raiz -- ele precisa ser filho direto
+  da sala para se ordenar por Y --, entao quem o conta so tem o nome. O segundo
+  em diante vira `@PropVolume@<id>`: `teste_props.gd` filtrava por
+  `name == "PropVolume"` e media **o primeiro prop e mais nada**, verde, desde
+  que nasceu. Hoje eles entram em `Sala.GRUPO_PROP_VOLUME` e a contagem e por
+  grupo. A primeira execucao da regua nova acusou "volume 1,00, min-max 1-1" em
+  todos os seis tipos -- o numero impossivel que denunciou o defeito.
+- **Sortear a partir de uma ARESTA nao serve para o que mora no chao todo.** O
+  decalque passou a poder cair no miolo (a `[FAB 06]`), e sortear a
+  profundidade a partir de um lado com faixa grande PARECE uniforme e nao e: o
+  disco de exclusao de cada porta come justamente a beirada, e medido deu
+  **89% no miolo contra 11% no perimetro** -- o piso com o centro sujo e a
+  parede limpa, o inverso da referencia. `posicoes()` ganhou
+  `"no_chao_todo"`, que sorteia na caixa da sala; a distribuicao foi para 72% /
+  28%, e `teste_props.gd` cobra as DUAS pontas.
 - **A ZONA LIVRE proibe VOLUME, e nao DECALQUE -- e confundir os dois deixa o
   centro chapado.** Medida em `docs/fabrica_01.png`, a sala da referencia tem um
   losango de galao no MEIO da area livre e mais de dez grades espalhadas. A

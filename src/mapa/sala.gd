@@ -229,18 +229,26 @@ const COR_CHAO_EMERGENCIA := Color("0b0d16")
 ## exterior porque nao e preciso: o clear color ja desenha atras de tudo, e um nó
 ## seria uma segunda fonte da mesma verdade.
 const COR_DO_VAZIO := Color("05060b")
+## O grupo dos props volumetricos, que e como se os conta.
+##
+## Eles sao a unica familia sem raiz: `Z_MUNDO` e o default e ser filho direto
+## da sala e o que os poe na disputa de ordem por Y. Ver o comentario em
+## `_montar_props_volumetricos` para o motivo de o NOME nao servir.
+const GRUPO_PROP_VOLUME: StringName = &"prop_volume"
+
 ## Lado de uma celula do atlas de props e passo da grade em que eles assentam.
 const PROP_LADO := 32.0
 const PROP_GRADE := 8.0
-## Faixa, medida da parede para dentro, onde um prop pode ficar. Mais que isso e
-## ele parece bloquear a sala.
+## A FAIXA saiu daqui, e ela era a segunda metade da divida da `[FAB 17]`.
 ##
-## O PISO daquela faixa saiu daqui: quem garante que o prop nao entra na parede e
-## `DecoradorDeSala.BORDA_MINIMA`, junto da folga de meio prop que ele cobra. O
-## `PROP_AFASTAMENTO_MINIMO` que morava aqui era a metade duplicada daquela
-## regra, e constante morta que PARECE botao de tuning e pior que constante
-## nenhuma -- alguem a gira, nada acontece, e a tarde vai embora.
-const PROP_AFASTAMENTO_MAXIMO := 44.0
+## `PROP_AFASTAMENTO_MAXIMO = 44` vivia neste bloco enquanto o
+## `PerfilDeDecoracao` declarava 96 para a mesma coisa, e quem era lido era este
+## -- o mesmo desenho que fez uma copia do perfil vencer o original no
+## `EstiloDeParede`. Hoje quem responde e `DadosSala.largura_da_faixa_de_decoracao()`,
+## e o valor de quem nao declara perfil mora em `DadosSala.FAIXA_SEM_PERFIL`.
+##
+## O PISO da faixa nunca morou aqui: quem garante que o prop nao entra na parede
+## e `DecoradorDeSala.BORDA_MINIMA`, junto da folga de meio prop que ele cobra.
 ## Prop perto de porta parece que tapa a porta.
 const PROP_DISTANCIA_DE_PORTA := 96.0
 ## Distancia minima entre dois props, para nao empilharem.
@@ -1413,7 +1421,10 @@ func _montar_props_chapados(
 	dados: DadosSala, contorno: PackedVector2Array, aberto: PackedVector2Array,
 	bocas: Array[Vector2], colocados: Array[Vector2], rng: RandomNumberGenerator
 ) -> void:
-	if dados.atlas_props == null or dados.regioes_props.is_empty() or dados.quantidade_props <= 0:
+	if dados.atlas_props == null or dados.regioes_props.is_empty():
+		return
+	var quantos := _quantos(dados.faixa_de_props_chapados(), rng)
+	if quantos <= 0:
 		return
 
 	var raiz := Node2D.new()
@@ -1421,8 +1432,9 @@ func _montar_props_chapados(
 	raiz.z_index = Z_CHAO_DETALHE
 	add_child(raiz)
 
-	for _i in dados.quantidade_props:
-		var ponto := _ponto_de_prop(contorno, PROP_LADO, rng, bocas, colocados)
+	var faixa := dados.largura_da_faixa_de_decoracao()
+	for _i in quantos:
+		var ponto := _ponto_de_prop(contorno, PROP_LADO, faixa, rng, bocas, colocados)
 		if ponto != Vector2.INF:
 			var sprite := Sprite2D.new()
 			sprite.texture = dados.atlas_props
@@ -1448,15 +1460,33 @@ func _montar_props_chapados(
 ## salas, e nao ha erro no console para uma placa lida ao contrario. Espelhar
 ## REFLETE, e a mesma razao pela qual `flip_v` e proibido na porta.
 ##
-## Eles dividem `colocados` com as outras familias pelo mesmo motivo que elas se
-## dividem entre si: nao se conhecem, mas disputam o mesmo chao.
+## **Eles NAO dividem `colocados` com as outras familias, e sao a unica que nao
+## divide.** As tres de VOLUME disputam o mesmo chao e por isso se conhecem; o
+## decalque e chao PINTADO, e mancha de oleo debaixo de um caixote e o que uma
+## fabrica usada produz. Faze-lo disputar espaco com um tanque cobra dele a
+## regra de quem tem corpo -- e o resultado media, antes desta correcao, 18% do
+## pedido na Loja e 47% na sala de arma: os volumetricos entravam primeiro,
+## lotavam a lista, e a mancha nao achava onde cair.
+##
+## **E eles nao obedecem nem a faixa de perimetro nem a `area_spawn`.** Esta e a
+## `[FAB 06]` aplicada a sala real: a zona livre proibe VOLUME e nao DECALQUE, e
+## a referencia (`docs/fabrica_01.png`) tem um losango de galao no MEIO da area
+## livre e mais de dez grades espalhadas. O `DecoradorDeSala` ja sabia disso --
+## `_no_lugar()` devolve `true` para DECALQUE antes de olhar faixa ou centro --,
+## mas o lote de `posicoes()` nao tem porte, entao quem declara a excecao e este
+## chamador. Sem ela o piso do miolo ficava chapado, que e exatamente o que a
+## medicao daquela issue mandou nao fazer.
+##
+## O que continua valendo e a razao de isso ser seguro: o decalque e plano, nao
+## tem silhueta, nao tem brilho e desenha ABAIXO da faixa do telegrafo.
 func _montar_decalques(
 	dados: DadosSala, contorno: PackedVector2Array, aberto: PackedVector2Array,
 	bocas: Array[Vector2], colocados: Array[Vector2], rng: RandomNumberGenerator
 ) -> void:
 	if dados.atlas_decalques == null or dados.regioes_decalques.is_empty():
 		return
-	if dados.quantidade_decalques <= 0:
+	var quantos := _quantos(dados.faixa_de_decalques(), rng)
+	if quantos <= 0:
 		return
 
 	var raiz := Node2D.new()
@@ -1469,14 +1499,17 @@ func _montar_decalques(
 	raiz.z_index = Z_CHAO_DETALHE
 	add_child(raiz)
 
-	for _i in dados.quantidade_decalques:
+	# Lista PROPRIA, e vazia: eles nao evitam o que tem corpo nem sao evitados
+	# por ele.
+	var manchas: Array[Vector2] = []
+	for _i in quantos:
 		var regiao := dados.regioes_decalques[
 			rng.randi_range(0, dados.regioes_decalques.size() - 1)]
 		# O RAIO da peca, e nao `PROP_LADO`: o decalque e maior que um prop de 32
 		# ("poucos por sala, GRANDES e gastos"), e usar a folga do prop deixaria
 		# metade dele por cima da parede.
 		var lado := float(maxi(regiao.size.x, regiao.size.y))
-		var ponto := _ponto_de_prop(contorno, lado, rng, bocas, colocados)
+		var ponto := _ponto_de_decalque(contorno, lado, rng, bocas, manchas)
 		if ponto != Vector2.INF:
 			var sprite := Sprite2D.new()
 			sprite.texture = dados.atlas_decalques
@@ -1484,7 +1517,7 @@ func _montar_decalques(
 			sprite.region_rect = Rect2(regiao)
 			sprite.position = ponto
 			raiz.add_child(sprite)
-			colocados.append(ponto)
+			manchas.append(ponto)
 
 
 ## A familia que se MEXE, e ela e a menor das quatro de proposito (AND1 02).
@@ -1518,8 +1551,9 @@ func _montar_props_animados(
 	raiz.z_index = Z_CHAO_DETALHE
 	add_child(raiz)
 
+	var faixa := dados.largura_da_faixa_de_decoracao()
 	for _i in teto:
-		var ponto := _ponto_de_prop(contorno, PROP_LADO, rng, bocas, colocados)
+		var ponto := _ponto_de_prop(contorno, PROP_LADO, faixa, rng, bocas, colocados)
 		if ponto != Vector2.INF:
 			var prop := PropAnimado.new()
 			prop.position = ponto
@@ -1564,16 +1598,27 @@ func _montar_props_volumetricos(
 		regioes.append_array(dados.regioes_props_raras)
 	if regioes.is_empty():
 		return
-	if dados.quantidade_props_volume <= 0:
+	var quantos := _quantos(dados.faixa_de_props_volume(), rng)
+	if quantos <= 0:
 		return
 
-	for _i in dados.quantidade_props_volume:
+	var faixa := dados.largura_da_faixa_de_decoracao()
+	for _i in quantos:
 		var regiao: Rect2i = regioes[rng.randi_range(0, regioes.size() - 1)]
 		var largura := float(regiao.size.x)
-		var ponto := _ponto_de_prop(contorno, largura, rng, bocas, colocados)
+		var ponto := _ponto_de_prop(contorno, largura, faixa, rng, bocas, colocados)
 		if ponto != Vector2.INF:
 			var corpo := Node2D.new()
 			corpo.name = "PropVolume"
+			# GRUPO, e nao so o nome. O volumetrico e a unica familia sem raiz
+			# propria -- ele PRECISA ser filho direto da sala para se ordenar por
+			# Y --, entao quem quiser conta-lo so tem o nome para procurar. E o
+			# nome nao sobrevive: `add_child` renomeia o segundo em diante para
+			# a forma `@PropVolume@<id>`, e um filtro por `name == "PropVolume"`
+			# acha SEMPRE exatamente um, por mais que a sala tenha colocado
+			# vinte. Nao ha erro nenhum, e o portao que os conta fica verde
+			# medindo o primeiro para sempre.
+			corpo.add_to_group(GRUPO_PROP_VOLUME)
 			corpo.position = ponto
 			# Sem z_index proprio: Z_MUNDO e o default, e e o unico jeito de ele
 			# se ordenar por Y contra jogador e inimigo.
@@ -1618,7 +1663,8 @@ func _montar_props_frente(
 ) -> void:
 	if dados.atlas_props_frente == null or dados.regioes_props_frente.is_empty():
 		return
-	if dados.quantidade_props_frente <= 0:
+	var quantos := _quantos(dados.faixa_de_props_frente(), rng)
+	if quantos <= 0:
 		return
 
 	var raiz := Node2D.new()
@@ -1626,7 +1672,8 @@ func _montar_props_frente(
 	raiz.z_index = Z_FRENTE
 	add_child(raiz)
 
-	for _i in dados.quantidade_props_frente:
+	var faixa := dados.largura_da_faixa_de_decoracao()
+	for _i in quantos:
 		var regiao: Rect2i = dados.regioes_props_frente[
 			rng.randi_range(0, dados.regioes_props_frente.size() - 1)
 		]
@@ -1635,7 +1682,7 @@ func _montar_props_frente(
 		# continuam valendo, mas um elemento SUSPENSO nao precisa de espaco livre
 		# no chao -- ele nao esta no chao. Um cabo passa por cima de uma caixa.
 		var vazia: Array[Vector2] = []
-		var ponto := _ponto_de_prop(contorno, largura, rng, bocas, vazia)
+		var ponto := _ponto_de_prop(contorno, largura, faixa, rng, bocas, vazia)
 		if ponto != Vector2.INF:
 			var sprite := Sprite2D.new()
 			sprite.texture = dados.atlas_props_frente
@@ -1677,6 +1724,8 @@ func _montar_luminarias(
 	raiz.name = "Luminarias"
 	add_child(raiz)
 
+	var faixa := dados.largura_da_faixa_de_decoracao()
+
 	# Lista PROPRIA de ocupados, e nao a do chao: duas lampadas nao podem nascer
 	# no mesmo ponto da parede, mas nenhuma delas disputa espaco com uma caixa.
 	var na_parede: Array[Vector2] = []
@@ -1685,7 +1734,8 @@ func _montar_luminarias(
 		if perfil == null:
 			continue
 		for _i in int(pedido[1]):
-			var ponto := _ponto_de_prop(contorno, LUMINARIA_LARGURA, rng, bocas, na_parede)
+			var ponto := _ponto_de_prop(
+				contorno, LUMINARIA_LARGURA, faixa, rng, bocas, na_parede)
 			if ponto == Vector2.INF:
 				continue
 			var luminaria := LuminariaDeParede.new()
@@ -1732,11 +1782,15 @@ func _semente_da_luminaria(ponto: Vector2) -> int:
 ## empurrado para dentro da parede para caber e um defeito sem linha no console,
 ## porque decoracao nao tem colisao para reclamar.
 func _ponto_de_prop(
-	contorno: PackedVector2Array, largura: float, rng: RandomNumberGenerator,
-	bocas: Array[Vector2], colocados: Array[Vector2]
+	contorno: PackedVector2Array, largura: float, faixa: float,
+	rng: RandomNumberGenerator, bocas: Array[Vector2], colocados: Array[Vector2]
 ) -> Vector2:
 	var achados := DecoradorDeSala.posicoes(contorno, 1, largura, rng.randi(), {
-		"faixa": PROP_AFASTAMENTO_MAXIMO,
+		# A FAIXA vem do `PerfilDeDecoracao` da sala, e nao de uma constante
+		# daqui. Ela era `PROP_AFASTAMENTO_MAXIMO = 44` enquanto o perfil dizia
+		# 96, e a margem autorada entre o contorno e a `area_spawn` tambem mede
+		# 96 -- entao a faixa util de uma peca de 64 tinha DOZE pixels.
+		"faixa": faixa,
 		# A `area_spawn` e MELHOR que o raio da zona livre do decorador: ela e a
 		# area jogavel AUTORADA na cena, e num contorno em L o raio mede a partir
 		# do centro da caixa envolvente, que pode cair fora da sala.
@@ -1748,6 +1802,62 @@ func _ponto_de_prop(
 		"grade": PROP_GRADE,
 	})
 	return achados[0] if not achados.is_empty() else Vector2.INF
+
+
+## Um ponto legal para um DECALQUE, que joga por outras tres regras.
+##
+## Ele e funcao irma de `_ponto_de_prop` e nao um parametro dele, pela mesma
+## razao que `_regra_de_gamut()` e `_regra_de_ator()` sao funcoes irmas no
+## portao de paleta: quatro das restricoes se INVERTEM, e uma bandeira faria a
+## mesma funcao afirmar duas coisas opostas.
+##
+##   sorteio     o prop nasce a partir de uma ARESTA, o decalque no CHAO TODO
+##   area util   o prop e barrado por ela; o decalque atravessa (a `[FAB 06]`)
+##   ocupados    o prop evita o que ja caiu; o decalque nem evita nem e evitado
+##   espaco      o prop guarda 40 px; o decalque guarda o que o `DecoradorDeSala`
+##               declara para o porte DECALQUE, que e ZERO -- mancha sobre
+##               mancha e uso, e exigir espaco desenharia uma grade regular de
+##               sujeira
+##
+## O que ele mantem sao as duas regras que valem para qualquer coisa desenhada:
+## ficar DENTRO do poligono, e nao encostar numa boca de porta -- uma seta
+## pintada metade para dentro do vao le como erro de montagem.
+func _ponto_de_decalque(
+	contorno: PackedVector2Array, largura: float,
+	rng: RandomNumberGenerator, bocas: Array[Vector2], manchas: Array[Vector2]
+) -> Vector2:
+	var achados := DecoradorDeSala.posicoes(contorno, 1, largura, rng.randi(), {
+		# Sorteio no CHAO TODO, e nao a partir de uma aresta. Sortear por aresta
+		# com faixa grande parece a mesma coisa e nao e: medido, 89% das manchas
+		# caiam na area util e so 11% perto da parede, porque o disco de
+		# exclusao de cada porta come a beirada. O piso saia com o miolo sujo e
+		# o perimetro limpo -- o inverso da referencia.
+		"no_chao_todo": true,
+		"bocas": bocas,
+		"raio_de_boca": PROP_DISTANCIA_DE_PORTA,
+		"ocupados": manchas,
+		"espaco_minimo": DecoradorDeSala.distancia_minima_de(
+			DecoradorDeSala.Porte.DECALQUE),
+		"grade": PROP_GRADE,
+	})
+	return achados[0] if not achados.is_empty() else Vector2.INF
+
+
+## Um numero dentro da FAIXA que o `PerfilDeDecoracao` declarou para a familia.
+##
+## O perfil declara intervalo e nao numero de proposito: densidade cravada faz
+## dez salas do mesmo tipo terem a mesma quantidade de coisas, e o olho le isso
+## como as mesmas salas. O sorteio sai do `rng` da celula, entao a sala continua
+## determinista -- voltar nela devolve a mesma decoracao.
+##
+## `max` menor que `min` nao e erro de quem preencheu o Inspetor: e o campo que
+## alguem vai girar sem programar. Ele e ordenado aqui em vez de reprovar.
+func _quantos(faixa: Vector2i, rng: RandomNumberGenerator) -> int:
+	var minimo := mini(faixa.x, faixa.y)
+	var maximo := maxi(faixa.x, faixa.y)
+	if maximo <= 0:
+		return 0
+	return rng.randi_range(maxi(minimo, 0), maximo)
 
 
 ## Posicao LOCAL de todas as portas, seladas inclusive: prop encostado numa

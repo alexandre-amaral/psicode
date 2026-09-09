@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="PerfilDeDecoracao" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/mapa/perfil_de_decoracao.gd" id="1_perf"]
+[ext_resource type="Resource" path="res://src/mapa/agrupamento_armazenamento.tres" id="2_arma"]
+[ext_resource type="Resource" path="res://src/mapa/agrupamento_hidraulico.tres" id="3_hidr"]
+
+[resource]
+script = ExtResource("1_perf")
+contagem_hero = Vector2i(1, 1)
+contagem_grande = Vector2i(2, 3)
+contagem_medio = Vector2i(3, 6)
+contagem_pequeno = Vector2i(4, 8)
+contagem_micro = Vector2i(4, 8)
+contagem_decalque = Vector2i(3, 6)
+contagem_parede = Vector2i(2, 5)
+contagem_frente = Vector2i(1, 2)
+quantos_agrupamentos = Vector2i(2, 3)
+agrupamentos = Array[Resource]([ExtResource("2_arma"), ExtResource("3_hidr")])

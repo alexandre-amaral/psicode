@@ -339,8 +339,8 @@ QUANTOS (`quantidade_props`, `quantidade_props_volume`, `quantidade_decalques`,
 Foi a divisao certa: trocar as contagens junto obrigaria a reescrever
 `teste_props.gd` no mesmo passo, e um refactor que reescreve o portao que o
 valida nao e validado por nada. **A migracao das contagens para o
-`PerfilDeDecoracao` fica declarada aqui**, e ela e barata agora que a regra e
-uma so.
+`PerfilDeDecoracao` ficou declarada aqui**, e foi paga logo depois do Batch 1 --
+ver a secao abaixo.
 
 O decorador precisou de duas restricoes que a sala de teste nao tinha e a sala
 real tem:
@@ -355,6 +355,75 @@ E sairam duas constantes: `PROP_AFASTAMENTO_MINIMO` (virou
 `DecoradorDeSala.BORDA_MINIMA` mais a folga de meio prop) e `PROP_TENTATIVAS`
 (virou `TENTATIVAS`). Constante morta que PARECE botao de tuning e pior que
 constante nenhuma: alguem a gira, nada acontece, e a tarde vai embora.
+
+### A migracao das contagens, paga -- e o que ela achou
+
+O `[FAB 21]` entregou as 12 pecas e ficou aberto pelo segundo aceite: a sala
+montada com elas **continuava parecendo vazia**. A conclusao natural era "faltam
+os batches 22 a 27". Era outra coisa.
+
+**Havia duas fontes para a densidade, e a que valia era a errada.** Os seis
+`PerfilDeDecoracao` do `[FAB 18]` estavam em disco sem NINGUEM apontar para
+eles; quem a `Sala` lia eram os `quantidade_props*` do `DadosSala` e uma
+constante propria, `PROP_AFASTAMENTO_MAXIMO = 44`, contra os 96 que o perfil
+declarava para a mesma coisa.
+
+Os 96 nao sao um numero solto: e exatamente a margem que as cenas de sala
+autoram entre o contorno e a `area_spawn` (`sala_1_retangular`: contorno
+768x640, area 576x448). E `posicoes()` cobra meio prop de folga contra a parede.
+Com faixa 44, a fatia util para uma peca de 64 px media **doze pixels** -- uma
+linha, nao uma faixa.
+
+O que a migracao trocou:
+
+| | antes | depois |
+|---|---|---|
+| dono de QUANTOS | `DadosSala.quantidade_props*` | `PerfilDeDecoracao`, via `DadosSala.faixa_de_*()` |
+| dono de QUAO FUNDO | `Sala.PROP_AFASTAMENTO_MAXIMO` | `largura_da_faixa_de_perimetro` do perfil |
+| contagem | numero cravado por tipo | FAIXA sorteada por celula |
+
+Medido pela regua nova (`tools/fabrica/medir_sala.tscn`, 24 sementes por tipo),
+pecas colocadas por sala:
+
+| tipo | antes | depois | do pedido |
+|---|---|---|---|
+| combate | ~16 | **33,8** | 97% |
+| inicial | ~14 | **29,0** | 100% |
+| arma | ~13 | **29,2** | 99% |
+| item | ~13 | **24,1** | 100% |
+| loja | ~13 | **40,5** | 100% |
+| boss | ~11 | **12,7** | 102% |
+
+**Tres defeitos so apareceram porque a regua olha a sala REAL.** Ela existe por
+isso, e a licao e a mesma do `PerfilDeLuz`: o `laboratorio_decoracao` mede o
+DECORADOR -- geometria pura, sem cena -- e concordava com si mesmo enquanto o
+jogo mostrava outra coisa.
+
+1. **O prop volumetrico contava sempre UM.** Ele e a unica familia sem raiz
+   propria (ele precisa ser filho direto da sala para o Y-sort), entao quem o
+   conta so tem o nome -- e `add_child` renomeia o segundo em diante para
+   `@PropVolume@<id>`. `teste_props.gd` media o primeiro prop e mais nada, verde,
+   desde que nasceu. Hoje eles entram num GRUPO.
+2. **O decalque perdia a maioria das colocacoes** (18% do pedido na Loja, 47% na
+   sala de arma): ele dividia a lista de ocupados com o que tem CORPO, entao os
+   volumetricos entravam primeiro e lotavam a faixa. Mancha de oleo debaixo de
+   um caixote e o que uma fabrica usada produz -- a `[FAB 06]` ja dizia isso, e
+   o `DecoradorDeSala` ja obedecia em `decorar()`; a `Sala` nao.
+3. **E ele so podia nascer na beirada.** Solto no chao todo, sortear a
+   profundidade a partir de uma ARESTA parece uniforme e nao e -- o disco de
+   exclusao de cada porta come a beirada, e a distribuicao deu **89% no miolo
+   contra 11% no perimetro**. `posicoes()` ganhou `"no_chao_todo"`; a
+   distribuicao foi para 72% / 28%.
+
+**O que a migracao NAO resolveu:** o quadro continua **37,7 pontos mais escuro**
+que a referencia (era 41,3 antes das pecas novas). O proprio `medir_ambiente`
+recusa gatear isso e diz por que -- a referencia tem sete a oito lampadas por
+sala e o andar tem tres a cinco. Mas o numero medido hoje compara um QUADRO DE
+JOGO (com HUD e com o vazio preto em volta da sala, que sao 12 a 16% do quadro
+por decisao do `margem_exterior`) contra um render 3D de uma sala fechada, entao
+parte da distancia e a moldura da comparacao e nao falta de luz. Subir lampada
+sem separar as duas coisas e girar um botao contra um numero que mede outra
+coisa.
 
 **O que `[FAB 17]` NAO fez:** o porte `PAREDE` continua sem consumidor. Ele nao
 tem arte (`[FAB 22/24/25]`) nem camada de desenho -- peca presa na FACE nao e

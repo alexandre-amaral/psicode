@@ -1271,7 +1271,7 @@ func _tipos_apontam_textura() -> void:
 			ok(t != null, "%s: nenhuma entrada nula na lista de face" % etiqueta)
 		for t in dados.texturas_chao:
 			ok(t != null, "%s: nenhuma entrada nula na lista de chao" % etiqueta)
-		if dados.quantidade_props > 0:
+		if dados.faixa_de_props_chapados().y > 0:
 			ok(dados.atlas_props != null, "%s pede props e tem atlas" % etiqueta)
 			ok(not dados.regioes_props.is_empty(), "%s pede props e lista regioes" % etiqueta)
 		if dados.atlas_props != null:
@@ -1289,7 +1289,7 @@ func _tipos_apontam_textura() -> void:
 		# por a base do prop na origem do no, e essa conta so fecha se a arte
 		# estiver ancorada no fundo da celula. Regiao de altura errada nao da
 		# erro nenhum -- o prop so flutua, ou afunda no chao.
-		if dados.quantidade_props_volume > 0:
+		if dados.faixa_de_props_volume().y > 0:
 			ok(dados.atlas_props_volume != null,
 				"%s pede prop volumetrico e tem atlas" % etiqueta)
 			ok(not dados.regioes_props_volume.is_empty(),

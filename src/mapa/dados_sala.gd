@@ -28,6 +28,16 @@ const ID_INICIAL: StringName = &"inicial"
 ## ajustar no Inspetor sem calculadora.
 const AREA_DE_REFERENCIA := 100000.0
 
+## A faixa de perimetro de uma sala que nao declara `PerfilDeDecoracao`.
+##
+## Era `Sala.PROP_AFASTAMENTO_MAXIMO`, e ela vem para ca junto com as contagens
+## -- deixar o numero na `Sala` seria manter o segundo dono da mesma verdade,
+## que e exatamente o que esta migracao veio desfazer.
+##
+## Ele so alcanca as LUMINARIAS: sem perfil nao ha prop nenhum para colocar, e
+## a luz tem contagem propria em `quantidade_luminarias`.
+const FAIXA_SEM_PERFIL := 44.0
+
 ## COMUM entra no sorteio normal do passeio aleatorio e preenche o andar.
 ## PENDURADA ganha uma celula propria encostada numa ancora ja existente. E o
 ## que o chefe precisa (ele so tem porta Sul, e quase nunca cairia numa celula
@@ -166,9 +176,26 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## recebe o painel de acento da sala de arma.
 @export var atlas_props: Texture2D
 @export var regioes_props: Array[Rect2i] = []
-## Quantos props a sala tenta colocar na margem entre a parede e a area de
-## spawn. Zero desliga a decoracao.
-@export var quantidade_props: int = 0
+
+## QUANTA decoracao esta sala recebe, e QUAO FUNDO ela entra.
+##
+## **Este recurso e o dono de QUANTOS; `DadosSala` continua dono de QUAIS.** A
+## divisao e a que a `[FAB 17]` deixou declarada como divida: ela trocou a REGRA
+## de colocacao por uma so (o `DecoradorDeSala`) e deixou as quatro contagens
+## -- `quantidade_props`, `quantidade_props_volume`, `quantidade_decalques` e
+## `quantidade_props_frente` -- aqui, para nao reescrever no mesmo passo os
+## portoes que as validam. Elas sairam agora, e o campo delas nao ficou para
+## tras: **campo que existe e campo que alguem gira**, e dois donos do mesmo
+## numero e a armadilha que o `EstiloDeParede` (uma copia do perfil vencia o
+## original) e a Loja (o `tipo` clonado mentia) ja cobraram deste repositorio.
+##
+## A traducao familia -> porte fica em `faixa_de_*()`, logo abaixo, num lugar so.
+##
+## Nulo = a sala nao recebe decoracao nenhuma. E o caso da sala montada a mao no
+## editor e o de qualquer `DadosSala.new()` de suite: nao ha default util aqui
+## de proposito, porque campo de decoracao com default util faz toda sala que o
+## esqueceu AFIRMAR uma densidade que ninguem escolheu.
+@export var perfil_de_decoracao: PerfilDeDecoracao = null
 
 ## O atlas de DECALQUES INDUSTRIAIS e as celulas dele que esta sala usa (#233).
 ##
@@ -185,14 +212,6 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## vive ONDE O COMBATE ACONTECE -- o jogador anda por cima dele.
 @export var atlas_decalques: Texture2D
 @export var regioes_decalques: Array[Rect2i] = []
-
-## Quantos decalques a sala tenta colocar.
-##
-## **Poucos, e o numero e a issue.** O piso e a regiao visualmente mais calma da
-## sala e essa e a regra que o epico nao negocia. Se toda sala tiver um numero
-## estampado, nenhuma sala tem identidade -- e a mesma ideia de
-## `max_props_animados`, cujo default e 2 de proposito.
-@export var quantidade_decalques: int = 0
 
 ## O atlas VOLUMETRICO e as celulas dele que esta sala pode usar (LTD 09).
 ##
@@ -259,12 +278,6 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## da sala.
 @export var atlas_props_frente: Texture2D
 @export var regioes_props_frente: Array[Rect2i] = []
-## Quantos elementos de Foreground a sala tenta colocar.
-##
-## O default e ZERO e a issue pede moderacao com todas as letras: "o objetivo e
-## aumentar profundidade, nao esconder constantemente o combate". Sala que quer
-## Foreground pede explicitamente.
-@export var quantidade_props_frente: int = 0
 
 @export_group("Luz")
 ## Quantas LUMINARIAS a sala tenta prender na parede.
@@ -294,11 +307,6 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 @export var perfil_de_luz_fria: Resource
 @export var quantidade_luminarias_frias: int = 0
 
-## Quantos props volumetricos a sala tenta colocar. Contagem propria e nao uma
-## fracao de `quantidade_props`: sao ocupacoes diferentes do mesmo chao, e a
-## sala do chefe quer muitos chapados e quase nenhum corpo no caminho.
-@export var quantidade_props_volume: int = 0
-
 ## Props que aparecem em UMA sala do andar, e so.
 ##
 ## O caso vivo e o Robo Desativado: ele e o que faz o jogador perceber que o
@@ -312,6 +320,70 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## porque "uma por ANDAR" e uma pergunta que nenhuma sala consegue responder
 ## sozinha.
 @export var regioes_props_raras: Array[Rect2i] = []
+
+
+## ------------------------------------------------- quanta decoracao ---------
+##
+## As quatro familias de prop da `Sala` traduzidas para os portes do
+## `PerfilDeDecoracao`. Elas devolvem a FAIXA (`min`, `max`) e nao um numero: o
+## perfil declara intervalo, e quem sorteia dentro dele e a `Sala`, com o `rng`
+## da propria celula -- assim a mesma sala devolve sempre a mesma densidade e
+## salas diferentes nao ficam todas com a mesma contagem.
+##
+## **Esta e a unica traducao familia -> porte do projeto**, pelo mesmo motivo
+## que `DecoradorDeSala.faixa_de_porte()` e a unica traducao porte -> campo:
+## duas copias divergem, e o sintoma aparece em TELA e nunca no console.
+##
+##   chapado      MICRO           -- o objeto pequeno visto de cima, sem volume
+##   volumetrico  HERO + GRANDE + MEDIO + PEQUENO  -- tudo que tem corpo
+##   decalque     DECALQUE        -- chao pintado
+##   frente       contagem_frente -- a camada que passa por cima do ator
+##
+## O volumetrico soma QUATRO portes porque a `Sala` nao separa por porte: o
+## tamanho de cada peca sai da REGIAO sorteada no atlas, e nao de um campo. Ate
+## a arte declarar o proprio porte (`[FAB 22-27]`), somar e o unico jeito
+## honesto de nao perder as quatro contagens dentro de uma so.
+func faixa_de_props_chapados() -> Vector2i:
+	return DecoradorDeSala.faixa_de_porte(perfil_de_decoracao, DecoradorDeSala.Porte.MICRO)
+
+
+func faixa_de_props_volume() -> Vector2i:
+	if perfil_de_decoracao == null:
+		return Vector2i.ZERO
+	var soma := Vector2i.ZERO
+	for porte in [
+		DecoradorDeSala.Porte.HERO, DecoradorDeSala.Porte.GRANDE,
+		DecoradorDeSala.Porte.MEDIO, DecoradorDeSala.Porte.PEQUENO,
+	]:
+		soma += DecoradorDeSala.faixa_de_porte(perfil_de_decoracao, porte)
+	return soma
+
+
+func faixa_de_decalques() -> Vector2i:
+	return DecoradorDeSala.faixa_de_porte(perfil_de_decoracao, DecoradorDeSala.Porte.DECALQUE)
+
+
+func faixa_de_props_frente() -> Vector2i:
+	return perfil_de_decoracao.contagem_frente if perfil_de_decoracao != null else Vector2i.ZERO
+
+
+## Quao fundo, a partir do contorno, a decoracao desta sala pode entrar.
+##
+## **Ela era a segunda metade da divida da `[FAB 17]`, e a mais cara das duas.**
+## A `Sala` tinha `PROP_AFASTAMENTO_MAXIMO = 44` enquanto o perfil declarava 96,
+## e as cenas de sala autoram uma margem de exatamente 96 px entre o contorno e
+## a `area_spawn` (medido em `sala_1_retangular`: contorno 768x640, area
+## 576x448). Com 44, e com a `posicoes()` exigindo meio prop de folga contra a
+## parede, a faixa util de uma peca de 64 media DOZE pixels -- praticamente uma
+## linha. Era isso, e nao a falta de arte, que fazia a sala montada com o Batch 1
+## continuar parecendo vazia.
+##
+## Sem perfil nao ha decoracao para colocar; o numero so serve as luminarias,
+## que tem contagem propria, e para elas a faixa antiga continua valendo.
+func largura_da_faixa_de_decoracao() -> float:
+	if perfil_de_decoracao == null:
+		return FAIXA_SEM_PERFIL
+	return perfil_de_decoracao.largura_da_faixa_de_perimetro
 
 
 func eh_pendurada() -> bool:

@@ -47,6 +47,7 @@ func executar() -> void:
 	_o_prop_raro_aparece_numa_sala_por_andar()
 	_a_arena_reage_sem_cobrir_a_leitura()
 	_o_decalque_industrial_e_POUCO_e_nao_espelha()
+	_o_CORPO_fica_fora_da_area_util_e_a_MANCHA_entra_nela()
 
 
 ## Metade 1 do contrato: a arte de cada celula encosta no FUNDO dela.
@@ -91,7 +92,7 @@ func _o_prop_volumetrico_nasce_com_base_sombra_e_y_sort() -> void:
 	ok(dados != null, "tipo_combate carrega")
 	if dados == null:
 		return
-	ok(dados.quantidade_props_volume > 0, "a sala de combate pede prop volumetrico")
+	ok(dados.faixa_de_props_volume().y > 0, "a sala de combate pede prop volumetrico")
 
 	var sala := _montar(dados)
 	var corpos := _props_volumetricos(sala)
@@ -187,9 +188,94 @@ func _a_arena_do_chefe_fica_limpa() -> void:
 	if dados == null:
 		return
 	igual(
-		dados.quantidade_props_volume, 0,
+		dados.faixa_de_props_volume(), Vector2i.ZERO,
 		"a arena do chefe nao recebe prop volumetrico (bullet hell le silhueta, nao decoracao)"
 	)
+
+
+## O que tem CORPO nunca entra na area util; o que e MANCHA entra.
+##
+## As duas metades sao o mesmo teste porque elas sao a mesma decisao, e medir so
+## uma aprova o erro oposto.
+##
+## **A primeira e a regra que protege o gameplay.** Prop volumetrico nao tem
+## colisao: um caixote dentro da area de combate e cobertura que nao cobre e
+## obstaculo que nao obstrui, e o jogador so descobre isso levando um tiro
+## atraves dele. A garantia e geometrica -- `posicoes()` recusa toda PEGADA que
+## toque a `area_spawn` --, e ela virou cobravel agora porque a migracao das
+## contagens triplicou a densidade e abriu a faixa de 44 px para os 96 do
+## perfil: os corpos passaram a nascer muito mais perto da area util, e "nao
+## toca" deixou de ser folgado por acidente.
+##
+## **A segunda e a `[FAB 06]`, e ela e uma excecao DECLARADA.** A referencia tem
+## marcacao de galao no meio da area livre e mais de dez grades espalhadas; a
+## primeira versao do decorador rejeitava tudo ali e o piso do miolo virava um
+## vazio. Sem este caso, alguem "conserta" o decalque para obedecer a area util
+## -- o codigo fica mais simples, nenhum portao reclama, e o centro da sala fica
+## chapado de novo.
+func _o_CORPO_fica_fora_da_area_util_e_a_MANCHA_entra_nela() -> void:
+	var dados: DadosSala = load("res://src/mapa/tipo_combate.tres")
+	if dados == null:
+		return
+	var corpos := 0
+	var invasores := 0
+	var manchas := 0
+	var manchas_no_miolo := 0
+	for x in 16:
+		var sala := CENA_SALA.instantiate() as Sala
+		sala.coordenadas_grid = Vector2i(x * 5, x)
+		sala.definir_visual(dados)
+		sala.position = LONGE
+		Engine.get_main_loop().root.add_child(sala)
+
+		for corpo in _props_volumetricos(sala):
+			corpos += 1
+			# A PEGADA e nao o ponto: o que nao pode entrar na area util e o
+			# corpo desenhado, e a origem do no fica na base dele.
+			var largura := _largura_do_corpo(corpo)
+			var pegada := Rect2(
+				corpo.position - Vector2.ONE * largura * 0.5, Vector2.ONE * largura)
+			if sala.area_spawn.intersects(pegada):
+				invasores += 1
+
+		var raiz := sala.get_node_or_null("Decalques") as Node2D
+		if raiz != null:
+			for filho in raiz.get_children():
+				var sprite := filho as Sprite2D
+				if sprite == null:
+					continue
+				manchas += 1
+				if sala.area_spawn.has_point(sprite.position):
+					manchas_no_miolo += 1
+		sala.free()
+
+	ok(corpos > 0, "houve prop volumetrico para conferir (%d)" % corpos)
+	igual(invasores, 0,
+		"nenhum corpo toca a area util -- prop sem colisao ali e cobertura que nao cobre (%d de %d)"
+			% [invasores, corpos])
+	ok(manchas > 0, "houve decalque para conferir (%d)" % manchas)
+	# As DUAS pontas, e nao so uma. "Alcanca o miolo" sozinho passaria com o
+	# piso do perimetro limpo, que foi o estado medido enquanto o decalque
+	# sorteava a partir de uma aresta: 89% no miolo e 11% na beirada. E "fica na
+	# beirada" sozinho e a `[FAB 06]` desfeita. O piso e folgado de proposito --
+	# o que ele pega e a distribuicao COLAPSAR para um lado.
+	var fracao := float(manchas_no_miolo) / maxf(float(manchas), 1.0)
+	entre(fracao, 0.25, 0.85,
+		"o decalque cai nos dois lugares -- miolo e perimetro (%d de %d no miolo)"
+			% [manchas_no_miolo, manchas])
+
+
+## A largura desenhada de um prop volumetrico, lida do sprite dele.
+##
+## Ela nao e uma constante: o atlas tem celulas de 32 e de 64, e `Sala` escolhe
+## a folga a partir da REGIAO sorteada. Cravar 64 aqui aprovaria o dobro do que
+## a sala de fato reserva para uma peca estreita.
+func _largura_do_corpo(corpo: Node2D) -> float:
+	for filho in corpo.get_children():
+		var sprite := filho as Sprite2D
+		if sprite != null:
+			return sprite.region_rect.size.x
+	return Sala.PROP_LADO
 
 
 # ------------------------------------------------------------------ apoio ----
@@ -333,7 +419,11 @@ func _props_volumetricos(sala: Sala) -> Array[Node2D]:
 	# volta a uma variavel tipada explode em runtime (armadilha ja registrada).
 	var achados: Array[Node2D] = []
 	for filho in sala.get_children():
-		if filho.name == "PropVolume" and filho is Node2D:
+		# Pelo GRUPO e nao pelo nome: `add_child` renomeia o segundo em diante
+		# para `@PropVolume@<id>`, entao o filtro por nome achava exatamente UM
+		# por sala -- este helper media o primeiro prop e nada mais, verde, desde
+		# que nasceu.
+		if filho is Node2D and (filho as Node2D).is_in_group(Sala.GRUPO_PROP_VOLUME):
 			achados.append(filho as Node2D)
 	return achados
 
@@ -373,14 +463,15 @@ func _ultima_linha_com_arte(imagem: Image, regiao: Rect2i) -> int:
 ##
 ## Ele tambem cobra a DOSAGEM. A issue diz "usar com moderacao: o objetivo e
 ## aumentar profundidade, nao esconder constantemente o combate", e sem numero
-## isso e opiniao. O numero e `quantidade_props_frente`, e o teste prova que a
-## sala respeita o teto em vez de encher a margem.
+## isso e opiniao. O numero e o TETO de `PerfilDeDecoracao.contagem_frente`, e o
+## teste prova que a sala respeita o teto em vez de encher a margem.
 func _o_foreground_nunca_entra_na_area_util() -> void:
 	var dados: DadosSala = load("res://src/mapa/tipo_combate.tres")
 	ok(dados != null, "tipo_combate carrega")
 	if dados == null:
 		return
-	ok(dados.quantidade_props_frente > 0, "a sala de combate pede Foreground")
+	var teto_de_frente := dados.faixa_de_props_frente().y
+	ok(teto_de_frente > 0, "a sala de combate pede Foreground")
 
 	# Varre varias celulas: o sorteio e por celula, e uma celula so poderia
 	# passar por sorte. Se algum lugar do andar puser uma viga sobre a area
@@ -398,9 +489,9 @@ func _o_foreground_nunca_entra_na_area_util() -> void:
 		if raiz != null:
 			igual(raiz.z_index, Sala.Z_FRENTE, "a camada Frente esta na faixa dela")
 			ok(
-				raiz.get_child_count() <= dados.quantidade_props_frente,
+				raiz.get_child_count() <= teto_de_frente,
 				"a sala respeita o teto de Foreground (%d de %d)"
-					% [raiz.get_child_count(), dados.quantidade_props_frente]
+					% [raiz.get_child_count(), teto_de_frente]
 			)
 			for filho in raiz.get_children():
 				var sprite := filho as Sprite2D
@@ -474,8 +565,18 @@ func _o_decalque_industrial_e_POUCO_e_nao_espelha() -> void:
 		return
 	ok(dados.atlas_decalques != null and not dados.regioes_decalques.is_empty(),
 		"o tipo de combate declara o atlas de decalques")
-	entre(float(dados.quantidade_decalques), 1.0, 3.0,
-		"a sala pede POUCOS decalques (%d)" % dados.quantidade_decalques)
+	# POUCO deixou de ser o literal "1 a 3" e passou a ser uma REGRA contra o
+	# atlas: o teto pedido nao passa do numero de pecas declaradas, entao uma
+	# sala nunca estampa a mesma peca duas vezes em media. O numero cravado
+	# envelheceria com a arte -- e a mesma licao que o teto de fichas de credito
+	# ja pagou, afirmando "o chefe paga 60" em vez da regra. Quando a `[FAB 28]`
+	# entregar as 10 pecas novas, o teto sobe sozinho.
+	var faixa_decalque := dados.faixa_de_decalques()
+	var pecas := dados.regioes_decalques.size()
+	ok(faixa_decalque.x >= 1, "a sala pede ao menos um decalque (%d)" % faixa_decalque.x)
+	entre(float(faixa_decalque.y), 1.0, float(pecas),
+		"o teto de decalques cabe no atlas -- sem peca repetida em media (%d de %d)"
+			% [faixa_decalque.y, pecas])
 	if dados.atlas_decalques == null:
 		return
 
@@ -516,11 +617,15 @@ func _o_decalque_industrial_e_POUCO_e_nao_espelha() -> void:
 		"todo decalque fica na faixa de detalhe de chao e numa regiao declarada (%d)"
 			% fora_da_faixa)
 
-	var pedido := dados.quantidade_decalques * SALAS_MEDIDAS
-	# O piso e 60% do pedido, e nao o pedido inteiro: a margem entre a parede e a
-	# area de spawn e apertada e uma peca de 64 nem sempre cabe longe da porta.
-	# O que este numero pega e a decoracao sumir de vez -- que e o modo de falha
-	# real, porque `_sortear_ponto_de_prop()` desiste em silencio.
-	entre(float(total), float(pedido) * 0.6, float(pedido),
-		"as salas receberam os decalques pedidos (%d de %d em %d salas)"
-			% [total, pedido, SALAS_MEDIDAS])
+	# A faixa e um INTERVALO desde a migracao das contagens: cada sala sorteia
+	# dentro dela, entao o esperado do lote e o intervalo multiplicado pelas
+	# salas -- e nao um numero.
+	var piso := faixa_decalque.x * SALAS_MEDIDAS
+	var teto := faixa_decalque.y * SALAS_MEDIDAS
+	# O piso e 60% do minimo pedido, e nao o minimo inteiro: a margem entre a
+	# parede e a area de spawn e apertada e uma peca de 64 nem sempre cabe longe
+	# da porta. O que este numero pega e a decoracao sumir de vez -- que e o modo
+	# de falha real, porque `_ponto_de_prop()` desiste em silencio.
+	entre(float(total), float(piso) * 0.6, float(teto),
+		"as salas receberam os decalques pedidos (%d, faixa %d a %d em %d salas)"
+			% [total, piso, teto, SALAS_MEDIDAS])

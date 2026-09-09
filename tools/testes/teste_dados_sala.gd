@@ -36,6 +36,7 @@ func executar() -> void:
 	_arma_so_na_sala_de_arma(catalogo)
 	_contornos_desenhaveis(catalogo)
 	_todo_tipo_aponta_um_kit_de_parede(catalogo)
+	_todo_tipo_EM_DISCO_declara_quanta_decoracao_quer()
 
 
 ## TODO TIPO APONTA UM KIT DE PAREDE, e o kit carrega.
@@ -311,6 +312,50 @@ func _o_tipo_da_cena_concorda_com_o_tipo_que_a_lista() -> void:
 	ok(conferidas > 0, "houve cena para conferir (%d)" % conferidas)
 	igual(divergentes.size(), 0,
 		"toda cena declara o tipo de quem a lista (%s)" % ", ".join(divergentes))
+
+
+## TODO TIPO declara um `PerfilDeDecoracao`, e a varredura e por DISCO.
+##
+## Desde a migracao das contagens, quem responde "quantos props esta sala
+## recebe" e o perfil -- e `perfil_de_decoracao` nulo devolve ZERO em todas as
+## quatro familias. Um tipo novo criado por CLONE (que e o caminho normal aqui:
+## foi assim que a Loja nasceu) e salvo sem apontar perfil monta uma sala
+## perfeitamente jogavel, com chao, parede, porta e inimigo, e **completamente
+## pelada** -- sem uma linha no console, porque decoracao nao tem colisao para
+## reclamar e contagem zero nao e erro.
+##
+## A varredura le a PASTA e nao a lista `TIPOS` de propósito. A lista nao tem a
+## Loja, e um tipo fora dela nao reprovaria: ele SUMIRIA da conta, que e o
+## defeito que `_nenhum_png_fica_fora_de_regime` ja existiu para consertar.
+##
+## O caso tambem cobra que o perfil PECA alguma coisa. Um `.tres` com as sete
+## contagens em zero carrega, aponta e desenha uma sala vazia -- e passaria em
+## qualquer teste que perguntasse so `!= null`.
+func _todo_tipo_EM_DISCO_declara_quanta_decoracao_quer() -> void:
+	var conferidos := 0
+	for caminho in _tipos_em_disco():
+		var dados := load(caminho) as DadosSala
+		if dados == null:
+			continue
+		conferidos += 1
+		var perfil := dados.perfil_de_decoracao
+		ok(perfil != null, "o tipo '%s' aponta um perfil de decoracao" % dados.id)
+		if perfil == null:
+			continue
+		var pedido := (
+			dados.faixa_de_props_chapados().y
+			+ dados.faixa_de_props_volume().y
+			+ dados.faixa_de_decalques().y
+		)
+		ok(pedido > 0, "o perfil do tipo '%s' pede decoracao de fato (teto %d)"
+			% [dados.id, pedido])
+		# A faixa e a segunda metade da migracao, e a que fazia a sala parecer
+		# vazia com a arte toda em disco: 44 px de faixa contra os 96 de margem
+		# que as cenas autoram deixam DOZE pixels uteis para uma peca de 64.
+		ok(dados.largura_da_faixa_de_decoracao() > DadosSala.FAIXA_SEM_PERFIL,
+			"o tipo '%s' decora numa faixa maior que a de quem nao declara perfil (%.0f)"
+				% [dados.id, dados.largura_da_faixa_de_decoracao()])
+	ok(conferidos >= 6, "a varredura achou os tipos em disco (%d)" % conferidos)
 
 
 func _tipos_em_disco() -> Array[String]:

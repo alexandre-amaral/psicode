@@ -266,7 +266,7 @@ static func decorar(
 ## Chaves aceitas em `restricoes`, todas opcionais:
 ##   "faixa" float, "zona_livre" Rect2, "raio_livre" float, "centro" Vector2,
 ##   "bocas" Array[Vector2], "raio_de_boca" float, "ocupados" Array[Vector2],
-##   "espaco_minimo" float, "grade" float
+##   "espaco_minimo" float, "grade" float, "no_chao_todo" bool
 static func posicoes(
 	contorno: PackedVector2Array, quantas: int, largura: float, semente: int,
 	restricoes: Dictionary = {}
@@ -292,12 +292,38 @@ static func posicoes(
 	var raio_de_boca: float = restricoes.get("raio_de_boca", 0.0)
 	var espaco: float = restricoes.get("espaco_minimo", maxf(largura, 40.0))
 	var grade: float = restricoes.get("grade", 0.0)
+	# "no_chao_todo": sorteia na CAIXA da sala em vez de a partir de uma aresta.
+	#
+	# O sorteio por aresta e o certo para o que ENCOSTA em parede -- ele carrega
+	# de graca a faixa de perimetro e os pesos por lado. Para o DECALQUE ele e o
+	# errado, e o defeito nao aparece na contagem: medido, sorteando por aresta
+	# com faixa grande, 89% das manchas caiam na area util e so 11% perto da
+	# parede, porque a profundidade sorteada e uniforme mas o disco de exclusao
+	# de cada porta come justamente a beirada. O piso saia com o miolo sujo e o
+	# perimetro limpo -- o inverso do que a referencia mostra, e nenhum portao
+	# de contagem veria.
+	var no_chao_todo: bool = restricoes.get("no_chao_todo", false)
+	var caixa := Rect2(aberto[0], Vector2.ZERO)
+	for i in range(1, aberto.size()):
+		caixa = caixa.expand(aberto[i])
 	# Copia: quem chamou nao pode ter a propria lista mexida por baixo. O lote
 	# ainda precisa evitar a si mesmo, e por isso o acumulador e local.
 	var ocupados: Array = (restricoes.get("ocupados", []) as Array).duplicate()
 
 	for _i in quantas:
 		for _t in TENTATIVAS:
+			if no_chao_todo:
+				var solto := Vector2(
+					rng.randf_range(caixa.position.x, caixa.end.x),
+					rng.randf_range(caixa.position.y, caixa.end.y))
+				if grade > 0.0:
+					solto = (solto / grade).round() * grade
+				if _cabe(solto, aberto, arestas, largura, zona, raio_livre, centro,
+						bocas, raio_de_boca, ocupados, espaco):
+					saida.append(solto)
+					ocupados.append(solto)
+					break
+				continue
 			var lado := int(rng.randi_range(0, 3))
 			var candidatas: Array = []
 			for aresta in arestas:
@@ -325,38 +351,47 @@ static func posicoes(
 			if grade > 0.0:
 				ponto = (ponto / grade).round() * grade
 
-			if not Geometry2D.is_point_in_polygon(ponto, aberto):
-				continue
-			# Folga de MEIO prop contra a parede: a posicao e o centro da peca, e
-			# uma peca de 64 com a origem a 8 px da linha desenha metade dentro
-			# dela -- sem erro, porque decoracao nao tem colisao para reclamar.
-			if _distancia_as_arestas(ponto, arestas) < largura * 0.5:
-				continue
-			if raio_livre > 0.0 and ponto.distance_to(centro) < raio_livre:
-				continue
-			if zona.size != Vector2.ZERO:
-				var pegada := Rect2(ponto - Vector2.ONE * largura * 0.5, Vector2.ONE * largura)
-				if zona.intersects(pegada):
-					continue
-			var perto_de_boca := false
-			for boca in bocas:
-				if (boca as Vector2).distance_to(ponto) < raio_de_boca:
-					perto_de_boca = true
-					break
-			if perto_de_boca:
-				continue
-			var colide := false
-			for outro in ocupados:
-				if (outro as Vector2).distance_to(ponto) < espaco:
-					colide = true
-					break
-			if colide:
+			if not _cabe(ponto, aberto, arestas, largura, zona, raio_livre, centro,
+					bocas, raio_de_boca, ocupados, espaco):
 				continue
 
 			saida.append(ponto)
 			ocupados.append(ponto)
 			break
 	return saida
+
+
+## Os SEIS filtros de uma colocacao, num lugar so.
+##
+## Eles sairam de dentro do laco de `posicoes()` quando o sorteio ganhou um
+## segundo modo. Duas copias dos mesmos seis testes divergiriam no primeiro
+## ajuste, e o sintoma seria uma familia de decoracao obedecendo uma regra que a
+## outra ja nao obedece -- em tela, e nunca no console.
+static func _cabe(
+	ponto: Vector2, aberto: PackedVector2Array, arestas: Array, largura: float,
+	zona: Rect2, raio_livre: float, centro: Vector2, bocas: Array,
+	raio_de_boca: float, ocupados: Array, espaco: float
+) -> bool:
+	if not Geometry2D.is_point_in_polygon(ponto, aberto):
+		return false
+	# Folga de MEIO prop contra a parede: a posicao e o centro da peca, e uma
+	# peca de 64 com a origem a 8 px da linha desenha metade dentro dela -- sem
+	# erro, porque decoracao nao tem colisao para reclamar.
+	if _distancia_as_arestas(ponto, arestas) < largura * 0.5:
+		return false
+	if raio_livre > 0.0 and ponto.distance_to(centro) < raio_livre:
+		return false
+	if zona.size != Vector2.ZERO:
+		var pegada := Rect2(ponto - Vector2.ONE * largura * 0.5, Vector2.ONE * largura)
+		if zona.intersects(pegada):
+			return false
+	for boca in bocas:
+		if (boca as Vector2).distance_to(ponto) < raio_de_boca:
+			return false
+	for outro in ocupados:
+		if (outro as Vector2).distance_to(ponto) < espaco:
+			return false
+	return true
 
 
 ## O lado que fica RELATIVAMENTE calmo nesta sala (regra 8).

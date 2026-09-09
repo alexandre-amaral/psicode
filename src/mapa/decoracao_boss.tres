@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="PerfilDeDecoracao" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/mapa/perfil_de_decoracao.gd" id="1_perf"]
+
+[resource]
+script = ExtResource("1_perf")
+contagem_hero = Vector2i(0, 0)
+contagem_grande = Vector2i(0, 0)
+contagem_medio = Vector2i(0, 0)
+contagem_pequeno = Vector2i(0, 0)
+contagem_micro = Vector2i(5, 9)
+contagem_decalque = Vector2i(1, 2)
+contagem_parede = Vector2i(2, 5)
+contagem_frente = Vector2i(0, 0)
+quantos_agrupamentos = Vector2i(0, 0)
+agrupamentos = Array[Resource]([])

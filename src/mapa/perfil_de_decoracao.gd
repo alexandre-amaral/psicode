@@ -69,6 +69,21 @@ extends Resource
 ## densidade so pode crescer no chao -- que e onde ela atrapalha.
 @export var contagem_parede: Vector2i = Vector2i(2, 5)
 
+## Quantas pecas passam POR CIMA do ator (viga, tubulacao suspensa, cabo).
+##
+## Ela nao e um porte do `DecoradorDeSala` e nao pode ser: os seis portes falam
+## de ONDE a peca encosta -- chao, parede, chao pintado --, e o Foreground nao
+## encosta em lugar nenhum. O que o separa e a CAMADA (`Sala.Z_FRENTE`), e nao a
+## geometria: um cabo passa por cima de uma caixa sem disputar espaco com ela.
+##
+## Ela mora aqui mesmo assim porque o dono de QUANTOS e este recurso, e deixar
+## uma das quatro familias em `DadosSala` reabriria a divida que a migracao veio
+## fechar -- um numero de densidade fora do botao de densidade.
+##
+## **O default e ZERO**, como era em `DadosSala`: a issue do Foreground pede
+## moderacao com todas as letras, e sala que quer viga pede explicitamente.
+@export var contagem_frente: Vector2i = Vector2i.ZERO
+
 @export_group("Geometria")
 ## Quao fundo a decoracao entra a partir do contorno. O briefing pede 64 a 128;
 ## 96 e o meio dele.

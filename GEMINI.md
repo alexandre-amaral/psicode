@@ -244,6 +244,8 @@ docs/
 | **QUAO FUNDO a decoracao entra na sala** | `largura_da_faixa_de_perimetro` no `decoracao_*.tres`. Era `Sala.PROP_AFASTAMENTO_MAXIMO = 44` em paralelo, e o 44 era quem valia |
 | **Ver quanto da decoracao pedida a sala REAL coloca** | `godot --headless --path . tools/fabrica/medir_sala.tscn` -- pedido contra colocado, por tipo e por familia. O `laboratorio_decoracao` mede o DECORADOR; este mede a `Sala` montada |
 | **A composicao de uma sala decorada (clusters, hero, vazio)** | `src/mapa/decoracao_*.tres` (`PerfilDeDecoracao`) e `src/mapa/agrupamento_*.tres` |
+| **A ORIENTACAO de uma peca de cenario** | `regioes_props_volume` vem em PARES `[frente, ponta]` no `tipo_*.tres`. Norte e sul mostram a frente, leste e oeste a ponta -- `DadosSala.vista_do_lado()` |
+| **Gerar prop que ENCOSTA na parede** | `view: side` no PixelLab, mais `flat frontal elevation` no prompt. `low top-down` devolve isometrico em peca alongada, por mais bloco que o prompt tenha |
 | **Quao ALTA uma peca de cenario pode ser** | ninguem crava: e `PerfilDeParede.alcance()` mais a profundidade da ancora. Quem escolhe a celula que cabe e `DecoradorDeSala`, com o catalogo de `DadosSala.gabaritos_de_volume()` |
 | **Quanto da massa vem de BANCADA e quanto vem de peca solta** | `quantos_agrupamentos` contra as `contagem_*` no `decoracao_*.tres`. Subir o primeiro esvazia o completamento avulso por construcao |
 | **A COLISAO de uma maquina de cenario** | `Sala.forma_de_colisao_do_prop()` -- ela e a SOMBRA, e cresce para tras ate encostar na parede. Layer 3, a mesma da parede |
@@ -1751,6 +1753,34 @@ em qualquer erro de script.
   com o segundo sistema de colocacao". Ela virou o segundo sistema. Sintoma
   concreto: `agrupamento_hidraulico.tres` declara 6 pecas, duas delas desses
   portes, e entrega **4 de 6**, sem erro nenhum.
+- **O `view` do PixelLab MANDA sobre o bloco de prompt, e a licao antiga so
+  valia para peca simetrica.** A secao 4.2 do `PROMPTS_FABRICA.md` afirmava que
+  "o que resolve e o BLOCO, e nao o parametro" -- e aquilo foi medido num TANQUE,
+  que nao tem frente. Refeito com um motor deitado, `view: low top-down` devolveu
+  isometrico com o bloco inteiro no prompt, e o painel plano da mesma leva veio de
+  quina com face lateral visivel. Seis geracoes provaram. Quem resolve e
+  `view: side` mais `flat frontal elevation`, que e o que as pecas de PAREDE ja
+  pediam desde a primeira leva.
+- **Peca de cenario precisa de DUAS artes, e nao de uma girada.** De frente o eixo
+  longo corre leste-oeste; colada na parede LESTE esse eixo aponta para dentro da
+  sala, e a peca fica com uma quina no muro e um vao atras. As regioes vem em
+  PARES `[frente, ponta]`, e `DadosSala.vista_do_lado()` escolhe. Girar a de
+  frente nao serve: girar arte de FACE destroi a perspectiva, decisao ja fechada
+  na porta. **Leste e oeste compartilham a MESMA ponta** -- nos dois o eixo corre
+  norte-sul e e a mesma extremidade que aponta para a camera, entao nao ha
+  espelhamento e a luz do canto superior esquerdo continua valendo.
+- **A vista sai de ONDE A PECA TERMINOU, e nao da ancora do conjunto.** Os
+  deslocamentos do cluster empurram pecas pela tangente; perto de uma quina, a
+  peca da ponta pode acabar mais perto de OUTRA aresta que a ancorada. Usar o lado
+  sorteado ali faz ela mostrar a frente encostada numa parede lateral -- medido, 2
+  pecas em 264, e o unico sintoma e em tela. Quem responde e
+  `DecoradorDeSala.lado_da_posicao()`, pela NORMAL da aresta mais proxima: numa
+  sala em L um teste por quadrante chamaria de norte uma parede que aponta leste.
+- **A vista de COSTAS de uma maquina cilindrica sai quase igual a de frente.**
+  Medido no motor: gerar os quatro eixos produziria duas artes iguais e mais
+  atlas. O sul reusa a frente e o oeste reusa a ponta. Peca com frente FORTE
+  (armario, bancada, painel) merece costas proprias, e essa e divida declarada --
+  nao esquecimento.
 - **Prop novo passa pelo funil SOZINHO, e nao junto do atlas inteiro.**
   `preparar_textura.py` processa a imagem toda: rodar no atlas completo mexeria
   no valor e na saturacao dos doze props ja aprovados. Prepare a tira nova, e so

@@ -1841,7 +1841,9 @@ func _montar_props_volumetricos(
 	# Faixa por AREA continua sendo o criterio -- ele so mudou de arquivo, para
 	# `DadosSala`, que e quem conhece o atlas.
 	for vaga in vagas:
-		var regiao := _regiao_do_tamanho(regioes, vaga.get("tamanho", Vector2i.ZERO), rng)
+		var regiao: Rect2i = vaga.get("regiao", Rect2i())
+		if regiao.size == Vector2i.ZERO:
+			regiao = regioes[rng.randi_range(0, regioes.size() - 1)]
 		if not pendentes.is_empty():
 			regiao = pendentes.pop_back()
 		var largura := float(regiao.size.x)
@@ -1997,31 +1999,6 @@ static func ponto_da_parede_mais_proxima(
 			distancia = d
 			melhor = candidato
 	return melhor
-
-
-## A regiao do atlas que tem exatamente o TAMANHO que o decorador escolheu.
-##
-## Ela substitui `_regiao_do_porte()`, que fatiava o atlas em quartis de area
-## aqui dentro. O fatiamento nao sumiu -- ele virou `DadosSala.gabaritos_de_volume()`,
-## que e quem conhece o atlas e agora entrega o catalogo ao decorador ANTES de a
-## vaga ser fechada. Aqui sobrou a parte mecanica: achar qual das celulas daquele
-## tamanho usar, quando ha mais de uma.
-##
-## O fallback devolve a PRIMEIRA regiao em vez de reprovar. Sala com uma peca
-## trocada e uma sala; sala sem peca nenhuma e sempre pior, e o caso so acontece
-## se alguem editar o `.tres` entre o pedido e a montagem.
-func _regiao_do_tamanho(
-	regioes: Array[Rect2i], tamanho: Vector2i, rng: RandomNumberGenerator
-) -> Rect2i:
-	if regioes.is_empty():
-		return Rect2i()
-	var candidatas: Array[Rect2i] = []
-	for r: Rect2i in regioes:
-		if r.size == tamanho:
-			candidatas.append(r)
-	if candidatas.is_empty():
-		return regioes[0]
-	return candidatas[rng.randi_range(0, candidatas.size() - 1)]
 
 
 ## A camada FOREGROUND (LTD 10): o que passa POR CIMA do ator.

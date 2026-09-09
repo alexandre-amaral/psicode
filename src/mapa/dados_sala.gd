@@ -402,14 +402,42 @@ func faixa_de_props_volume() -> Vector2i:
 ## Por AREA e nao por largura: com as celulas altas (96x160, 64x128) a largura
 ## deixou de ordenar -- uma esteira de 96x64 e mais larga que um armario de
 ## 64x128 e muito menor que ele.
+## **As regioes vem em PARES: `[frente_0, ponta_0, frente_1, ponta_1, ...]`.**
+##
+## Uma peca encostada na parede NORTE mostra a FRENTE dela e corre com o eixo
+## longo leste-oeste, paralelo ao muro. A mesma peca na parede LESTE tem de
+## correr norte-sul para encostar -- e dai o que a camera ve e a PONTA dela, com
+## outra silhueta e outra largura. Sao duas artes, e nao uma girada: girar arte
+## de FACE destroi a perspectiva, e isso e decisao fechada do projeto.
+##
+## Sem o par, um motor largo colocado na parede leste aponta o comprimento para
+## DENTRO da sala, com uma quina no muro e um vao atras -- que e exatamente a
+## reclamacao do dono: *"usar a orientacao reta, norte-sul ou leste-oeste, para
+## que caiba encostado na parede"*.
+##
+## O SUL reusa a frente e o OESTE reusa a ponta. Medido numa peca de teste, a
+## vista de costas de uma maquina cilindrica sai quase identica a de frente --
+## gerar as quatro produziria duas artes iguais e mais atlas. Peca com frente
+## FORTE (armario, bancada, painel) ganha uma vista de costas propria quando ela
+## for desenhada; ate la a divida esta declarada aqui.
 func gabaritos_de_volume() -> Dictionary:
 	var saida := {}
-	if regioes_props_volume.is_empty():
+	if regioes_props_volume.size() < 2:
 		return saida
-	var por_area: Array[Rect2i] = regioes_props_volume.duplicate()
-	por_area.sort_custom(
-		func(a: Rect2i, b: Rect2i) -> bool:
-			return a.size.x * a.size.y > b.size.x * b.size.y)
+	var pares: Array[Dictionary] = []
+	for i in range(0, regioes_props_volume.size() - 1, 2):
+		pares.append({
+			"frente": regioes_props_volume[i],
+			"ponta": regioes_props_volume[i + 1],
+		})
+	# Ordenadas pela area da FRENTE, que e a vista canonica da peca. Usar a maior
+	# das duas faria a mesma peca trocar de porte conforme o lado em que caisse.
+	pares.sort_custom(
+		func(a: Dictionary, b: Dictionary) -> bool:
+			var ra: Rect2i = a["frente"]
+			var rb: Rect2i = b["frente"]
+			return ra.size.x * ra.size.y > rb.size.x * rb.size.y)
+	var por_area := pares
 	var n := por_area.size()
 	var faixas := [
 		Vector2i(0, maxi(1, n / 4)),
@@ -421,11 +449,22 @@ func gabaritos_de_volume() -> Dictionary:
 		var faixa: Vector2i = faixas[porte]
 		var inicio := clampi(faixa.x, 0, n - 1)
 		var fim := clampi(faixa.y, inicio + 1, n)
-		var lote: Array[Rect2i] = []
+		var lote: Array[Dictionary] = []
 		for i in range(inicio, fim):
 			lote.append(por_area[i])
 		saida[porte] = lote
 	return saida
+
+
+## A vista que uma peca mostra quando encosta naquele lado.
+##
+## Publica e estatica porque o portao precisa da mesma resposta: duas tabelas de
+## "que lado usa que vista" divergem, e a divergencia seria a peca desenhando uma
+## silhueta e reservando o chao de outra.
+static func vista_do_lado(gabarito: Dictionary, lado: int) -> Rect2i:
+	if lado == DecoradorDeSala.Lado.LESTE or lado == DecoradorDeSala.Lado.OESTE:
+		return gabarito.get("ponta", Rect2i())
+	return gabarito.get("frente", Rect2i())
 
 
 func faixa_de_decalques() -> Vector2i:

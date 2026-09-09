@@ -661,7 +661,8 @@ static func _tentar_avulso(ctx: Dictionary, porte: int, hero: bool) -> bool:
 		# peca alta: quanto mais funda a ancora, mais a arte cabe antes de passar
 		# do alcance da parede.
 		var teto := PROFUNDIDADE_DE_PAREDE if porte == Porte.PAREDE 			else fundura_maxima(perfil)
-		for tamanho in _tamanhos_a_tentar(ctx, porte):
+		for regiao: Rect2i in _vistas_a_tentar(ctx, porte, lado):
+			var tamanho := regiao.size
 			var piso := -1.0 if tamanho.x <= 0 else float(tamanho.x) * 0.5
 			var ancora := _ancorar(ctx, lado, teto, piso)
 			if ancora.is_empty():
@@ -671,7 +672,7 @@ static func _tentar_avulso(ctx: Dictionary, porte: int, hero: bool) -> bool:
 				continue
 			if not _longe_o_bastante(ctx, posicao, porte, -1):
 				continue
-			_registrar(ctx, posicao, porte, &"", lado, _novo_id(ctx), tamanho)
+			_registrar(ctx, posicao, porte, &"", lado, _novo_id(ctx), regiao)
 			return true
 	return false
 
@@ -714,14 +715,22 @@ static func _tentar_agrupamento(ctx: Dictionary, agrupamento: AgrupamentoDeDecor
 			var deslocamento := agrupamento.deslocamento_da_peca(i)
 			var posicao := origem + tangente * deslocamento.x + normal * deslocamento.y
 			var porte := agrupamento.porte_da_peca(i)
-			var escolhido := Vector2i.ZERO
+			var escolhido := Rect2i()
 			var coube := false
-			for tamanho in _tamanhos_a_tentar(ctx, porte):
-				if not _no_lugar(ctx, posicao, porte, tamanho):
+			# O lado vem de ONDE A PECA TERMINOU, e nao da ancora do conjunto.
+			#
+			# Os deslocamentos do cluster empurram pecas pela tangente e para
+			# dentro; perto de uma quina, a peca de ponta pode acabar mais perto
+			# de OUTRA aresta que a ancorada. Usar o lado sorteado ali faria ela
+			# mostrar a vista de frente encostada numa parede lateral -- medido,
+			# 2 pecas em 264, e o unico sintoma e em tela.
+			var lado_real := lado_da_posicao(ctx["aberto"], posicao)
+			for regiao: Rect2i in _vistas_a_tentar(ctx, porte, lado_real):
+				if not _no_lugar(ctx, posicao, porte, regiao.size):
 					continue
 				if not _longe_o_bastante(ctx, posicao, porte, -1):
 					continue
-				escolhido = tamanho
+				escolhido = regiao
 				coube = true
 				break
 			if not coube:
@@ -740,24 +749,30 @@ static func _tentar_agrupamento(ctx: Dictionary, agrupamento: AgrupamentoDeDecor
 	return false
 
 
-## Os gabaritos a experimentar naquele ponto, do primeiro ao ultimo.
+## As VISTAS a experimentar naquele ponto, do primeiro ao ultimo gabarito.
 ##
-## Sem catalogo devolve `[Vector2i.ZERO]`, que e "uma tentativa, sem tamanho" --
-## o comportamento planar de sempre. E o que mantem o laboratorio e as suites que
+## **Ela depende do LADO, e essa e a metade que faz a peca encostar.** Cada
+## gabarito traz duas artes -- a FRENTE, com o eixo longo correndo leste-oeste, e
+## a PONTA, com ele correndo norte-sul. Na parede norte ou sul a peca mostra a
+## frente; na leste ou oeste, a ponta. Sem isso um motor largo colocado na parede
+## leste aponta o comprimento para dentro da sala.
+##
+## Sem catalogo devolve `[Rect2i()]`, que e "uma tentativa, sem tamanho" -- o
+## comportamento planar de sempre. E o que mantem o laboratorio e as suites que
 ## chamam `decorar()` sem `DadosSala` medindo exatamente o que mediam antes.
-static func _tamanhos_a_tentar(ctx: Dictionary, porte: int) -> Array:
+static func _vistas_a_tentar(ctx: Dictionary, porte: int, lado: int) -> Array:
 	var lote := _gabaritos_do_porte(ctx, porte)
 	if lote.is_empty():
-		return [Vector2i.ZERO]
+		return [Rect2i()]
 	var saida: Array = []
-	for regiao: Rect2i in lote:
-		saida.append(regiao.size)
+	for gabarito: Dictionary in lote:
+		saida.append(DadosSala.vista_do_lado(gabarito, lado))
 	return saida
 
 
 static func _registrar(
 	ctx: Dictionary, posicao: Vector2, porte: int, nome: StringName, lado: int,
-	id: int, tamanho := Vector2i.ZERO
+	id: int, regiao := Rect2i()
 ) -> void:
 	var saida: Array = ctx["saida"]
 	saida.append({
@@ -765,14 +780,40 @@ static func _registrar(
 		"porte": porte,
 		"agrupamento": nome,
 		"lado": lado,
-		# A CELULA escolhida. `Vector2i.ZERO` = quem chamou nao passou catalogo,
-		# e ai quem monta sorteia como antes.
-		"tamanho": tamanho,
+		# A REGIAO escolhida, ja na vista daquele lado. Vazia = quem chamou nao
+		# passou catalogo, e ai quem monta sorteia como antes.
+		"regiao": regiao,
+		"tamanho": regiao.size,
 	})
 	var ids: Array = ctx["ids"]
 	ids.append(id)
 	if lado == int(ctx["vazio"]):
 		ctx["no_lado_vazio"] = int(ctx["no_lado_vazio"]) + 1
+
+
+## De que LADO do contorno aquele ponto esta, pela normal da aresta mais proxima.
+##
+## Publica porque o portao precisa da mesma resposta: uma tabela paralela de
+## "que posicao pertence a que lado" divergiria, e a divergencia seria a peca
+## reservando o chao de uma silhueta e desenhando outra.
+##
+## Pela NORMAL e nao pelo quadrante: numa sala em L o braco tem arestas viradas
+## para dentro, e um teste por posicao chamaria de norte uma parede que aponta
+## para o leste.
+static func lado_da_posicao(aberto: PackedVector2Array, ponto: Vector2) -> int:
+	var melhor := INF
+	var normal := Vector2.ZERO
+	for i in aberto.size():
+		var a := aberto[i]
+		var b := aberto[(i + 1) % aberto.size()]
+		var perto := Geometry2D.get_closest_point_to_segment(ponto, a, b)
+		var d := perto.distance_to(ponto)
+		if d < melhor:
+			melhor = d
+			normal = (perto - ponto).normalized()
+	if absf(normal.x) > absf(normal.y):
+		return Lado.LESTE if normal.x > 0.0 else Lado.OESTE
+	return Lado.SUL if normal.y > 0.0 else Lado.NORTE
 
 
 static func _rng_de(semente: int) -> RandomNumberGenerator:

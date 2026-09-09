@@ -52,6 +52,7 @@ func executar() -> void:
 	_a_peca_de_PAREDE_so_existe_onde_ha_FACE()
 	_nada_desenhado_passa_do_ALCANCE_da_parede()
 	_o_solido_nunca_deixa_um_BOLSAO_intransponivel_contra_a_parede()
+	_a_peca_mostra_a_VISTA_do_lado_em_que_ela_encosta()
 
 
 ## Metade 1 do contrato: a arte de cada celula encosta no FUNDO dela.
@@ -995,3 +996,74 @@ func _o_decalque_industrial_e_POUCO_e_nao_espelha() -> void:
 	entre(float(total), float(piso) * 0.6, float(teto),
 		"as salas receberam os decalques pedidos (%d, faixa %d a %d em %d salas)"
 			% [total, piso, teto, SALAS_MEDIDAS])
+
+
+## A peca mostra a VISTA do lado em que ela encosta (`[FAB 50]`).
+##
+## **E a terceira correcao do dono, e a que so aparece em tela.** O pedido foi
+## *"usar a orientacao reta, norte-sul ou leste-oeste, para que caiba encostado na
+## parede na maioria das vezes"*. Uma peca desenhada de frente tem o eixo longo
+## correndo leste-oeste; colada na parede LESTE, esse eixo aponta para dentro da
+## sala -- ela fica com uma quina no muro e um vao atras, e nenhuma regua de cor
+## ou de posicao pega isso.
+##
+## Por isso cada gabarito tem DUAS artes, e o atlas as declara em pares:
+## `[frente_0, ponta_0, frente_1, ponta_1, ...]`. Norte e sul mostram a frente;
+## leste e oeste mostram a ponta, que e a mesma peca com o eixo longo virado.
+## Nao e a mesma arte girada -- girar arte de FACE destroi a perspectiva, e o
+## projeto ja fechou essa decisao na porta.
+##
+## O caso morde onde a divergencia moraria: ele deriva o LADO da geometria (a
+## aresta mais proxima da peca) e cobra que a regiao desenhada esteja na metade
+## certa do par. Uma tabela paralela de "que lado usa que vista" divergiria da do
+## `DadosSala`, e o sintoma seria a peca reservando o chao de uma silhueta e
+## desenhando outra.
+func _a_peca_mostra_a_VISTA_do_lado_em_que_ela_encosta() -> void:
+	var medidas := 0
+	var erradas := 0
+	var em_lateral := 0
+	var pior := ""
+	for caminho in TIPOS_COM_VOLUME:
+		var dados: DadosSala = load(caminho)
+		if dados == null or dados.regioes_props_volume.size() < 2:
+			continue
+		# As pontas sao os indices IMPARES, por construcao do par.
+		var pontas := {}
+		for i in range(1, dados.regioes_props_volume.size(), 2):
+			pontas[str(dados.regioes_props_volume[i])] = true
+		var frentes := {}
+		for i in range(0, dados.regioes_props_volume.size(), 2):
+			frentes[str(dados.regioes_props_volume[i])] = true
+
+		for semente in 6:
+			var sala := _montar_com_semente(dados, semente + 1, false)
+			var aberto := sala.contorno_local()
+			for corpo in _props_volumetricos(sala):
+				var sprite := _sprite_do_corpo(corpo)
+				if sprite == null:
+					continue
+				medidas += 1
+				var chave := str(Rect2i(sprite.region_rect))
+				var lado := DecoradorDeSala.lado_da_posicao(aberto, corpo.position)
+				var lateral := lado == DecoradorDeSala.Lado.LESTE 					or lado == DecoradorDeSala.Lado.OESTE
+				if lateral:
+					em_lateral += 1
+				# Peca simetrica de ponta a ponta declara a MESMA regiao nas duas
+				# metades do par -- ela e frente e ponta ao mesmo tempo, e passa
+				# em qualquer lado. E o caso do engradado e do duto.
+				var vale: bool = pontas.has(chave) if lateral else frentes.has(chave)
+				if not vale:
+					erradas += 1
+					if pior == "":
+						pior = "%s: %s numa parede %s" % [
+							dados.id, chave, "lateral" if lateral else "norte/sul"]
+			sala.free()
+
+	ok(medidas > 0, "houve peca para conferir (%d)" % medidas)
+	igual(erradas, 0,
+		"toda peca mostra a vista do lado em que ela encosta (%d de %d; %s)"
+			% [erradas, medidas, pior])
+	# A ponta que impede o carimbo: se NENHUMA peca cair numa lateral, o caso
+	# esta verde por nunca ter exercitado a metade que ele existe para cobrar.
+	ok(em_lateral > 0,
+		"e alguma peca de fato encostou numa parede lateral (%d)" % em_lateral)

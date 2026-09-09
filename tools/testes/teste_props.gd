@@ -48,9 +48,10 @@ func executar() -> void:
 	_a_arena_reage_sem_cobrir_a_leitura()
 	_o_decalque_industrial_e_POUCO_e_nao_espelha()
 	_o_CORPO_fica_fora_da_area_util_e_a_MANCHA_entra_nela()
-	_nenhuma_peca_de_decoracao_tem_COLISAO()
+	_so_o_prop_volumetrico_tem_colisao_e_a_forma_dele_e_a_SOMBRA()
 	_a_peca_de_PAREDE_so_existe_onde_ha_FACE()
 	_nada_desenhado_passa_do_ALCANCE_da_parede()
+	_o_solido_nunca_deixa_um_BOLSAO_intransponivel_contra_a_parede()
 
 
 ## Metade 1 do contrato: a arte de cada celula encosta no FUNDO dela.
@@ -401,56 +402,163 @@ func _largura_do_corpo(corpo: Node2D) -> float:
 	return Sala.PROP_LADO
 
 
-## NENHUMA peca de decoracao tem colisao, e a politica e essa (`[FAB 46]`).
+## SO o prop volumetrico tem colisao, e a forma dele e a SOMBRA (`[FAB 49]`).
 ##
-## O briefing separa duas coisas nas secoes 86-88: **decorativo nao tem colisao;
-## obstaculo tem colisao EXPLICITA.** Hoje o andar 1 e todo do primeiro tipo, e
-## este caso e o que torna isso uma politica em vez de uma coincidencia.
+## **Este caso afirmava o contrario, e a inversao foi pedida jogando.** A politica
+## da `[FAB 46]` era "decorativo sem colisao, obstaculo com colisao explicita", e
+## na pratica nada tinha colisao: as pecas grandes PARECIAM obstaculo e o jogador
+## atravessava. O dono foi direto -- a maquina "vai possuir colisao" e "precisa
+## parecer conectada a sala". O docstring antigo daqui ja previa este dia, dizendo
+## que o obstaculo de verdade nasceria com colisao declarada e o caso passaria a
+## listar a excecao pelo nome; o que ele nao previu e que a excecao seria a
+## familia inteira.
 ##
-## As duas metades do estrago, e as duas sao silenciosas:
+## Ele morde dos DOIS lados, e e essa a diferenca entre inverter um portao e
+## perder um:
 ##
-## 1. **Colisao onde nao devia** e o "esbarrao fantasma": o jogador para no meio
-##    do nada porque um caixote decorativo ganhou corpo. Com 15 volumetricos por
-##    sala depois da migracao das contagens, um `CollisionShape2D` esquecido num
-##    prop transforma a faixa de perimetro inteira num labirinto -- e o jogo
-##    continua rodando, sem erro nenhum.
-## 2. **A ausencia dela nao e defeito**, e por isso o portao e sobre a POSICAO e
-##    nao sobre o corpo: o que impede o prop sem colisao de parecer obstaculo e
-##    ele nunca entrar na area util, que e o caso irmao logo acima.
+##   1. as cinco familias PLANAS continuam sem colisao nenhuma. Decalque, prop
+##      chapado, prop animado, foreground e luminaria sao desenho no chao ou na
+##      parede -- solido em qualquer um deles e esbarrao em coisa pintada.
+##   2. todo `prop_volume` PRECISA ter exatamente um solido, na layer da parede,
+##      sem mask. Sem esta metade, apagar a colisao inteira deixaria o caso verde.
 ##
-## Quando o andar tiver um obstaculo de verdade -- e o briefing preve --, ele
-## nao entra por aqui: ele nasce com colisao declarada na CENA, como a barreira
-## da porta, e este caso passa a listar a excecao pelo nome. Uma peca que ganha
-## corpo por acidente, dentro de um `_montar_*`, e outra coisa.
-func _nenhuma_peca_de_decoracao_tem_COLISAO() -> void:
+## E a FORMA e cobrada contra a sombra, nao contra a pegada. `pegada_no_chao()` e
+## a RESERVA -- a largura cheia da celula, conservadora, que decide se a peca cabe
+## --, e usa-la como solido pararia o corpo 28% mais largo que a sombra desenhada.
+## O jogador le a sombra como o pe da maquina; treze pixels de esbarrao alem dela
+## e fantasma, e fantasma nao da erro no console. A relacao que se afirma e
+## colisao ⊆ reserva.
+func _so_o_prop_volumetrico_tem_colisao_e_a_forma_dele_e_a_SOMBRA() -> void:
 	var dados: DadosSala = load("res://src/mapa/tipo_combate.tres")
 	if dados == null:
 		return
 	var sala := _montar(dados)
-	var pecas := 0
+	var aberto := sala.contorno_local()
+
+	# 1. as familias planas continuam limpas.
+	var planas := 0
 	var com_corpo: Array[String] = []
-	var raizes: Array[Node] = []
-	for nome in ["Decoracao", "Decalques", "DecoracaoAnimada", "Frente", "Luminarias"]:
+	for nome in ["Decoracao", "Decalques", "DecoracaoAnimada", "Frente", "Luminarias",
+			"ParedePecas"]:
 		var raiz := sala.get_node_or_null(nome)
-		if raiz != null:
-			raizes.append(raiz)
-	for corpo in _props_volumetricos(sala):
-		raizes.append(corpo)
-
-	for raiz in raizes:
+		if raiz == null:
+			continue
 		for peca in _todos_os_nos(raiz):
-			pecas += 1
-			if peca is CollisionObject2D or peca is CollisionShape2D 					or peca is CollisionPolygon2D:
-				com_corpo.append("%s/%s" % [raiz.name, peca.name])
+			planas += 1
+			if peca is CollisionObject2D or peca is CollisionShape2D 				or peca is CollisionPolygon2D:
+				com_corpo.append("%s/%s" % [nome, peca.name])
 
-	ok(pecas > 0, "houve peca de decoracao para conferir (%d)" % pecas)
+	# 2. todo volumetrico tem UM solido, e a forma dele bate com a sombra.
+	var volumes := 0
+	var sem_solido := 0
+	var layer_errada := 0
+	var forma_errada := 0
+	var fora_da_reserva := 0
+	for corpo in _props_volumetricos(sala):
+		volumes += 1
+		var solidos: Array[StaticBody2D] = []
+		for filho in corpo.get_children():
+			var solido := filho as StaticBody2D
+			if solido != null:
+				solidos.append(solido)
+		if solidos.size() != 1:
+			sem_solido += 1
+			continue
+		if solidos[0].collision_layer != Sala.LAYER_PAREDE or solidos[0].collision_mask != 0:
+			layer_errada += 1
+		var largura := _largura_do_corpo(corpo)
+		var perto := Sala.ponto_da_parede_mais_proxima(aberto, corpo.position)
+		var esperada := Sala.forma_de_colisao_do_prop(
+			largura, perto.distance_to(corpo.position))
+		var forma: CollisionShape2D = null
+		for filho in solidos[0].get_children():
+			var candidata := filho as CollisionShape2D
+			if candidata != null:
+				forma = candidata
+		var caixa: RectangleShape2D = null
+		if forma != null:
+			caixa = forma.shape as RectangleShape2D
+		if caixa == null or not caixa.size.is_equal_approx(esperada):
+			forma_errada += 1
+			continue
+		# O solido NUNCA toca a area de combate. Ele PODE ser mais fundo que a
+		# reserva -- ele cresce para TRAS, para dentro do muro, que ja e solido --,
+		# mas para a frente ele para onde a peca reservou.
+		var centro := corpo.position + forma.position
+		var solido_como_caixa := Rect2(centro - caixa.size * 0.5, caixa.size)
+		if sala.area_spawn.intersects(solido_como_caixa):
+			fora_da_reserva += 1
+
+	ok(planas > 0, "houve peca plana para conferir (%d)" % planas)
 	igual(com_corpo.size(), 0,
-		"nenhuma decoracao tem colisao -- esbarrao fantasma nao da erro no console (%s)"
+		"nenhuma familia plana tem colisao -- solido em coisa pintada e esbarrao fantasma (%s)"
 			% ", ".join(com_corpo))
+	ok(volumes > 0, "houve prop volumetrico para conferir (%d)" % volumes)
+	igual(sem_solido, 0,
+		"todo prop volumetrico tem exatamente UM solido (%d de %d sem)" % [sem_solido, volumes])
+	igual(layer_errada, 0,
+		"o solido esta na layer da PAREDE e nao procura ninguem (%d errados)" % layer_errada)
+	igual(forma_errada, 0,
+		"a caixa do solido e a SOMBRA da peca, e nao a pegada cheia (%d errados)" % forma_errada)
+	igual(fora_da_reserva, 0,
+		"e ela nunca toca a area de combate (%d tocando)" % fora_da_reserva)
 	sala.free()
 
 
-## Todos os descendentes de um no, ele inclusive.
+## O solido nunca deixa um vao INTRANSPONIVEL entre ele e a parede.
+##
+## **E o unico risco que a colisao introduz e que nao se ve chegando.** Solido na
+## faixa de perimetro pode nascer a qualquer profundidade da janela de ancora, e
+## uma peca ancorada a meio caminho deixa uma fresta entre a parede e ela. Fresta
+## larga e um vao; fresta de dez pixels e um lugar em que o jogador enfia o
+## personagem, fica preso e nao entende por que -- e o inimigo, que nao tem
+## pathfinding, fica raspando ali.
+##
+## A regra e binaria e nao tem numero proprio: ou o solido ENCOSTA na parede (vao
+## zero ou negativo, e ai a peca e uma saliencia continua do muro), ou ele deixa
+## espaco para um corpo passar (`FOLGA_CORPO`, o mesmo raio que
+## `posicao_livre()` ja usa para decidir se cabe alguem). O meio termo e o que
+## nao pode existir.
+##
+## Ela e cobrada aqui e nao no decorador porque quem produz o vao e a soma de tres
+## decisoes -- janela de ancora, largura da peca e profundidade do solido -- e
+## nenhuma das tres sozinha sabe do resultado.
+func _o_solido_nunca_deixa_um_BOLSAO_intransponivel_contra_a_parede() -> void:
+	var medidos := 0
+	var bolsoes := 0
+	var pior := ""
+	for caminho in TIPOS_COM_VOLUME:
+		var dados: DadosSala = load(caminho)
+		if dados == null:
+			continue
+		for semente in 6:
+			var sala := _montar_com_semente(dados, semente + 1, false)
+			var aberto := sala.contorno_local()
+			for corpo in _props_volumetricos(sala):
+				var largura := _largura_do_corpo(corpo)
+				var ate_a_parede := Sala.ponto_da_parede_mais_proxima(
+					aberto, corpo.position).distance_to(corpo.position)
+				var caixa := Sala.forma_de_colisao_do_prop(largura, ate_a_parede)
+				# A distancia da BEIRADA DE TRAS do solido a parede, ja contado o
+				# recuo -- e ele que faz a peca encostar quando a fresta seria
+				# estreita demais para o corpo passar.
+				var recuo := Sala.recuo_do_solido(largura, ate_a_parede)
+				var vao := ate_a_parede - recuo - caixa.y * 0.5
+				medidos += 1
+				if vao > 0.5 and vao < Sala.FOLGA_CORPO:
+					bolsoes += 1
+					if pior == "":
+						pior = "%s: vao de %.0f px contra folga de %.0f" % [
+							dados.id, vao, Sala.FOLGA_CORPO]
+			sala.free()
+
+	ok(medidos > 0, "houve solido para medir (%d)" % medidos)
+	igual(bolsoes, 0,
+		"nenhum solido deixa fresta em que o corpo nao passa -- ou encosta, ou da caminho (%d de %d; %s)"
+			% [bolsoes, medidos, pior])
+
+
+## Todo no daquela sub-arvore, a raiz incluida.
 func _todos_os_nos(raiz: Node) -> Array[Node]:
 	var saida: Array[Node] = [raiz]
 	for filho in raiz.get_children():

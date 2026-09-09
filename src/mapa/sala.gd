@@ -954,18 +954,31 @@ func _local_livre(ponto: Vector2, contorno: PackedVector2Array, folga: float) ->
 
 ## Usa a propria forma de colisao do obstaculo contra um disco do tamanho do
 ## corpo: assim vale para retangulo, circulo ou poligono sem um caso por tipo.
+## **Os PROPS entram nesta conta desde que ganharam solido**, e isso nao e
+## detalhe. Quem sorteia spawn pergunta aqui; sem os props, um inimigo nasceria
+## dentro de uma maquina -- e como nao ha pathfinding, ele ficaria raspando ou
+## preso, sem um erro no console. A varredura e por FORMA e nao por tipo de no,
+## entao o `Obstaculos` autorado na cena e o solido gerado do prop respondem pelo
+## mesmo caminho.
 func _dentro_de_obstaculo(ponto: Vector2, folga: float) -> bool:
-	var raiz := get_node_or_null("Obstaculos")
-	if raiz == null:
+	var raizes: Array[Node] = []
+	var autorados := get_node_or_null("Obstaculos")
+	if autorados != null:
+		raizes.append(autorados)
+	for filho in get_children():
+		if filho is Node2D and (filho as Node2D).is_in_group(GRUPO_PROP_VOLUME):
+			raizes.append(filho)
+	if raizes.is_empty():
 		return false
 	var corpo := CircleShape2D.new()
 	corpo.radius = folga
 	var onde_o_corpo_esta := Transform2D(0.0, ponto)
-	for forma in _formas_de(raiz):
-		if forma.shape == null or forma.disabled:
-			continue
-		if forma.shape.collide(_transform_relativa(forma), corpo, onde_o_corpo_esta):
-			return true
+	for raiz in raizes:
+		for forma in _formas_de(raiz):
+			if forma.shape == null or forma.disabled:
+				continue
+			if forma.shape.collide(_transform_relativa(forma), corpo, onde_o_corpo_esta):
+				return true
 	return false
 
 
@@ -1473,7 +1486,7 @@ func _montar_decoracao() -> void:
 
 	_montar_props_chapados(dados, contorno, aberto, bocas, colocados, rng)
 	_montar_props_animados(dados, contorno, aberto, bocas, colocados, rng)
-	_montar_props_volumetricos(dados, composicao, colocados, rng)
+	_montar_props_volumetricos(dados, aberto, composicao, colocados, rng)
 	_montar_props_frente(dados, contorno, aberto, bocas, colocados, rng)
 	_montar_luminarias(dados, contorno, bocas, rng)
 	_montar_props_parede(dados, contorno, aberto, rng)
@@ -1771,7 +1784,7 @@ func _montar_props_animados(
 ## `Direcoes.BASE_NO_QUADRO` carrega para os atores, e pelo mesmo motivo -- duas
 ## copias do numero divergiriam com o sintoma so aparecendo em tela.
 func _montar_props_volumetricos(
-	dados: DadosSala, composicao: Array[Dictionary],
+	dados: DadosSala, aberto: PackedVector2Array, composicao: Array[Dictionary],
 	colocados: Array[Vector2], rng: RandomNumberGenerator
 ) -> void:
 	if dados.atlas_props_volume == null:
@@ -1846,6 +1859,8 @@ func _montar_props_volumetricos(
 		var sombra := Sombra.criar(largura * PROP_FRACAO_SOMBRA, 0.0)
 		corpo.add_child(sombra)
 
+		corpo.add_child(_solido_do_prop(largura, aberto, ponto))
+
 		var sprite := Sprite2D.new()
 		sprite.texture = dados.atlas_props_volume
 		sprite.region_enabled = true
@@ -1855,6 +1870,111 @@ func _montar_props_volumetricos(
 		corpo.add_child(sprite)
 
 		colocados.append(ponto)
+
+
+## O CHAO SOLIDO de um prop volumetrico: a maquina e parede, e para de verdade.
+##
+## **A politica da `[FAB 46]` era "decorativo sem colisao", e ela inverteu para o
+## volumetrico.** O dono jogou e pediu o oposto do que o portao cobrava: as pecas
+## grandes precisam parecer -- e ser -- parte da sala. Layer 3, a mesma da parede:
+## `projetil.gd` ja resolve parede por raycast com `collision_mask = 4`, entao o
+## tiro ricocheteia na maquina sem uma linha de codigo nova, e e isso que faz a
+## peca pertencer ao lugar em vez de ser cenario pintado.
+##
+## ## Por que ela e a SOMBRA e nao a pegada
+##
+## `DecoradorDeSala.pegada_no_chao()` usa a largura CHEIA da celula, e ela e a
+## RESERVA -- o que nao pode encostar na area de combate. Ela e conservadora de
+## proposito. Se ela virasse o solido, o corpo pararia 28% mais largo que a
+## sombra desenhada, que e o que o jogador le como "onde isto encosta no chao":
+## treze pixels de esbarrao fantasma por lado, com o portao verde.
+##
+## Sao duas perguntas: `pegada_no_chao()` responde "cabe aqui?" e esta responde
+## "onde o corpo para?". A relacao entre elas -- colisao dentro da reserva -- e
+## cobravel numa linha, e `teste_props.gd` cobra.
+## O solido, em `Vector2(tamanho, deslocamento_no_eixo_da_parede)`.
+##
+## **Ele CRESCE PARA TRAS ate encostar na parede quando a fresta seria estreita
+## demais**, e essa e a segunda metade da regra. Uma caixa sempre centrada na
+## ancora deixava, em 92 de 311 pecas medidas, um vao de 4 a 23 px entre ela e o
+## muro: largo demais para o olho ler "encostado", estreito demais para o corpo
+## passar. O jogador enfia o personagem ali e nao entende por que travou; o
+## inimigo, que nao tem pathfinding, fica raspando.
+##
+## Afastar a peca resolveria o vao e desfaria a ideia inteira -- a maquina e uma
+## SALIENCIA da parede, e uma saliencia que flutua 24 px a frente dela e um movel
+## outra vez. Entao quem se estica e o solido, para tras, na direcao em que nao
+## ha nada a perder: ele so pode crescer para dentro do muro, que ja e solido.
+##
+## Acima de `FOLGA_CORPO` a fresta e um caminho de verdade e fica como esta.
+static func forma_de_colisao_do_prop(largura: float, ate_a_parede: float = 0.0) -> Vector2:
+	var fundo := DecoradorDeSala.PROFUNDIDADE_NO_CHAO
+	var vao := ate_a_parede - fundo * 0.5
+	if ate_a_parede > 0.0 and vao > 0.0 and vao < FOLGA_CORPO:
+		fundo += vao
+	return Vector2(largura * PROP_FRACAO_SOMBRA, fundo)
+
+
+## Quanto o solido se desloca da ancora para tras, ao encostar na parede.
+##
+## A caixa cresceu so de um lado -- o de tras --, entao o centro dela anda
+## metade do que ela cresceu. Sem isso a peca ganharia fundo pela FRENTE, que e
+## exatamente o lado que nao pode avancar: la esta a area de combate.
+static func recuo_do_solido(largura: float, ate_a_parede: float) -> float:
+	var padrao := DecoradorDeSala.PROFUNDIDADE_NO_CHAO
+	return (forma_de_colisao_do_prop(largura, ate_a_parede).y - padrao) * 0.5
+
+
+## O corpo solido de um prop, criado em CODIGO e nunca compartilhado.
+##
+## `mask = 0` como a parede: ela colide com tudo e nao procura ninguem. E a forma
+## nasce nova a cada peca porque sub-resource compartilhada entre instancias e
+## armadilha ja registrada -- duas maquinas de larguras diferentes acabariam com
+## a mesma caixa, e a errada seria a que ninguem olhou.
+func _solido_do_prop(
+	largura: float, aberto: PackedVector2Array, ponto: Vector2
+) -> StaticBody2D:
+	var perto := ponto_da_parede_mais_proxima(aberto, ponto)
+	var ate_a_parede := perto.distance_to(ponto)
+	var solido := StaticBody2D.new()
+	solido.name = "Solido"
+	solido.collision_layer = LAYER_PAREDE
+	solido.collision_mask = 0
+	var forma := CollisionShape2D.new()
+	var caixa := RectangleShape2D.new()
+	caixa.size = forma_de_colisao_do_prop(largura, ate_a_parede)
+	forma.shape = caixa
+	# O recuo segue a NORMAL real, e nao um eixo cravado. A peca pode estar em
+	# qualquer um dos quatro lados ou num chanfro, e "para tras" so quer dizer
+	# a mesma coisa nos quatro se a direcao vier da geometria: cravar `-y` faria
+	# o solido da parede SUL crescer para dentro da sala, comendo area de
+	# combate no unico lado em que isso e possivel.
+	var recuo := recuo_do_solido(largura, ate_a_parede)
+	if recuo > 0.0 and ate_a_parede > 0.0:
+		forma.position = (perto - ponto).normalized() * recuo
+	solido.add_child(forma)
+	return solido
+
+
+## O ponto do contorno mais proximo daquele ponto interno.
+##
+## Publica porque o portao precisa da mesma resposta: a distancia a parede decide
+## se o solido encosta nela, e duas formas de medi-la divergem exatamente no caso
+## que o portao existe para pegar.
+static func ponto_da_parede_mais_proxima(
+	aberto: PackedVector2Array, ponto: Vector2
+) -> Vector2:
+	var melhor := ponto
+	var distancia := INF
+	for i in aberto.size():
+		var a := aberto[i]
+		var b := aberto[(i + 1) % aberto.size()]
+		var candidato := Geometry2D.get_closest_point_to_segment(ponto, a, b)
+		var d := candidato.distance_to(ponto)
+		if d < distancia:
+			distancia = d
+			melhor = candidato
+	return melhor
 
 
 ## A regiao do atlas que tem exatamente o TAMANHO que o decorador escolheu.

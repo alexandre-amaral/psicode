@@ -35,42 +35,44 @@ extends CanvasModulate
 
 ## Quanto do brilho original sobra quando nenhuma luz alcanca o ponto.
 ##
-## `1.0` seria "sem escurecimento". O alvo veio do `laboratorio_luz`, que mede
-## o degrau entre as superficies: com 0,45 o chao fica em luma 0,020 e o topo da
-## parede em 0,114 -- um degrau de 0,094, bem acima do minimo de 0,035 que a
-## ferramenta cobra. Abaixo de ~0,30 aquele degrau fecha e a arquitetura some
-## junto com a sombra.
+## `1.0` seria "sem escurecimento". O piso vem do `laboratorio_luz`, que mede o
+## degrau entre as superficies: abaixo de ~0,30 aquele degrau fecha e a
+## arquitetura some junto com a sombra.
 ##
 ## Ele e `@export` e nao `const` porque e exatamente o tipo de numero que a
 ## sessao de tuning vai querer girar com a tela na frente.
 ##
-## ## O ALVO FOI ALCANCADO, e este bloco ja disse o contrario
+## ## POR QUE 0,75, e nao os 0,45 que este arquivo defendeu por duas issues
 ##
-## Ate a `[FAB 19]` este comentario tinha uma secao chamada "por que ele nao
-## esta em 0,45 hoje", e ela estava certa na epoca: o valor era 0,72, porque a
-## luminaria ainda nao devolvia brilho e um ambiente escuro sem luz so tira luz
-## de todo mundo. A `[FAB 19]` calibrou a lampada, o valor foi para 0,45 -- e a
-## secao ficou. **Ela passou a explicar o oposto do que o codigo faz**, e o
-## proprio texto avisava contra isso: um valor de compromisso sem o alvo ao lado
-## vira o valor definitivo por esquecimento. Aqui foi o inverso, e o texto e que
-## ficou para tras.
+## **Porque a `[FAB 45]` mediu o resultado e ele nao era o que a `[FAB 19]`
+## supunha.** Com 0,45 o andar dava **95% de PRETO** (valor <= 0,10) contra os
+## 50,75% da referencia, e o cinza azulado -- a superficie que na referencia
+## ocupa 35% -- ficava em **0,66%**. A referencia e escura E tem superficie
+## legivel; o andar so tinha a primeira metade.
 ##
-## O que continua valendo dela e a regra: **ambiente escuro MAIS `Light2D`
-## devolvendo luz nos bolsoes**, nunca ambiente escuro sozinho. Baixar este
-## numero sem lampada que compense apaga o ator junto com o piso.
+## E a alavanca era esta, e nao a que o plano supunha. A nota do `medir_ambiente`
+## dizia "a referencia tem sete a oito lampadas por sala e o andar tem tres a
+## cinco", e dai se conclui que faltam lampadas. Medido em
+## `prova_de_leitura.tscn -- --luz`, cruzando as duas:
 ##
-## ## E o que a `[FAB 45]` mediu depois
+##     dobrar as lampadas (5 -> 11)   move  3,2 pontos de preto
+##     o ambiente (0,45 -> 0,85)      move 46,9 pontos
 ##
-## Com 0,45, o andar mede **95% de PRETO** (valor <= 0,10) contra os 50,75% da
-## referencia, e o cinza azulado -- que na referencia ocupa 35% -- fica em 0,66%.
-## A referencia e escura E tem superficie legivel; o andar so tem a primeira
-## metade.
+## **A lampada e uma POCA**: ela soma brilho num circulo e deixa o resto do piso
+## onde estava. Quem decide quanta superficie o andar mostra e este numero.
 ##
-## Isso NAO quer dizer "suba o numero": ele e a aparencia da run inteira e foi
-## calibrado com captura no motor. Quer dizer que ha uma escolha a fazer, com
-## duas alavancas medidas em `prova_de_leitura.tscn -- --luz` -- este valor e a
-## contagem de luminarias por sala.
-@export_range(0.15, 1.0, 0.01) var luminosidade: float = 0.45:
+## 0,75 e a linha em que as duas metades da referencia aparecem juntas -- 69% de
+## preto contra 17% de superficie -- sem chegar a 0,85, onde o andar deixa de ser
+## escuro e a poca perde o contraste que a justifica.
+##
+## O que continua valendo da versao anterior deste bloco e a regra que a
+## originou: **ambiente escuro MAIS `Light2D` devolvendo luz nos bolsoes**, nunca
+## ambiente escuro sozinho. Baixar este numero sem lampada que compense apaga o
+## ator junto com o piso.
+##
+## `teste_luz.AMBIENTE_DA_RUN` e gemeo deste valor e muda junto -- uma copia que
+## envelhece faria aquele portao medir um ambiente que o jogo nao usa.
+@export_range(0.15, 1.0, 0.01) var luminosidade: float = 0.75:
 	set(valor):
 		luminosidade = valor
 		_aplicar()

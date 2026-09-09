@@ -542,6 +542,65 @@ inteira, foi calibrado com captura no motor nas `[FAB 14]`/`[FAB 19]`, e subir
 sozinho uma constante que o dono aprovou olhando nao e medicao, e gosto. O que
 mudou e que agora existe um numero para decidir com ele -- e uma tabela.
 
+### A luz calibrada: 0,75 com 8 lampadas, e a poca em 6,0
+
+**Decidido e aplicado.** O dono escolheu a linha `0,75 / 8` da varredura abaixo,
+e a poca foi calibrada junto. O que mudou:
+
+| | antes | depois |
+|---|---|---|
+| `AmbienteDaFabrica.luminosidade` | 0,45 | **0,75** |
+| luminarias por sala | 5 / 3 / 4 / 3 / 6 / 4 | x1,6 (**8** no combate) |
+| `perfil_ambar` energia | 3,0 | **6,0** |
+| `perfil_frio` energia | 1,8 | **3,6** |
+
+E o resultado medido, contra a referencia:
+
+| familia | antes | depois | referencia |
+|---|---|---|---|
+| preto | 95,02% | **67,54%** | 50,75% |
+| cinza_azulado | 0,66% | **17,51%** | 35,43% |
+| ferrugem | 1,66% | 3,43% | 3,30% |
+| ambar | 0,05% | 0,20% | 0,41% |
+
+A distancia caiu de **+44,3 para +16,8 pontos** de preto, e as cinco familias de
+acento entraram todas na faixa da referencia.
+
+**A `[FAB 41]` fechou de tabela, e ninguem tocou na decoracao.** Item e arma
+reprovavam com 0,98x e 1,04x de ganho de massa; com a luz nova dao **1,17x e
+1,23x**. A causa e direta: no escuro os props nao registravam, entao a decoracao
+nao acrescentava massa nenhuma -- ela acrescentava cor. O que parecia falta de
+arte era falta de luz.
+
+**O RAIO nao subiu, e o portao foi quem impediu.** A melhor coincidencia da
+varredura era `4,5 / raio 220` (ambar 0,43% contra os 0,41% da referencia), e
+`teste_luz.gd` reprovou: as secoes 94/95 limitam o raio a 48-160, porque poca
+grande demais ilumina a sala inteira e apaga o contraste que ela existe para
+criar. A linha escolhida -- `6,0 / raio 160` -- da ambar 0,44% sem tocar no raio,
+e de quebra nao reabre a pergunta do espacamento entre luminarias
+(`Sala.LUMINARIA_LARGURA = 64` foi calibrado contra raio 160).
+
+### O `FATOR_DE_RENDER` nao foi remedido, e isso e uma DIVIDA declarada
+
+O docstring daquela constante manda remedi-la ao mexer no ambiente. Tentei, com
+o metodo que ele descreve -- chao real no `Z_CHAO`, ambiente aplicado, uma
+`LuzDeFabrica` no centro, varrendo as mesmas cinco energias -- e **nao consegui
+reproduzir o 0,088 registrado**:
+
+| espaco medido | fundo | fator | linear? |
+|---|---|---|---|
+| luma | 0,0186 | 0,0311 | sim |
+| valor (HSV) | 0,0275 | 0,020 a 0,040 | **nao** |
+| registrado | 0,0509 | 0,088 | sim |
+
+O modelo do portao e em VALOR (`VALOR_DO_CHAO` e o valor medio do chao, e o teto
+e `Paleta.LIMITE_VALOR`), e em valor a resposta que eu medi nao e linear -- entao
+uma constante nao a descreve. **Nao mexi na constante**: nao da para "corrigir"
+um numero cuja bancada nao se consegue reproduzir, e o veredito do portao e o
+mesmo com qualquer um dos tres fatores (as duas asercoes passam com folga em
+todos). O modo `-- --fator` fica na ferramenta para quem tiver a bancada
+original.
+
 ### A varredura de luz: a lampada NAO e a alavanca
 
 `prova_de_leitura.tscn -- --luz` cruza as duas alavancas do andar e mede cada

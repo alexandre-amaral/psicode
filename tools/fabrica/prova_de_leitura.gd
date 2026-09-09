@@ -165,6 +165,20 @@ const LUMINOSIDADES: Array[float] = [0.45, 0.55, 0.65, 0.75, 0.85]
 ## holofote.
 const LAMPADAS: Array[int] = [5, 8, 11]
 
+## As energias que a remedicao do `FATOR_DE_RENDER` visita.
+##
+## Sao as mesmas cinco da medicao original, registradas no docstring daquela
+## constante -- e isso importa: o que se compara e a LINEARIDADE no mesmo
+## intervalo, e trocar os pontos de amostra tornaria os dois numeros
+## incomparaveis.
+const ENERGIAS_MEDIDAS: Array[float] = [0.55, 1.20, 2.00, 3.00, 4.50]
+
+## A grade da varredura da poca. O estado de hoje (3,0 e 160) esta dentro das
+## duas, pela mesma razao de sempre: varredura sem o estado atual nao diz o
+## tamanho de nenhum passo.
+const ENERGIAS_DA_POCA: Array[float] = [3.0, 4.5, 6.0]
+const RAIOS_DA_POCA: Array[float] = [160.0, 220.0, 280.0]
+
 ## Piso de quanto do contraste sobrevive a reducao para 1/4 (`[FAB 42]`).
 ##
 ## Gemeo do `PISO_SOBREVIVENCIA_MINIATURA`, pela mesma razao. A ordem de
@@ -259,6 +273,14 @@ func _ready() -> void:
 	# so ela compara com um numero ABSOLUTO.
 	_ambiente = AmbienteDaFabrica.new()
 	add_child(_ambiente)
+	if "--fator" in OS.get_cmdline_user_args():
+		await _medir_o_fator_de_render()
+		get_tree().quit()
+		return
+	if "--poca" in OS.get_cmdline_user_args():
+		await _varrer_a_poca()
+		get_tree().quit()
+		return
 	if "--luz" in OS.get_cmdline_user_args():
 		await _varrer_a_luz()
 		get_tree().quit()
@@ -321,6 +343,195 @@ func _varrer_a_luz() -> void:
 	print("  As capturas estao em capturas/prova/luz/ -- a escolha e de olho,")
 	print("  e o que esta tabela faz e dizer o tamanho de cada passo.")
 	_qual_alavanca()
+
+
+## A POCA: energia x raio do `perfil_ambar`, medidos no QUADRO (`-- --poca`).
+##
+## **Ela mede o efeito e nao o modelo, e a diferenca ja custou um andar sem
+## luz.** `teste_luz.gd` prevê o pico da poça por uma conta -- `chao +
+## FATOR_DE_RENDER * cor.v * energia` --, e essa conta e util para o portao. Mas
+## a pergunta aqui e outra: **quanto do QUADRO o ambar ocupa**, que e o numero
+## que a referencia declara (0,41%) e o unico que da para comparar com ela.
+##
+## As duas medicoes discordaram uma vez, e foi assim que se descobriu que o
+## portao media a matematica de um efeito que nao aparecia.
+##
+## O alvo nao e "o maior ambar possivel". A referencia tem 0,41% de ambar E
+## 50,75% de preto ao mesmo tempo: a poca so significa alguma coisa se houver
+## sombra em volta dela. Por isso a tabela mostra as duas colunas.
+func _varrer_a_poca() -> void:
+	var dados := load("res://src/mapa/tipo_combate.tres") as DadosSala
+	var perfil := load("res://src/fx/perfil_ambar.tres") as PerfilDeLuz
+	if dados == null or perfil == null:
+		print("\n  tipo de combate ou perfil ambar nao carregam.")
+		return
+	print("\n=== a poca: energia x raio (sala de combate) ===\n")
+	print("  ambiente %.2f, %d luminarias -- o estado escolhido."
+		% [_ambiente.luminosidade, dados.quantidade_luminarias])
+	print("  O alvo e o AMBAR da referencia (%.2f%%) COM sombra em volta:"
+		% (REFERENCIA["ambar"] * 100.0))
+	print("  poca sem escuridao nao e poca, e uma sala clara.\n")
+	print("  %9s %8s %9s %9s   %s"
+		% ["energia", "raio", "ambar", "preto", "leitura"])
+	print("  " + "-".repeat(58))
+
+	for energia in ENERGIAS_DA_POCA:
+		for raio in RAIOS_DA_POCA:
+			var copia := perfil.duplicate() as PerfilDeLuz
+			copia.energia = energia
+			copia.raio = raio
+			var tipo := dados.duplicate() as DadosSala
+			tipo.perfil_de_luz = copia
+			var quadro := await _fotografar_com(tipo, CELULAS[0])
+			if quadro == null:
+				continue
+			_gravar(quadro, "poca", "e%03d_r%03d" % [roundi(energia * 10.0), roundi(raio)])
+			var familias := _familias_do_recorte(quadro, _ultimo_recorte)
+			var ambar: float = familias.get("ambar", 0.0)
+			var preto: float = familias.get("preto", 0.0)
+			print("  %9.1f %8.0f %8.2f%% %8.1f%%   %s" % [
+				energia, raio, ambar * 100.0, preto * 100.0,
+				_leitura_da_poca(ambar, preto, energia, raio, perfil)])
+
+	print("\n  o estado de hoje: energia %.1f, raio %.0f." % [perfil.energia, perfil.raio])
+	print("  As capturas estao em capturas/prova/poca/.")
+
+
+func _leitura_da_poca(
+	ambar: float, preto: float, energia: float, raio: float, atual: PerfilDeLuz
+) -> String:
+	if is_equal_approx(energia, atual.energia) and is_equal_approx(raio, atual.raio):
+		return "<- hoje"
+	if preto < 0.40:
+		return "sem sombra em volta"
+	if ambar < REFERENCIA["ambar"] * 0.6:
+		return "poca ainda fraca"
+	if ambar > REFERENCIA["ambar"] * 1.8:
+		return "poca demais"
+	return "na faixa da referencia"
+
+
+## Remede o `FATOR_DE_RENDER` de `teste_luz.gd` (`-- --fator`).
+##
+## **Aquela constante envelhece com o ambiente, e o docstring dela manda remedir
+## com todas as letras.** Ela e quanto de luma RENDERIZADA a luz soma ao chao por
+## unidade de `cor.v * energia`, e foi medida no motor com o ambiente em 0,45.
+## Mexer na `luminosidade` sem refazer esta conta deixa o portao de luz
+## afirmando um modelo que o motor nao segue mais -- e ele continuaria VERDE,
+## porque a conta e interna a ele. E a mesma familia da armadilha que aquele
+## docstring ja descreve: uma constante de transferencia herdada de outro regime
+## e um modelo errado com cara de medicao.
+##
+## O metodo e o mesmo que produziu o 0,088: chao real no `Z_CHAO` real, ambiente
+## aplicado, uma `LuzDeFabrica` no centro, e o pixel do centro lido a cada
+## energia. O que se afirma no fim e a LINEARIDADE -- se os deltas por unidade
+## nao baterem entre si, uma constante nao serve e o portao precisa de outra
+## forma.
+func _medir_o_fator_de_render() -> void:
+	var ambiente := _luminosidade_pedida()
+	_ambiente.luminosidade = ambiente
+	print("\n=== o FATOR_DE_RENDER, remedido ===\n")
+	print("  ambiente: %.2f   (o de `teste_luz.AMBIENTE_DA_RUN`)" % ambiente)
+
+	var textura := load("res://assets/texturas/chao_andar1_a.png") as Texture2D
+	var chao := Sprite2D.new()
+	chao.texture = textura
+	chao.centered = true
+	chao.z_index = Sala.Z_CHAO
+	chao.scale = Vector2(40.0, 40.0)
+	add_child(chao)
+
+	var perfil := load("res://src/fx/perfil_ambar.tres") as PerfilDeLuz
+	if perfil == null:
+		print("  perfil_ambar.tres nao carrega.")
+		return
+	var luz := LuzDeFabrica.new()
+	# Copia: girar a energia do recurso COMPARTILHADO vazaria para o jogo.
+	var copia := perfil.duplicate() as PerfilDeLuz
+	copia.chance_de_estar_ligada = 1.0
+	copia.chance_de_instabilidade = 0.0
+	luz.perfil = copia
+	add_child(luz)
+
+	var camera := Camera2D.new()
+	camera.zoom = Vector2.ONE
+	add_child(camera)
+	camera.make_current()
+
+	# Sem luz nenhuma primeiro: e o `chao` da formula, e medi-lo em vez de
+	# assumi-lo e o que separa esta conta de uma suposicao.
+	luz.energy = 0.0
+	await RenderingServer.frame_post_draw
+	await RenderingServer.frame_post_draw
+	var fundo := _valor_do_centro()
+	print("  fundo medido (sem luz): %.4f" % fundo)
+	print("\n  %10s %10s %12s" % ["energia", "centro", "delta/unidade"])
+	print("  " + "-".repeat(36))
+
+	var fatores: Array[float] = []
+	for energia in ENERGIAS_MEDIDAS:
+		copia.energia = energia
+		luz.aplicar_perfil()
+		await RenderingServer.frame_post_draw
+		await RenderingServer.frame_post_draw
+		var centro := _valor_do_centro()
+		var unidade := copia.cor.v * energia
+		var fator := (centro - fundo) / maxf(unidade, 0.0001)
+		fatores.append(fator)
+		print("  %10.2f %10.4f %12.4f" % [energia, centro, fator])
+
+	if fatores.is_empty():
+		return
+	var media := 0.0
+	for f in fatores:
+		media += f
+	media /= float(fatores.size())
+	var maior := fatores[0]
+	var menor := fatores[0]
+	for f in fatores:
+		maior = maxf(maior, f)
+		menor = minf(menor, f)
+	print("\n  FATOR_DE_RENDER = %.4f   (dispersao %.4f a %.4f)" % [media, menor, maior])
+	if maior - menor > media * 0.15:
+		print("  ATENCAO: os deltas NAO batem entre si -- a resposta nao e linear")
+		print("  neste regime, e uma constante nao descreve o que o motor faz.")
+	else:
+		print("  Os deltas batem entre si: a resposta e linear e a constante serve.")
+
+
+## O valor de ambiente pedido na linha de comando, ou o alvo padrao.
+func _luminosidade_pedida() -> float:
+	for argumento in OS.get_cmdline_user_args():
+		if argumento.begins_with("--ambiente="):
+			return clampf(float(argumento.substr("--ambiente=".length())), 0.15, 1.0)
+	return AmbienteDaFabrica.new().luminosidade
+
+
+## O VALOR (HSV) medio no centro do quadro -- e nao a luma.
+##
+## **A distincao decide o numero, e ela custou uma medicao de controle.** O
+## modelo do portao e `chao := VALOR_DO_CHAO * AMBIENTE_DA_RUN`, e
+## `VALOR_DO_CHAO = 0,12` e o VALOR medio de `chao_andar1_a.png`. Medindo luma,
+## a mesma varredura devolveu 0,0311 no ambiente de 0,45 -- contra os 0,088
+## registrados -- porque o chao do andar 1 e azul-acinzentado e o azul pesa
+## 0,0722 na luma contra 1,0 no valor. A regua estaria medindo outra grandeza e
+## "corrigindo" uma constante que estava certa.
+##
+## O controle que provou isso: com o ambiente em 0,45 o fundo medido em VALOR da
+## 0,054, e `VALOR_DO_CHAO * 0,45` da 0,054. Em luma dava 0,0186.
+##
+## Uma JANELA e nao um pixel: um pixel isolado pega o grao da textura de chao e a
+## medicao passa a depender de onde a arte tem um rebite.
+func _valor_do_centro() -> float:
+	var imagem := get_viewport().get_texture().get_image()
+	var meio := Vector2i(imagem.get_width() / 2, imagem.get_height() / 2)
+	var soma := 0.0
+	var total := 0
+	for y in range(meio.y - 8, meio.y + 8):
+		for x in range(meio.x - 8, meio.x + 8):
+			soma += imagem.get_pixel(x, y).v
+			total += 1
+	return soma / maxf(float(total), 1.0)
 
 
 ## Qual das duas alavancas move o numero, medido em vez de suposto.

@@ -52,4 +52,4 @@ chance_de_premio = 1.0
 premio_minimo = 8
 premio_maximo = 12
 perfil_de_luz = ExtResource("90_amb")
-quantidade_luminarias = 4
+quantidade_luminarias = 6

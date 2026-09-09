@@ -6,7 +6,7 @@
 script = ExtResource("1_luz")
 id = &"frio"
 cor = Color(0.42, 0.68, 0.78, 1)
-energia = 1.8
+energia = 3.6
 raio = 96.0
 chance_de_estar_ligada = 0.4
 chance_de_instabilidade = 0.2

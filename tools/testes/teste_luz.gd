@@ -51,7 +51,7 @@ const VALOR_DO_CHAO := 0.12
 ## A luminosidade do `AmbienteDaFabrica`. Gemea do default daquele `@export`, e
 ## as duas mudam juntas -- uma copia que envelhece faria este portao medir um
 ## ambiente que o jogo nao usa.
-const AMBIENTE_DA_RUN := 0.45
+const AMBIENTE_DA_RUN := 0.75
 
 ## Quanto a poca precisa somar ao chao para CONTAR como acesa, em luma
 ## RENDERIZADA. Sem este piso o caso vira so um teto, e teto sozinho aprova a

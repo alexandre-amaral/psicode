@@ -9,6 +9,10 @@ name: CI
 #   combinacoes       - poe dois e cinco inimigos na mesma sala e mede se ainda
 #                       ha para onde correr. Diz "isso e justo?".
 #
+# O laboratorio de decoracao entra dentro do job unitario: ele e do mesmo
+# tamanho (segundos, sem subir cena de jogo) e responde "a sala nasce cheia,
+# vazia ou congestionada?".
+#
 # Separados porque quebram por motivos diferentes: quando o unitario falha voce
 # sabe que e logica, sem precisar ler o log de gameplay inteiro. E o unitario
 # termina antes, entao o erro mais barato aparece primeiro.
@@ -59,6 +63,18 @@ jobs:
 
       - name: Testes unitarios
         run: godot --headless --path . tools/testes/runner.tscn
+
+      # A decoracao do andar, varrida nos SEIS perfis que os tipos de sala
+      # apontam -- 3 formas x 96 sementes cada, e o portao de perfil orfao.
+      #
+      # Ela roda aqui e nao num job proprio porque custa segundos e usa a mesma
+      # importacao. E ela roda no CI, e nao so na maquina de quem lembrar, pela
+      # razao que a `[FAB 44]` registra: enquanto esta regua media UM perfil --
+      # o primeiro em ordem alfabetica -- ela imprimia numeros bonitos sobre um
+      # `.tres` que o jogo nao lia, e a sala real ficava vazia com a suite
+      # verde.
+      - name: Decoracao do andar 1
+        run: godot --headless --path . tools/fabrica/laboratorio_decoracao.tscn
 
   teste-de-fumaca:
     runs-on: ubuntu-latest

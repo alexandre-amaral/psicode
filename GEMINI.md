@@ -236,6 +236,7 @@ docs/
 | **Quanto tempo a abertura do inventario dura** | `TelaInventario.DURACAO_ABERTURA`; abaixo de 0,25 s por decisao |
 | Regras de onde cada sala nasce | `@export` do `tipo_*.tres` (beco, distancia da origem, prioridade) |
 | Cor e icone de uma sala no minimapa | `cor_mapa` e `icone` do `tipo_*.tres` |
+| **Se um prop tem COLISAO** | NAO tem. A politica do andar 1 e: **decorativo sem colisao, obstaculo com colisao EXPLICITA na cena**, e hoje o andar so tem o primeiro tipo. Quem cobra e `teste_props.gd:_nenhuma_peca_de_decoracao_tem_COLISAO` |
 | **ONDE um prop pode ficar** | `DecoradorDeSala.posicoes()`. **Fonte unica**: a `Sala` NAO decide mais isso. Faixa, folga de meia peca, `area_spawn`, bocas de porta e espaco entre pecas moram todos la |
 | **QUANTOS props uma sala recebe** | `src/mapa/decoracao_*.tres` (`PerfilDeDecoracao`), apontado por `perfil_de_decoracao` no `tipo_*.tres`. Os `quantidade_props*` do `DadosSala` SAIRAM; a traducao familia -> porte esta nos `DadosSala.faixa_de_*()` |
 | **QUAO FUNDO a decoracao entra na sala** | `largura_da_faixa_de_perimetro` no `decoracao_*.tres`. Era `Sala.PROP_AFASTAMENTO_MAXIMO = 44` em paralelo, e o 44 era quem valia |
@@ -327,6 +328,18 @@ em qualquer erro de script.
   passaram a reprovar apontando para o DECORADOR, com o defeito no helper. E a
   mesma familia do `regeneracao_por_segundo = 0.02` que fazia todo `.tres` de
   classe mentir.
+- **Prop decorativo NAO tem colisao, e o que o impede de parecer obstaculo e a
+  POSICAO.** A politica das secoes 86-88 do briefing e "decorativo sem colisao,
+  obstaculo com colisao explicita", e as duas metades falham em silencio: um
+  `CollisionShape2D` esquecido num prop vira esbarrao fantasma -- com 15
+  volumetricos por sala isso transforma a faixa de perimetro num labirinto, e o
+  jogo continua rodando --, e um prop sem colisao DENTRO da area util e
+  cobertura que nao cobre, que o jogador so descobre levando um tiro atraves
+  dela. Por isso ha dois portoes irmaos em `teste_props.gd` e nao um:
+  `_nenhuma_peca_de_decoracao_tem_COLISAO` e
+  `_o_CORPO_fica_fora_da_area_util_e_a_MANCHA_entra_nela`. Obstaculo de verdade,
+  quando existir, nasce com colisao declarada na CENA -- como a barreira da
+  porta -- e entra como excecao nomeada.
 - **Duas fontes para a mesma densidade, e a que valia era a errada.** O
   `PerfilDeDecoracao` declarava faixa de perimetro 96 e contagens por porte; a
   `Sala` lia `PROP_AFASTAMENTO_MAXIMO = 44` e `quantidade_props*` do

@@ -208,19 +208,117 @@ func _ready() -> void:
 	# `quit()` chamado de dentro do `_ready` nao encerra confiavelmente, e cena
 	# headless que nao encerra vira runaway.
 	await get_tree().process_frame
-	var perfil := _perfil()
 	var salas := _salas()
 	if DisplayServer.get_name() == "headless":
-		_medir(perfil, salas)
+		_medir_todos(salas)
 		return
-	_montar_folha(perfil, salas)
+	_montar_folha(_perfil(), salas)
 	await _fotografar()
+
+
+## Todo perfil que um `tipo_*.tres` de fato aponta, medido um por um.
+##
+## **Ate a `[FAB 44]` esta regua media UM perfil -- o primeiro `.tres` em ordem
+## alfabetica -- e chamava aquilo de "o perfil do andar 1".** Ela imprimia
+## numeros bonitos sobre `decoracao_arma` enquanto os outros cinco nao eram
+## apontados por NINGUEM: seis recursos orfaos em disco, e a sala do jogo
+## montada por contagens que viviam noutro arquivo. Regua que mede o que nao
+## esta em uso e pior que regua nenhuma, porque ela da confianca.
+##
+## Por isso a varredura comeca pelos TIPOS e nao pela pasta: a pergunta e "o que
+## o jogo usa?", e a pasta responde "o que existe". As duas listas divergiram
+## uma vez e custaram um epico inteiro.
+##
+## O ORFAO tambem reprova, e essa e a segunda metade. Um perfil em disco que
+## nenhum tipo aponta e exatamente o estado que produziu o defeito: ele carrega,
+## abre no Inspetor, aceita ajuste e nao chega a tela. Ele SOME da conta em vez
+## de reprovar -- o mesmo defeito que `_nenhum_png_fica_fora_de_regime` existiu
+## para consertar do lado das texturas.
+func _medir_todos(salas: Array) -> void:
+	var falhas := 0
+	var em_uso := _perfis_em_uso()
+	if em_uso.is_empty():
+		print("
+  nenhum tipo de sala aponta um PerfilDeDecoracao.")
+		_verificacoes += 1
+		falhas += 1
+	for entrada in em_uso:
+		print("
+
+########  tipo '%s'  ->  %s" % [entrada["tipos"], entrada["arquivo"]])
+		falhas += _medir(entrada["perfil"], salas)
+	falhas += _cobrar_orfaos(em_uso)
+	_encerrar(falhas)
+
+
+## Os perfis apontados, agrupados por arquivo -- cinco tipos que apontassem o
+## mesmo `.tres` seriam uma medicao so, e nao cinco iguais.
+func _perfis_em_uso() -> Array[Dictionary]:
+	var por_arquivo := {}
+	var ordem: Array[String] = []
+	var pasta := DirAccess.open("res://src/mapa/")
+	if pasta == null:
+		return []
+	var arquivos := pasta.get_files()
+	arquivos.sort()
+	for arquivo in arquivos:
+		if not arquivo.begins_with("tipo_") or not arquivo.ends_with(".tres"):
+			continue
+		var dados := ResourceLoader.load("res://src/mapa/%s" % arquivo) as DadosSala
+		if dados == null or dados.perfil_de_decoracao == null:
+			continue
+		var caminho: String = dados.perfil_de_decoracao.resource_path
+		if not por_arquivo.has(caminho):
+			por_arquivo[caminho] = {
+				"arquivo": caminho.get_file(),
+				"perfil": dados.perfil_de_decoracao,
+				"tipos": String(dados.id),
+			}
+			ordem.append(caminho)
+		else:
+			por_arquivo[caminho]["tipos"] = (
+				String(por_arquivo[caminho]["tipos"]) + ", " + String(dados.id))
+	var saida: Array[Dictionary] = []
+	for caminho in ordem:
+		saida.append(por_arquivo[caminho])
+	return saida
+
+
+## Perfil em disco que nenhum tipo aponta.
+func _cobrar_orfaos(em_uso: Array[Dictionary]) -> int:
+	var usados := {}
+	for entrada in em_uso:
+		usados[String(entrada["arquivo"])] = true
+	var orfaos: Array[String] = []
+	var pasta := DirAccess.open("res://src/mapa/")
+	if pasta != null:
+		var arquivos := pasta.get_files()
+		arquivos.sort()
+		for arquivo in arquivos:
+			if not arquivo.ends_with(".tres") or usados.has(arquivo):
+				continue
+			var recurso := ResourceLoader.load("res://src/mapa/%s" % arquivo)
+			if recurso is PerfilDeDecoracao:
+				orfaos.append(arquivo)
+	print("
+
+--- perfis orfaos ---
+")
+	_verificacoes += 1
+	if orfaos.is_empty():
+		print("  [ok]     todo PerfilDeDecoracao em disco e apontado por um tipo")
+		return 0
+	print("  [FALHOU] %d perfil(is) que nenhum tipo aponta: %s"
+		% [orfaos.size(), ", ".join(orfaos)])
+	print("           Ele carrega, abre no Inspetor, aceita ajuste e nao chega a")
+	print("           tela. Aponte-o num `tipo_*.tres` ou apague-o.")
+	return 1
 
 
 # -- modo headless ----------------------------------------------------------
 
 
-func _medir(perfil: PerfilDeDecoracao, salas: Array) -> void:
+func _medir(perfil: PerfilDeDecoracao, salas: Array) -> int:
 	var falhas := 0
 	print("\n=== laboratorio de decoracao ===")
 	print("  faixa de perimetro %.0f px   zona livre %.0f px   %d agrupamento(s)"
@@ -245,7 +343,7 @@ func _medir(perfil: PerfilDeDecoracao, salas: Array) -> void:
 	falhas += _tabela_por_porte(perfil, formas)
 	falhas += _tabela_por_lado(perfil, lados_comuns, lados_hero)
 	falhas += _tabela_do_vazio(formas)
-	_encerrar(falhas)
+	return falhas
 
 
 ## Uma forma de sala, `SEMENTES_MEDIDAS` vezes.
@@ -462,8 +560,18 @@ func _uma_distribuicao(
 	for lado in 4:
 		total += contagem[lado]
 	if total <= 0:
-		print("  %s: nenhuma peca medida -- a regua nao olhou para nada" % rotulo)
-		return 1
+		# "o perfil nao pede" e "a regua nao mediu" sao coisas diferentes, e
+		# confundi-las passou a reprovar codigo certo quando a `[FAB 44]` fez a
+		# varredura passar pelos SEIS perfis: a arena do chefe declara HERO
+		# `0 a 0` de propósito -- uma peca de leitura no meio da sala mais densa
+		# de projetil do jogo e exatamente o que a `[FAB 21]` recusou. Antes
+		# disso a regua media um perfil so, e "zero pecas" so podia ser defeito.
+		if _pede_alguma(perfil, hero):
+			print("  %s: nenhuma peca medida -- a regua nao olhou para nada" % rotulo)
+			return 1
+		print("  %s: o perfil nao pede nenhuma -- nada a distribuir" % rotulo)
+		_verificacoes += 1
+		return 0
 	var soma_dos_pesos := 0.0
 	for lado in 4:
 		soma_dos_pesos += _peso(perfil, lado, hero)
@@ -479,6 +587,20 @@ func _uma_distribuicao(
 	return _cobrar(
 		pior <= DESVIO_MAXIMO_POR_LADO,
 		"%s: pior desvio %.3f <= %.2f" % [rotulo, pior, DESVIO_MAXIMO_POR_LADO])
+
+
+## O perfil pede alguma peca deste conjunto?
+##
+## HERO e um porte so; o COMUM e todo o resto, e basta um deles acima de zero.
+func _pede_alguma(perfil: PerfilDeDecoracao, hero: bool) -> bool:
+	if hero:
+		return DecoradorDeSala.faixa_de_porte(perfil, DecoradorDeSala.Porte.HERO).y > 0
+	for porte in DecoradorDeSala.Porte.size():
+		if porte == DecoradorDeSala.Porte.HERO:
+			continue
+		if DecoradorDeSala.faixa_de_porte(perfil, porte).y > 0:
+			return true
+	return false
 
 
 func _peso(perfil: PerfilDeDecoracao, lado: int, hero: bool) -> float:

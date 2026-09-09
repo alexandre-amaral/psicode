@@ -48,6 +48,7 @@ func executar() -> void:
 	_a_arena_reage_sem_cobrir_a_leitura()
 	_o_decalque_industrial_e_POUCO_e_nao_espelha()
 	_o_CORPO_fica_fora_da_area_util_e_a_MANCHA_entra_nela()
+	_nenhuma_peca_de_decoracao_tem_COLISAO()
 
 
 ## Metade 1 do contrato: a arte de cada celula encosta no FUNDO dela.
@@ -276,6 +277,63 @@ func _largura_do_corpo(corpo: Node2D) -> float:
 		if sprite != null:
 			return sprite.region_rect.size.x
 	return Sala.PROP_LADO
+
+
+## NENHUMA peca de decoracao tem colisao, e a politica e essa (`[FAB 46]`).
+##
+## O briefing separa duas coisas nas secoes 86-88: **decorativo nao tem colisao;
+## obstaculo tem colisao EXPLICITA.** Hoje o andar 1 e todo do primeiro tipo, e
+## este caso e o que torna isso uma politica em vez de uma coincidencia.
+##
+## As duas metades do estrago, e as duas sao silenciosas:
+##
+## 1. **Colisao onde nao devia** e o "esbarrao fantasma": o jogador para no meio
+##    do nada porque um caixote decorativo ganhou corpo. Com 15 volumetricos por
+##    sala depois da migracao das contagens, um `CollisionShape2D` esquecido num
+##    prop transforma a faixa de perimetro inteira num labirinto -- e o jogo
+##    continua rodando, sem erro nenhum.
+## 2. **A ausencia dela nao e defeito**, e por isso o portao e sobre a POSICAO e
+##    nao sobre o corpo: o que impede o prop sem colisao de parecer obstaculo e
+##    ele nunca entrar na area util, que e o caso irmao logo acima.
+##
+## Quando o andar tiver um obstaculo de verdade -- e o briefing preve --, ele
+## nao entra por aqui: ele nasce com colisao declarada na CENA, como a barreira
+## da porta, e este caso passa a listar a excecao pelo nome. Uma peca que ganha
+## corpo por acidente, dentro de um `_montar_*`, e outra coisa.
+func _nenhuma_peca_de_decoracao_tem_COLISAO() -> void:
+	var dados: DadosSala = load("res://src/mapa/tipo_combate.tres")
+	if dados == null:
+		return
+	var sala := _montar(dados)
+	var pecas := 0
+	var com_corpo: Array[String] = []
+	var raizes: Array[Node] = []
+	for nome in ["Decoracao", "Decalques", "DecoracaoAnimada", "Frente", "Luminarias"]:
+		var raiz := sala.get_node_or_null(nome)
+		if raiz != null:
+			raizes.append(raiz)
+	for corpo in _props_volumetricos(sala):
+		raizes.append(corpo)
+
+	for raiz in raizes:
+		for peca in _todos_os_nos(raiz):
+			pecas += 1
+			if peca is CollisionObject2D or peca is CollisionShape2D 					or peca is CollisionPolygon2D:
+				com_corpo.append("%s/%s" % [raiz.name, peca.name])
+
+	ok(pecas > 0, "houve peca de decoracao para conferir (%d)" % pecas)
+	igual(com_corpo.size(), 0,
+		"nenhuma decoracao tem colisao -- esbarrao fantasma nao da erro no console (%s)"
+			% ", ".join(com_corpo))
+	sala.free()
+
+
+## Todos os descendentes de um no, ele inclusive.
+func _todos_os_nos(raiz: Node) -> Array[Node]:
+	var saida: Array[Node] = [raiz]
+	for filho in raiz.get_children():
+		saida.append_array(_todos_os_nos(filho))
+	return saida
 
 
 # ------------------------------------------------------------------ apoio ----

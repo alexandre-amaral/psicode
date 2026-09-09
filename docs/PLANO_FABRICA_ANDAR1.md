@@ -415,6 +415,37 @@ jogo mostrava outra coisa.
    contra 11% no perimetro**. `posicoes()` ganhou `"no_chao_todo"`; a
    distribuicao foi para 72% / 28%.
 
+### `[FAB 44]` e `[FAB 46]`: a regua passa a olhar o que o jogo usa
+
+A `[FAB 44]` pedia "apontar o laboratorio para os perfis reais e fechar o
+portao", e ela estava certa por um motivo pior que o previsto: **ate aqui a
+regua media UM perfil -- o primeiro `.tres` em ordem alfabetica -- e chamava
+aquilo de "o perfil do andar 1"**. Ela imprimia numeros bonitos sobre
+`decoracao_arma` enquanto os outros cinco nao eram apontados por ninguem.
+
+Hoje ela varre os SEIS que os `tipo_*.tres` apontam (3 formas x 96 sementes
+cada, 1728 salas por execucao), reprova PERFIL ORFAO -- recurso em disco que
+nenhum tipo aponta, que e exatamente o estado que produziu o defeito -- e roda
+no CI, dentro do job unitario, porque custa segundos.
+
+Ela achou duas coisas na primeira varredura de verdade:
+
+1. **A Loja era o perfil mais denso dos seis** (35,9 a 38,6 pecas contra 33 da
+   sala de combate) e reprovava o piso de parede calma em duas das tres formas
+   (11,6% e 10,6% contra 12%), mais o desvio por lado (0,126 contra 0,12). E ela
+   e a sala que ja monta a propria mobilia -- balcao, tres bancadas e a luz de
+   trabalho --, que o perfil nao enxerga. Baixada, ela fica em 32,1.
+2. **"O perfil nao pede" e "a regua nao mediu" eram a mesma resposta.** A arena
+   do chefe declara HERO `0 a 0` de propósito, e a regua reprovava com "nenhuma
+   peca medida -- a regua nao olhou para nada". O guarda estava certo enquanto
+   ela media um perfil so; com seis, ele passou a reprovar codigo certo.
+
+A `[FAB 46]` (politica de colisao) virou dois portoes irmaos em vez de um
+percurso a pe: **decorativo sem colisao** e **decorativo fora da area util**.
+As duas metades falham em silencio e nenhuma aparece no console -- colisao
+esquecida vira esbarrao fantasma, e prop sem colisao dentro da area util e
+cobertura que nao cobre. A politica esta escrita no `GEMINI.md`.
+
 **O que a migracao NAO resolveu:** o quadro continua **37,7 pontos mais escuro**
 que a referencia (era 41,3 antes das pecas novas). O proprio `medir_ambiente`
 recusa gatear isso e diz por que -- a referencia tem sete a oito lampadas por

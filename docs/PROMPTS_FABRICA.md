@@ -178,6 +178,44 @@ mesmo depois de escurecida, ainda apontava para o ciano.
 
 ---
 
+## 4.2 O BLOCO DE ENQUADRAMENTO, que veio do retorno do dono
+
+As tres primeiras levas sairam em `view: low top-down` sem instrucao de
+enquadramento, e o retorno foi direto: *"os angulos e a disposicao estao muito
+desconexos... as assets so parecem moveis em outra resolucao jogados nos cantos
+do mapa... a maioria flutua sobre o chao"*.
+
+**A causa e que cada peca vinha com a propria rotacao de tres quartos.** O
+gerador desenha o objeto girado, com uma face lateral visivel e a base em
+LOSANGO -- e a sala e desenhada em face mais topo, sem face lateral, sobre uma
+grade reta. Base em losango sobre grade reta le como flutuando, por mais que a
+arte encoste no fundo da celula (e ela encosta: `teste_props.gd` cobra isso).
+
+O bloco abaixo entra em TODA peca de volume, antes da descricao do objeto:
+
+```
+IMPORTANT FRAMING: the object faces the camera squarely, seen from directly in
+front, with only a shallow band of its flat top surface visible above it. There
+is no three-quarter rotation, no side face, no isometric angle, no diamond-shaped
+base. Its base is a straight horizontal line resting flat on the ground.
+THE OBJECT: <descricao>
+```
+
+`view` continua `low top-down`: **a comparacao foi feita**. O mesmo tanque saiu
+com o bloco em `low top-down` e em `side`, e os dois ficaram frontais -- o
+primeiro com a base mais reta e a banda de topo mais rasa, que e o que assenta a
+peca. O que resolve e o BLOCO, e nao o parametro.
+
+E ele explica por que as pecas de PAREDE ja tinham saido bem: elas pediam
+`flat frontal elevation view` desde a primeira geracao.
+
+**A ROBUSTEZ nao vem de peca maior.** A faixa entre a parede e a area de combate
+mede 96 px, e celula mais larga que isso invade o jogo. Na referencia quase nada
+e uma peca so: o volume vem de tres ou quatro encostadas, e quem monta isso e o
+cluster do `DecoradorDeSala` -- que a `Sala` passou a chamar no mesmo retorno.
+
+---
+
 ## 5. Os blocos por familia
 
 Cada bloco entra DEPOIS do prompt base. `NAO:` e a licao 2 aplicada -- ela nao e

@@ -216,6 +216,60 @@ cluster do `DecoradorDeSala` -- que a `Sala` passou a chamar no mesmo retorno.
 
 ---
 
+## 4.3 A ESCALA, e o bloco que tem de vir POR ULTIMO
+
+Segundo retorno do dono, depois da primeira leva frontal: os assets estavam
+"muito pequenos nas salas, um armario menor do que o proprio jogador, maquinas e
+esteiras muito pequenas", sem "sensacao de pertencimento ao lugar ou de
+proporcionalidade".
+
+**O que limitava o tamanho era uma REGRA, e nao a arte.** `posicoes()` testava a
+pegada da peca contra a `area_spawn` como um QUADRADO de lado igual a largura:
+um armario de 96 px reservava 96x96 de piso e, com a folga de meio prop contra a
+parede, nao cabia na faixa de 96 -- a saida tinha sido encolher a peca ate ela
+ficar menor que o jogador (80 px de moldura). Hoje a pegada e
+`DecoradorDeSala.pegada_no_chao()`, larga e RASA: o que nao pode invadir o
+combate e o chao que a peca ocupa, e a altura desenhada cresce para cima da
+tela, atras de todo mundo.
+
+Com a regra corrigida, o prompt ganha a linha de escala:
+
+```
+SCALE: this is a huge piece of factory machinery, more than twice the height of
+a standing person, filling the frame from top to bottom.
+```
+
+**E o bloco de enquadramento passa a vir DEPOIS da descricao do objeto, nao
+antes.** Isso nao e arrumacao: com a linha de escala inserida antes dele, o
+armario e a esteira voltaram ISOMETRICOS na mesma leva em que o vaso saiu
+frontal. Reescritos com o enquadramento por ultimo e em voz imperativa
+(`CRITICAL FRAMING, THIS OVERRIDES EVERYTHING ELSE`), os tres sairam frontais.
+E a licao 2 da secao 2 outra vez: o gerador segue o que a frase sugere, e o que
+vem por ultimo pesa mais.
+
+Tamanhos de celula que a escala nova usa:
+
+| porte | celula | contra o jogador (80 px) |
+|---|---|---|
+| HERO | 96x160 | 2,0x |
+| GRANDE | 64x128 | 1,6x |
+| MEDIO | 64x96 ou 96x96 | 1,2x |
+| PEQUENO | 32x64 | 0,8x |
+
+A esteira entra em 96x96 e nao em 96x64: o portao do atlas volumetrico cobra
+"prop com volume sobe, nao deita", e a regra continua certa -- ela existe para
+impedir prop CHAPADO declarado como volume. A celula quadrada acomoda a maquina
+larga sem desfazer isso.
+
+**E o fundo opaco voltou.** `transparent background` no prompt nao garante alfa
+-- medido na MESMA leva, o armario voltou com alfa e o vaso sem.
+`enquadrar_prop.py` ganhou o chaveamento por preenchimento a partir da borda, o
+mesmo de `preparar_icone.py` e com a mesma tolerancia medida (24). Imagem que ja
+tem alfa passa intacta: reprocessar leria o RGB dos pixels transparentes, que e
+preto, e comeria o contorno.
+
+---
+
 ## 5. Os blocos por familia
 
 Cada bloco entra DEPOIS do prompt base. `NAO:` e a licao 2 aplicada -- ela nao e

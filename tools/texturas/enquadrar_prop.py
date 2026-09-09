@@ -45,8 +45,76 @@ from pathlib import Path
 from PIL import Image
 
 
-def enquadrar(origem: Path, destino: Path, larg: int, alt: int, margem: int) -> None:
+## A tolerancia do recorte de fundo, em distancia L1 de RGB.
+##
+## Gemea da `TOLERANCIA_PADRAO` de `tools/itens/preparar_icone.py`, e pelo mesmo
+## motivo medido la: o PixelLab devolve o fundo em DOIS tons quase iguais, entao
+## uma tolerancia apertada deixa o segundo para tras e a peca sai com a moldura
+## colada. 24 e o meio do plato -- 24 e 32 deram resultado byte a byte identico.
+TOLERANCIA_PADRAO = 24
+
+
+def _distancia(a, b):
+    return abs(a[0] - b[0]) + abs(a[1] - b[1]) + abs(a[2] - b[2])
+
+
+def chavear_se_opaco(imagem, tolerancia):
+    """Torna transparente o fundo que ALCANCA A BORDA, quando nao ha alfa.
+
+    **`transparent background` no prompt nao garante alfa**, e isso e armadilha
+    registrada: as 16 pecas de icone voltaram 100% opacas, com o fundo chapado.
+    Nas levas de prop o gerador as vezes devolve alfa e as vezes nao -- medido na
+    mesma leva, o armario voltou com alfa e o vaso de pressao sem.
+
+    O recorte e por CONEXAO a partir da borda, e nunca por cor: o fundo pode ser
+    um cinza da mesma familia do aco da propria peca, e "apague todo pixel igual
+    ao fundo" abriria buraco DENTRO dela. So sai o que alcanca a borda.
+
+    Imagem que ja tem alfa passa intacta -- reprocessar leria o RGB dos pixels
+    transparentes, que e preto, e comeria o contorno escuro da peca.
+    """
+    alfa = imagem.getchannel("A")
+    if alfa.getextrema()[0] < 255:
+        return imagem
+
+    largura, altura = imagem.size
+    px = imagem.load()
+    fundo = px[0, 0][:3]
+    fora = bytearray(largura * altura)
+    fila = []
+    for x in range(largura):
+        for y in (0, altura - 1):
+            fila.append((x, y))
+    for y in range(altura):
+        for x in (0, largura - 1):
+            fila.append((x, y))
+
+    while fila:
+        x, y = fila.pop()
+        if x < 0 or y < 0 or x >= largura or y >= altura:
+            continue
+        i = y * largura + x
+        if fora[i]:
+            continue
+        if _distancia(px[x, y][:3], fundo) > tolerancia:
+            continue
+        fora[i] = 1
+        fila.extend(((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)))
+
+    saida = imagem.copy()
+    sp = saida.load()
+    for y in range(altura):
+        for x in range(largura):
+            if fora[y * largura + x]:
+                sp[x, y] = (0, 0, 0, 0)
+    return saida
+
+
+def enquadrar(
+    origem: Path, destino: Path, larg: int, alt: int, margem: int, tolerancia: int
+) -> None:
     imagem = Image.open(origem).convert("RGBA")
+    imagem = chavear_se_opaco(imagem, tolerancia)
     caixa = imagem.getchannel("A").getbbox()
     if caixa is None:
         raise SystemExit(f"{origem}: a imagem esta inteira transparente.")
@@ -97,13 +165,15 @@ def main(argv: list[str]) -> int:
     p.add_argument("destino", type=Path)
     p.add_argument("celula", help="LARGURAxALTURA da celula de destino, ex 64x64")
     p.add_argument("--margem", type=int, default=0)
+    p.add_argument("--tolerancia", type=int, default=TOLERANCIA_PADRAO,
+                   help="recorte do fundo opaco; 0 desliga")
     args = p.parse_args(argv)
 
     try:
         larg, alt = (int(v) for v in args.celula.lower().split("x"))
     except ValueError:
         raise SystemExit("celula: use LARGURAxALTURA, ex 64x64")
-    enquadrar(args.origem, args.destino, larg, alt, args.margem)
+    enquadrar(args.origem, args.destino, larg, alt, args.margem, args.tolerancia)
     return 0
 
 

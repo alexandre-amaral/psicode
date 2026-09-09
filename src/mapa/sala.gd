@@ -1781,24 +1781,20 @@ func _montar_props_volumetricos(
 	if _props_raros:
 		pendentes.assign(dados.regioes_props_raras)
 
-	# As regioes separadas por TAMANHO, para o porte escolher a peca.
+	# As regioes em FAIXAS DE AREA, para o porte escolher a peca.
 	#
-	# Ate aqui a regiao era sorteada do pool inteiro e a largura dela virava a
-	# folga -- ou seja, o porte que o decorador decidiu nao chegava ao desenho, e
-	# uma vaga de HERO podia receber um barril de 32 px. Com a hierarquia
-	# aplicada, o conjunto ganha o que faz um cluster ler como cluster: uma peca
-	# grande com peças menores em volta, e nao cinco do mesmo tamanho.
-	var largas: Array[Rect2i] = []
-	var estreitas: Array[Rect2i] = []
-	for r: Rect2i in regioes:
-		if r.size.x >= int(PROP_LARGURA_GRANDE):
-			largas.append(r)
-		else:
-			estreitas.append(r)
+	# Por area e nao por largura: com as celulas altas (96x160, 64x128) a
+	# largura deixou de ordenar -- uma esteira de 96x64 e mais larga que um
+	# armario de 64x128 e muito menor que ele. O que separa HERO de PEQUENO e
+	# quanto a peca ocupa da tela.
+	var por_area := regioes.duplicate()
+	por_area.sort_custom(
+		func(a: Rect2i, b: Rect2i) -> bool:
+			return a.size.x * a.size.y > b.size.x * b.size.y)
 
 	for vaga in vagas:
 		var porte := int(vaga["porte"])
-		var regiao := _regiao_do_porte(porte, largas, estreitas, rng)
+		var regiao := _regiao_do_porte(porte, por_area, rng)
 		if not pendentes.is_empty():
 			regiao = pendentes.pop_back()
 		var largura := float(regiao.size.x)
@@ -1842,17 +1838,25 @@ func _montar_props_volumetricos(
 ## estreitas continua funcionando, com o cluster perdendo hierarquia mas nao
 ## perdendo pecas. Reprovar ali deixaria a sala vazia, que e sempre pior.
 func _regiao_do_porte(
-	porte: int, largas: Array[Rect2i], estreitas: Array[Rect2i],
-	rng: RandomNumberGenerator
+	porte: int, por_area: Array[Rect2i], rng: RandomNumberGenerator
 ) -> Rect2i:
-	var preferidas := largas
-	var reservas := estreitas
-	if porte >= DecoradorDeSala.Porte.MEDIO:
-		preferidas = estreitas
-		reservas = largas
-	if preferidas.is_empty():
-		preferidas = reservas
-	return preferidas[rng.randi_range(0, preferidas.size() - 1)]
+	if por_area.is_empty():
+		return Rect2i()
+	# Quatro faixas sobre a lista ordenada, do maior para o menor. Fatiar em vez
+	# de cravar tamanhos faz o mapeamento sobreviver a um atlas que cresca: com
+	# dez pecas ou com quarenta, HERO continua pegando do topo.
+	var n := por_area.size()
+	var faixas := [
+		Vector2i(0, maxi(1, n / 4)),
+		Vector2i(n / 4, maxi(n / 4 + 1, n / 2)),
+		Vector2i(n / 2, maxi(n / 2 + 1, n * 3 / 4)),
+		Vector2i(n * 3 / 4, n),
+	]
+	var indice := clampi(porte, 0, 3)
+	var faixa: Vector2i = faixas[indice]
+	var inicio := clampi(faixa.x, 0, n - 1)
+	var fim := clampi(faixa.y, inicio + 1, n)
+	return por_area[rng.randi_range(inicio, fim - 1)]
 
 
 ## A camada FOREGROUND (LTD 10): o que passa POR CIMA do ator.

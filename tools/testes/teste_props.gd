@@ -232,11 +232,24 @@ func _o_CORPO_fica_fora_da_area_util_e_a_MANCHA_entra_nela() -> void:
 
 		for corpo in _props_volumetricos(sala):
 			corpos += 1
-			# A PEGADA e nao o ponto: o que nao pode entrar na area util e o
-			# corpo desenhado, e a origem do no fica na base dele.
+			# A PEGADA NO CHAO, e nao um quadrado do tamanho da peca.
+			#
+			# A conta era `largura x largura`, e ela nunca descreveu objeto
+			# nenhum: um armario e largo e RASO, um tanque apoia numa base
+			# estreita. Pior, ela impedia peca grande de existir -- um hero de
+			# 96 px reservava 96x96 de piso e nao cabia na faixa de 96, entao a
+			# saida foi encolher a peca ate ela ficar menor que o jogador.
+			#
+			# O que nao pode entrar na area de combate e o chao que a peca
+			# ocupa, porque e nele que o jogador tentaria andar. A ALTURA
+			# desenhada cresce para cima da tela, atras de todo mundo, e nao
+			# tira area jogavel nenhuma.
+			#
+			# A conta vem do decorador, e nao daqui: duas formas de medir a
+			# mesma pegada divergem, e a divergencia seria o jogo colocando uma
+			# peca que a suite chama de invasora.
 			var largura := _largura_do_corpo(corpo)
-			var pegada := Rect2(
-				corpo.position - Vector2.ONE * largura * 0.5, Vector2.ONE * largura)
+			var pegada := DecoradorDeSala.pegada_no_chao(corpo.position, largura)
 			if sala.area_spawn.intersects(pegada):
 				invasores += 1
 

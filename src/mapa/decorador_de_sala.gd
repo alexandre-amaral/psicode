@@ -112,6 +112,28 @@ const DISTANCIA_MINIMA := [128.0, 96.0, 64.0, 40.0, 24.0, 0.0, 32.0]
 ## precisamente a confusao que este porte existe para desfazer.
 const PROFUNDIDADE_DE_PAREDE := 20.0
 
+## Quanto de CHAO uma peca de volume ocupa, medido da frente para o fundo.
+##
+## **Ela substitui a pegada QUADRADA, e essa era a regra que impedia o andar de
+## ter objeto grande.** A checagem era `Rect2(ponto - largura/2, largura x
+## largura)`: um armario de 96 px reservava 96x96 de piso, e como ele ainda
+## precisa de meio prop de folga contra a parede, nao existia posicao nenhuma
+## dentro da faixa de 96 -- o hero de 96 nunca era colocado, e a saida foi
+## encolher a peca. O resultado esta no retorno do dono: "um armario menor do que
+## o proprio jogador... nao passa nenhuma sensacao de pertencimento ao lugar ou
+## de proporcionalidade".
+##
+## O quadrado nunca descreveu a peca. Um armario e largo e RASO; um tanque e
+## redondo mas apoia numa base estreita. O que nao pode entrar na area de
+## combate e o CHAO que a peca ocupa -- porque e nele que o jogador tentaria
+## andar --, e nao a altura desenhada. Altura cresce para CIMA da tela, atras de
+## todo mundo, e nao tira um pixel de area jogavel.
+##
+## 24 px e tres quartos de uma celula de 32. Ele e generoso de proposito: a peca
+## desenhada avanca mais que isso em perspectiva, e o que se protege aqui e a
+## caminhada, nao o desenho.
+const PROFUNDIDADE_NO_CHAO := 24.0
+
 ## Tentativas por peca (ou por cluster) antes de desistir dela.
 ##
 ## Desistir e o comportamento certo: uma sala com um prop a menos e uma sala; um
@@ -394,6 +416,17 @@ static func posicoes(
 ## segundo modo. Duas copias dos mesmos seis testes divergiriam no primeiro
 ## ajuste, e o sintoma seria uma familia de decoracao obedecendo uma regra que a
 ## outra ja nao obedece -- em tela, e nunca no console.
+## O CHAO que uma peca ocupa, e o que nao pode invadir a area de combate.
+##
+## Publica porque o portao precisa fazer a mesma conta: duas formas de medir a
+## mesma pegada divergem, e aqui a divergencia seria o jogo colocando uma peca
+## que a suite chama de invasora -- ou pior, o contrario.
+static func pegada_no_chao(ponto: Vector2, largura: float) -> Rect2:
+	return Rect2(
+		ponto - Vector2(largura * 0.5, PROFUNDIDADE_NO_CHAO * 0.5),
+		Vector2(largura, PROFUNDIDADE_NO_CHAO))
+
+
 static func _cabe(
 	ponto: Vector2, aberto: PackedVector2Array, arestas: Array, largura: float,
 	zona: Rect2, raio_livre: float, centro: Vector2, bocas: Array,
@@ -408,10 +441,8 @@ static func _cabe(
 		return false
 	if raio_livre > 0.0 and ponto.distance_to(centro) < raio_livre:
 		return false
-	if zona.size != Vector2.ZERO:
-		var pegada := Rect2(ponto - Vector2.ONE * largura * 0.5, Vector2.ONE * largura)
-		if zona.intersects(pegada):
-			return false
+	if zona.size != Vector2.ZERO and zona.intersects(pegada_no_chao(ponto, largura)):
+		return false
 	for boca in bocas:
 		if (boca as Vector2).distance_to(ponto) < raio_de_boca:
 			return false

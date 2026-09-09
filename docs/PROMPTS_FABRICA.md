@@ -147,12 +147,21 @@ px), porque a `Sala` trata a base da regiao como o ponto de contato. Colada
 inteira, o tanque sobrava 3 px e a bancada 6 -- os dois flutuando, sem erro
 nenhum. `colar_no_atlas.py` recorta no alfa e ancora o RECORTE.
 
+**4. A peca chega na proporcao da TELA, e nao na da celula.** Isso e diferente
+do item 3: aquele e sobre o vazio em volta, este e sobre a FORMA. `--tamanho
+LARGURAxALTURA` reduz para o retangulo pedido, e reduzir nao preserva proporcao
+-- uma peca gerada em 96x128 (3:4) empurrada para uma celula 64x64 sai 33% mais
+gorda, e nenhum portao ve: ela continua na paleta, na grade e ancorada. So fica
+errada. Quem resolve e `tools/texturas/enquadrar_prop.py`, que recorta no alfa e
+emoldura na proporcao da celula ANTES do funil, ancorando no fundo.
+
 Os comandos exatos do Batch 1, para a proxima leva copiar:
 
 ```bash
 COMUM="--familia prop --sem-costura --grudar-na-fonte --tingir 228 --saturacao 0.40 --limiar-neon 0.9"
 
-python tools/texturas/preparar_textura.py preparar tools/art_sources/fabrica/tanques/tanque_pressao.png PRONTO/tanque.png $COMUM --tamanho 64x64
+python tools/texturas/enquadrar_prop.py tools/art_sources/fabrica/tanques/tanque_pressao.png ENQ/tanque.png 64x64
+python tools/texturas/preparar_textura.py preparar ENQ/tanque.png PRONTO/tanque.png $COMUM --tamanho 64x64
 
 python tools/texturas/colar_no_atlas.py assets/texturas/props_volume.png PRONTO/tanque.png@64x64 PRONTO/barril.png@32x64
 ```
@@ -320,6 +329,35 @@ Pecas: `floor_grate_small/medium`, `drain`, `cable_channel`,
 escuras e de baixo contraste -- e por isso podem morar no centro, onde volume
 nao pode. A referencia tem mais de dez delas, contra as 0 a 4 que o briefing
 pede; quem manda e a imagem.
+
+### 5.10 Estacao de modificacao corporal -- `[FAB 33]`, sala de ITEM
+
+```
+<peca>, seen from above with the front face visible.
+This object is completely powered down: there is no light anywhere on it,
+no cyan, no teal, no glow, no lit screen, no indicator lamp.
+NAO: no character, no floor, no blood, no medical cross symbol,
+no hologram, no glass tube
+```
+
+Pecas: `estacao_aumento` (hero, 96x96), `cadeira_aumento`, `scanner_quebrado`,
+`bandeja_modulos` (64x64), `armario_modulos`, `capsula_implante`,
+`braco_mecanico`, `console_diagnostico`, `feixe_cabos` (32x64).
+
+**A frase "completely powered down" e afirmativa, e ela e o bloco inteiro.** A
+primeira geracao do `armario_modulos` levava `no glowing screen, no neon` na
+lista de NAO e voltou com uma **tela ciano acesa** -- que e a cor do projetil do
+jogador. Reescrita como afirmacao sobre o estado do objeto ("every panel on it
+is dark dead grey glass, there is no light anywhere on it"), a mesma peca voltou
+apagada. E a licao 2 da secao 2 confirmada de novo: o gerador desenha o que a
+frase SUGERE, e uma lista de negacoes sugere aquilo que ela nega.
+
+**E o `no bright green` do prompt base nao basta nesta sala.** O
+`scanner_quebrado` voltou TURQUESA -- justamente o defeito que a `[FAB 33]`
+existe para nao repetir ("a arquitetura NAO fica verde"). Quem resolveu foi o
+funil: com `--tingir 228 --limiar-neon 0.9` as nove pecas mediram **matiz 228 e
+ZERO pixels em verde ou teal**. Vale a regra geral: o prompt reduz a chance, o
+funil e quem garante.
 
 ### 5.9 A porta -- `[FAB 30]` e `[FAB 32]`
 

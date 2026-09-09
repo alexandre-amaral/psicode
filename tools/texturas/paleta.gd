@@ -158,6 +158,38 @@ const SINAL: Dictionary = {
 	&"pickup_item": Color(0.49, 0.97, 0.77),
 }
 
+## A MARCA de tipo de sala: a segunda metade do acento que a FAB 12 devolve.
+##
+## O briefing e explicito nas secoes 111 a 114: **depois** que a ambientacao
+## funcionar sem cor, o acento de tipo volta discreto -- luz tecnica no item,
+## marca ambar na arma, luz quente na loja. Nunca recolorindo a sala.
+##
+## A luz ja tinha voltado na FAB 19 (a luminaria FRIA do item e da arma contra
+## as ambar do resto). Isto aqui e a marca: a faixa pintada NO CHAO, que ocupa
+## 28x6 px numa celula de 32 e aparece uma vez ou outra por sala.
+##
+## **Ela nao desfaz a FAB 08.** O que aquela issue tirou foi a TINTA -- a rampa
+## de superficie que pintava painel e chapa de verde ou laranja. Marca e outra
+## coisa: e pequena, e no chao, e ela EXISTE para dizer o tipo. A diferenca
+## entre as duas e area, e nao matiz.
+##
+## Dois tipos so, e por eliminacao. `combate` e `inicial` sao a fabrica sem
+## adjetivo -- eles nao tem funcao para anunciar --, e `boss` ja se anuncia pelo
+## unico tingimento que sobreviveu. Quem nao esta aqui cai na rampa gunmetal, e
+## e assim que o campo continua sendo excecao em vez de virar tabela.
+##
+## A `loja` divide a celula da `arma` (a cena dela nasceu clonada) e por isso
+## herda esta faixa. Nao e descuido: a identidade dela vem do balcao, das tres
+## bancadas, do Sucateiro e das seis luminarias quentes -- ela e um posto
+## improvisado DENTRO da fabrica, e nao um setor proprio.
+##
+## O amarelo e ENVELHECIDO de proposito (S 0,42): amarelo aceso e paleta de
+## SINAL, e a barra de porta trancada e quem mora la.
+const MARCAS: Dictionary = {
+	&"arma": {&"faixa": Color("756a44"), &"tique": Color("857542")},
+	&"item": {&"faixa": Color("40596b"), &"tique": Color("466880")},
+}
+
 ## A EXCECAO quente do ambiente: a lampada de trabalho que ainda funciona.
 ##
 ## Ela existe porque a regua achou um buraco. `medir_ambiente.tscn` pede ambar
@@ -202,6 +234,11 @@ static func ambiente() -> Array[Color]:
 		var luz: Color = LUZES[chave]
 		if not pertence(luz, lista):
 			lista.append(luz)
+	for tipo in MARCAS:
+		for faixa in MARCAS[tipo]:
+			var traco: Color = MARCAS[tipo][faixa]
+			if not pertence(traco, lista):
+				lista.append(traco)
 	return lista
 
 
@@ -225,6 +262,15 @@ static func neutro(nome: StringName) -> Color:
 
 static func luz(nome: StringName) -> Color:
 	return LUZES[nome]
+
+
+## A marca do tipo de sala, quando ele tem uma. Tipo sem marca devolve a rampa
+## gunmetal -- e o fallback e o que mantem `MARCAS` uma excecao curta em vez de
+## uma tabela que alguem preenche por simetria.
+static func marca(tipo: StringName, faixa: StringName) -> Color:
+	if not MARCAS.has(tipo):
+		return acento(tipo, &"A0" if faixa == &"faixa" else &"A1")
+	return MARCAS[tipo][faixa]
 
 
 ## Acento de um tipo de sala. Tipo desconhecido cai em `combate`, que e a rampa

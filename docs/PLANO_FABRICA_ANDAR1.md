@@ -532,3 +532,49 @@ coisa.
 tem arte (`[FAB 22/24/25]`) nem camada de desenho -- peca presa na FACE nao e
 nem prop de chao nem foreground. Liga-lo ao atlas errado seria pior que
 deixa-lo esperando, e por isso ele esta declarado aqui em vez de improvisado.
+
+
+---
+
+## 5. O que veio do epico das PAREDES: a `[SETOR 05]`
+
+Ela nao e do plano da fabrica, mas mexe na mesma sala e a medicao vive aqui.
+
+**A folga de centragem tinha DUAS metades, e a `[SETOR 04]` pagou uma.** Aquela
+tirou a folga do ESPACAMENTO -- a distancia entre dois centros de banda passou a
+sair do tamanho REAL das salas que se ligam --, e com isso a MEDIANA do vao caiu
+para o declarado. A media nao: o espacamento e o MAIOR par que cruza a
+fronteira, e todo par menor herda a diferenca.
+
+A segunda metade e a sala deixar de ficar centrada na banda e deslizar ate
+encostar no vao declarado. Medido em 24 andares, 216 arestas:
+
+| | antes | depois |
+|---|---|---|
+| arestas sem folga nenhuma | 152 de 216 (70%) | **197 de 216 (91%)** |
+| folga media sobre o declarado | 64 px | **19 px** |
+| folga maxima | 672 px | 512 px |
+| vao medio horizontal | 238 px | **171 px** |
+| o que o jogador atravessa a pe | 336 px | **160 px** |
+
+### A restricao que a issue nao previu
+
+**Deslizar uma sala PERPENDICULARMENTE a uma conexao quebra o encontro das duas
+portas.** `Corredor.configurar()` recebe as duas bocas e, quando elas diferem
+nos dois eixos, emite um `push_warning` e monta pelo eixo DOMINANTE: o corredor
+sai torto, sem encostar em nenhuma das duas, e o jogo continua rodando.
+
+Isso nao estava na issue, e a leitura literal dela -- deslizar sala a sala --
+produz exatamente esse defeito. Medido sabotando a regra de proposito: **tres
+conexoes desalinhadas num unico andar, uma delas por 672 px.** E `push_warning`
+nao reprova suite nenhuma.
+
+Por isso o deslize e por CORRENTE e nao por sala: celulas ligadas no eixo
+perpendicular deslizam juntas. Em X manda a corrente das ligacoes verticais; em
+Y, a das horizontais. E ele so anda para TRAS, o que torna o guloso correto --
+um deslize nunca fecha o vao com a banda seguinte, ele o abre, e a banda
+seguinte fecha o proprio quando chegar a vez dela.
+
+`teste_conexoes.gd:_as_bocas_das_duas_salas_se_ENCONTRAM` e o que torna a
+garantia cobravel. Sem ele alguem "simplifica" o deslizamento para sala a sala,
+o codigo fica mais curto, nada reclama, e o andar ganha corredores tortos.

@@ -107,6 +107,14 @@ const MAX_TENTATIVAS := 24
 ## PERCEBIDA que o plano pede, e ela nao e a mesma coisa que a chance por sala.
 @export var salas_sem_aprimorada_depois: int = 1
 
+## A grade do projeto, e o passo em que uma sala pode deslizar.
+##
+## Gemea da `GRADE` de `tools/testes/teste_grade.gd`, que e quem a cobra. Ela
+## nao e enfeite: a geometria toda e multipla de 16 para o tileset encaixar, e
+## um deslize de 40 px poria o contorno fora dela sem quebrar nada em runtime --
+## o sintoma apareceria meses depois, no dia em que alguem fosse desenhar tile.
+const GRADE := 16.0
+
 ## COMO as arestas deste andar viram geometria (#248).
 ##
 ## Nulo = o comportamento de sempre: corredor para toda aresta, no `vao_corredor`
@@ -1359,11 +1367,176 @@ func _centros_das_bandas() -> Dictionary:
 	# NOTA: os dois usam o tamanho REAL das salas que se ligam, e nao o da banda.
 	# Ver `_espacamento_da_fronteira()`.
 
-	var origem := Vector2(centros_x.get(0, 0.0), centros_y.get(0, 0.0))
 	var centros: Dictionary = {}
 	for celula in _arestas:
-		centros[celula] = Vector2(centros_x[celula.x], centros_y[celula.y]) - origem
+		centros[celula] = Vector2(centros_x[celula.x], centros_y[celula.y])
+
+	# A folga que SOBRA depois do espacamento, tirada encostando a sala na
+	# fronteira que ela compartilha. Ver `_encostar_nas_fronteiras()`.
+	_encostar_nas_fronteiras(centros, false)
+	_encostar_nas_fronteiras(centros, true)
+
+	# A origem so agora: ela e a posicao FINAL da celula (0,0), e encostar mexe
+	# nela. Descontada antes, o andar inteiro sairia deslocado do (0,0) do
+	# mundo -- que e onde o Player nasce em `main.tscn`.
+	var origem: Vector2 = centros.get(Vector2i.ZERO, Vector2.ZERO)
+	for celula in centros:
+		centros[celula] = centros[celula] - origem
 	return centros
+
+
+## Encosta cada sala na fronteira que ela compartilha, no eixo pedido.
+##
+## **A folga de centragem tinha duas metades, e so uma foi paga na `[SETOR 04]`.**
+## Aquela tirou a folga do ESPACAMENTO: a distancia entre dois centros de banda
+## passou a sair do tamanho REAL das salas que se ligam, e nao do da banda. Com
+## isso a mediana do vao caiu para o declarado. **Mas a media nao**: 30% das
+## arestas ainda sobram, ate 672 px, porque o espacamento e o MAIOR par que cruza
+## a fronteira e todo par menor herda a diferenca.
+##
+## Esta e a segunda metade: a sala deixa de ficar no centro da banda e desliza
+## ate encostar no vao declarado.
+##
+## ## A restricao que a issue nao previu, e que decide o desenho
+##
+## **Deslizar uma sala perpendicularmente a uma conexao quebra o encontro das
+## duas portas.** `Corredor.configurar()` recebe as duas bocas e, se elas
+## desalinham nos dois eixos, ele avisa e monta pelo eixo dominante -- o corredor
+## sai torto e nao encosta em nenhuma das duas. Como toda sala do andar tem 768
+## px de largura, a conexao NORTE-SUL hoje alinha de graca; deslizar em X sem
+## cuidado acabaria com isso.
+##
+## Entao o deslizamento nao e por SALA, e por CORRENTE: celulas ligadas no eixo
+## perpendicular tem de deslizar juntas. Em X, quem manda e a corrente das
+## ligacoes verticais; em Y, a das horizontais.
+##
+## ## E ele so anda para TRAS, o que torna o guloso correto
+##
+## Varrendo as bandas em ordem e deixando cada corrente andar so em direcao a
+## banda ANTERIOR, um deslize nunca fecha o vao com a banda seguinte -- ele o
+## abre. A banda seguinte fecha o proprio vao quando chegar a vez dela, e nao ha
+## como uma decisao invalidar a anterior.
+##
+## O passo e arredondado para baixo na grade de 16, porque `teste_grade.gd`
+## exige que toda posicao caia nela.
+func _encostar_nas_fronteiras(centros: Dictionary, vertical: bool) -> void:
+	var correntes := _correntes_perpendiculares(vertical)
+	var indices: Array = []
+	for celula in centros:
+		var indice: int = celula.y if vertical else celula.x
+		if not indices.has(indice):
+			indices.append(indice)
+	indices.sort()
+
+	# A primeira banda nao tem para onde recuar: ela e a referencia.
+	for i in range(1, indices.size()):
+		var indice: int = indices[i]
+		var por_corrente: Dictionary = {}
+		for celula in centros:
+			var meu: int = celula.y if vertical else celula.x
+			if meu != indice:
+				continue
+			var chave: Vector2i = correntes.get(celula, celula)
+			if not por_corrente.has(chave):
+				por_corrente[chave] = []
+			(por_corrente[chave] as Array).append(celula)
+
+		for chave in por_corrente:
+			var membros: Array = por_corrente[chave]
+			var recuo := _recuo_possivel(centros, membros, vertical)
+			if recuo <= 0.0:
+				continue
+			for celula: Vector2i in membros:
+				var atual: Vector2 = centros[celula]
+				centros[celula] = (
+					atual - Vector2(0.0, recuo) if vertical else atual - Vector2(recuo, 0.0))
+
+
+## Quanto esta corrente pode recuar sem apertar nenhuma fronteira alem do vao.
+##
+## Ela olha SO para tras -- para as celulas da banda anterior --, e devolve o
+## menor excedente entre todas as vizinhancas. Vizinha CONECTADA e vizinha
+## apenas adjacente cobram o mesmo vao: duas salas que nao se ligam tambem nao
+## podem se encostar, e o vao declarado ja e a espessura das duas faixas de
+## parede.
+func _recuo_possivel(centros: Dictionary, membros: Array, vertical: bool) -> float:
+	var folga := INF
+	for celula: Vector2i in membros:
+		var atras: Vector2i = celula - (Vector2i.DOWN if vertical else Vector2i.RIGHT)
+		if not centros.has(atras):
+			continue
+		var caixa := _caixa_da_cena(_cena_por_celula[celula])
+		var caixa_atras := _caixa_da_cena(_cena_por_celula[atras])
+		var meia: float = (caixa.size.y if vertical else caixa.size.x) * 0.5
+		var meia_atras: float = (caixa_atras.size.y if vertical else caixa_atras.size.x) * 0.5
+		var centro: float = (centros[celula] as Vector2).y if vertical else (centros[celula] as Vector2).x
+		var centro_atras: float = (
+			(centros[atras] as Vector2).y if vertical else (centros[atras] as Vector2).x)
+		var vao := _vao_entre(celula, atras, vertical)
+		folga = minf(folga, (centro - meia) - (centro_atras + meia_atras) - vao)
+	if folga == INF or folga <= 0.0:
+		return 0.0
+	# Para BAIXO na grade de 16: recuar 40 px poria o contorno fora dela, e o
+	# tileset deixaria de encaixar meses depois, sem nada quebrar em runtime.
+	return floorf(folga / GRADE) * GRADE
+
+
+## O vao declarado da fronteira entre duas celulas vizinhas.
+func _vao_entre(a: Vector2i, b: Vector2i, vertical: bool) -> float:
+	if planta == null:
+		return vao_corredor
+	var tipos: Dictionary = _tipo_fronteira_y if vertical else _tipo_fronteira_x
+	var indice: int = mini(a.y, b.y) if vertical else mini(a.x, b.x)
+	if not tipos.has(indice):
+		return vao_corredor
+	return planta.vao(tipos[indice] as PlantaDoAndar.Conexao, vertical)
+
+
+## A corrente perpendicular de cada celula, identificada pela menor celula dela.
+##
+## Em X (`vertical = false`) a corrente e formada pelas ligacoes VERTICAIS: duas
+## salas ligadas norte-sul tem de manter o mesmo centro em X, senao as bocas das
+## portas deixam de se encontrar. Em Y e o espelho disso.
+##
+## Busca em largura simples: o andar tem uma dezena de celulas, e uma estrutura
+## de union-find aqui seria mais codigo para o mesmo resultado.
+func _correntes_perpendiculares(vertical: bool) -> Dictionary:
+	# Montado item a item: um literal sem tipo atribuido a um `Array[Vector2]`
+	# estoura em runtime, e a ternaria devolve `Array` cru dos dois lados.
+	var direcoes: Array[Vector2] = []
+	if vertical:
+		direcoes.append(Vector2.RIGHT)
+		direcoes.append(Vector2.LEFT)
+	else:
+		direcoes.append(Vector2.DOWN)
+		direcoes.append(Vector2.UP)
+	var chave_de: Dictionary = {}
+	for celula: Vector2i in _arestas:
+		if chave_de.has(celula):
+			continue
+		var grupo: Array[Vector2i] = [celula]
+		var fila: Array[Vector2i] = [celula]
+		var vistos: Dictionary = {celula: true}
+		while not fila.is_empty():
+			var atual: Vector2i = fila.pop_front()
+			for direcao in direcoes:
+				if not vizinhos_de(atual).has(direcao):
+					continue
+				var vizinha: Vector2i = atual + _para_grid(direcao)
+				if vistos.has(vizinha) or not _arestas.has(vizinha):
+					continue
+				vistos[vizinha] = true
+				grupo.append(vizinha)
+				fila.append(vizinha)
+		# A menor celula do grupo nomeia a corrente: qualquer membro serviria,
+		# desde que todos concordem.
+		var menor: Vector2i = grupo[0]
+		for membro in grupo:
+			if membro.x < menor.x or (membro.x == menor.x and membro.y < menor.y):
+				menor = membro
+		for membro in grupo:
+			chave_de[membro] = menor
+	return chave_de
 
 
 ## O vao deixou de ser um numero so: ele sai do TIPO da fronteira.

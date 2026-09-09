@@ -330,6 +330,17 @@ em qualquer erro de script.
   passaram a reprovar apontando para o DECORADOR, com o defeito no helper. E a
   mesma familia do `regeneracao_por_segundo = 0.02` que fazia todo `.tres` de
   classe mentir.
+- **Deslizar uma sala perpendicularmente a uma conexao quebra o encontro das
+  duas PORTAS, e o sintoma e um `push_warning`.** A `[SETOR 05]` pede que a sala
+  encoste na fronteira que compartilha em vez de ficar centrada na banda -- e a
+  leitura literal disso, deslizar sala a sala, desalinha as bocas.
+  `Corredor.configurar()` recebe as duas e, quando elas diferem nos dois eixos,
+  avisa e monta pelo EIXO DOMINANTE: o corredor sai torto, sem encostar em
+  nenhuma das duas, e o jogo continua rodando. Medido ao sabotar a regra de
+  proposito: tres conexoes desalinhadas num andar, **uma delas por 672 px**. E
+  `push_warning` nao reprova suite nenhuma. Por isso o deslize e por CORRENTE --
+  celulas ligadas no eixo perpendicular deslizam juntas -- e por isso existe
+  `teste_conexoes.gd:_as_bocas_das_duas_salas_se_ENCONTRAM`.
 - **"Sem tint" as cinco salas do andar 1 tem a MESMA assinatura, e isso e
   medido.** A `prova_de_leitura` desliga o acento de tipo -- chao, familia de
   face e luz fria -- e compara os pares contra um CONTROLE: a mesma sala noutra

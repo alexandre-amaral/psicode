@@ -189,7 +189,7 @@ const FERRUGEM_SATURACAO_MINIMA := 0.25
 ## Ambar de lampada antiga. A faixa cobre 25-55, entao ela SOBREPOE ferrugem
 ## entre 25 e 45 -- e o piso de valor e o que resolve a sobreposicao: ferrugem
 ## e escura e lampada e clara. Por isso ambar e testada ANTES de ferrugem em
-## `_familia_do_pixel()`; na ordem contraria, todo ponto de luz quente do andar
+## `familia_do_pixel()`; na ordem contraria, todo ponto de luz quente do andar
 ## seria contado como oxido.
 const AMBAR_MATIZ := Vector2(25.0, 55.0)
 const AMBAR_VALOR_MINIMO := 0.45
@@ -674,7 +674,7 @@ func _medir_imagem(nome: String, imagem: Image) -> Medida:
 			if cor.a < ALFA_MINIMO:
 				continue
 			m.opacos += 1
-			var familia := _familia_do_pixel(cor)
+			var familia := familia_do_pixel(cor)
 			m.por_familia[familia] = m.por_familia[familia] + 1
 
 			soma_saturacao += cor.s
@@ -729,7 +729,13 @@ func _matiz_circular(soma_seno: float, soma_cosseno: float) -> float:
 ##   graus, e o que as separa e o valor: ferrugem e oxido escuro, ambar e
 ##   lampada acesa. Na ordem contraria, todo ponto de luz quente do andar seria
 ##   contado como oxido.
-func _familia_do_pixel(cor: Color) -> int:
+## PUBLICA e ESTATICA porque ela deixou de ter um consumidor so: a
+## `prova_de_leitura` compara um QUADRO DE JOGO com os numeros da referencia
+## (`[FAB 45]`) e precisa classificar pelos mesmos limites. Uma segunda copia
+## deles divergiria na primeira mexida, e a divergencia sairia como duas reguas
+## discordando sobre a mesma imagem -- e a armadilha que `MATIZ_POR_TIPO` ja
+## registra por viver em dois arquivos.
+static func familia_do_pixel(cor: Color) -> int:
 	if cor.v <= PRETO_VALOR_MAXIMO:
 		return Familia.PRETO
 	var matiz := cor.h * 360.0
@@ -750,7 +756,7 @@ func _familia_do_pixel(cor: Color) -> int:
 
 ## Faixa meio-aberta no fim, senao o limite entre duas faixas vizinhas
 ## pertenceria as duas e a contagem passaria a depender da ordem dos `if`.
-func _na_faixa(valor: float, faixa: Vector2) -> bool:
+static func _na_faixa(valor: float, faixa: Vector2) -> bool:
 	return valor >= faixa.x and valor < faixa.y
 
 

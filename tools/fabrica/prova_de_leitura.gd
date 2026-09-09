@@ -49,6 +49,31 @@ extends Node2D
 
 const SAIDA := "user://capturas/prova"
 
+## A regua de familias de cor, emprestada inteira.
+##
+## `preload` do script e nao uma copia dos limites: `medir_ambiente.gd` e o dono
+## das faixas de matiz, saturacao e valor que separam as sete familias, e duas
+## copias delas divergiriam na primeira mexida -- com o sintoma sendo duas
+## reguas discordando sobre a mesma imagem. Mesma razao pela qual `MATIZ_POR_TIPO`
+## vive em dois arquivos e isso esta registrado como armadilha.
+const MedirAmbiente := preload("res://tools/texturas/medir_ambiente.gd")
+
+## A referencia MEDIDA, em `docs/REFERENCIA_FABRICA.md` secao 3.1.
+##
+## Sao as fracoes do QUADRO INTEIRO de `docs/fabrica_01.png`. Elas nao sao alvo
+## de portao -- a referencia e um render 3D de UMA sala e o jogo e outra coisa --,
+## e sim a regua do `[FAB 45]`: por os dois lado a lado e ver o que diverge.
+const REFERENCIA := {
+	"preto": 0.5075,
+	"cinza_azulado": 0.3543,
+	"outro": 0.0777,
+	"ferrugem": 0.0330,
+	"ciano": 0.0050,
+	"ambar": 0.0041,
+	"magenta": 0.0017,
+	"verde": 0.0016,
+}
+
 ## Os tipos fotografados, na ordem em que a folha os apresenta.
 ##
 ## A Loja entra, e ela nao esta na lista de quatro do briefing porque nao
@@ -174,6 +199,14 @@ const FAIXAS := 32
 var _quadros: Dictionary = {}
 ## A linha de base inteira: um registro por sala fotografada com tint.
 var _amostras: Array[Dictionary] = []
+## O retangulo, em pixels de TELA, que a ultima sala fotografada ocupa.
+##
+## Ele existe para a `[FAB 45]` poder medir a SALA e nao o quadro. O quadro tem
+## o vazio alem da parede -- 12 a 16% dele, por decisao do `margem_exterior` --,
+## e aquele vazio e preto puro por construcao (`Sala.COR_DO_VAZIO`). Comparar o
+## quadro inteiro com a referencia, que e um render de uma sala FECHADA, conta a
+## moldura como se fosse sombra da fabrica.
+var _ultimo_recorte := Rect2i()
 
 
 func _ready() -> void:
@@ -185,6 +218,20 @@ func _ready() -> void:
 		get_tree().quit(1)
 		return
 	DirAccess.make_dir_recursive_absolute(SAIDA)
+	# A ESCURIDAO DA RUN, e ela e obrigatoria aqui.
+	#
+	# `AmbienteDaFabrica` mora em `main.tscn` e NAO nas cenas de sala, de
+	# proposito: as reguas de `tools/` que medem geometria (`medir_moldura`,
+	# `comparar_caixa`, `formas_paredes`) montam sala sozinha, e escurece-las
+	# mudaria o significado dos numeros historicos delas de uma vez.
+	#
+	# **Esta regua e a excecao, e por isso ela declara.** As quatro perguntas da
+	# Fase D sao sobre PERCEPCAO -- o que o jogador ve --, e sem o
+	# `CanvasModulate` a sala sai com o brilho cru: medido, 17,4% de preto contra
+	# os 88% que uma captura do jogo da. A primeira versao desta ferramenta media
+	# uma sala que o jogador nunca ve, e a `[FAB 45]` foi quem denunciou, porque
+	# so ela compara com um numero ABSOLUTO.
+	add_child(AmbienteDaFabrica.new())
 	await _fotografar_tudo()
 	_medir()
 	get_tree().quit()
@@ -213,7 +260,7 @@ func _fotografar_tudo() -> void:
 				_quadros[id] = quadro
 				_gravar(_em_cinza(quadro), "cinza", id)
 				_gravar(_em_miniatura(quadro), "miniatura", id)
-			_amostras.append({"id": id, "quadro": quadro})
+			_amostras.append({"id": id, "quadro": quadro, "recorte": _ultimo_recorte})
 
 		# SEM TINT nas duas celulas: a segunda e o CONTROLE, e nao uma foto a
 		# mais. Ela e gravada tambem -- quem olhar a folha precisa ver que "a
@@ -260,6 +307,15 @@ func _fotografar(
 	await RenderingServer.frame_post_draw
 	await RenderingServer.frame_post_draw
 	var imagem := get_viewport().get_texture().get_image()
+
+	# Onde a SALA cai na tela. Com a camera no centro dela e zoom 1, o contorno
+	# vai do meio do quadro para os dois lados; o resto e o vazio alem da
+	# parede, que e preto puro e nao pertence a nenhuma medicao de ambiente.
+	var tela := Vector2(imagem.get_width(), imagem.get_height())
+	var limites := sala.obter_limites()
+	var canto := tela * 0.5 - limites.size * 0.5
+	_ultimo_recorte = Rect2i(canto.round(), Vector2i(limites.size.round())).intersection(
+		Rect2i(Vector2i.ZERO, Vector2i(tela)))
 
 	camera.queue_free()
 	sala.queue_free()
@@ -401,6 +457,7 @@ func _medir() -> void:
 
 	_o_teste_em_cinza()
 	_o_teste_em_miniatura()
+	_o_teste_da_referencia()
 
 	print("\n  --- quanto o tint estava carregando ---\n")
 	print("  Distancia entre a MESMA sala com e sem o acento de tipo, na mesma")
@@ -521,6 +578,99 @@ func _o_teste_em_miniatura() -> void:
 		print("\n    %d tipo(s) abaixo do piso: %s" % [abaixo.size(), ", ".join(abaixo)])
 		print("    A ordem de correcao e da secao 88: baixar CONTRASTE primeiro,")
 		print("    diminuir a quantidade de props so depois.")
+
+
+## `[FAB 45]` -- O JOGO AO LADO DA REFERENCIA, medido.
+##
+## A secao 92 pede para por `docs/fabrica_01.png` ao lado das capturas e julgar.
+## O julgamento e de olho e continua sendo -- o que esta aqui e a metade que
+## tem numero, e ela existe para a conversa comecar do lugar certo.
+##
+## ## Ela mede a SALA, e nao o quadro -- e essa distincao vale 20 pontos
+##
+## O quadro de jogo tem o vazio alem da parede, que sao 12 a 16% dele por
+## decisao do `margem_exterior`, e aquele vazio e `Sala.COR_DO_VAZIO` -- preto
+## puro por construcao. A referencia e um render de uma sala FECHADA: ela nao
+## tem moldura nenhuma. Medir o quadro inteiro conta a moldura como se fosse
+## sombra da fabrica, e foi assim que a primeira comparacao desta sessao
+## respondeu "37,7 pontos mais escuro" sem separar as duas coisas.
+##
+## As duas colunas ficam lado a lado justamente por isso: a diferenca entre elas
+## E a moldura, e ve-la impede de atribuir a falta de luz o que e enquadramento.
+func _o_teste_da_referencia() -> void:
+	print("\n  --- `[FAB 45]` o jogo ao lado da referencia ---\n")
+	print("    A referencia (`docs/fabrica_01.png`) e um render de UMA sala")
+	print("    fechada. O quadro de jogo tem o vazio alem da parede, que e preto")
+	print("    puro -- por isso as duas colunas: a diferenca entre elas e a")
+	print("    moldura, e nao falta de luz.\n")
+	if _amostras.is_empty():
+		print("    NADA FOI MEDIDO -- nenhuma sala na linha de base.")
+		return
+
+	var no_quadro := _familias_medias(false)
+	var na_sala := _familias_medias(true)
+	print("    %-14s %10s %10s %12s   %s"
+		% ["familia", "quadro", "so a sala", "referencia", "leitura"])
+	print("    " + "-".repeat(66))
+	for familia: String in REFERENCIA:
+		var alvo: float = REFERENCIA[familia]
+		var medido: float = na_sala.get(familia, 0.0)
+		print("    %-14s %9.2f%% %9.2f%% %11.2f%%   %s" % [
+			familia, no_quadro.get(familia, 0.0) * 100.0, medido * 100.0,
+			alvo * 100.0, _leitura_da_familia(medido, alvo)])
+
+	var preto_sala: float = na_sala.get("preto", 0.0)
+	var preto_quadro: float = no_quadro.get("preto", 0.0)
+	print("\n    a moldura sozinha responde por %.1f pontos de preto"
+		% ((preto_quadro - preto_sala) * 100.0))
+	print("    e a sala fica %.1f pontos %s que a referencia" % [
+		absf(preto_sala - REFERENCIA["preto"]) * 100.0,
+		"mais escura" if preto_sala > REFERENCIA["preto"] else "mais clara"])
+
+
+## Como ler a distancia de uma familia ate a referencia.
+##
+## Em PONTOS e nao em razao: uma familia que a referencia poe em 0,41% pode
+## medir o dobro disso no jogo sem que ninguem veja diferenca, e a razao gritaria
+## "200%". O que o olho percebe e quanto do quadro aquilo ocupa.
+func _leitura_da_familia(medido: float, alvo: float) -> String:
+	var pontos := (medido - alvo) * 100.0
+	if absf(pontos) < 2.0:
+		return "na referencia"
+	return "%+.1f ponto(s)" % pontos
+
+
+## A composicao media da linha de base, por familia.
+##
+## `so_a_sala` recorta o quadro no retangulo que a sala ocupa. Amostra de 2 em 2
+## pixels, como o resto das reguas deste arquivo.
+func _familias_medias(so_a_sala: bool) -> Dictionary:
+	var soma: Dictionary = {}
+	var quadros := 0
+	for amostra in _amostras:
+		var imagem: Image = amostra["quadro"]
+		var recorte: Rect2i = amostra["recorte"] if so_a_sala else Rect2i(
+			Vector2i.ZERO, Vector2i(imagem.get_width(), imagem.get_height()))
+		if recorte.size.x <= 0 or recorte.size.y <= 0:
+			continue
+		var contagem: Dictionary = {}
+		var total := 0
+		for y in range(recorte.position.y, recorte.end.y, 2):
+			for x in range(recorte.position.x, recorte.end.x, 2):
+				var nome: String = MedirAmbiente.NOMES_DE_FAMILIA[
+					MedirAmbiente.familia_do_pixel(imagem.get_pixel(x, y))]
+				contagem[nome] = int(contagem.get(nome, 0)) + 1
+				total += 1
+		if total <= 0:
+			continue
+		quadros += 1
+		for nome: String in contagem:
+			soma[nome] = float(soma.get(nome, 0.0)) + float(contagem[nome]) / float(total)
+	if quadros <= 0:
+		return {}
+	for nome: String in soma:
+		soma[nome] = float(soma[nome]) / float(quadros)
+	return soma
 
 
 ## Desvio padrao da luminancia do quadro.

@@ -345,10 +345,19 @@ em qualquer erro de script.
   medido.** A `prova_de_leitura` desliga o acento de tipo -- chao, familia de
   face e luz fria -- e compara os pares contra um CONTROLE: a mesma sala noutra
   celula, que e o ruido do proprio sorteio. Os dez pares ficam ABAIXO desse
-  ruido, enquanto tirar o tint muda item, arma e loja em 5 a 7 vezes ele. Em
-  portugues: hoje a cor e quase tudo que separa uma sala da outra, que e o FAIL
-  que a secao 110 descreve. Quem conserta isso e a arte propria de cada sala
-  (`[FAB 33/35/37]`), e nao codigo.
+  ruido, enquanto tirar o tint move o quadro em 1,9x a 3,1x ele. Em portugues: o
+  acento de tipo mexe mais na sala do que a diferenca entre dois tipos, que e o
+  FAIL que a secao 110 descreve. Quem conserta isso e a arte propria de cada
+  sala (`[FAB 33/35/37]`), e nao codigo.
+- **Regua que monta sala sozinha NAO tem o `AmbienteDaFabrica`, e para uma
+  pergunta de PERCEPCAO isso e medir o que o jogador nunca ve.** Aquele
+  `CanvasModulate` mora em `main.tscn` de proposito -- se morasse na cena de
+  sala, `medir_moldura`, `comparar_caixa` e `formas_paredes` passariam a medir a
+  sala escurecida e os numeros historicos delas mudariam de significado de uma
+  vez. Mas a `prova_de_leitura` pergunta o que se VE, e sem o escurecimento ela
+  media **17,4% de preto onde o jogo da 95%**. As tres reguas de RAZAO
+  sobreviveram ao defeito (elas comparam dois quadros igualmente claros); quem o
+  denunciou foi a `[FAB 45]`, a unica que compara com um numero ABSOLUTO.
 - **Regua sem CONTROLE inventa o proprio piso.** A primeira versao daquela prova
   comparava os pares contra um `0,12` escrito a mao e reprovou os DEZ -- e regua
   que reprova tudo mede a si mesma. Um histograma de luminancia sobre um quadro

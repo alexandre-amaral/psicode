@@ -504,13 +504,43 @@ sao justamente as que ainda nao tem assets proprios (`[FAB 33]`, `[FAB 35]`).
 
 Desligado o acento de tipo -- chao, familia de face e luz fria --, os **dez
 pares de salas caem DENTRO do ruido do proprio sorteio**. O controle e a mesma
-sala noutra celula: ela difere de si mesma em 0,074 em media, e a maior
-diferenca entre dois TIPOS diferentes e 0,065.
+sala noutra celula: ela difere de si mesma em 0,065 em media, e a maior
+diferenca entre dois TIPOS diferentes e 0,073 -- dentro do piso de 1,5x que
+separa sinal de sorteio.
 
-Ao mesmo tempo, tirar o tint muda a sala em 5 a 7 vezes esse ruido no item
-(5,1x), na arma (6,9x) e na loja (6,7x). Lido em portugues: **hoje a cor e quase
-tudo que separa uma sala da outra.** E exatamente o FAIL que a secao 110
-descreve, e quem o conserta e a arte propria de cada sala -- nao codigo.
+Ao mesmo tempo, tirar o tint muda a sala em 1,9x a 3,1x esse ruido no item, na
+arma, na loja e no chefe. Lido em portugues: **o acento de tipo move mais o
+quadro do que a diferenca entre dois tipos.** E exatamente o FAIL que a secao
+110 descreve, e quem o conserta e a arte propria de cada sala -- nao codigo.
+
+### `[FAB 45]`: o andar e 44 pontos mais escuro, e a moldura nao explica isso
+
+| familia | so a sala | referencia | |
+|---|---|---|---|
+| preto | **95,02%** | 50,75% | **+44,3 pontos** |
+| cinza_azulado | 0,66% | 35,43% | -34,8 pontos |
+| outro | 2,45% | 7,77% | -5,3 |
+| ferrugem | 1,66% | 3,30% | na referencia |
+| ciano | 0,01% | 0,50% | na referencia |
+| ambar | 0,05% | 0,41% | na referencia |
+
+**E isto DESFAZ a ressalva que este plano registrava.** A duvida era se parte da
+distancia vinha do enquadramento -- o vazio alem da parede e a HUD, que a
+referencia nao tem. Medida a SALA recortada, contra o quadro inteiro, a moldura
+responde por **-3,1 pontos**: ela e menos preta que a propria sala. O andar e
+mais escuro que a referencia por 44 pontos, e o enquadramento nao tem nada com
+isso.
+
+O que o numero diz e onde mexer: com o ambiente em 0,45 o chao fica em luma
+0,020, e o classificador chama de PRETO tudo abaixo de 0,10 -- entao **quase
+toda superficie do andar cai na faixa de sombra**. A referencia tem metade do
+quadro em preto e a outra metade em cinza azulado: ela e escura E tem superficie
+legivel. O andar so tem a primeira metade.
+
+O numero nao foi mexido. `AmbienteDaFabrica.luminosidade` e a aparencia da run
+inteira, foi calibrado com captura no motor nas `[FAB 14]`/`[FAB 19]`, e subir
+sozinho uma constante que o dono aprovou olhando nao e medicao, e gosto. O que
+mudou e que agora existe um numero para decidir com ele.
 
 A primeira versao daquela regua comparava os pares contra um piso escrito a mao
 (0,12) e reprovou os dez: regua que reprova tudo mede a si mesma. Um histograma
@@ -518,15 +548,11 @@ de luminancia sobre um quadro escuro varia pouco por construcao. O controle e o
 que da escala, e e o mesmo conserto que o disco chapado faz no laboratorio de
 luz.
 
-**O que a migracao NAO resolveu:** o quadro continua **37,7 pontos mais escuro**
-que a referencia (era 41,3 antes das pecas novas). O proprio `medir_ambiente`
-recusa gatear isso e diz por que -- a referencia tem sete a oito lampadas por
-sala e o andar tem tres a cinco. Mas o numero medido hoje compara um QUADRO DE
-JOGO (com HUD e com o vazio preto em volta da sala, que sao 12 a 16% do quadro
-por decisao do `margem_exterior`) contra um render 3D de uma sala fechada, entao
-parte da distancia e a moldura da comparacao e nao falta de luz. Subir lampada
-sem separar as duas coisas e girar um botao contra um numero que mede outra
-coisa.
+**O que a migracao NAO resolveu:** o andar continua muito mais escuro que a
+referencia. A ressalva que este paragrafo registrava -- "parte da distancia e a
+moldura da comparacao" -- **foi medida e nao se sustenta**: recortando a SALA,
+a moldura responde por -3,1 pontos, e a distancia real e de **44,3 pontos**. Ver
+a secao da `[FAB 45]` acima.
 
 **O que `[FAB 17]` NAO fez:** o porte `PAREDE` continua sem consumidor. Ele nao
 tem arte (`[FAB 22/24/25]`) nem camada de desenho -- peca presa na FACE nao e

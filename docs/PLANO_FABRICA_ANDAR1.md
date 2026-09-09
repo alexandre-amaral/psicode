@@ -470,6 +470,54 @@ O que o `[FAB 43]` NAO cobre ainda: o contraste do projetil contra a arte do
 prop. A ordem de desenho garante que ele esta na frente; se ele LE na frente e
 outra medicao, e ela depende da arte dos batches 22 a 27.
 
+### A Fase D medida: `[FAB 42]` passa, `[FAB 41]` passa pela metade, `[FAB 39]` REPROVA
+
+As quatro conferencias que fecham o andar sao a mesma pergunta vista de quatro
+angulos, e por isso viraram uma ferramenta so:
+`tools/fabrica/prova_de_leitura.tscn`. Ela fotografa a linha de base da
+`[FAB 40]` (10 salas de combate, 3 de cada recompensa, 2 do chefe, sem HUD) e
+mede as outras tres sobre o QUADRO montado -- e nao sobre o arquivo de textura,
+que e o que `medir_ambiente.gd` ja fazia e nao alcanca massa nem iluminacao.
+
+**`[FAB 42]`, miniatura: passa com folga.** 100% a 107% do contraste sobrevive a
+reducao para 1/4. Acima de 100% nao e erro: encolher tira o vazio liso antes de
+tirar a aresta.
+
+**`[FAB 41]`, cinza: dois de cinco tipos reprovam, e sao os previsiveis.**
+
+| tipo | nua | decorada | ganho |
+|---|---|---|---|
+| combate | 0,0448 | 0,0551 | **1,23x** |
+| item | 0,0494 | 0,0531 | 1,08x |
+| arma | 0,0477 | 0,0497 | 1,04x |
+| loja | 0,0433 | 0,0532 | **1,23x** |
+| boss | 0,0458 | 0,0436 | 0,95x (limpo por decisao) |
+
+O piso NAO e o `PISO_DESVIO_CINZA = 0,06` de `medir_ambiente.gd`: aquele numero
+e sobre um ARQUIVO de textura, e a sala montada mede 0,044 a 0,055 com a
+decoracao inteira em tela. Herda-lo reprovaria as cinco e nao diria nada -- a
+mesma armadilha da constante de transferencia que o `FATOR_DE_RENDER` registra.
+O controle certo e RELATIVO: **a mesma sala sem decoracao nenhuma.** Item e arma
+sao justamente as que ainda nao tem assets proprios (`[FAB 33]`, `[FAB 35]`).
+
+**`[FAB 39]`, sem tint: REPROVA, e este e o achado da Fase D.**
+
+Desligado o acento de tipo -- chao, familia de face e luz fria --, os **dez
+pares de salas caem DENTRO do ruido do proprio sorteio**. O controle e a mesma
+sala noutra celula: ela difere de si mesma em 0,074 em media, e a maior
+diferenca entre dois TIPOS diferentes e 0,065.
+
+Ao mesmo tempo, tirar o tint muda a sala em 5 a 7 vezes esse ruido no item
+(5,1x), na arma (6,9x) e na loja (6,7x). Lido em portugues: **hoje a cor e quase
+tudo que separa uma sala da outra.** E exatamente o FAIL que a secao 110
+descreve, e quem o conserta e a arte propria de cada sala -- nao codigo.
+
+A primeira versao daquela regua comparava os pares contra um piso escrito a mao
+(0,12) e reprovou os dez: regua que reprova tudo mede a si mesma. Um histograma
+de luminancia sobre um quadro escuro varia pouco por construcao. O controle e o
+que da escala, e e o mesmo conserto que o disco chapado faz no laboratorio de
+luz.
+
 **O que a migracao NAO resolveu:** o quadro continua **37,7 pontos mais escuro**
 que a referencia (era 41,3 antes das pecas novas). O proprio `medir_ambiente`
 recusa gatear isso e diz por que -- a referencia tem sete a oito lampadas por

@@ -245,6 +245,7 @@ docs/
 | **A composicao de uma sala decorada (clusters, hero, vazio)** | `src/mapa/decoracao_*.tres` (`PerfilDeDecoracao`) e `src/mapa/agrupamento_*.tres` |
 | **Ver a decoracao antes de existir arte** | `godot --path . tools/fabrica/laboratorio_decoracao.tscn`; sem janela ele mede 288 salas |
 | **Ver e medir a luz da fabrica** | `godot --path . tools/fabrica/laboratorio_luz.tscn` |
+| **Provar que a sala se identifica SEM COR** | `godot --path . tools/fabrica/prova_de_leitura.tscn --resolution 960x544` -- as salas em quatro regimes (com tint, sem tint, cinza, miniatura) mais as reguas das `[FAB 39-42]`. Ele so roda COM janela: le pixel renderizado |
 | **Se o andar 1 esta na paleta nova** | `godot --headless --path . tools/texturas/medir_ambiente.tscn` -- ele REPROVA hoje, de proposito |
 | **Retingir uma textura sem passar pelo funil** | `python tools/texturas/retingir.py ARQ --matiz-alvo 216 --saturacao 0.30 --conferir` |
 | **Prop de cenario que se MEXE (ventilador, luz, pistao)** | `regioes_props_animados` no `src/mapa/tipo_*.tres`: uma regiao a mais na lista, e nada de cena nova |
@@ -329,6 +330,32 @@ em qualquer erro de script.
   passaram a reprovar apontando para o DECORADOR, com o defeito no helper. E a
   mesma familia do `regeneracao_por_segundo = 0.02` que fazia todo `.tres` de
   classe mentir.
+- **"Sem tint" as cinco salas do andar 1 tem a MESMA assinatura, e isso e
+  medido.** A `prova_de_leitura` desliga o acento de tipo -- chao, familia de
+  face e luz fria -- e compara os pares contra um CONTROLE: a mesma sala noutra
+  celula, que e o ruido do proprio sorteio. Os dez pares ficam ABAIXO desse
+  ruido, enquanto tirar o tint muda item, arma e loja em 5 a 7 vezes ele. Em
+  portugues: hoje a cor e quase tudo que separa uma sala da outra, que e o FAIL
+  que a secao 110 descreve. Quem conserta isso e a arte propria de cada sala
+  (`[FAB 33/35/37]`), e nao codigo.
+- **Regua sem CONTROLE inventa o proprio piso.** A primeira versao daquela prova
+  comparava os pares contra um `0,12` escrito a mao e reprovou os DEZ -- e regua
+  que reprova tudo mede a si mesma. Um histograma de luminancia sobre um quadro
+  majoritariamente escuro varia pouco por construcao, entao o numero nao
+  significava nada. O controle (a mesma sala com outra semente) da a escala, e e
+  o mesmo conserto que o disco chapado faz no laboratorio de luz.
+- **E o piso de cinza NAO pode ser herdado de `medir_ambiente.gd`.** Aquele
+  `PISO_DESVIO_CINZA = 0,06` e sobre um ARQUIVO de textura, detalhe de ponta a
+  ponta; um quadro de jogo tem o vazio alem da parede e um piso escuro debaixo
+  do `AmbienteDaFabrica`, e mede 0,044 a 0,055 com a decoracao inteira em tela.
+  Aplicado ali, ele reprovaria as cinco salas sem dizer nada -- a mesma
+  armadilha da constante de transferencia que o `FATOR_DE_RENDER` registra. O
+  piso certo e RELATIVO: a mesma sala SEM decoracao nenhuma.
+- **Tabela vazia nao e aprovacao.** Aquele mesmo caso imprimiu "a decoracao soma
+  massa em todos os tipos" com ZERO linhas medidas, porque o controle nao tinha
+  sido tirado e o laco caiu inteiro no `continue`. Regua silenciosa que diz
+  PASSOU e pior que regua que reprova -- e por isso o laboratorio de decoracao
+  conta `_verificacoes` e reprova quando elas sao zero.
 - **O projetil desenhava acima do cenario por ACIDENTE, e o acidente durou ate a
   sala ficar cheia.** Nao havia no nenhum no grupo `container_projeteis`, entao
   `Arma._container()` caia em `current_scene` -- o proprio `Main` -- e projetil

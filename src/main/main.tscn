@@ -28,6 +28,7 @@
 [ext_resource type="Resource" path="res://src/mapa/tema_armazenamento.tres" id="54_tema"]
 [ext_resource type="Resource" path="res://src/mapa/tema_degradada.tres" id="55_tema"]
 [ext_resource type="PackedScene" path="res://src/player/player.tscn" id="10_km7bn"]
+[ext_resource type="Script" path="res://src/fx/ambiente_da_fabrica.gd" id="15_amb"]
 [ext_resource type="AudioStream" path="res://assets/audio/ambiente_setor.wav" id="40_amb"]
 
 [node name="Main" type="Node" unique_id=614128192]
@@ -41,6 +42,9 @@ script = ExtResource("1_main")
 
 [node name="Mundo" type="Node2D" parent="."]
 y_sort_enabled = true
+
+[node name="Ambiente" type="CanvasModulate" parent="Mundo"]
+script = ExtResource("15_amb")
 
 [node name="GerenciadorMapa" type="Node2D" parent="Mundo" unique_id=2082792232]
 y_sort_enabled = true

@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="DadosSala" load_steps=14 format=3]
+[gd_resource type="Resource" script_class="DadosSala" load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
 [ext_resource type="Texture2D" path="res://assets/texturas/decalques_andar1.png" id="99_dec"]
@@ -12,6 +12,9 @@
 [ext_resource type="Texture2D" path="res://assets/texturas/parede_face_item_tecnica.png" id="42_fm1"]
 [ext_resource type="Texture2D" path="res://assets/texturas/parede_face_item_deteriorada.png" id="42_fm2"]
 [ext_resource type="Texture2D" path="res://assets/texturas/parede_face_item_ventilada.png" id="42_fm3"]
+
+[ext_resource type="Resource" path="res://src/fx/perfil_ambar.tres" id="90_amb"]
+[ext_resource type="Resource" path="res://src/fx/perfil_frio.tres" id="91_fri"]
 
 [resource]
 script = ExtResource("1_ds")
@@ -43,3 +46,7 @@ quantidade_decalques = 1
 atlas_props_volume = ExtResource("24_pvol")
 regioes_props_volume = Array[Rect2i]([Rect2i(96, 0, 32, 64), Rect2i(224, 0, 32, 64), Rect2i(0, 0, 32, 64), Rect2i(192, 0, 32, 64), Rect2i(0, 128, 32, 64), Rect2i(32, 128, 32, 64), Rect2i(64, 128, 32, 64), Rect2i(96, 128, 32, 64), Rect2i(160, 128, 32, 64), Rect2i(0, 192, 64, 64), Rect2i(64, 192, 64, 64), Rect2i(128, 192, 32, 64), Rect2i(160, 192, 32, 64), Rect2i(192, 192, 64, 64)])
 quantidade_props_volume = 3
+perfil_de_luz = ExtResource("90_amb")
+quantidade_luminarias = 3
+perfil_de_luz_fria = ExtResource("91_fri")
+quantidade_luminarias_frias = 1

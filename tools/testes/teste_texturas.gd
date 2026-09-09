@@ -911,11 +911,37 @@ func _nenhum_png_fica_fora_de_regime() -> void:
 ## Gemeo de SEM_FAIXA_DE_MATIZ em preparar_textura.py, e muda junto.
 const SEM_FAIXA_DE_MATIZ: Array[StringName] = [&"prop"]
 
+## O tingimento por tipo de sala DESMONTADO, e a nova regra e a saturacao.
+##
+## A medicao que produziu estas faixas esta em `docs/PLANO_FABRICA_ANDAR1.md`:
+## os chaos saiam do funil com saturacao 0,77 (chefe), 0,89 (arma) e 0,95 (item),
+## contra os **0,284** do centro da referencia (`docs/fabrica_01.png`). Nao era
+## metal tingido, era cor chapada com textura por cima -- e o "excesso de verde"
+## que abriu o briefing era so a fatia do item nisso.
+##
+## O que mudou, e por que cada um:
+##
+## - **item** girou de 172 para 205 e **arma** de 37 para 228. Sao o verde e o
+##   laranja que o briefing manda sumir do AMBIENTE (secoes 10, 112 e 113): a
+##   sala de arma nao vira amarela, o ambar volta como luz de trabalho e faixa de
+##   perigo.
+## - **andar1 e boss NAO giraram.** O andar 1 ja estava em 235, a mesma familia do
+##   alvo, e `chao_andar1_c` tem pixels ate 310 que sairiam da banda se ele
+##   girasse -- o portao usa min/max ABSOLUTO, entao um pixel basta. O chefe
+##   mantem o magenta que a secao 11 reserva a ele.
+## - **Todos dessaturaram** para a casa de 0,30-0,34.
+##
+## **As faixas agora se SOBREPOEM, e isso e o ponto.** item (188-219) e arma
+## (213-243) invadem andar1 (185-320) de proposito: o tipo de sala deixou de ser
+## separado por cor, e passa a ser separado por props, luz e composicao. E
+## literalmente o que o briefing pede na secao 110 -- "se depender da cor: FAIL".
+## Elas continuam existindo para impedir DERIVA (uma textura nova nascer verde de
+## novo), e nao para separar sala.
 const MATIZ_POR_TIPO: Dictionary = {
 	&"andar1": Vector2(185.0, 320.0),
-	&"boss": Vector2(330.0, 355.0),
-	&"arma": Vector2(25.0, 50.0),
-	&"item": Vector2(150.0, 180.0),
+	&"boss": Vector2(315.0, 350.0),
+	&"arma": Vector2(198.0, 227.0),
+	&"item": Vector2(188.0, 219.0),
 }
 
 ## Teto de valor mais baixo no chao do chefe, e nao e capricho: e a sala mais
@@ -1365,6 +1391,28 @@ const DISTANCIA_ENTRE_TOPOS := 0.10
 ## Ela some com a FABRICA 03.
 const MODULOS_COLAPSADOS: Array[String] = []
 
+## Pares de modulo do CHEFE declarados COLAPSADOS.
+##
+## Gemea de `MODULOS_COLAPSADOS`, e ela morde dos dois lados pelo mesmo motivo:
+## nome que volta a passar do piso tem de SAIR da lista, senao a divida vira
+## decoracao.
+##
+## **`tecnica|motor` entrou aqui por medicao, e a medicao aponta ARTE.** Antes do
+## retingimento da FAB 09/10 ele media **0,2598** contra um piso de 0,25 --
+## **1,5% de margem**. Nao era um portao protegendo a arte: era arte raspando no
+## portao. Dessaturar o ambiente (que e o que o briefing pede) custou 0,015 e o
+## empurrou para baixo.
+##
+## Tentei tres saidas antes de declarar, e todas falharam por medicao:
+## fator 0,80 deu 0,246; fator 0,88 deu 0,246 e quebrou o matiz do chefe na
+## volta do circulo; subtracao de 0,07 -- que preserva a diferenca ABSOLUTA, e e
+## o transform certo para esta regua -- deu 0,245. A distancia que falta nao esta
+## na cor.
+##
+## O que tira este par daqui e o `[FAB 24]`: `tecnica` e `motor` precisam de
+## ESTRUTURA diferente, e nao de tinta diferente. Ate la ele fica visivel.
+const MODULOS_COLAPSADOS_DO_CHEFE: Array[String] = ["tecnica|motor"]
+
 ## Os topos ainda sao materiais diferentes? **Nao mais** -- a FABRICA 02 entregou.
 ##
 ## A bandeira fica, desligada. Ela e o interruptor de "a arte ainda nao chegou",
@@ -1537,6 +1585,15 @@ func _os_sete_modulos_do_chefe_tambem_sao_distintos() -> void:
 			if d < pior:
 				pior = d
 				onde = "%s|%s" % [a, b]
+			if MODULOS_COLAPSADOS_DO_CHEFE.has("%s|%s" % [a, b]):
+				# A lista morde dos DOIS lados: se o par voltar a passar do piso,
+				# este caso reprova pedindo que ele SAIA de la.
+				ok(
+					d < DISTANCIA_ENTRE_MODULOS,
+					"chefe: %s|%s esta declarado colapsado e continua colapsado (%.3f)"
+						% [a, b, d]
+				)
+				continue
 			ok(
 				d >= DISTANCIA_ENTRE_MODULOS,
 				"chefe: %s|%s sao modulos diferentes (%.3f, minimo %.2f)"

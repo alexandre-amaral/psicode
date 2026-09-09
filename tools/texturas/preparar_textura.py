@@ -136,11 +136,37 @@ MARGEM_MATIZ = 3.0
 # Os limites nao sao redondos por acaso: 185 fica 5 graus acima do teto do item
 # (180) e 320 fica 10 abaixo do piso do chefe (330). As tres faixas continuam
 # disjuntas, que e o que faz a sala de recompensa e a do chefe se anunciarem.
+# O tingimento por tipo de sala DESMONTADO, e a nova regra e a saturacao.
+#
+# A medicao que produziu estas faixas esta em `docs/PLANO_FABRICA_ANDAR1.md`:
+# os chaos saiam do funil com saturacao 0,77 (chefe), 0,89 (arma) e 0,95 (item),
+# contra os **0,284** do centro da referencia (`docs/fabrica_01.png`). Nao era
+# metal tingido, era cor chapada com textura por cima -- e o "excesso de verde"
+# que abriu o briefing era so a fatia do item nisso.
+#
+# O que mudou, e por que cada um:
+#
+# - **item** girou de 172 para 205 e **arma** de 37 para 228. Sao o verde e o
+#   laranja que o briefing manda sumir do AMBIENTE (secoes 10, 112 e 113): a
+#   sala de arma nao vira amarela, o ambar volta como luz de trabalho e faixa de
+#   perigo.
+# - **andar1 e boss NAO giraram.** O andar 1 ja estava em 235, a mesma familia do
+#   alvo, e `chao_andar1_c` tem pixels ate 310 que sairiam da banda se ele
+#   girasse -- o portao usa min/max ABSOLUTO, entao um pixel basta. O chefe
+#   mantem o magenta que a secao 11 reserva a ele.
+# - **Todos dessaturaram** para a casa de 0,30-0,34.
+#
+# **As faixas agora se SOBREPOEM, e isso e o ponto.** item (188-219) e arma
+# (213-243) invadem andar1 (185-320) de proposito: o tipo de sala deixou de ser
+# separado por cor, e passa a ser separado por props, luz e composicao. E
+# literalmente o que o briefing pede na secao 110 -- "se depender da cor: FAIL".
+# Elas continuam existindo para impedir DERIVA (uma textura nova nascer verde de
+# novo), e nao para separar sala.
 MATIZ_POR_TIPO = {
-    "andar1": (185, 320),   # a base: combate e inicial
-    "boss":   (330, 355),
-    "arma":   (25, 50),
-    "item":   (150, 180),
+    "andar1": (185, 320),   # a base: combate e inicial -- inalterada
+    "boss":   (315, 350),   # magenta mantido, girado 5 graus para longe do 0
+    "arma":   (198, 227),   # era (25, 50): o laranja saiu do ambiente
+    "item":   (188, 219),   # era (150, 180): o verde saiu do ambiente
 }
 
 # A sala do chefe leva teto mais baixo que as outras, e nao e capricho: e a sala

@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="DadosSala" load_steps=31 format=3]
+[gd_resource type="Resource" script_class="DadosSala" load_steps=32 format=3]
 
 [ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
 [ext_resource type="Texture2D" path="res://assets/texturas/decalques_andar1.png" id="99_dec"]
@@ -26,6 +26,8 @@
 [ext_resource type="Resource" path="res://src/enemies/grupo_cyber_besta.tres" id="12_besta"]
 [ext_resource type="Resource" path="res://src/enemies/grupo_hacker_parasita.tres" id="13_hacker"]
 [ext_resource type="Resource" path="res://src/mapa/estilo_industrial_velho.tres" id="91_estilo"]
+
+[ext_resource type="Resource" path="res://src/fx/perfil_ambar.tres" id="90_amb"]
 
 [resource]
 script = ExtResource("1_ds")
@@ -65,3 +67,5 @@ chance_de_aprimorada = 0.25
 chance_de_premio = 0.45
 premio_minimo = 2
 premio_maximo = 5
+perfil_de_luz = ExtResource("90_amb")
+quantidade_luminarias = 5

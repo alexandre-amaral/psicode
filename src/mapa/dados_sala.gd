@@ -266,6 +266,34 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## Foreground pede explicitamente.
 @export var quantidade_props_frente: int = 0
 
+@export_group("Luz")
+## Quantas LUMINARIAS a sala tenta prender na parede.
+##
+## O numero saiu de MEDIR a referencia (`docs/fabrica_01.png`) e nao da secao 97
+## do briefing, e os dois discordam: ela pede "1 a 3 fontes funcionais" numa
+## sala de combate, e a imagem tem SETE ou OITO pontos ambar mais um ciano.
+##
+## A diferenca nao e de gosto, e estrutural: a sensacao de "fabrica que ainda
+## funciona precariamente" vem de a luz estar ESPALHADA E FRACA, e nao
+## concentrada e forte. Tres lampadas fortes fazem tres holofotes; oito fracas
+## fazem uma instalacao eletrica. A divergencia esta registrada em
+## `docs/REFERENCIA_FABRICA.md`, secao 2.2.
+##
+## Nem toda uma acende: `PerfilDeLuz.chance_de_estar_ligada` decide lampada a
+## lampada, e a carcaca APAGADA e metade do que conta a historia do abandono.
+@export var quantidade_luminarias: int = 0
+## O perfil da luz que estas luminarias usam. Nulo = a sala nao tem luz propria.
+@export var perfil_de_luz: Resource
+
+## Uma luminaria FRIA no lugar de uma ambar, quando a sala pede acento tecnico.
+##
+## Ela existe para o `[FAB 12]`: o tipo de sala deixou de ser separado por cor da
+## PAREDE, e volta como indicador. Uma unica luz ciano num terminal diz "aqui ha
+## equipamento" sem recolorir nada -- e a referencia tem exatamente UMA na sala
+## inteira, contra sete ambar.
+@export var perfil_de_luz_fria: Resource
+@export var quantidade_luminarias_frias: int = 0
+
 ## Quantos props volumetricos a sala tenta colocar. Contagem propria e nao uma
 ## fracao de `quantidade_props`: sao ocupacoes diferentes do mesmo chao, e a
 ## sala do chefe quer muitos chapados e quase nenhum corpo no caminho.

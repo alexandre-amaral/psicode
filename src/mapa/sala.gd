@@ -232,16 +232,26 @@ const COR_DO_VAZIO := Color("05060b")
 ## Lado de uma celula do atlas de props e passo da grade em que eles assentam.
 const PROP_LADO := 32.0
 const PROP_GRADE := 8.0
-## Faixa, medida da parede para dentro, onde um prop pode ficar. Menos que o
-## minimo e o prop entra na parede; mais que o maximo e ele parece bloquear.
-const PROP_AFASTAMENTO_MINIMO := 24.0
+## Faixa, medida da parede para dentro, onde um prop pode ficar. Mais que isso e
+## ele parece bloquear a sala.
+##
+## O PISO daquela faixa saiu daqui: quem garante que o prop nao entra na parede e
+## `DecoradorDeSala.BORDA_MINIMA`, junto da folga de meio prop que ele cobra. O
+## `PROP_AFASTAMENTO_MINIMO` que morava aqui era a metade duplicada daquela
+## regra, e constante morta que PARECE botao de tuning e pior que constante
+## nenhuma -- alguem a gira, nada acontece, e a tarde vai embora.
 const PROP_AFASTAMENTO_MAXIMO := 44.0
 ## Prop perto de porta parece que tapa a porta.
 const PROP_DISTANCIA_DE_PORTA := 96.0
 ## Distancia minima entre dois props, para nao empilharem.
 const PROP_ESPACO := 40.0
-## Tentativas por prop antes de desistir dele. Sala recortada rejeita muito.
-const PROP_TENTATIVAS := 12
+
+## Pegada de uma luminaria, para o decorador espacar duas na mesma parede.
+##
+## Maior que a carcaca desenhada (18 px) de proposito: o que nao pode empilhar
+## nao e o metal, e a POCA. Duas lampadas encostadas fazem uma mancha so, e a
+## referencia tem pontos separados ao longo da parede.
+const LUMINARIA_LARGURA := 64.0
 ## Quanto da largura da celula a sombra de um prop volumetrico ocupa. Menor que
 ## 1 porque a arte nunca preenche a celula inteira -- ela e ancorada na base e
 ## centrada, com vazio nas laterais. Sombra do tamanho da celula apareceria
@@ -1394,6 +1404,7 @@ func _montar_decoracao() -> void:
 	_montar_props_animados(dados, contorno, aberto, bocas, colocados, rng)
 	_montar_props_volumetricos(dados, contorno, aberto, bocas, colocados, rng)
 	_montar_props_frente(dados, contorno, aberto, bocas, colocados, rng)
+	_montar_luminarias(dados, contorno, bocas, rng)
 	_montar_decalques(dados, contorno, aberto, bocas, colocados, rng)
 
 
@@ -1411,12 +1422,8 @@ func _montar_props_chapados(
 	add_child(raiz)
 
 	for _i in dados.quantidade_props:
-		for _tentativa in PROP_TENTATIVAS:
-			var ponto := _sortear_ponto_de_prop(rng, contorno, aberto, PROP_LADO)
-			if ponto == Vector2.INF:
-				continue
-			if not _cabe_prop(ponto, aberto, bocas, colocados, PROP_LADO):
-				continue
+		var ponto := _ponto_de_prop(contorno, PROP_LADO, rng, bocas, colocados)
+		if ponto != Vector2.INF:
 			var sprite := Sprite2D.new()
 			sprite.texture = dados.atlas_props
 			sprite.region_enabled = true
@@ -1425,7 +1432,6 @@ func _montar_props_chapados(
 			sprite.position = ponto
 			raiz.add_child(sprite)
 			colocados.append(ponto)
-			break
 
 
 ## Os DECALQUES INDUSTRIAIS: o que nao cabe num tile (#233).
@@ -1464,18 +1470,14 @@ func _montar_decalques(
 	add_child(raiz)
 
 	for _i in dados.quantidade_decalques:
-		for _tentativa in PROP_TENTATIVAS:
-			var regiao := dados.regioes_decalques[
-				rng.randi_range(0, dados.regioes_decalques.size() - 1)]
-			# O RAIO da peca, e nao `PROP_LADO`: o decalque e maior que um prop
-			# de 32 ("poucos por sala, GRANDES e gastos"), e usar a folga do prop
-			# deixaria metade dele por cima da parede.
-			var lado := float(maxi(regiao.size.x, regiao.size.y))
-			var ponto := _sortear_ponto_de_prop(rng, contorno, aberto, lado)
-			if ponto == Vector2.INF:
-				continue
-			if not _cabe_prop(ponto, aberto, bocas, colocados, lado):
-				continue
+		var regiao := dados.regioes_decalques[
+			rng.randi_range(0, dados.regioes_decalques.size() - 1)]
+		# O RAIO da peca, e nao `PROP_LADO`: o decalque e maior que um prop de 32
+		# ("poucos por sala, GRANDES e gastos"), e usar a folga do prop deixaria
+		# metade dele por cima da parede.
+		var lado := float(maxi(regiao.size.x, regiao.size.y))
+		var ponto := _ponto_de_prop(contorno, lado, rng, bocas, colocados)
+		if ponto != Vector2.INF:
 			var sprite := Sprite2D.new()
 			sprite.texture = dados.atlas_decalques
 			sprite.region_enabled = true
@@ -1483,7 +1485,6 @@ func _montar_decalques(
 			sprite.position = ponto
 			raiz.add_child(sprite)
 			colocados.append(ponto)
-			break
 
 
 ## A familia que se MEXE, e ela e a menor das quatro de proposito (AND1 02).
@@ -1518,12 +1519,8 @@ func _montar_props_animados(
 	add_child(raiz)
 
 	for _i in teto:
-		for _tentativa in PROP_TENTATIVAS:
-			var ponto := _sortear_ponto_de_prop(rng, contorno, aberto, PROP_LADO)
-			if ponto == Vector2.INF:
-				continue
-			if not _cabe_prop(ponto, aberto, bocas, colocados, PROP_LADO):
-				continue
+		var ponto := _ponto_de_prop(contorno, PROP_LADO, rng, bocas, colocados)
+		if ponto != Vector2.INF:
 			var prop := PropAnimado.new()
 			prop.position = ponto
 			raiz.add_child(prop)
@@ -1537,7 +1534,6 @@ func _montar_props_animados(
 				rng.randi_range(0, maxi(dados.quadros_props_animados - 1, 0))
 			)
 			colocados.append(ponto)
-			break
 
 
 ## A familia VOLUMETRICA. Cada prop e um Node2D no ponto em que ele ENCOSTA no
@@ -1574,13 +1570,8 @@ func _montar_props_volumetricos(
 	for _i in dados.quantidade_props_volume:
 		var regiao: Rect2i = regioes[rng.randi_range(0, regioes.size() - 1)]
 		var largura := float(regiao.size.x)
-		for _tentativa in PROP_TENTATIVAS:
-			var ponto := _sortear_ponto_de_prop(rng, contorno, aberto, largura)
-			if ponto == Vector2.INF:
-				continue
-			if not _cabe_prop(ponto, aberto, bocas, colocados, largura):
-				continue
-
+		var ponto := _ponto_de_prop(contorno, largura, rng, bocas, colocados)
+		if ponto != Vector2.INF:
 			var corpo := Node2D.new()
 			corpo.name = "PropVolume"
 			corpo.position = ponto
@@ -1602,7 +1593,6 @@ func _montar_props_volumetricos(
 			corpo.add_child(sprite)
 
 			colocados.append(ponto)
-			break
 
 
 ## A camada FOREGROUND (LTD 10): o que passa POR CIMA do ator.
@@ -1610,7 +1600,7 @@ func _montar_props_volumetricos(
 ## Viga, tubulacao, cabo suspenso. Eles ficam em `Z_FRENTE`, acima de tudo que
 ## se ordena por Y -- sao a unica coisa do jogo que pode cobrir o jogador.
 ##
-## A trava e ESTRUTURAL: eles nascem na margem e `_cabe_prop` ja recusa qualquer
+## A trava e ESTRUTURAL: eles nascem na margem e o decorador ja recusa qualquer
 ## ponto que toque a `area_spawn`. Telegrafo nasce onde o inimigo esta, e inimigo
 ## nasce na area util; ficando fora dela, "o Foreground nao cobre telegrafo"
 ## deixa de ser revisao de olho e vira comparacao de retangulos.
@@ -1641,16 +1631,12 @@ func _montar_props_frente(
 			rng.randi_range(0, dados.regioes_props_frente.size() - 1)
 		]
 		var largura := float(regiao.size.x)
-		for _tentativa in PROP_TENTATIVAS:
-			var ponto := _sortear_ponto_de_prop(rng, contorno, aberto, largura)
-			if ponto == Vector2.INF:
-				continue
-			# Passa a lista VAZIA de propositio: a checagem de contorno, porta e
-			# area util continua valendo, mas um elemento suspenso nao precisa de
-			# espaco livre no chao -- ele nao esta no chao.
-			var vazia: Array[Vector2] = []
-			if not _cabe_prop(ponto, aberto, bocas, vazia, largura):
-				continue
+		# Lista de ocupados VAZIA de proposito: contorno, porta e area util
+		# continuam valendo, mas um elemento SUSPENSO nao precisa de espaco livre
+		# no chao -- ele nao esta no chao. Um cabo passa por cima de uma caixa.
+		var vazia: Array[Vector2] = []
+		var ponto := _ponto_de_prop(contorno, largura, rng, bocas, vazia)
+		if ponto != Vector2.INF:
 			var sprite := Sprite2D.new()
 			sprite.texture = dados.atlas_props_frente
 			sprite.region_enabled = true
@@ -1658,66 +1644,110 @@ func _montar_props_frente(
 			sprite.flip_h = rng.randf() < 0.5
 			sprite.position = ponto
 			raiz.add_child(sprite)
-			break
 
 
-## Um ponto encostado num lado do contorno, para DENTRO. O lado e sorteado com
-## peso pelo comprimento, senao o braco curto do L recebe tanto quanto a parede
-## longa. Vector2.INF quando o sorteio nao serviu.
-func _sortear_ponto_de_prop(
-	rng: RandomNumberGenerator, contorno: PackedVector2Array,
-	aberto: PackedVector2Array, largura: float
-) -> Vector2:
-	var perimetro := 0.0
-	for i in range(contorno.size() - 1):
-		perimetro += contorno[i].distance_to(contorno[i + 1])
-	var alvo := rng.randf() * perimetro
-	for i in range(contorno.size() - 1):
-		var a := contorno[i]
-		var b := contorno[i + 1]
-		var comprimento := a.distance_to(b)
-		if alvo > comprimento:
-			alvo -= comprimento
+## As LUMINARIAS da parede, e a metade clara do ambiente escuro.
+##
+## **Elas nao sao decoracao: sao a outra metade do `AmbienteDaFabrica`.** Aquele
+## `CanvasModulate` escurece TUDO que esta abaixo dele -- inclusive jogador,
+## inimigo e projetil --, e sem luz devolvendo brilho nos bolsoes o resultado nao
+## e atmosfera, e um jogo com menos luz para todo mundo. Medido em captura: com
+## o ambiente em 0,45 e nenhuma luminaria, os atores somem junto com o piso.
+##
+## Elas usam o porte `PAREDE` do decorador, que existia sem consumidor desde a
+## `[FAB 07]`: luminaria e a peca que ancora na FACE e quase nao entra no chao.
+## Por isso elas NAO entram na lista de `colocados` -- um prop de piso pode ficar
+## embaixo de uma lampada sem conflito, do mesmo jeito que o Foreground passa por
+## cima de uma caixa.
+func _montar_luminarias(
+	dados: DadosSala, contorno: PackedVector2Array,
+	bocas: Array[Vector2], rng: RandomNumberGenerator
+) -> void:
+	var pedidos: Array[Array] = [
+		[dados.perfil_de_luz as PerfilDeLuz, dados.quantidade_luminarias],
+		[dados.perfil_de_luz_fria as PerfilDeLuz, dados.quantidade_luminarias_frias],
+	]
+	var total := 0
+	for pedido in pedidos:
+		total += int(pedido[1]) if pedido[0] != null else 0
+	if total <= 0:
+		return
+
+	var raiz := Node2D.new()
+	raiz.name = "Luminarias"
+	add_child(raiz)
+
+	# Lista PROPRIA de ocupados, e nao a do chao: duas lampadas nao podem nascer
+	# no mesmo ponto da parede, mas nenhuma delas disputa espaco com uma caixa.
+	var na_parede: Array[Vector2] = []
+	for pedido in pedidos:
+		var perfil: PerfilDeLuz = pedido[0]
+		if perfil == null:
 			continue
-		if comprimento < largura * 2.0:
-			return Vector2.INF
-		var direcao := (b - a) / comprimento
-		var normal := Vector2(-direcao.y, direcao.x)
-		var ao_longo := clampf(alvo, largura, comprimento - largura)
-		var afastamento := rng.randf_range(PROP_AFASTAMENTO_MINIMO, PROP_AFASTAMENTO_MAXIMO)
-		var base := a + direcao * ao_longo
-		var ponto := base + normal * afastamento
-		if not Geometry2D.is_point_in_polygon(ponto, aberto):
-			ponto = base - normal * afastamento
-		if not Geometry2D.is_point_in_polygon(ponto, aberto):
-			return Vector2.INF
-		return (ponto / PROP_GRADE).round() * PROP_GRADE
-	return Vector2.INF
+		for _i in int(pedido[1]):
+			var ponto := _ponto_de_prop(contorno, LUMINARIA_LARGURA, rng, bocas, na_parede)
+			if ponto == Vector2.INF:
+				continue
+			var luminaria := LuminariaDeParede.new()
+			luminaria.position = ponto
+			raiz.add_child(luminaria)
+			# `configurar` DEPOIS do `add_child`: ele instancia a `LuzDeFabrica`
+			# e le o estado dela, e a luz so sorteia no proprio `_ready`.
+			#
+			# A semente sai do LUGAR e nao de `rng.randi()`: a mesma sala tem de
+			# devolver as mesmas lampadas acesas quando o jogador voltar. Uma
+			# luminaria que troca de estado a cada visita pisca, e isso le como
+			# defeito e nao como vida.
+			luminaria.configurar(perfil, _semente_da_luminaria(ponto))
+			na_parede.append(ponto)
 
 
-## `largura` e a PEGADA do prop, e vem da regiao sorteada em vez de `PROP_LADO`:
-## o atlas volumetrico tem celulas de 32 e de 64, e cobrar 32 de uma maquina de
-## 64 a deixaria com metade do corpo dentro da parede -- sem erro no console,
-## porque prop nao tem colisao para reclamar.
-func _cabe_prop(
-	ponto: Vector2, aberto: PackedVector2Array, bocas: Array[Vector2],
-	colocados: Array[Vector2], largura: float
-) -> bool:
-	# Dentro do contorno com folga de meio prop, e fora de qualquer obstaculo.
-	if not _local_livre(ponto, aberto, largura * 0.5 + 8.0):
-		return false
-	# Fora da area util: prop no meio do chao, sem colisao, e obstaculo mentiroso.
-	if area_spawn.intersects(Rect2(ponto - Vector2.ONE * largura * 0.5, Vector2.ONE * largura)):
-		return false
-	for boca in bocas:
-		if boca.distance_to(ponto) < PROP_DISTANCIA_DE_PORTA:
-			return false
-	for outro in colocados:
-		# O espaco minimo cresce com o prop: dois props de 64 a 40 px um do outro
-		# se sobrepoem, e a lista nao sabe o tamanho de quem ja esta nela.
-		if outro.distance_to(ponto) < maxf(PROP_ESPACO, largura):
-			return false
-	return true
+## Semente estavel derivada da POSICAO da luminaria.
+##
+## Ela nao pode vir do `rng` da sala: aquele avanca conforme o que ja foi
+## sorteado antes, entao acrescentar um prop mudaria o estado de todas as
+## lampadas. Derivar do lugar torna cada uma independente do resto da montagem.
+func _semente_da_luminaria(ponto: Vector2) -> int:
+	return hash(Vector2i(roundi(ponto.x), roundi(ponto.y)))
+
+
+## Um ponto legal para um prop, PERGUNTADO ao `DecoradorDeSala`.
+##
+## **Ele substituiu o segundo sistema de colocacao desta classe.** Ate aqui a
+## `Sala` tinha `_sortear_ponto_de_prop` e `_cabe_prop`, com as proprias
+## constantes de afastamento, espaco e distancia de porta -- e o
+## `DecoradorDeSala` tinha a mesma regra escrita de outro jeito. Duas respostas
+## para "onde um prop pode ficar" e a armadilha que este repositorio ja pagou no
+## `EstiloDeParede` (uma copia do perfil vencia o original) e na Loja (o `tipo`
+## clonado mentia): quem for girar um dos botoes gira o que nao esta sendo lido.
+##
+## O que mudou de fato para o jogo: a faixa passou a ser uma so
+## (`PROP_AFASTAMENTO_MAXIMO` vira a largura da faixa do decorador) e a folga de
+## meio prop contra a parede passou a ser cobrada la dentro. As tres restricoes
+## que so a sala real tem -- `area_spawn`, as bocas de porta e o que ja foi
+## colocado -- viajam no dicionario, porque o decorador nao pode conhecer cena.
+##
+## `Vector2.INF` = nao achou lugar, que e o mesmo contrato de antes: desistir de
+## um prop e o comportamento certo. Sala com um prop a menos e uma sala; prop
+## empurrado para dentro da parede para caber e um defeito sem linha no console,
+## porque decoracao nao tem colisao para reclamar.
+func _ponto_de_prop(
+	contorno: PackedVector2Array, largura: float, rng: RandomNumberGenerator,
+	bocas: Array[Vector2], colocados: Array[Vector2]
+) -> Vector2:
+	var achados := DecoradorDeSala.posicoes(contorno, 1, largura, rng.randi(), {
+		"faixa": PROP_AFASTAMENTO_MAXIMO,
+		# A `area_spawn` e MELHOR que o raio da zona livre do decorador: ela e a
+		# area jogavel AUTORADA na cena, e num contorno em L o raio mede a partir
+		# do centro da caixa envolvente, que pode cair fora da sala.
+		"zona_livre": area_spawn,
+		"bocas": bocas,
+		"raio_de_boca": PROP_DISTANCIA_DE_PORTA,
+		"ocupados": colocados,
+		"espaco_minimo": maxf(PROP_ESPACO, largura),
+		"grade": PROP_GRADE,
+	})
+	return achados[0] if not achados.is_empty() else Vector2.INF
 
 
 ## Posicao LOCAL de todas as portas, seladas inclusive: prop encostado numa

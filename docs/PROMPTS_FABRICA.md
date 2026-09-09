@@ -359,6 +359,34 @@ funil: com `--tingir 228 --limiar-neon 0.9` as nove pecas mediram **matiz 228 e
 ZERO pixels em verde ou teal**. Vale a regra geral: o prompt reduz a chance, o
 funil e quem garante.
 
+### 5.11 Oficina e arsenal -- `[FAB 35]`, sala de ARMA
+
+```
+<peca>, seen from above with the front face visible.
+There is no gun anywhere on this object: no barrel, no rifle, no pistol,
+no complete firearm, only loose parts and tools.
+This object is completely powered down: there is no light anywhere on it,
+no cyan, no teal, no glow.
+NAO: no character, no floor, no readable text, no logo
+```
+
+Pecas: `bancada_armas` (hero, 64x96), `caixa_municao` (64x64), `suporte_vazio`,
+`painel_balistico`, `armario_pecas`, `terminal_calibragem`, `morsa`,
+`armario_blindagem` (32x64), mais `capsulas_decalque` no atlas de DECALQUE.
+
+**A negacao de arma e afirmativa, e ela e a issue.** A secao 56 e explicita: arma
+pertence ao pickup, e uma arma desenhada no cenario seria lida como coletavel --
+o jogador andaria ate ela. E "no gun" numa lista de NAO nao basta, pela mesma
+razao medida no armario da sala de item: a lista sugere o que nega. A forma que
+funciona e a afirmacao sobre o objeto ("There is no gun anywhere on this
+object... only loose parts and tools"), e as oito voltaram limpas na primeira
+geracao.
+
+O que carrega a leitura de OFICINA sem arma nenhuma: o painel de ferramentas
+vazio atras da bancada, a morsa de mordentes abertos, o suporte com todos os
+encaixes vazios e o painel balistico crivado. A sala fala de manutencao, e nao
+de vitrine -- que e o segundo aceite.
+
 ### 5.9 A porta -- `[FAB 30]` e `[FAB 32]`
 
 A porta tem prompt proprio e as restricoes mais duras do arquivo, porque ela e a

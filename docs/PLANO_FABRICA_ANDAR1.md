@@ -566,6 +566,15 @@ E o resultado medido, contra a referencia:
 A distancia caiu de **+44,3 para +16,8 pontos** de preto, e as cinco familias de
 acento entraram todas na faixa da referencia.
 
+> **Remedido na `[FAB 48]`, quando a lampada saiu do chao e foi para a parede.**
+> A carcaca nasce agora FORA do contorno, na espessura que a parede desenha, e a
+> poca desce 120 px para dentro da sala. Isso mudou os dois numeros para melhor:
+> preto **64,98%** (de 67,54) e ambar **0,20%** (igual). A primeira tentativa --
+> poca na origem da carcaca -- media 68,37% e 0,14%: com a lampada na parede,
+> metade da poca caia sobre o muro e sobre o vazio, e o chao, que e onde o
+> jogador anda, recebia o resto. O numero saiu de uma varredura de tres valores
+> (44, 88, 120), e nao de gosto.
+
 **A `[FAB 41]` fechou de tabela, e ninguem tocou na decoracao.** Item e arma
 reprovavam com 0,98x e 1,04x de ganho de massa; com a luz nova dao **1,17x e
 1,23x**. A causa e direta: no escuro os props nao registravam, entao a decoracao

@@ -100,6 +100,7 @@ func executar() -> void:
 	_o_sorteio_e_deterministico_por_semente()
 	_so_lampada_ACESA_molha_o_piso()
 	_a_luz_para_abaixo_da_faixa_do_combate()
+	_toda_luminaria_esta_PRESA_em_alguma_coisa()
 
 
 ## Pega: campo esquecido no `.tres`.
@@ -411,3 +412,117 @@ func _so_lampada_ACESA_molha_o_piso() -> void:
 			LuminariaDeParede.REFLEXO_LARGURA, LuminariaDeParede.REFLEXO_COMPRIMENTO])
 
 	raiz.queue_free()
+
+
+## Toda luminaria esta presa em alguma coisa -- na parede ou numa bancada.
+##
+## **Ela nao existia, e por isso a lampada passou epicos inteiros no chao.** As
+## suites daqui medem a FISICA da luz (contraste, borda, flicker, sorteio) e
+## nenhuma perguntava ONDE ela nasce. Enquanto isso `Sala._montar_luminarias()`
+## chamava `_ponto_de_prop()`, o sorteador generico dos props de piso, e a
+## lampada nascia de 8 a 96 px para dentro da sala -- na mesma faixa de um
+## barril. O dono viu jogando: *"as luzes devem ser concentradas como na imagem
+## em estruturas ligadas a parede, atualmente esta no mesmo nivel dos outros
+## assets"*.
+##
+## A regra que se afirma e a da secao 92 do briefing -- "luzes devem ser
+## associadas a FIXTURES" -- virada geometria. Uma poca de luz cujo suporte esta
+## no meio do chao le como efeito de engine: o jogador ve o piso aceso e nada
+## acendendo.
+##
+## Os dois lugares legais, e o portao aceita qualquer um dos dois:
+##
+##   PAREDE   a lampada esta FORA do poligono da sala, a no maximo o alcance da
+##            parede dele. E a caixa embutida na face norte.
+##   BANCADA  ela esta logo acima do topo de um prop volumetrico. E a luminaria
+##            presa na maquina, que vale nos quatro lados.
+##
+## Qualquer outra coisa e uma lampada solta no chao, e e exatamente isso que ele
+## recusa.
+func _toda_luminaria_esta_PRESA_em_alguma_coisa() -> void:
+	var cena: PackedScene = load("res://src/mapa/sala_1_retangular.tscn")
+	if cena == null:
+		return
+	var lampadas := 0
+	var na_parede := 0
+	var na_bancada := 0
+	var soltas := 0
+	var pior := ""
+	for caminho in ["res://src/mapa/tipo_combate.tres", "res://src/mapa/tipo_loja.tres",
+			"res://src/mapa/tipo_inicial.tres"]:
+		var dados: DadosSala = load(caminho)
+		if dados == null:
+			continue
+		for semente in 4:
+			var sala: Sala = cena.instantiate()
+			sala.definir_visual(dados)
+			sala.coordenadas_grid = Vector2i(semente * 7 + 1, semente)
+			sala.position = Vector2(13000.0, 13000.0)
+			Engine.get_main_loop().root.add_child(sala)
+
+			var aberto := sala.contorno_local()
+			var perfil := sala.perfil_de_parede()
+			var alcance: float = perfil.alcance() if perfil != null 				else PerfilDeParede.new().alcance()
+			var topos := _topos_dos_props(sala)
+			var raiz := sala.get_node_or_null("Luminarias")
+			if raiz != null:
+				for filho in raiz.get_children():
+					var lampada := filho as LuminariaDeParede
+					if lampada == null:
+						continue
+					lampadas += 1
+					var onde := lampada.position
+					var perto := Sala.ponto_da_parede_mais_proxima(aberto, onde)
+					var fora := not Geometry2D.is_point_in_polygon(onde, aberto)
+					if fora and perto.distance_to(onde) <= alcance + 1.0:
+						na_parede += 1
+						continue
+					if _acima_de_algum_prop(onde, topos):
+						na_bancada += 1
+						continue
+					soltas += 1
+					if pior == "":
+						pior = "%s: lampada a %.0f px da parede, sem prop embaixo" % [
+							dados.id, perto.distance_to(onde)]
+			sala.free()
+
+	ok(lampadas > 0, "houve luminaria para conferir (%d)" % lampadas)
+	igual(soltas, 0,
+		"nenhuma lampada nasce solta no chao -- luz sem suporte le como efeito de engine (%d de %d; %s)"
+			% [soltas, lampadas, pior])
+	# As DUAS pontas. Um andar so de lampadas de parede passaria no caso acima e
+	# nao seria a referencia, em que elas estao em cima das maquinas; e um andar
+	# so de bancada perderia a caixa embutida na face. O portao exige que os dois
+	# lugares sejam de fato usados, senao um deles apodrece sem ninguem ver.
+	ok(na_parede > 0, "a parede recebe lampada nos quatro lados (%d)" % na_parede)
+	ok(na_bancada > 0, "e as bancadas tambem (%d)" % na_bancada)
+
+
+## O topo e a meia largura de cada prop volumetrico da sala.
+func _topos_dos_props(sala: Sala) -> Array:
+	var saida: Array = []
+	for filho in sala.get_children():
+		var corpo := filho as Node2D
+		if corpo == null or not corpo.is_in_group(Sala.GRUPO_PROP_VOLUME):
+			continue
+		for neto in corpo.get_children():
+			var sprite := neto as Sprite2D
+			if sprite == null:
+				continue
+			saida.append([
+				corpo.position.x,
+				corpo.position.y - float(sprite.region_rect.size.y),
+				float(sprite.region_rect.size.x) * 0.5,
+			])
+	return saida
+
+
+func _acima_de_algum_prop(onde: Vector2, topos: Array) -> bool:
+	for topo in topos:
+		var dx: float = absf(onde.x - float(topo[0]))
+		var dy: float = float(topo[1]) - onde.y
+		# Acima do topo, dentro da largura da peca, e perto o bastante para ler
+		# como presa nela.
+		if dx <= float(topo[2]) and dy >= 0.0 			and dy <= Sala.LUMINARIA_FOLGA_NA_BANCADA + 4.0:
+			return true
+	return false

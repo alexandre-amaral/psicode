@@ -82,6 +82,19 @@ const COR_VIDRO_APAGADO := Color(0.10, 0.11, 0.14)
 ## efeito de fase do chefe.
 const CLARAO_DO_VIDRO := 0.45
 
+## Quanto a POCA desce da carcaca para dentro da sala.
+##
+## **A carcaca mora na parede e a luz nao pode morar junto.** A luminaria nasce
+## para FORA do contorno, na espessura que a parede desenha; com a `LuzDeFabrica`
+## na origem dela, metade da poca cai sobre o topo do muro e sobre o vazio, e o
+## chao -- que e onde o jogador anda e onde a luz precisa dizer alguma coisa --
+## recebe o resto. Medido em tela, a sala ficou escura o bastante para a queixa
+## voltar do outro lado.
+##
+## Uma luminaria industrial aponta para BAIXO e para DENTRO. Descer a poca e o
+## que a peca ja faz na vida real, e de graca ela volta a iluminar o piso.
+const DESCIDA_DA_LUZ := 120.0
+
 var _luz: LuzDeFabrica = null
 var _reflexo: Sprite2D = null
 
@@ -89,6 +102,7 @@ var _reflexo: Sprite2D = null
 static var _risco: GradientTexture2D = null
 var _acesa: bool = false
 var _cor_da_luz: Color = Color.WHITE
+var _para_dentro: Vector2 = Vector2.DOWN
 
 
 ## Monta a luminaria com um perfil e uma semente.
@@ -97,13 +111,19 @@ var _cor_da_luz: Color = Color.WHITE
 ## acesa a cada visita a sala pisca quando o jogador volta, e isso le como
 ## defeito e nao como vida. Mesma razao que faz o `DecoradorDeSala` recusar
 ## `randi()` global.
-func configurar(perfil: PerfilDeLuz, semente: int) -> void:
+## `para_dentro` e a direcao da SALA vista da luminaria, e ela nao tem default
+## util por acidente: a peca pode estar em qualquer um dos quatro lados, e
+## `Vector2.DOWN` cravado faria a lampada da parede SUL jogar a poca para fora do
+## mundo. Quem sabe a direcao e a `Sala`, que colocou a peca.
+func configurar(perfil: PerfilDeLuz, semente: int, para_dentro := Vector2.DOWN) -> void:
 	if perfil == null:
 		return
 	_cor_da_luz = perfil.cor
+	_para_dentro = para_dentro.normalized() if para_dentro != Vector2.ZERO else Vector2.DOWN
 	_luz = LuzDeFabrica.new()
 	_luz.perfil = perfil
 	_luz.semear(semente)
+	_luz.position = _para_dentro * DESCIDA_DA_LUZ
 	add_child(_luz)
 	# Lido DEPOIS do `add_child`: e o `_ready` da luz que sorteia o estado.
 	_acesa = _luz.ligada
@@ -132,7 +152,11 @@ func _montar_reflexo() -> void:
 	_reflexo.texture = _textura_do_risco()
 	_reflexo.z_index = Z_REFLEXO
 	_reflexo.z_as_relative = false
-	_reflexo.position = Vector2(0.0, REFLEXO_DESCIDA + REFLEXO_COMPRIMENTO * 0.5)
+	# O risco desce PARA DENTRO DA SALA, e nao em `+y` cravado. Numa lampada da
+	# parede sul, `+y` desenharia o reflexo sobre o topo do muro e sobre o vazio
+	# alem dele -- luz refletida em lugar nenhum, sem erro no console.
+	_reflexo.position = _para_dentro * (REFLEXO_DESCIDA + REFLEXO_COMPRIMENTO * 0.5)
+	_reflexo.rotation = _para_dentro.angle() - PI * 0.5
 	var tex := _reflexo.texture.get_size()
 	_reflexo.scale = Vector2(
 		REFLEXO_LARGURA / maxf(tex.x, 1.0),

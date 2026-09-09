@@ -276,6 +276,13 @@ const PROP_LARGURA_GRANDE := 64.0
 ## nao e o metal, e a POCA. Duas lampadas encostadas fazem uma mancha so, e a
 ## referencia tem pontos separados ao longo da parede.
 const LUMINARIA_LARGURA := 64.0
+
+## Quanto a lampada da bancada fica acima do topo da peca mais alta dela.
+##
+## Curto de proposito: ela e uma luminaria PRESA na instalacao, e nao um poste.
+## Longe demais e ela descola do conjunto e volta a parecer uma luz solta no meio
+## do nada, que e o defeito que a `[FAB 48]` veio desfazer.
+const LUMINARIA_FOLGA_NA_BANCADA := 12.0
 ## Quanto da largura da celula a sombra de um prop volumetrico ocupa. Menor que
 ## 1 porque a arte nunca preenche a celula inteira -- ela e ancorada na base e
 ## centrada, com vazio nas laterais. Sombra do tamanho da celula apareceria
@@ -1486,9 +1493,9 @@ func _montar_decoracao() -> void:
 
 	_montar_props_chapados(dados, contorno, aberto, bocas, colocados, rng)
 	_montar_props_animados(dados, contorno, aberto, bocas, colocados, rng)
-	_montar_props_volumetricos(dados, aberto, composicao, colocados, rng)
+	var bancadas := _montar_props_volumetricos(dados, aberto, composicao, colocados, rng)
 	_montar_props_frente(dados, contorno, aberto, bocas, colocados, rng)
-	_montar_luminarias(dados, contorno, bocas, rng)
+	_montar_luminarias(dados, aberto, rng, bancadas)
 	_montar_props_parede(dados, contorno, aberto, rng)
 	_montar_decalques(dados, contorno, aberto, bocas, colocados, rng)
 
@@ -1786,15 +1793,16 @@ func _montar_props_animados(
 func _montar_props_volumetricos(
 	dados: DadosSala, aberto: PackedVector2Array, composicao: Array[Dictionary],
 	colocados: Array[Vector2], rng: RandomNumberGenerator
-) -> void:
+) -> Dictionary:
+	var bancadas := {}
 	if dados.atlas_props_volume == null:
-		return
+		return bancadas
 	# A sala sorteada ganha o raro NO POOL, e nao a mais dele: ele ocupa a vaga
 	# de um prop comum. Somar um a mais faria a sala escolhida ser tambem a mais
 	# cheia, e o jogador leria a mobilia extra antes de reparar no robo.
 	var regioes := dados.regioes_props_volume.duplicate()
 	if regioes.is_empty():
-		return
+		return bancadas
 	# A partir daqui QUANTOS e ONDE vem da composicao, e nao de um sorteio local:
 	# quem os decide e `DecoradorDeSala.decorar()`, que ja leu as contagens do
 	# perfil ao montar os clusters.
@@ -1803,7 +1811,7 @@ func _montar_props_volumetricos(
 		if int(colocacao["porte"]) <= DecoradorDeSala.Porte.PEQUENO:
 			vagas.append(colocacao)
 	if vagas.is_empty():
-		return
+		return bancadas
 
 	# O RARO E COLOCADO PRIMEIRO, e nao sorteado junto com o resto.
 	#
@@ -1869,7 +1877,21 @@ func _montar_props_volumetricos(
 		sprite.position = Vector2(0.0, -float(regiao.size.y) * 0.5)
 		corpo.add_child(sprite)
 
+		# A BANCADA a que esta peca pertence, para a luminaria saber onde ficar.
+		#
+		# O conjunto e a unidade de decoracao, e ele e a unica coisa nesta sala
+		# que sabe dizer "aqui ha uma instalacao". A luminaria pendurada num
+		# ponto sorteado do perimetro ilumina o vao entre duas maquinas; a
+		# pendurada numa bancada ilumina a maquina. Na referencia as lampadas
+		# estao todas em cima de alguma coisa.
+		var conjunto: StringName = vaga.get("agrupamento", &"")
+		if conjunto != &"":
+			if not bancadas.has(conjunto):
+				bancadas[conjunto] = []
+			(bancadas[conjunto] as Array).append(corpo)
+
 		colocados.append(ponto)
+	return bancadas
 
 
 ## O CHAO SOLIDO de um prop volumetrico: a maquina e parede, e para de verdade.
@@ -2055,22 +2077,46 @@ func _montar_props_frente(
 			raiz.add_child(sprite)
 
 
-## As LUMINARIAS da parede, e a metade clara do ambiente escuro.
+## As LUMINARIAS, e elas moram na parede -- nunca na faixa do chao.
 ##
-## **Elas nao sao decoracao: sao a outra metade do `AmbienteDaFabrica`.** Aquele
-## `CanvasModulate` escurece TUDO que esta abaixo dele -- inclusive jogador,
-## inimigo e projetil --, e sem luz devolvendo brilho nos bolsoes o resultado nao
-## e atmosfera, e um jogo com menos luz para todo mundo. Medido em captura: com
-## o ambiente em 0,45 e nenhuma luminaria, os atores somem junto com o piso.
+## **Ate a `[FAB 48]` esta funcao chamava `_ponto_de_prop()`**, o mesmo sorteador
+## generico dos props de piso, com a faixa de 96: a lampada nascia de 8 a 96 px
+## PARA DENTRO da sala, na mesma faixa de um barril, e desenhava dez pixels de
+## carcaca perto do chao. O dono descreveu exatamente isso -- *"as luzes devem
+## ser concentradas como na imagem em estruturas ligadas a parede, atualmente
+## esta no mesmo nivel dos outros assets"*.
 ##
-## Elas usam o porte `PAREDE` do decorador, que existia sem consumidor desde a
-## `[FAB 07]`: luminaria e a peca que ancora na FACE e quase nao entra no chao.
-## Por isso elas NAO entram na lista de `colocados` -- um prop de piso pode ficar
-## embaixo de uma lampada sem conflito, do mesmo jeito que o Foreground passa por
-## cima de uma caixa.
+## O mais revelador e que a intencao ja estava escrita e nao era seguida: o
+## cabecalho de `luminaria_de_parede.gd` afirma que ela e "o primeiro consumidor
+## do `Porte.PAREDE`", e o codigo nunca tocou naquele porte.
+##
+## ## Os dois lugares em que uma lampada pode morar, e por que sao dois
+##
+## 1. **Na BANCADA.** Uma por conjunto, acima do topo da peca mais alta dele. E o
+##    que "concentradas como na imagem" quer dizer: na referencia as lampadas
+##    estao em cima das maquinas, e nao distribuidas pelo perimetro. Ela vale nos
+##    quatro lados.
+## 2. **Na PAREDE**, o que sobrar do orcamento, espalhado pelo perimetro
+##    inteiro. No norte o ponto cai no meio da FACE -- a caixa de luz embutida
+##    que a referencia mostra --; nos outros tres cai no meio do CAP, que e a
+##    superficie que aqueles lados desenham.
+##
+## A primeira versao mandava tudo que sobrava so para a face norte, e a medicao
+## reprovou: **93 de 100 lampadas** numa parede so, e a sala vista de baixo
+## ficava sem uma poca de luz sequer. A referencia tem ambar nos quatro lados, e
+## uma fabrica iluminada por um lado nao le como instalacao eletrica.
+##
+## O que NAO existe -- e e a reclamacao inteira -- e lampada na FAIXA DE
+## DECORACAO. Ela nasce sempre para FORA do contorno, na espessura que a parede
+## ocupa, e nunca nos 8 a 96 px de chao em que os props moram.
+##
+## O ORCAMENTO nao muda: `quantidade_luminarias` continua sendo quantas a sala
+## acende. Uma formula "uma por bancada" sozinha cortaria a luz do andar pela
+## metade -- sao 2 a 4 conjuntos contra 8 lampadas em combate --, e o
+## `AmbienteDaFabrica` escurece tudo por baixo. O que mudou foi ONDE elas nascem.
 func _montar_luminarias(
-	dados: DadosSala, contorno: PackedVector2Array,
-	bocas: Array[Vector2], rng: RandomNumberGenerator
+	dados: DadosSala, aberto: PackedVector2Array,
+	rng: RandomNumberGenerator, bancadas: Dictionary
 ) -> void:
 	var pedidos: Array[Array] = [
 		[dados.perfil_de_luz as PerfilDeLuz, dados.quantidade_luminarias],
@@ -2086,22 +2132,20 @@ func _montar_luminarias(
 	raiz.name = "Luminarias"
 	add_child(raiz)
 
-	var faixa := dados.largura_da_faixa_de_decoracao()
-
-	# Lista PROPRIA de ocupados, e nao a do chao: duas lampadas nao podem nascer
-	# no mesmo ponto da parede, mas nenhuma delas disputa espaco com uma caixa.
-	var na_parede: Array[Vector2] = []
+	var pontos := _pontos_de_luminaria(aberto, total, rng, bancadas)
+	var i := 0
 	for pedido in pedidos:
 		var perfil: PerfilDeLuz = pedido[0]
 		if perfil == null:
 			continue
-		for _i in int(pedido[1]):
-			var ponto := _ponto_de_prop(
-				contorno, LUMINARIA_LARGURA, faixa, rng, bocas, na_parede)
-			if ponto == Vector2.INF:
-				continue
+		for _n in int(pedido[1]):
+			if i >= pontos.size():
+				break
 			var luminaria := LuminariaDeParede.new()
-			luminaria.position = ponto
+			var onde: Vector2 = pontos[i][0]
+			var para_dentro: Vector2 = pontos[i][1]
+			luminaria.position = onde
+			i += 1
 			raiz.add_child(luminaria)
 			# `configurar` DEPOIS do `add_child`: ele instancia a `LuzDeFabrica`
 			# e le o estado dela, e a luz so sorteia no proprio `_ready`.
@@ -2110,8 +2154,145 @@ func _montar_luminarias(
 			# devolver as mesmas lampadas acesas quando o jogador voltar. Uma
 			# luminaria que troca de estado a cada visita pisca, e isso le como
 			# defeito e nao como vida.
-			luminaria.configurar(perfil, _semente_da_luminaria(ponto))
-			na_parede.append(ponto)
+			luminaria.configurar(perfil, _semente_da_luminaria(onde), para_dentro)
+
+
+## Onde as lampadas desta sala ficam: primeiro as bancadas, depois a face.
+##
+## A ordem e a prioridade. Bancada e o lugar que a referencia mostra e o que faz
+## a luz parecer instalada; a face e o preenchimento que mantem o orcamento de
+## luz do andar. Invertidas, uma sala com poucos conjuntos gastaria o orcamento
+## inteiro na parede norte e as maquinas ficariam no escuro.
+func _pontos_de_luminaria(
+	aberto: PackedVector2Array, quantas: int,
+	rng: RandomNumberGenerator, bancadas: Dictionary
+) -> Array:
+	var pontos: Array = []
+
+	var nomes := bancadas.keys()
+	nomes.sort()
+	for nome in nomes:
+		if pontos.size() >= quantas:
+			break
+		var ponto := _topo_da_bancada(bancadas[nome] as Array)
+		if ponto != Vector2.INF:
+			# A lampada da bancada aponta para BAIXO: ela esta acima da maquina,
+			# dentro da sala, e o chao dela e o piso a frente do conjunto.
+			pontos.append([ponto, Vector2.DOWN])
+
+	if pontos.size() >= quantas:
+		return pontos
+
+	# O PERIMETRO INTEIRO, e nao so a face norte.
+	#
+	# A primeira versao mandava tudo que sobrava para `_trechos_com_face()`, que
+	# so devolve o lado norte. Medido em tela: **93 de 100 lampadas** foram parar
+	# naquela unica parede, e como a camera acompanha o jogador, a sala vista de
+	# baixo ficava sem uma poca de luz sequer. Uma fabrica iluminada por um lado
+	# so nao e a referencia -- nela ha ambar nos quatro.
+	var recuo := _alcance_da_parede() * 0.5
+	for ponto in _pontos_espacados_no_contorno(aberto, quantas - pontos.size(), rng):
+		# Para FORA do contorno, na faixa que a parede desenha. No norte isso cai
+		# no meio da FACE -- a caixa embutida da referencia; nos outros tres cai
+		# no meio do CAP, que e a superficie que aqueles lados mostram.
+		#
+		# Em nenhum dos casos ela entra na faixa de decoracao, e era ISSO a
+		# reclamacao: a lampada nascia de 8 a 96 px sala adentro, no mesmo nivel
+		# de um barril.
+		# `ponto[1]` e a normal EXTERNA: a luminaria se afasta por ela e a poca
+		# desce pelo inverso, que e a direcao da sala.
+		pontos.append([ponto[0] + ponto[1] * recuo, -ponto[1]])
+	return pontos
+
+
+## Lampadas DISTRIBUIDAS ao longo da face, e nao sorteadas uma a uma.
+##
+## **`_ponto_na_face()` esgotava as tentativas e a sala ficava no escuro.** Ele
+## sorteia um x e recusa se colidir com o que ja esta la; com doze tentativas e
+## uma reserva de 64 px, a Loja -- que pede doze lampadas -- entregava **8,6 em
+## media, e ja chegou a 5**. Nao faltava parede: faltava sorte. E o sintoma nao e
+## um erro, e uma sala mais escura que a vizinha sem motivo nenhum.
+##
+## Dividir o comprimento em fatias e sortear DENTRO de cada uma resolve as duas
+## coisas de uma vez: a colocacao passa a ser garantida, e o resultado ainda nao
+## e uma regua -- uma fileira perfeitamente regular leria como padrao, e uma
+## fabrica abandonada nao tem lampada regular. O jitter e o que separa
+## "instalacao eletrica" de "decoracao alinhada".
+##
+## Ele nao substitui `_ponto_na_face()`: aquele continua sendo o certo para peca
+## de parede, que precisa recusar sobreposicao porque duas tubulacoes no mesmo x
+## viram uma mancha. Lampada nao se sobrepoe -- ela ocupa um ponto.
+func _pontos_espacados_no_contorno(
+	aberto: PackedVector2Array, quantas: int, rng: RandomNumberGenerator
+) -> Array:
+	var saida: Array = []
+	if quantas <= 0 or aberto.size() < 3:
+		return saida
+	# Os trechos JA CORTADOS nas portas: `_subtrechos()` e a mesma funcao que a
+	# colisao e a face consomem. Lampada na boca da porta desenha metade dentro
+	# do vao, e a passagem passa a parecer que tem uma peca solta nela.
+	var trechos: Array[PackedVector2Array] = []
+	var normais: Array[Vector2] = []
+	for i in aberto.size():
+		var a := aberto[i]
+		var b := aberto[(i + 1) % aberto.size()]
+		var normal := _normal_externa(aberto, a, b)
+		for trecho in _subtrechos(a, b):
+			if trecho.size() >= 2:
+				trechos.append(trecho)
+				normais.append(normal)
+	if trechos.is_empty():
+		return saida
+
+	var comprimentos: Array[float] = []
+	var total := 0.0
+	for trecho in trechos:
+		var c := trecho[0].distance_to(trecho[1])
+		comprimentos.append(c)
+		total += c
+	if total <= 0.0:
+		return saida
+
+	var passo := total / float(quantas)
+	for n in quantas:
+		# O centro da fatia, mais um jitter de ate um terco dela para cada lado.
+		var s := passo * (float(n) + 0.5) + rng.randf_range(-passo / 3.0, passo / 3.0)
+		s = clampf(s, 0.0, total)
+		var andado := 0.0
+		for i in trechos.size():
+			if s <= andado + comprimentos[i] or i == trechos.size() - 1:
+				var a := trechos[i][0]
+				var b := trechos[i][1]
+				var fracao := clampf((s - andado) / maxf(comprimentos[i], 1.0), 0.0, 1.0)
+				saida.append([a.lerp(b, fracao), normais[i]])
+				break
+			andado += comprimentos[i]
+	return saida
+
+
+## O ponto acima do topo da peca MAIS ALTA de uma bancada.
+##
+## Mais alta e nao a central: a lampada tem de ficar livre da silhueta do
+## conjunto. Ela desenha em `Z_CARCACA` (-2), abaixo do `Z_MUNDO` das maquinas --
+## posta na altura do meio de uma delas, ela sumiria atras da peca que veio
+## iluminar, sem erro nenhum no console.
+func _topo_da_bancada(pecas: Array) -> Vector2:
+	var melhor := Vector2.INF
+	var mais_alto := INF
+	for peca in pecas:
+		var corpo := peca as Node2D
+		if corpo == null or not is_instance_valid(corpo):
+			continue
+		var altura := 0.0
+		for filho in corpo.get_children():
+			var sprite := filho as Sprite2D
+			if sprite != null:
+				altura = float(sprite.region_rect.size.y)
+		var topo := corpo.position.y - altura
+		if topo < mais_alto:
+			mais_alto = topo
+			melhor = Vector2(corpo.position.x, topo - LUMINARIA_FOLGA_NA_BANCADA)
+	return melhor
 
 
 ## Semente estavel derivada da POSICAO da luminaria.

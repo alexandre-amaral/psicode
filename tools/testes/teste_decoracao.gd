@@ -22,6 +22,15 @@ extends TesteBase
 const LARGURA_PADRAO := 960.0
 const ALTURA_PADRAO := 544.0
 
+## Quanto da massa de VOLUME tem de vir de conjunto.
+##
+## A referencia nao tem peca de volume sozinha; o jogo nao precisa chegar la, mas
+## precisa sair de "metade solta". Os dois limites existem porque os dois
+## extremos sao defeito: tudo avulso le como movel jogado no canto, e tudo em
+## conjunto vira tres blocos com parede vazia entre eles.
+const PISO_DE_BANCADA := 0.60
+const TETO_DE_BANCADA := 0.95
+
 
 func nome() -> String:
 	return "Decoracao"
@@ -42,6 +51,7 @@ func executar() -> void:
 	_agrupamento_com_listas_DESALINHADAS_e_recusado_INTEIRO()
 	_o_DECALQUE_alcanca_o_miolo_e_o_volume_NAO()
 	_a_peca_de_PAREDE_fica_colada_na_face()
+	_o_VOLUME_vem_em_BANCADA_e_nao_em_pecas_soltas()
 
 
 # ------------------------------------------------------- a regra da FAIXA ----
@@ -740,3 +750,60 @@ func _mesma_decoracao(a: Array[Dictionary], b: Array[Dictionary]) -> bool:
 		if String(x["agrupamento"]) != String(y["agrupamento"]):
 			return false
 	return true
+
+
+## Quanto da MASSA de uma sala vem de conjunto, e nao de peca solta.
+##
+## **E a queixa "nao e para ser distribuido aleatoriamente" virada numero.** A
+## sala monta em duas etapas: os CLUSTERS primeiro, que sao bancadas de pecas
+## encostadas, e depois um completamento AVULSO, peca a peca, que guarda
+## `DISTANCIA_MINIMA` de todo mundo. A segunda etapa e literalmente um sorteio de
+## pontos espacados, e e ela que produz a leitura de movel jogado no canto.
+##
+## Na referencia (`docs/fabrica_01.png`) nao ha uma unica peca de volume sozinha:
+## tudo esta em bancada, com trechos de parede completamente limpos entre elas. O
+## piso aqui e a fracao da massa que pertence a um agrupamento.
+##
+## Ele mede VOLUME e mais nada. Micro e decalque continuam avulsos de proposito
+## -- sao sujeira, e sujeira espalhada e o que uma fabrica usada produz; exigir
+## que ela venha em conjunto desenharia manchas em fileira.
+func _o_VOLUME_vem_em_BANCADA_e_nao_em_pecas_soltas() -> void:
+	# Os perfis REAIS do jogo, e nao um sintetico da suite: a fracao depende de
+	# `quantos_agrupamentos` e das contagens por porte, que sao exatamente os
+	# botoes que esta regra existe para vigiar. Medir um perfil de teste
+	# responderia sobre o perfil de teste.
+	var contorno := _sala_retangular()
+	var volumes := 0
+	var em_bancada := 0
+	var detalhe := ""
+	for arquivo in ["tipo_combate.tres", "tipo_arma.tres", "tipo_item.tres",
+			"tipo_inicial.tres", "tipo_loja.tres"]:
+		var dados := load("res://src/mapa/%s" % arquivo) as DadosSala
+		if dados == null or dados.perfil_de_decoracao == null:
+			continue
+		var deste := 0
+		var juntas := 0
+		for semente in 24:
+			for peca in DecoradorDeSala.decorar(
+					contorno, dados.perfil_de_decoracao, semente * 31 + 7):
+				if int(peca["porte"]) > DecoradorDeSala.Porte.PEQUENO:
+					continue
+				deste += 1
+				if StringName(peca["agrupamento"]) != &"":
+					juntas += 1
+		volumes += deste
+		em_bancada += juntas
+		detalhe += " %s=%.0f%%" % [
+			dados.id, 100.0 * float(juntas) / maxf(float(deste), 1.0)]
+
+	ok(volumes > 0, "houve volume para conferir (%d)%s" % [volumes, detalhe])
+	var fracao := float(em_bancada) / maxf(float(volumes), 1.0)
+	ok(fracao >= PISO_DE_BANCADA,
+		"a massa da sala vem de conjunto, e nao de peca solta (%.0f%% em bancada, piso %.0f%%)"
+			% [fracao * 100.0, PISO_DE_BANCADA * 100.0])
+	# A outra ponta: peca avulsa nao pode SUMIR. Ela e o que preenche o vao entre
+	# duas bancadas, e uma sala 100% em conjunto vira tres blocos e nada mais --
+	# o oposto do defeito, mas defeito igual.
+	ok(fracao <= TETO_DE_BANCADA,
+		"e ainda sobra peca avulsa entre as bancadas (%.0f%%, teto %.0f%%)"
+			% [fracao * 100.0, TETO_DE_BANCADA * 100.0])

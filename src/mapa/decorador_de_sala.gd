@@ -880,9 +880,30 @@ static func _no_lugar(
 
 	if largura <= 0.0:
 		return true
-	# Folga de MEIO prop contra a parede -- a regra que `_cabe()` sempre teve e
-	# que este caminho nunca aplicou, porque ele nao conhecia a largura.
-	if fundura < largura * 0.5:
+
+	# A LARGURA e TANGENTIAL, e conferi-la contra `fundura` e o mesmo erro que a
+	# altura ja cometeu deste lado.
+	#
+	# A primeira versao desta linha era `fundura < largura * 0.5`, importada de
+	# `_cabe()`. Ela compara a metade da largura -- que se estende AO LONGO da
+	# parede -- com a distancia a aresta mais proxima, que e medida NA NORMAL.
+	# Numa parede norte de 768 px, uma peca de 64 ancorada a 8 px dela nao desenha
+	# um pixel dentro do muro: ela ocupa 64 px de parede, e a parede tem 768.
+	#
+	# O preco de errar isso foi medido: com o teto de ancora do cluster em 37 px,
+	# uma peca de 64 exigia `fundura >= 32` e sobrava uma janela de CINCO pixels.
+	# Metade dos conjuntos falhava inteira -- eles sao atomicos --, e a sala de
+	# combate caiu de 16 para 9,9 pecas de volume sem que nenhum portao acusasse
+	# nada: o conjunto que nao cabe simplesmente nao aparece.
+	#
+	# O sprite e desenhado alinhado aos eixos em qualquer lado da sala, entao a
+	# pergunta certa e sobre os dois extremos HORIZONTAIS da base dele. Perto de
+	# uma quina, que e o unico lugar onde a largura de fato encontra uma aresta,
+	# ela recusa -- e e para isso que ela existe.
+	var meia := largura * 0.5
+	if not Geometry2D.is_point_in_polygon(posicao - Vector2(meia, 0.0), aberto):
+		return false
+	if not Geometry2D.is_point_in_polygon(posicao + Vector2(meia, 0.0), aberto):
 		return false
 
 	# O ENVELOPE: nenhum pixel desenhado passa do alcance da parede.

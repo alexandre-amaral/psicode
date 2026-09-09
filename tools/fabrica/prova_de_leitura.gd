@@ -41,6 +41,11 @@ extends Node2D
 ## ## Uso
 ##
 ##   godot --path . tools/fabrica/prova_de_leitura.tscn --resolution 960x544
+##     as quatro folhas e as reguas das `[FAB 39-42]` e `[FAB 45]`.
+##
+##   godot --path . tools/fabrica/prova_de_leitura.tscn --resolution 960x544 -- --luz
+##     a VARREDURA de luz: as duas alavancas do andar cruzadas e medidas contra
+##     a referencia, uma captura por combinacao.
 ##
 ## Sai em `user://capturas/prova/`, uma pasta por regime. Sem janela ele nao
 ## roda: nao ha GPU, `get_image()` nao devolve o que a tela mostraria, e uma
@@ -144,6 +149,22 @@ const GANHO_MINIMO_DA_DECORACAO := 1.15
 ## voz alta em vez de a lista cobrir a mudanca em silencio.
 const TIPOS_LIMPOS_POR_DECISAO: Array[StringName] = [&"boss"]
 
+## Os valores de `AmbienteDaFabrica.luminosidade` que a varredura visita.
+##
+## O PRIMEIRO e o de hoje, e a tabela o marca: uma varredura sem o estado atual
+## dentro dela nao diz o tamanho de nenhum passo. O teto e 0,85 porque acima
+## disso o `CanvasModulate` deixa de ser escuridao e vira um filtro de cor.
+const LUMINOSIDADES: Array[float] = [0.45, 0.55, 0.65, 0.75, 0.85]
+
+## As contagens de luminaria por sala de combate que a varredura visita.
+##
+## 5 e o de hoje; 8 e o que a referencia MEDIDA tem (`docs/REFERENCIA_FABRICA.md`
+## secao 2.2), contra as "1 a 3" que o briefing pede em texto. A divergencia esta
+## registrada em `DadosSala.quantidade_luminarias` e nao e de gosto: luz
+## espalhada e fraca le como instalacao eletrica, luz concentrada e forte le como
+## holofote.
+const LAMPADAS: Array[int] = [5, 8, 11]
+
 ## Piso de quanto do contraste sobrevive a reducao para 1/4 (`[FAB 42]`).
 ##
 ## Gemeo do `PISO_SOBREVIVENCIA_MINIATURA`, pela mesma razao. A ordem de
@@ -207,6 +228,11 @@ var _amostras: Array[Dictionary] = []
 ## quadro inteiro com a referencia, que e um render de uma sala FECHADA, conta a
 ## moldura como se fosse sombra da fabrica.
 var _ultimo_recorte := Rect2i()
+## A escuridao da run. Guardada porque a varredura gira a `luminosidade` dela.
+var _ambiente: AmbienteDaFabrica = null
+## O que a varredura de luz mediu, por combinacao. So ela usa.
+var _pretos: Dictionary = {}
+var _ambares: Dictionary = {}
 
 
 func _ready() -> void:
@@ -231,10 +257,128 @@ func _ready() -> void:
 	# os 88% que uma captura do jogo da. A primeira versao desta ferramenta media
 	# uma sala que o jogador nunca ve, e a `[FAB 45]` foi quem denunciou, porque
 	# so ela compara com um numero ABSOLUTO.
-	add_child(AmbienteDaFabrica.new())
+	_ambiente = AmbienteDaFabrica.new()
+	add_child(_ambiente)
+	if "--luz" in OS.get_cmdline_user_args():
+		await _varrer_a_luz()
+		get_tree().quit()
+		return
 	await _fotografar_tudo()
 	_medir()
 	get_tree().quit()
+
+
+## A VARREDURA DE LUZ: as duas alavancas do andar, cruzadas e medidas.
+##
+## Ela existe porque a `[FAB 45]` produziu um numero -- 95% de preto contra os
+## 50,75% da referencia -- e um numero sozinho nao diz onde mexer. Sao duas
+## alavancas, elas interagem, e girar uma delas "para ver" com a tela na frente
+## e como se descobre que a outra era a que importava.
+##
+## **Ela nao decide nada, e isso e o ponto.** `AmbienteDaFabrica.luminosidade` e
+## a aparencia da run inteira e foi calibrado com captura no motor nas
+## `[FAB 14]`/`[FAB 19]`; a contagem de luminarias e o que separa "instalacao
+## eletrica" de "tres holofotes" (ver `DadosSala.quantidade_luminarias`, que
+## registra a divergencia medida entre o briefing e a referencia). Escolher
+## entre eles e decisao de arte. O que faltava era a tabela.
+func _varrer_a_luz() -> void:
+	var dados := load("res://src/mapa/tipo_combate.tres") as DadosSala
+	if dados == null:
+		print("\n  o tipo de combate nao carrega.")
+		return
+	print("\n=== a varredura de luz (sala de combate) ===\n")
+	print("  A `[FAB 45]` mediu 95%% de PRETO contra os %.2f%% da referencia."
+		% (REFERENCIA["preto"] * 100.0))
+	print("  Estas sao as duas alavancas que mexem nesse numero, cruzadas.")
+	print("  PRETO e valor <= 0,10; CINZA e a superficie que a referencia poe em")
+	print("  %.2f%%. O alvo nao e igualar os dois -- e ter os DOIS." % (
+		REFERENCIA["cinza_azulado"] * 100.0))
+	print("\n  %-10s %9s %9s %9s %9s   %s" % [
+		"ambiente", "lampadas", "preto", "cinza", "ambar", "leitura"])
+	print("  " + "-".repeat(70))
+
+	for luminosidade in LUMINOSIDADES:
+		for lampadas in LAMPADAS:
+			_ambiente.luminosidade = luminosidade
+			var copia := dados.duplicate() as DadosSala
+			copia.quantidade_luminarias = lampadas
+			var quadro := await _fotografar_com(copia, CELULAS[0])
+			if quadro == null:
+				continue
+			_gravar(quadro, "luz", "amb%02d_lamp%d" % [roundi(luminosidade * 100.0), lampadas])
+			var familias := _familias_do_recorte(quadro, _ultimo_recorte)
+			var preto: float = familias.get("preto", 0.0)
+			var cinza: float = familias.get("cinza_azulado", 0.0)
+			_pretos[_chave(luminosidade, lampadas)] = preto
+			_ambares[_chave(luminosidade, lampadas)] = familias.get("ambar", 0.0)
+			print("  %-10.2f %9d %8.1f%% %8.1f%% %8.2f%%   %s" % [
+				luminosidade, lampadas, preto * 100.0, cinza * 100.0,
+				familias.get("ambar", 0.0) * 100.0,
+				_leitura_da_luz(preto, cinza, luminosidade, lampadas)])
+
+	print("\n  o estado de hoje e a primeira linha (%.2f e %d lampadas)."
+		% [LUMINOSIDADES[0], LAMPADAS[0]])
+	print("  As capturas estao em capturas/prova/luz/ -- a escolha e de olho,")
+	print("  e o que esta tabela faz e dizer o tamanho de cada passo.")
+	_qual_alavanca()
+
+
+## Qual das duas alavancas move o numero, medido em vez de suposto.
+##
+## **Esta conta existe porque o plano assumia a resposta errada.** A nota do
+## `medir_ambiente` diz "a referencia tem sete a oito lampadas por sala e o andar
+## tem tres a cinco", e dai se conclui naturalmente que faltam lampadas. A
+## varredura mede as duas pontas de cada eixo e mostra quantos pontos cada uma
+## vale -- e uma alavanca que vale 3 pontos nao e a alavanca.
+func _qual_alavanca() -> void:
+	var hoje: float = _pretos.get(_chave(LUMINOSIDADES[0], LAMPADAS[0]), 0.0)
+	var so_lampadas: float = _pretos.get(
+		_chave(LUMINOSIDADES[0], LAMPADAS[LAMPADAS.size() - 1]), 0.0)
+	var so_ambiente: float = _pretos.get(
+		_chave(LUMINOSIDADES[LUMINOSIDADES.size() - 1], LAMPADAS[0]), 0.0)
+	var por_lampada := hoje - so_lampadas
+	var por_ambiente := hoje - so_ambiente
+	print("\n  --- qual alavanca move o numero ---\n")
+	print("    contagem de lampadas (%d -> %d):   %.1f pontos de preto"
+		% [LAMPADAS[0], LAMPADAS[LAMPADAS.size() - 1], por_lampada * 100.0])
+	print("    ambiente (%.2f -> %.2f):            %.1f pontos de preto"
+		% [LUMINOSIDADES[0], LUMINOSIDADES[LUMINOSIDADES.size() - 1], por_ambiente * 100.0])
+	if absf(por_ambiente) > absf(por_lampada) * 3.0:
+		print("\n    A lampada NAO e a alavanca. Ela e uma poca: soma brilho num")
+		print("    circulo e deixa o resto do piso onde estava. Quem decide quanta")
+		print("    superficie o andar mostra e o ambiente.")
+
+	# E o terceiro botao, que esta varredura nao gira e nao pode esconder.
+	var melhor_ambar := 0.0
+	for chave: String in _ambares:
+		melhor_ambar = maxf(melhor_ambar, float(_ambares[chave]))
+	print("\n    E o AMBAR fica em %.2f%% no melhor caso, contra %.2f%% da"
+		% [melhor_ambar * 100.0, REFERENCIA["ambar"] * 100.0])
+	print("    referencia -- em TODAS as linhas. Nenhuma das duas alavancas")
+	print("    alcanca isso: a poca em si e fraca, e quem a governa e o")
+	print("    `PerfilDeLuz` (energia e raio), que esta varredura nao gira.")
+
+
+func _chave(luminosidade: float, lampadas: int) -> String:
+	return "%.2f/%d" % [luminosidade, lampadas]
+
+
+## A leitura de uma linha da varredura, e ela cobra os DOIS lados.
+##
+## Piso demais e o defeito de hoje: superficie nenhuma. Teto demais e o defeito
+## que a `[FAB 14]` existe para nao produzir: um andar sem sombra, em que a poca
+## de luz nao significa nada porque tudo ja esta claro. A referencia tem metade
+## do quadro em cada coisa.
+func _leitura_da_luz(preto: float, cinza: float, luminosidade: float, lampadas: int) -> String:
+	if is_equal_approx(luminosidade, LUMINOSIDADES[0]) and lampadas == LAMPADAS[0]:
+		return "<- hoje"
+	if preto > 0.85:
+		return "sem superficie"
+	if preto < REFERENCIA["preto"] - 0.15:
+		return "sem sombra"
+	if cinza < 0.10:
+		return "superficie ainda escassa"
+	return "as duas metades"
 
 
 func _fotografar_tudo() -> void:
@@ -287,6 +431,17 @@ func _fotografar_tudo() -> void:
 func _fotografar(
 	dados: DadosSala, sem_tint: bool, celula: Vector2i, nua: bool = false
 ) -> Image:
+	return await _fotografar_com(_dados_para(dados, sem_tint, nua), celula)
+
+
+## A mesma foto, com o `DadosSala` ja pronto.
+##
+## Ela e o corpo de `_fotografar()` e existe separada porque a varredura de luz
+## monta o proprio recurso -- ela gira `quantidade_luminarias`, que nao e um dos
+## tres regimes. Duas copias do laco de montar-enquadrar-fotografar divergiriam
+## no primeiro ajuste de camera, e a segunda passaria a medir outro
+## enquadramento sem ninguem notar.
+func _fotografar_com(dados: DadosSala, celula: Vector2i) -> Image:
 	var cenas := dados.cenas_validas()
 	if cenas.is_empty():
 		return null
@@ -294,7 +449,7 @@ func _fotografar(
 	if sala == null:
 		return null
 	sala.coordenadas_grid = celula
-	sala.definir_visual(_dados_para(dados, sem_tint, nua))
+	sala.definir_visual(dados)
 	add_child(sala)
 
 	var camera := Camera2D.new()
@@ -651,26 +806,41 @@ func _familias_medias(so_a_sala: bool) -> Dictionary:
 		var imagem: Image = amostra["quadro"]
 		var recorte: Rect2i = amostra["recorte"] if so_a_sala else Rect2i(
 			Vector2i.ZERO, Vector2i(imagem.get_width(), imagem.get_height()))
-		if recorte.size.x <= 0 or recorte.size.y <= 0:
-			continue
-		var contagem: Dictionary = {}
-		var total := 0
-		for y in range(recorte.position.y, recorte.end.y, 2):
-			for x in range(recorte.position.x, recorte.end.x, 2):
-				var nome: String = MedirAmbiente.NOMES_DE_FAMILIA[
-					MedirAmbiente.familia_do_pixel(imagem.get_pixel(x, y))]
-				contagem[nome] = int(contagem.get(nome, 0)) + 1
-				total += 1
-		if total <= 0:
+		var fracoes := _familias_do_recorte(imagem, recorte)
+		if fracoes.is_empty():
 			continue
 		quadros += 1
-		for nome: String in contagem:
-			soma[nome] = float(soma.get(nome, 0.0)) + float(contagem[nome]) / float(total)
+		for nome: String in fracoes:
+			soma[nome] = float(soma.get(nome, 0.0)) + float(fracoes[nome])
 	if quadros <= 0:
 		return {}
 	for nome: String in soma:
 		soma[nome] = float(soma[nome]) / float(quadros)
 	return soma
+
+
+## A fracao de cada familia de cor dentro de um retangulo do quadro.
+##
+## Amostra de 2 em 2 pixels, como o resto das reguas deste arquivo: a resposta e
+## uma distribuicao, e amostrar todos custa quatro vezes mais para mexer na
+## terceira casa.
+func _familias_do_recorte(imagem: Image, recorte: Rect2i) -> Dictionary:
+	if recorte.size.x <= 0 or recorte.size.y <= 0:
+		return {}
+	var contagem: Dictionary = {}
+	var total := 0
+	for y in range(recorte.position.y, recorte.end.y, 2):
+		for x in range(recorte.position.x, recorte.end.x, 2):
+			var nome: String = MedirAmbiente.NOMES_DE_FAMILIA[
+				MedirAmbiente.familia_do_pixel(imagem.get_pixel(x, y))]
+			contagem[nome] = int(contagem.get(nome, 0)) + 1
+			total += 1
+	if total <= 0:
+		return {}
+	var fracoes: Dictionary = {}
+	for nome: String in contagem:
+		fracoes[nome] = float(contagem[nome]) / float(total)
+	return fracoes
 
 
 ## Desvio padrao da luminancia do quadro.

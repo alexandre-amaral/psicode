@@ -44,35 +44,32 @@ extends CanvasModulate
 ## Ele e `@export` e nao `const` porque e exatamente o tipo de numero que a
 ## sessao de tuning vai querer girar com a tela na frente.
 ##
-## ## POR QUE ELE NAO ESTA EM 0,45 HOJE
+## ## O ALVO FOI ALCANCADO, e este bloco ja disse o contrario
 ##
-## **Porque `CanvasModulate` escurece os ATORES junto, e sem luminaria nao ha o
-## que devolva.** Medido em captura: com 0,45 e nenhuma luz na sala, o jogador,
-## os inimigos e o detalhe do piso somem juntos -- e a regra numero um deste
-## projeto e que o ambiente seja SEMPRE mais escuro que ator e projetil. Um
-## ambiente que escurece os dois na mesma proporcao nao cria contraste nenhum,
-## so tira luz de todo mundo.
+## Ate a `[FAB 19]` este comentario tinha uma secao chamada "por que ele nao
+## esta em 0,45 hoje", e ela estava certa na epoca: o valor era 0,72, porque a
+## luminaria ainda nao devolvia brilho e um ambiente escuro sem luz so tira luz
+## de todo mundo. A `[FAB 19]` calibrou a lampada, o valor foi para 0,45 -- e a
+## secao ficou. **Ela passou a explicar o oposto do que o codigo faz**, e o
+## proprio texto avisava contra isso: um valor de compromisso sem o alvo ao lado
+## vira o valor definitivo por esquecimento. Aqui foi o inverso, e o texto e que
+## ficou para tras.
 ##
-## O pipeline certo e o do briefing: ambiente escuro MAIS `Light2D` devolvendo
-## luz nos bolsoes. As luminarias JA existem (`[FAB 19]`: `LuminariaDeParede`,
-## cinco por sala de combate), e o `PointLight2D` renderiza -- provado num caso
-## minimo isolado. **O que ainda nao existe e a CALIBRAGEM do brilho.**
+## O que continua valendo dela e a regra: **ambiente escuro MAIS `Light2D`
+## devolvendo luz nos bolsoes**, nunca ambiente escuro sozinho. Baixar este
+## numero sem lampada que compense apaga o ator junto com o piso.
 ##
-## Medido: com o perfil como esta (`cor` V 0,48 x `energia` 0,85), a poca some
-## no chao escurecido; turbinado para V 1,0 x 3,0 ela aparece, mas subtil e
-## ainda concentrada na parede em vez do piso.
+## ## E o que a `[FAB 45]` mediu depois
 ##
-## A causa e uma decisao de design que precisa ser tomada e nao adivinhada: o
-## `PerfilDeLuz` foi autorado contra `Paleta.compete_com_ator`, que e a regra
-## das SUPERFICIES PINTADAS do ambiente. Aplicada a uma FONTE DE LUZ ela obriga
-## a lampada a ser escura demais para iluminar. O teto honesto e sobre o
-## RESULTADO -- quanto a poca deixa o chao brilhar --, e nao sobre o swatch da
-## lampada; e achar esse numero pede o `laboratorio_luz` com janela.
+## Com 0,45, o andar mede **95% de PRETO** (valor <= 0,10) contra os 50,75% da
+## referencia, e o cinza azulado -- que na referencia ocupa 35% -- fica em 0,66%.
+## A referencia e escura E tem superficie legivel; o andar so tem a primeira
+## metade.
 ##
-## **Entao 0,45 e o ALVO e 0,72 e o estado.** Os dois numeros ficam escritos
-## aqui de proposito: um valor de compromisso sem o alvo ao lado vira o valor
-## definitivo por esquecimento, e ninguem descobre que a outra metade nunca
-## chegou.
+## Isso NAO quer dizer "suba o numero": ele e a aparencia da run inteira e foi
+## calibrado com captura no motor. Quer dizer que ha uma escolha a fazer, com
+## duas alavancas medidas em `prova_de_leitura.tscn -- --luz` -- este valor e a
+## contagem de luminarias por sala.
 @export_range(0.15, 1.0, 0.01) var luminosidade: float = 0.45:
 	set(valor):
 		luminosidade = valor

@@ -540,7 +540,42 @@ legivel. O andar so tem a primeira metade.
 O numero nao foi mexido. `AmbienteDaFabrica.luminosidade` e a aparencia da run
 inteira, foi calibrado com captura no motor nas `[FAB 14]`/`[FAB 19]`, e subir
 sozinho uma constante que o dono aprovou olhando nao e medicao, e gosto. O que
-mudou e que agora existe um numero para decidir com ele.
+mudou e que agora existe um numero para decidir com ele -- e uma tabela.
+
+### A varredura de luz: a lampada NAO e a alavanca
+
+`prova_de_leitura.tscn -- --luz` cruza as duas alavancas do andar e mede cada
+combinacao na sala de combate. A tabela desmente a suposicao que o plano
+carregava.
+
+| ambiente | lampadas | preto | cinza | ambar | |
+|---|---|---|---|---|---|
+| **0,45** | **5** | **93,3%** | **0,5%** | 0,09% | **hoje** |
+| 0,45 | 11 | 90,0% | 0,4% | 0,18% | sem superficie |
+| 0,65 | 8 | 81,9% | 5,3% | 0,16% | superficie escassa |
+| 0,75 | 8 | 69,1% | 16,7% | 0,16% | as duas metades |
+| 0,85 | 8 | 43,9% | 40,5% | 0,12% | as duas metades |
+| | | *50,75%* | *35,43%* | *0,41%* | *referencia* |
+
+**A nota do `medir_ambiente` aponta para o botao errado.** Ela diz "a referencia
+tem sete a oito lampadas por sala e o andar tem tres a cinco", e dai se conclui
+que faltam lampadas. Medido:
+
+- dobrar as lampadas (5 -> 11) move **3,2 pontos** de preto;
+- o ambiente (0,45 -> 0,85) move **46,9 pontos**.
+
+A lampada e uma POCA: ela soma brilho num circulo e deixa o resto do piso onde
+estava. Quem decide quanta superficie o andar mostra e o ambiente. Encomendar
+mais luminarias para perseguir a referencia teria sido girar o botao que nao
+move o numero.
+
+**E ha um TERCEIRO botao que a varredura nao gira.** O ambar fica em 0,18% no
+melhor caso contra os 0,41% da referencia, em TODAS as quinze linhas -- e ele
+CAI conforme o ambiente sobe, porque a poca deixa de contrastar. Nenhuma das
+duas alavancas alcanca aquele numero: a poca em si e fraca, e quem a governa e o
+`PerfilDeLuz` (energia e raio). E exatamente a divida que o proprio
+`AmbienteDaFabrica` ja registrava -- "o teto honesto e sobre o RESULTADO, e nao
+sobre o swatch da lampada".
 
 A primeira versao daquela regua comparava os pares contra um piso escrito a mao
 (0,12) e reprovou os dez: regua que reprova tudo mede a si mesma. Um histograma

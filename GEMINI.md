@@ -244,6 +244,7 @@ docs/
 | **Ver quanto da decoracao pedida a sala REAL coloca** | `godot --headless --path . tools/fabrica/medir_sala.tscn` -- pedido contra colocado, por tipo e por familia. O `laboratorio_decoracao` mede o DECORADOR; este mede a `Sala` montada |
 | **A composicao de uma sala decorada (clusters, hero, vazio)** | `src/mapa/decoracao_*.tres` (`PerfilDeDecoracao`) e `src/mapa/agrupamento_*.tres` |
 | **Ver a decoracao antes de existir arte** | `godot --path . tools/fabrica/laboratorio_decoracao.tscn`; sem janela ele mede 288 salas |
+| **Decidir a LUZ do andar com numero** | `godot --path . tools/fabrica/prova_de_leitura.tscn --resolution 960x544 -- --luz` -- cruza `AmbienteDaFabrica.luminosidade` com a contagem de luminarias e mede as duas contra a referencia |
 | **Ver e medir a luz da fabrica** | `godot --path . tools/fabrica/laboratorio_luz.tscn` |
 | **Provar que a sala se identifica SEM COR** | `godot --path . tools/fabrica/prova_de_leitura.tscn --resolution 960x544` -- as salas em quatro regimes (com tint, sem tint, cinza, miniatura) mais as reguas das `[FAB 39-42]`. Ele so roda COM janela: le pixel renderizado |
 | **Se o andar 1 esta na paleta nova** | `godot --headless --path . tools/texturas/medir_ambiente.tscn` -- ele REPROVA hoje, de proposito |
@@ -349,6 +350,15 @@ em qualquer erro de script.
   acento de tipo mexe mais na sala do que a diferenca entre dois tipos, que e o
   FAIL que a secao 110 descreve. Quem conserta isso e a arte propria de cada
   sala (`[FAB 33/35/37]`), e nao codigo.
+- **A LAMPADA nao e a alavanca da escuridao do andar, e a nota do
+  `medir_ambiente` aponta para o botao errado.** Ela diz "a referencia tem sete a
+  oito lampadas por sala e o andar tem tres a cinco", e dai se conclui que faltam
+  lampadas. Medido pela varredura: dobrar as lampadas (5 -> 11) move **3,2
+  pontos** de preto; o ambiente (0,45 -> 0,85) move **46,9**. A lampada e uma
+  POCA -- soma brilho num circulo e deixa o resto do piso onde estava. E ha um
+  terceiro botao que nenhuma das duas alcanca: o ambar fica em 0,18% contra os
+  0,41% da referencia em TODAS as combinacoes, porque a poca em si e fraca, e
+  quem a governa e o `PerfilDeLuz`.
 - **Regua que monta sala sozinha NAO tem o `AmbienteDaFabrica`, e para uma
   pergunta de PERCEPCAO isso e medir o que o jogador nunca ve.** Aquele
   `CanvasModulate` mora em `main.tscn` de proposito -- se morasse na cena de

@@ -10,6 +10,28 @@ Cada peca vem com a CELULA que ela vai ocupar (`@LARGURAxALTURA`), e nao com a
 posicao: a posicao e o que esta ferramenta calcula, empacotando da esquerda para
 a direita em linhas novas abaixo do atlas atual.
 
+## A UNICA excecao, e o que a torna segura
+##
+## Recompor e proibido para ESTA ferramenta, que so ve um lado. Mas ha um caso em
+## que ele acontece: quando uma leva inteira e aposentada e metade do atlas vira
+## arte morta. Foi o que a `[FAB 50]` fez -- 2912 px de altura com 51% de peca que
+## ninguem mais aponta, o que em VRAM sao 3 MB para uma build que vai para a WEB.
+##
+## A recomposicao so e segura com TRES coisas juntas, e nenhuma e opcional:
+##
+## 1. **As duas pontas mudam na mesma passada.** Um script que colete as regioes
+##    dos `tipo_*.tres`, empacote, e reescreva os mesmos arquivos -- nunca a
+##    imagem primeiro e os `.tres` depois.
+## 2. **A ORDEM do array nao muda**, so os valores. As regioes de volume vem em
+##    PARES `[frente, ponta]`, e trocar a ordem faria a peca da parede leste
+##    mostrar a frente.
+## 3. **O portao de ancora confere.** `teste_props.gd` mede, para cada regiao
+##    declarada, se a arte encosta no fundo da celula. Um remapeamento errado
+##    aponta para um recorte deslocado e ele acusa na hora -- e essa e a prova de
+##    que a recomposicao deu certo, e nao a leitura do script.
+##
+## Fora desse caso, vale o paragrafo abaixo.
+
 ## Por que ele nunca recompoe
 
 As regioes ja declaradas nos `tipo_*.tres` sao **coordenadas cruas**, e a ancora

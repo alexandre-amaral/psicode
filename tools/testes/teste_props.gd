@@ -53,6 +53,7 @@ func executar() -> void:
 	_nada_desenhado_passa_do_ALCANCE_da_parede()
 	_o_solido_nunca_deixa_um_BOLSAO_intransponivel_contra_a_parede()
 	_a_peca_mostra_a_VISTA_do_lado_em_que_ela_encosta()
+	_a_LIGACAO_toca_as_duas_pecas_que_ela_liga()
 
 
 ## Metade 1 do contrato: a arte de cada celula encosta no FUNDO dela.
@@ -1067,3 +1068,68 @@ func _a_peca_mostra_a_VISTA_do_lado_em_que_ela_encosta() -> void:
 	# esta verde por nunca ter exercitado a metade que ele existe para cobrar.
 	ok(em_lateral > 0,
 		"e alguma peca de fato encostou numa parede lateral (%d)" % em_lateral)
+
+
+## A LIGACAO toca as DUAS pecas que ela liga (`[FAB 22]`).
+##
+## **E o unico dos cinco pedidos do dono que nao e sobre posicao:** *"as conexoes
+## com canos, com cantos e entre si dos moveis com a sala deve ser evidente"*. A
+## bancada e uma fileira de maquinas encostadas, e uma fileira sem nada
+## atravessando le como moveis lado a lado.
+##
+## O cano desenha em `Z_FITA + 1`, ATRAS dos volumes, e so aparece nos vaos --
+## ele entra em cada maquina por oclusao. Isso e barato e tem um modo de falha
+## proprio: um cano curto demais termina ANTES da vizinha e le como cano cortado,
+## e um cano no lugar errado nao aparece de jeito nenhum, porque tudo que nao cai
+## num vao fica escondido. **Nenhum dos dois da erro no console** -- os dois sao
+## um sprite existindo em disco sem nada em tela.
+##
+## Por isso o caso mede SOBREPOSICAO e nao presenca: a caixa do cano tem de
+## invadir a caixa das duas vizinhas mais proximas dele. Cobrar so "existe um
+## sprite em Ligacoes" passaria com o cano desenhado no meio do nada.
+func _a_LIGACAO_toca_as_duas_pecas_que_ela_liga() -> void:
+	var canos := 0
+	var soltos := 0
+	var salas_com_ligacao := 0
+	for caminho in TIPOS_COM_VOLUME:
+		var dados: DadosSala = load(caminho)
+		if dados == null or dados.atlas_canos == null:
+			continue
+		for semente in 8:
+			var sala := _montar_com_semente(dados, semente + 1, false)
+			var raiz := sala.get_node_or_null("Ligacoes") as Node2D
+			if raiz != null and raiz.get_child_count() > 0:
+				salas_com_ligacao += 1
+			if raiz != null:
+				var corpos := _props_volumetricos(sala)
+				for filho in raiz.get_children():
+					var cano := filho as Sprite2D
+					if cano == null:
+						continue
+					canos += 1
+					var caixa := Rect2(
+						cano.position - cano.region_rect.size * 0.5,
+						cano.region_rect.size)
+					# Quantas pecas de volume esta ligacao ATRAVESSA.
+					var tocadas := 0
+					for corpo in corpos:
+						var sprite := _sprite_do_corpo(corpo)
+						if sprite == null:
+							continue
+						var largura := float(sprite.region_rect.size.x)
+						var altura := float(sprite.region_rect.size.y)
+						var peca := Rect2(
+							corpo.position - Vector2(largura * 0.5, altura),
+							Vector2(largura, altura))
+						if peca.intersects(caixa):
+							tocadas += 1
+					if tocadas < 2:
+						soltos += 1
+			sala.free()
+
+	ok(canos > 0, "houve ligacao para conferir (%d)" % canos)
+	igual(soltos, 0,
+		"toda ligacao atravessa as DUAS vizinhas -- cano que nao entra le como cano cortado (%d de %d)"
+			% [soltos, canos])
+	ok(salas_com_ligacao > 0,
+		"e as salas de fato montam bancada com vao para ligar (%d)" % salas_com_ligacao)

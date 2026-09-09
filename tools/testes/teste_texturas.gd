@@ -744,6 +744,7 @@ const AUTORADAS: Dictionary = {
 	# do volumetrico cobra exatamente o contrario ("prop com volume sobe,
 	# nao deita"). Mesma familia de funil, regime de forma oposto.
 	"props_parede.png": {&"familia": &"prop", &"tipo": &"andar1"},
+	"canos.png": {&"familia": &"prop", &"tipo": &"andar1"},
 	# As FACES da parede, autoradas na identidade industrial do andar 1. Elas
 	# sao a superficie que carrega a identidade do setor: o chao fica quase
 	# liso porque e onde o combate e lido, e a informacao visual desce para as

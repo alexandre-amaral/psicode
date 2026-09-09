@@ -325,6 +325,26 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## = 32 px de altura -- uma celula de 32x64 nao caberia nela sem invadir o topo,
 ## que e a espessura vista de cima e nao superficie vertical. Por isso este
 ## atlas e separado do volumetrico, cujo portao cobra exatamente o contrario.
+## O ATLAS DOS CANOS, e eles sao a LIGACAO entre as pecas de uma bancada.
+##
+## **Eles sao a resposta a "as conexoes com canos... entre si dos moveis com a
+## sala deve ser evidente".** Uma bancada e uma fileira de maquinas encostadas; o
+## que faz o olho ler "instalacao" em vez de "moveis lado a lado" e alguma coisa
+## ATRAVESSANDO as duas. O cano corre ATRAS delas (`Z_FITA + 1`, abaixo do
+## `Z_MUNDO` dos volumes) e so aparece nos vaos -- entao ele entra em cada
+## maquina por OCLUSAO, sem precisar de peca de encaixe desenhada.
+##
+## Sao dois trechos e nao um: numa parede norte a bancada corre leste-oeste e o
+## cano e horizontal, visto de FRENTE; numa lateral ela corre norte-sul e o cano
+## e visto de CIMA. Mesma razao que da duas vistas a cada prop, e a mesma que
+## impede girar a arte de face.
+##
+## Cada trecho e UNIFORME ao longo do comprimento de proposito: assim qualquer
+## recorte dele serve para qualquer vao, e nao ha uma peca por largura.
+@export var atlas_canos: Texture2D
+@export var regiao_cano_horizontal: Rect2i = Rect2i()
+@export var regiao_cano_vertical: Rect2i = Rect2i()
+
 @export var atlas_props_parede: Texture2D
 @export var regioes_props_parede: Array[Rect2i] = []
 

@@ -244,6 +244,7 @@ docs/
 | **QUAO FUNDO a decoracao entra na sala** | `largura_da_faixa_de_perimetro` no `decoracao_*.tres`. Era `Sala.PROP_AFASTAMENTO_MAXIMO = 44` em paralelo, e o 44 era quem valia |
 | **Ver quanto da decoracao pedida a sala REAL coloca** | `godot --headless --path . tools/fabrica/medir_sala.tscn` -- pedido contra colocado, por tipo e por familia. O `laboratorio_decoracao` mede o DECORADOR; este mede a `Sala` montada |
 | **A composicao de uma sala decorada (clusters, hero, vazio)** | `src/mapa/decoracao_*.tres` (`PerfilDeDecoracao`) e `src/mapa/agrupamento_*.tres` |
+| **O CANO que liga as pecas de uma bancada** | `atlas_canos` + `regiao_cano_horizontal/vertical` no `tipo_*.tres`; quem desenha e `Sala._montar_ligacoes()`, no no `Ligacoes` |
 | **A ORIENTACAO de uma peca de cenario** | `regioes_props_volume` vem em PARES `[frente, ponta]` no `tipo_*.tres`. Norte e sul mostram a frente, leste e oeste a ponta -- `DadosSala.vista_do_lado()` |
 | **Gerar prop que ENCOSTA na parede** | `view: side` no PixelLab, mais `flat frontal elevation` no prompt. `low top-down` devolve isometrico em peca alongada, por mais bloco que o prompt tenha |
 | **Quao ALTA uma peca de cenario pode ser** | ninguem crava: e `PerfilDeParede.alcance()` mais a profundidade da ancora. Quem escolhe a celula que cabe e `DecoradorDeSala`, com o catalogo de `DadosSala.gabaritos_de_volume()` |
@@ -1781,6 +1782,20 @@ em qualquer erro de script.
   atlas. O sul reusa a frente e o oeste reusa a ponta. Peca com frente FORTE
   (armario, bancada, painel) merece costas proprias, e essa e divida declarada --
   nao esquecimento.
+- **Ligar peca a peca de uma bancada produz ZERO canos, e o motivo e o desenho
+  do cluster.** As pecas de um conjunto se SOBREPOEM de proposito -- os
+  deslocamentos do `agrupamento_*.tres` sao menores que a soma das meias larguras
+  --, entao nao ha vao entre vizinhas para cobrir. A ligacao e uma corrida
+  INTEIRA por tras da bancada, que e o que a referencia mostra: o tubo nao vai de
+  maquina a maquina, ele passa atras de todas e reaparece onde o equipamento
+  deixa. Como ele desenha em `Z_FITA + 1`, abaixo do `Z_MUNDO` dos volumes, essa
+  oclusao e de graca -- e nao ha arte de flange a produzir.
+- **Cano que nao aparece nao da erro, e ele tem DOIS jeitos de sumir.** Curto
+  demais, ele termina antes da vizinha e le como cano cortado; no lugar errado,
+  ele nao aparece de jeito nenhum, porque tudo que nao cai num vao fica escondido
+  atras dos volumes. Por isso `teste_props.gd` mede SOBREPOSICAO com as duas
+  vizinhas mais proximas, e nao a presenca de um sprite em `Ligacoes` -- essa
+  passaria com o cano desenhado no meio do nada.
 - **Prop novo passa pelo funil SOZINHO, e nao junto do atlas inteiro.**
   `preparar_textura.py` processa a imagem toda: rodar no atlas completo mexeria
   no valor e na saturacao dos doze props ja aprovados. Prepare a tira nova, e so

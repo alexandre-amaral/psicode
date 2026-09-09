@@ -275,6 +275,28 @@ const PROP_LARGURA_GRANDE := 64.0
 ## Maior que a carcaca desenhada (18 px) de proposito: o que nao pode empilhar
 ## nao e o metal, e a POCA. Duas lampadas encostadas fazem uma mancha so, e a
 ## referencia tem pontos separados ao longo da parede.
+## O maior vao que uma LIGACAO cobre.
+##
+## Acima disso as duas pecas nao sao vizinhas de bancada, sao duas instalacoes
+## diferentes -- e um cano atravessando meia sala le como enfeite, nao como
+## conexao. O numero e generoso porque um conjunto pode ter uma peca estreita
+## entre duas largas.
+const LIGACAO_VAO_MAXIMO := 128.0
+
+## Quanto o cano ENTRA em cada vizinha.
+##
+## Ele desenha atras delas, entao o que entra fica escondido -- e e justamente
+## isso que faz a ligacao ler como ligacao. Um cano que termina exatamente na
+## borda da peca le como cano CORTADO, e a diferenca entre os dois e este numero.
+const LIGACAO_ENTRADA := 12.0
+
+## A que altura da peca o cano corre, como fracao da vizinha mais baixa.
+##
+## No pe da maquina ele sumiria atras da sombra; na altura do topo ele sairia
+## flutuando acima do conjunto. Na referencia o tubo corre pela barriga do
+## equipamento, e e de la que ele entra nas duas pontas.
+const LIGACAO_ALTURA := 0.45
+
 const LUMINARIA_LARGURA := 64.0
 
 ## Quanto a lampada da bancada fica acima do topo da peca mais alta dela.
@@ -1495,6 +1517,7 @@ func _montar_decoracao() -> void:
 	_montar_props_animados(dados, contorno, aberto, bocas, colocados, rng)
 	var bancadas := _montar_props_volumetricos(dados, aberto, composicao, colocados, rng)
 	_montar_props_frente(dados, contorno, aberto, bocas, colocados, rng)
+	_montar_ligacoes(dados, aberto, bancadas)
 	_montar_luminarias(dados, aberto, rng, bancadas)
 	_montar_props_parede(dados, contorno, aberto, rng)
 	_montar_decalques(dados, contorno, aberto, bocas, colocados, rng)
@@ -2052,6 +2075,162 @@ func _montar_props_frente(
 			sprite.flip_h = rng.randf() < 0.5
 			sprite.position = ponto
 			raiz.add_child(sprite)
+
+
+## As LIGACOES: o cano que atravessa as pecas de uma bancada (`[FAB 22]`).
+##
+## **Ela e a ultima das cinco partes do retorno do dono**, e a unica que nao e
+## sobre onde a peca fica: *"as conexoes com canos, com cantos e entre si dos
+## moveis com a sala deve ser evidente"*. Com a `[FAB 47]` a sala passou a montar
+## bancadas -- fileiras de maquinas encostadas --, e uma fileira sem nada
+## atravessando le como moveis lado a lado. O que a transforma em INSTALACAO e o
+## tubo que sai de uma e entra na outra.
+##
+## ## Por que ela desenha ATRAS
+##
+## `Z_FITA + 1` e a unica faixa acima da parede e abaixo do `Z_MUNDO` em que os
+## volumes vivem. O cano corre por tras da bancada inteira e so aparece nos VAOS
+## entre as pecas: ele entra em cada maquina por OCLUSAO, e nao por uma peca de
+## encaixe desenhada. Duas consequencias boas -- nao ha arte de flange a produzir,
+## e a ligacao nunca cobre a silhueta de uma peca, que e o que ela existe para
+## conectar.
+##
+## ## Por que sao dois trechos
+##
+## Numa parede norte ou sul a bancada corre leste-oeste e o cano e HORIZONTAL,
+## visto de frente; numa lateral ela corre norte-sul e o cano e visto de CIMA.
+## Girar o horizontal nao serve pela mesma razao que ja vale para a face da porta
+## e para a vista das pecas: girar arte de FACE destroi a perspectiva.
+##
+## Cada trecho e uniforme ao longo do comprimento, entao o vao e coberto
+## RECORTANDO a arte em vez de esticando -- esticar pixel art reamostra fora da
+## grade, e e a armadilha que a escala inteira do projeto existe para evitar.
+func _montar_ligacoes(
+	dados: DadosSala, aberto: PackedVector2Array, bancadas: Dictionary
+) -> void:
+	if dados.atlas_canos == null or bancadas.is_empty():
+		return
+	var raiz: Node2D = null
+	for nome in bancadas.keys():
+		var ordenadas := _ordenar_bancada(bancadas[nome] as Array, true)
+		if ordenadas.size() < 2:
+			continue
+		var lado := DecoradorDeSala.lado_da_posicao(aberto, ordenadas[0].position)
+		var deitada := lado == DecoradorDeSala.Lado.NORTE 			or lado == DecoradorDeSala.Lado.SUL
+		if not deitada:
+			ordenadas = _ordenar_bancada(bancadas[nome] as Array, false)
+		var regiao := dados.regiao_cano_horizontal if deitada 			else dados.regiao_cano_vertical
+		if regiao.size == Vector2i.ZERO:
+			continue
+
+		var trechos := _trechos_da_ligacao(ordenadas, deitada, regiao)
+		for sprite in trechos:
+			if raiz == null:
+				raiz = Node2D.new()
+				raiz.name = "Ligacoes"
+				raiz.z_index = RenderizadorParedes.Z_FITA + 1
+				add_child(raiz)
+			sprite.texture = dados.atlas_canos
+			raiz.add_child(sprite)
+
+
+## O cano de uma bancada, cortado em trechos do tamanho da arte.
+##
+## **Ele corre atras da bancada INTEIRA, e nao de vao em vao.** A primeira versao
+## ligava par a par e produziu ZERO canos: as pecas de um conjunto se SOBREPOEM
+## de proposito -- os deslocamentos do `agrupamento_*.tres` sao menores que a
+## soma das meias larguras --, entao nao ha vao entre vizinhas para cobrir. O
+## portao pegou na primeira execucao, que e exatamente o caso para o qual ele foi
+## escrito: um cano que nao aparece nao da erro no console.
+##
+## E o desenho de corrida inteira e o que a referencia mostra de qualquer forma:
+## em `docs/fabrica_01.png` o tubo nao vai de maquina a maquina, ele passa pela
+## parede atras de todas elas e reaparece onde o equipamento deixa. Como ele
+## desenha em `Z_FITA + 1`, abaixo do `Z_MUNDO` dos volumes, essa oclusao e de
+## graca.
+##
+## A arte tem comprimento fixo e a bancada nao, entao a corrida e cortada em
+## trechos -- e nao esticada. Esticar pixel art reamostra fora da grade, que e a
+## razao de a escala do projeto ser inteira.
+func _trechos_da_ligacao(
+	ordenadas: Array[Node2D], deitada: bool, regiao: Rect2i
+) -> Array[Sprite2D]:
+	var saida: Array[Sprite2D] = []
+	var primeira := _caixa_do_prop(ordenadas[0])
+	var ultima := _caixa_do_prop(ordenadas[ordenadas.size() - 1])
+	if primeira.size == Vector2.ZERO or ultima.size == Vector2.ZERO:
+		return saida
+
+	var comeco := 0.0
+	var fim := 0.0
+	var atravessado := 0.0
+	if deitada:
+		comeco = ordenadas[0].position.x - primeira.size.x * 0.5 + LIGACAO_ENTRADA
+		fim = ordenadas[ordenadas.size() - 1].position.x 			+ ultima.size.x * 0.5 - LIGACAO_ENTRADA
+		# O cano corre pela BARRIGA das pecas, na altura da mais baixa: no pe ele
+		# sumiria atras da sombra, no topo sairia flutuando acima do conjunto.
+		var menor := INF
+		var base := -INF
+		for corpo in ordenadas:
+			var caixa := _caixa_do_prop(corpo)
+			menor = minf(menor, caixa.size.y)
+			base = maxf(base, corpo.position.y)
+		atravessado = base - menor * LIGACAO_ALTURA
+	else:
+		comeco = ordenadas[0].position.y - primeira.size.y + LIGACAO_ENTRADA
+		fim = ordenadas[ordenadas.size() - 1].position.y - LIGACAO_ENTRADA
+		var soma := 0.0
+		for corpo in ordenadas:
+			soma += corpo.position.x
+		atravessado = soma / float(ordenadas.size())
+
+	var total := fim - comeco
+	if total <= LIGACAO_ENTRADA:
+		return saida
+	var passo := float(regiao.size.x) if deitada else float(regiao.size.y)
+	var andado := 0.0
+	while andado < total:
+		var pedaco := minf(passo, total - andado)
+		var sprite := Sprite2D.new()
+		sprite.region_enabled = true
+		if deitada:
+			sprite.region_rect = Rect2(
+				regiao.position.x, regiao.position.y, pedaco, float(regiao.size.y))
+			sprite.position = Vector2(comeco + andado + pedaco * 0.5, atravessado)
+		else:
+			sprite.region_rect = Rect2(
+				regiao.position.x, regiao.position.y, float(regiao.size.x), pedaco)
+			sprite.position = Vector2(atravessado, comeco + andado + pedaco * 0.5)
+		saida.append(sprite)
+		andado += pedaco
+	return saida
+
+
+## As pecas de uma bancada na ordem em que elas se encostam.
+##
+## Pelo eixo em que o conjunto MARCHA, e nao por indice: `decorar()` devolve as
+## pecas na ordem em que o agrupamento as declara, e os deslocamentos daquele
+## `.tres` podem ir e voltar. Ligar na ordem de declaracao produziria um cano que
+## pula uma peca e volta.
+func _ordenar_bancada(pecas: Array, deitada: bool) -> Array[Node2D]:
+	var vivas: Array[Node2D] = []
+	for peca in pecas:
+		var corpo := peca as Node2D
+		if corpo != null and is_instance_valid(corpo):
+			vivas.append(corpo)
+	vivas.sort_custom(
+		func(a: Node2D, b: Node2D) -> bool:
+			return (a.position.x < b.position.x) if deitada 				else (a.position.y < b.position.y))
+	return vivas
+
+
+## A caixa DESENHADA de um prop volumetrico, lida do sprite dele.
+func _caixa_do_prop(corpo: Node2D) -> Rect2:
+	for filho in corpo.get_children():
+		var sprite := filho as Sprite2D
+		if sprite != null:
+			return Rect2(Vector2.ZERO, sprite.region_rect.size)
+	return Rect2()
 
 
 ## As LUMINARIAS, e elas moram na parede -- nunca na faixa do chao.

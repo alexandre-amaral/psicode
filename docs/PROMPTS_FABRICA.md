@@ -387,6 +387,31 @@ vazio atras da bancada, a morsa de mordentes abertos, o suporte com todos os
 encaixes vazios e o painel balistico crivado. A sala fala de manutencao, e nao
 de vitrine -- que e o segundo aceite.
 
+### 5.12 O posto improvisado -- `[FAB 37]`, a LOJA
+
+```
+<peca>, seen from above with the front face visible.
+This was never built as a shop, it was assembled from junk by hand.
+This object is completely powered down: there is no light anywhere on it,
+no cyan, no teal, no glow.
+NAO: no character, no floor, no shop sign, no cash register, no readable text
+```
+
+Pecas: `balcao_improvisado`, `caixa_sucata`, `pertences`, `lona` (64x64),
+`prateleira_improvisada`, `parede_ferramentas`, `banqueta`, `terminal_troca`,
+`cesto_sucata` (32x64).
+
+**A frase que carrega a issue e "was never built as a shop".** A fabrica nao foi
+construida como loja: o Sucateiro OCUPOU um setor antigo, e sem essa afirmacao o
+gerador devolve mobilia de comercio -- balcao acabado, prateleira reta,
+registradora. O vocabulario que produz ocupacao e material MISTURADO: chapa
+sobre engradado, tabua sobre tijolo, arame segurando o canto, nada esquadrejado.
+
+**Quatro das onze pecas da issue NAO foram geradas, e nao por esquecimento**:
+`offer_pad_A/B` e `work_lamp` ja existem em `src/loja/sala_loja.gd` (as tres
+bancadas e a luz de trabalho sao geometria da cena, e a `[LOJA 07]` as montou);
+gerar arte para elas criaria uma segunda fonte da mesma coisa.
+
 ### 5.9 A porta -- `[FAB 30]` e `[FAB 32]`
 
 A porta tem prompt proprio e as restricoes mais duras do arquivo, porque ela e a

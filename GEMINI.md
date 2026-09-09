@@ -36,6 +36,7 @@ documentos abaixo — leia antes de propor mecanica nova:
 | `docs/PIVO_LOW_TOPDOWN.md` | O levantamento por tras do plano: o que ja esta conforme, as decisoes e o inventario do que os testes recusam |
 | `docs/PIVO_PAREDES.md` | O levantamento por tras do epico das PAREDES: o que o plano pede e o codigo ja faz, as nove formas de sala medidas, e as tres decisoes que precedem o codigo |
 | `docs/BRIEFING_PAREDES_FABRICA.md` | **O pedido de arte das paredes**: onde a arte entra no renderizador, os sete portoes que ela tem de passar, os numeros do funil e o prompt de cada modulo. O andar 1 e uma fabrica abandonada e a parede nao diz isso |
+| `docs/PLANO_INVENTARIO_CORPORAL.md` | **O plano do inventario corporal e dos dois slots de arma**, em 32 issues `[INV nn]`. Ele registra as tres correcoes que o projeto fez no pedido original -- nomes em portugues, nao existe `RunInventory`, e o F entra sem tirar o Q -- e a medicao que dissolveu o maior risco dele |
 
 Quando o codigo e o texto discordarem, **o codigo ganha e o texto se
 atualiza**. Se um pedido contradiz o GDD — genero, camera, mecanica central —
@@ -197,6 +198,7 @@ docs/
 | **O Sucateiro (arte e prompt)** | `src/loja/sucateiro.gd` e `assets/npc/sucateiro/`. Gerado pelo PixelLab em `mode=v3`, 64 px, `low top-down` |
 | **A transacao de compra** | `src/loja/bancada_de_oferta.gd:comprar()` -- a ORDEM e o contrato: entrega antes do debito |
 | **Ver a Loja no enquadramento do jogo** | `godot --path . tools/loja/olhar_loja.tscn --resolution 960x544` |
+| **Ver as tres abas do inventario e a tela de troca** | `godot --path . tools/inventario/olhar_inventario.tscn --resolution 960x544` -- ele monta a build CHEIA (os 16 implantes de uma vez) e fotografa as TRES abas, e nao so a aberta. Foi ele que achou os quatro defeitos de layout que portao nenhum pega: `draw_string` alinhado a direita desenhando FORA do painel, o nome mais comprido da pool entrando por cima da coluna de barras, nome de implante cortado no meio da palavra, e as tabelas esticadas por 904 px |
 | **Onde a Loja pode nascer** | `distancia_minima_da_origem` e `distancia_maxima_da_origem` no `src/mapa/tipo_loja.tres`; o teto e ZERO em todos os outros tipos, e zero desliga |
 | **O que um CORREDOR_TECNICO representa** | `src/mapa/corredor_*.tres` (`PerfilDeCorredor`), na lista `perfis_de_corredor` do `GerenciadorMapa`. Ele decora pelo CHAO e pelo DECALQUE -- nunca pela face, que anunciaria a sala vizinha |
 | **Quao raro o corredor e** | `peso_corredor_*` em `src/mapa/planta_andar1.tres`; o do chefe e reservado a parte e nao passa pelo sorteio |
@@ -222,8 +224,24 @@ docs/
 | **Implante com comportamento novo** | enum em `DadosItem.Comportamento` + o codigo que le, em quem sofre o efeito |
 | Pente, tempo de recarga e reserva | `tamanho_pente`, `tempo_recarga`, `municao_maxima` em `src/weapons/*.tres` |
 | **Arma que pode cair de loot** | listar o `.tres` em `src/items/pool_padrao.tres` |
+| **Quantas armas o jogador carrega** | `InventarioDeArmas.SLOTS`. E `const` e nao `@export` de proposito: "o que cabe nas maos" e decisao de design, e um botao seria girado para tres na primeira vez que alguem achasse que faltava espaco |
+| **Quanto a troca de arma demora** | `Player.COOLDOWN_TROCA` -- freio contra spam tecnico, e nao animacao. Mesma razao que faz `Porta.TEMPO_DE_ABERTURA` ser `const` |
+| **O que a tela de troca compara** | `PainelDeTroca` -- quatro barras de `DadosArma.perfil_*()` mais as tags de `tags_de()`. Quatro e nao vinte: o objetivo e decisao rapida, e lista longa faz o jogador escolher pelo nome |
+| **Em que regiao do corpo um implante aparece** | `categoria_corporal` em `src/items/implante_*.tres`. **Campo DORMENTE**: a aba de itens e uma grade e nao o le. Ele e a semente da ideia do corpo, que foi reprovada e pode voltar -- e `teste_inventario.gd` continua cobrando os dois lados justamente por ninguem o ler |
+| **As tres abas do inventario** | `src/ui/aba_de_itens.gd`, `aba_de_armamento.gd` e `aba_de_status.gd`; quem as troca e `tela_inventario.gd`. Aba nova = script novo + no na cena + entrada em `TelaInventario.Aba` |
+| **As linhas da aba STATUS** | `AbaDeStatus.linhas_de_diagnostico()` -- todas derivadas de `Modificadores`, nunca recalculadas |
+| **Quantos itens cabem por linha na aba ITENS** | `AbaDeItens.LARGURA_CELULA`; a contagem de colunas e CALCULADA do tamanho real, e nao cravada |
+| **Quanto a arma largada fica intocavel** | `PickupArma.TRAVA_APOS_LARGAR` |
+| **Quanto tempo a abertura do inventario dura** | `TelaInventario.DURACAO_ABERTURA`; abaixo de 0,25 s por decisao |
 | Regras de onde cada sala nasce | `@export` do `tipo_*.tres` (beco, distancia da origem, prioridade) |
 | Cor e icone de uma sala no minimapa | `cor_mapa` e `icone` do `tipo_*.tres` |
+| **ONDE um prop pode ficar** | `DecoradorDeSala.posicoes()`. **Fonte unica**: a `Sala` NAO decide mais isso. Faixa, folga de meia peca, `area_spawn`, bocas de porta e espaco entre pecas moram todos la |
+| **QUANTOS props uma sala recebe** | ainda `quantidade_props*` em `src/mapa/tipo_*.tres`. A migracao para `PerfilDeDecoracao` esta declarada no `PLANO_FABRICA_ANDAR1.md` |
+| **A composicao de uma sala decorada (clusters, hero, vazio)** | `src/mapa/decoracao_*.tres` (`PerfilDeDecoracao`) e `src/mapa/agrupamento_*.tres` |
+| **Ver a decoracao antes de existir arte** | `godot --path . tools/fabrica/laboratorio_decoracao.tscn`; sem janela ele mede 288 salas |
+| **Ver e medir a luz da fabrica** | `godot --path . tools/fabrica/laboratorio_luz.tscn` |
+| **Se o andar 1 esta na paleta nova** | `godot --headless --path . tools/texturas/medir_ambiente.tscn` -- ele REPROVA hoje, de proposito |
+| **Retingir uma textura sem passar pelo funil** | `python tools/texturas/retingir.py ARQ --matiz-alvo 216 --saturacao 0.30 --conferir` |
 | **Prop de cenario que se MEXE (ventilador, luz, pistao)** | `regioes_props_animados` no `src/mapa/tipo_*.tres`: uma regiao a mais na lista, e nada de cena nova |
 | **Quantos props podem se mexer numa sala** | `max_props_animados` no `tipo_*.tres` -- e o orcamento, e ele e baixo de proposito |
 | **Textura de chao, parede e props de um tipo de sala** | grupo `Visual` do `tipo_*.tres` para chao e face; o TOPO e os cantos vem do `estilo_de_parede`. Os PNGs sao arte autorada passada por `tools/texturas/preparar_textura.py`; porta, canto e props saem do gerador |
@@ -283,6 +301,48 @@ em qualquer erro de script.
 
 ## Armadilhas que ja custaram tempo aqui
 
+- **`--import` limpo NAO prova que os scripts compilam, e isso custou 6m54s de
+  runaway.** O import cuida de RECURSO (textura, cena, som); ele nao carrega
+  todo `.gd` para compilar. Dois laboratorios foram escritos com um erro de
+  parse cada -- um `const` recebendo `PackedVector2Array`, que nao e expressao
+  constante, e um `:=` inferindo de um Variant -- e o import passou limpo, o
+  runner passou (ele so confere as suites da lista dele) e o teste de fumaca
+  nunca abre ferramenta de `tools/`. O sintoma nao foi erro, foi SILENCIO:
+  script que nao carrega faz a cena subir **sem script**, o `_ready` nunca roda,
+  nada e impresso, e o processo fica ocioso no main loop para sempre a um sexto
+  de nucleo. Hoje quem fecha isso e `teste_scripts_carregam.gd`, que varre
+  `src/` e `tools/` (211 scripts) e exige `can_instantiate()` -- porque script
+  com erro de parse NAO volta `null`, volta um `GDScript` invalido.
+- **Array indexado por enum, dimensionado por literal, e uma bomba com timer.**
+  O laboratorio de decoracao tinha dois acumuladores `PackedInt32Array([0, 0,
+  0, 0, 0])`; no dia em que `DECALQUE` e `PAREDE` entraram no fim de `Porte` ele
+  morreu com *Out of bounds get index 5* -- **depois** de ja ter impresso o
+  cabecalho, entao a saida parecia meio certa. O tamanho sai de `Porte.size()`.
+- **Campo novo com default UTIL quebra todo helper de "vazio".**
+  `contagem_micro` e `contagem_parede` nasceram com default, e o
+  `_perfil_vazio()` da suite zerava so os cinco campos antigos: quatro casos
+  passaram a reprovar apontando para o DECORADOR, com o defeito no helper. E a
+  mesma familia do `regeneracao_por_segundo = 0.02` que fazia todo `.tres` de
+  classe mentir.
+- **A ZONA LIVRE proibe VOLUME, e nao DECALQUE -- e confundir os dois deixa o
+  centro chapado.** Medida em `docs/fabrica_01.png`, a sala da referencia tem um
+  losango de galao no MEIO da area livre e mais de dez grades espalhadas. A
+  primeira versao do decorador rejeitava tudo ali e o piso virava um vazio. Hoje
+  volume e barrado, decalque passa, e `PAREDE` tambem passa -- porque ele esta
+  na parede por construcao, e numa sala em L o centro da caixa envolvente cai
+  perto da parede interna.
+- **A regra do VAZIO mede o que esta NA PAREDE.** Contando decalque, a sala em L
+  dava 11,8% de vao maximo contra o piso de 12% e reprovava por causa de mancha
+  PINTADA NO CHAO, com a parede vazia atras dela. Corrigido medindo so o que
+  ocupa parede: 14,0% / 14,1% / 16,3%.
+- **A luz da fabrica le TEMPO DE PAREDE, como o `PropAnimado`.** O `Juice`
+  congela `Engine.time_scale` no hitstop; luz que trava junto denuncia o truque.
+  E o flicker combina frequencias incomensuraveis em vez de uma senoide: medido,
+  ele repete 0,457 no periodo contra 1,000 de uma senoide pura, e nunca zera a
+  energia -- apagar por completo le como bug de renderizacao.
+- **Luz que le como CIRCULO DE ENGINE tem numero.** O laboratorio mede a queda
+  na borda da poca: o ambar cai 0,31 por pixel contra **15,81** de um disco
+  chapado, com borda 0,63 contra 0,01. E a secao 20 do briefing virada medicao.
 - **`custo` zero num `GrupoInimigo` giraria o sorteio para sempre.** Por isso o
   sorteio consome `custo_real()`, que tem piso 1, e nunca o campo cru.
 - **A porta por Deterioracao NAO pode ler `Deterioracao.valor`.** A composicao
@@ -1621,6 +1681,122 @@ em qualquer erro de script.
   em `paleta.gd` ou um traco em `gerar_texturas.gd`? Rode o gerador e o
   `--import` de novo, senao a suite reprova com "gerou e esqueceu de rodar?".
 
+- **`Arma.ficou_sem_municao` NUNCA disparou, e por isso a regra que ele executava
+  estava errada em silencio.** As 21 armas do jogo tem `municao_maxima = -1`
+  (reserva infinita), conferido arquivo a arquivo -- entao
+  `Player._ao_acabar_municao()` e codigo morto desde que as armas nasceram. Ele
+  dizia "arma vazia volta para a pistola do slot 0", e essa regra morreu no dia
+  em que os dois slots viraram simetricos: nao existe mais slot privilegiado
+  para onde voltar. Codigo morto que afirma uma regra falsa e pior que codigo
+  morto -- ele volta a rodar no dia em que alguem escrever a primeira arma de
+  reserva finita, e faz a coisa errada sem uma linha no console. Hoje ele
+  esvazia o slot e passa a mao para o outro.
+- **O PENTE e estado do SLOT, e o componente `Arma` e UM so.** `equipar()`
+  enchia o pente toda vez, entao sair da Mantis com 3/32 e voltar meio minuto
+  depois devolvia 32/32 de graca -- uma arma que nunca precisa recarregar desde
+  que voce alterne antes. Hoje `Arma.equipar(dados, pente_inicial)` recebe o
+  numero, e quem o guarda e a `InstanciaDeArma`. O default continua sendo "pente
+  cheio", entao os cinco inimigos e o chefe nao mudaram uma linha.
+- **`pedir_aquisicao()` com os dois slots cheios NAO PODE MEXER EM NADA.** Ele
+  devolve `PRECISA_ESCOLHER` e sai. Uma versao que ocupasse o slot antes de
+  perguntar faria o jogador perder uma arma toda vez que cancelasse a tela de
+  troca -- e cancelar e justamente a acao que nao pode custar nada, porque e ela
+  que permite sair, comparar e voltar depois.
+- **A arma substituida cai EXATAMENTE onde o jogador esta, e isso e um laco
+  fechado.** Ele acabou de encostar no pickup para disparar a troca, entao a
+  arma largada dispara o `body_entered` no frame seguinte, os dois slots
+  continuam cheios, e a tela reabre sobre uma arvore que ja esta pausada: um
+  painel que volta sozinho, para sempre, com o console limpo. Por isso
+  `PickupArma.soltar_no_chao()` ja nasce travada -- e por isso a trava entra
+  tambem no CANCELAMENTO, porque quem cancelou tambem nao saiu de cima do
+  pickup.
+- **Tela que pausa a arvore precisa de `PROCESS_MODE_ALWAYS`.** Sem isso ela
+  congela junto com o que ela mesma pausou e a escolha nunca chega -- o jogo
+  trava num painel que nao aceita tecla. Vale para a tela de troca e para a de
+  inventario, pela mesma razao que ja valia para o `menu_pausa` e para o
+  reticulo.
+- **Nenhuma das duas telas mexe em `Input.mouse_mode`.** O reticulo e o dono do
+  cursor e ele ja devolve a seta ao ver `get_tree().paused` -- um segundo dono
+  produziria uma seta que aparece ou some conforme a ordem das chamadas.
+- **Suite que abre a tela de troca tem de DESPAUSAR no fim.** Ela pausa a arvore
+  ao montar; deixada pausada, TODAS as suites seguintes que esperam passo de
+  fisica congelam, e o runner fica vivo ate o timeout do CI sem imprimir nada.
+- **`comprar()` da Loja continua SINCRONA, e a arma que nao cabe sai dela
+  inteira.** Transformar aquela funcao em corrotina faria o `not
+  bancada.comprar()` de `teste_loja.gd` comparar um `Signal` com `false`, e o
+  portao da ordem da transacao viraria carimbo. Ela delega para
+  `_comprar_com_escolha()` e devolve `false` -- nada foi comprado NAQUELE frame,
+  que e a verdade. O contrato so ganha um passo na frente: escolha, entrega,
+  debito.
+- **`categoria_corporal` e o pior tipo de campo deste projeto: um que so a UI
+  le.** Nada em jogo o consulta, entao um `.tres` que o esqueca funciona
+  perfeitamente e so aparece na regiao errada -- um desenho que parece
+  deliberado e nao e. Por isso `teste_inventario.gd` tem a tabela
+  `ESPERADO` com os 16 por id, e ela morde dos dois lados: implante fora dela
+  reprova em vez de SUMIR da conta, que e o defeito que
+  `_nenhum_png_fica_fora_de_regime` existiu para consertar.
+- **E o valor ZERO do enum de categoria e o NEUTRO (`SISTEMA`).** Um implante
+  criado no editor sem tocar no campo cai no valor 0; se ele fosse `NEURAL`,
+  toda peca esquecida AFIRMARIA uma regiao que ninguem escolheu. Afirmar errado
+  e pior que nao afirmar.
+- **O CORPO FOI REPROVADO, e `categoria_corporal` ficou.** A primeira versao da
+  aba de itens desenhava uma silhueta tecnica com os implantes pendurados por
+  regiao, ligados por linhas; o dono do projeto olhou e reprovou -- a ideia pode
+  voltar, mas por enquanto o inventario responde "o que eu tenho" e nao "no que
+  eu me transformei". O campo continua nos 16 `.tres` e continua cobrado, pelo
+  mesmo motivo que a suite da Diretora continua no runner sem que nenhuma run
+  passe por ela: **e justamente por nao ser lido em jogo que ele precisa
+  continuar conferido.** Sem o portao, os dezesseis apodreceriam em silencio ate
+  o dia em que a ideia voltasse -- e ai seriam reescolhidos do zero.
+- **Os implantes continuam ACUMULATIVOS, e a aba de itens NAO pode prometer o
+  contrario.** Ela desenha uma grade que cresce, e nao uma fileira de vagas:
+  vaga desenhada promete um limite que nao existe. `Modificadores` continua
+  somando sem teto, e as 16 pecas continuam balanceadas assim.
+  `_os_implantes_continuam_ACUMULATIVOS` cai no dia em que alguem transformar
+  isso em equipamento por localizacao sem perceber.
+- **As tres abas sao tres PERGUNTAS, e nao arrumacao.** ITENS nao tem teto,
+  ARMAMENTO tem exatamente dois, e STATUS e derivado dos outros dois. Fundir
+  duas delas obriga o jogador a descobrir sozinho qual das regras vale para o
+  que ele acabou de pegar -- e a lista, que e a mais importante, perde coluna
+  para a tabela derivada.
+- **A aba STATUS DERIVA, nunca recalcula.** Cada linha pergunta ao
+  `Modificadores` no instante do desenho. Uma UI que refizesse a conta dos
+  implantes viraria a segunda fonte de verdade sobre a build e divergiria na
+  primeira mexida num `EfeitoItem`: o painel diria +12% e o tiro entregaria
+  +10%, sem erro nenhum. `teste_inventario.gd` compara o texto com o
+  que o autoload responde no mesmo instante.
+- **`tags_de()` e `linhas_de_diagnostico()` sao `static` e devolvem a CHAVE em
+  portugues.** `tr()` e metodo de `Node` e nao existe em funcao estatica -- mas o
+  motivo maior e outro: uma suite que lesse texto ja traduzido passaria na
+  maquina de quem tem o SO em portugues e quebraria no CI, que roda em ingles.
+  Quem traduz e quem desenha.
+- **A geometria do clique sai de quem DESENHOU.** `TelaTrocaDeArma._slot_sob()`
+  pergunta a `PainelDeTroca.caixa_do_slot()` em vez de recalcular a caixa: dois
+  calculos da mesma geometria divergem, e o sintoma e a tela clicavel num lugar
+  e desenhada noutro, sem erro nenhum no console.
+- **A HUD LE o inventario em vez de acumular o proprio par de armas.** Uma copia
+  ali divergiria na primeira substituicao feita pela Loja, que nao emite
+  `arma_equipada` para o slot que saiu.
+- **O inventario nao abre sozinho ao pegar um implante.** Interromper o combate
+  para mostrar o que o jogador acabou de escolher e cobrar duas vezes pela mesma
+  decisao. Quem avisa e o `AvisoItem` da HUD, que pisca o nome e some em 3 s.
+- **`draw_string` com `HORIZONTAL_ALIGNMENT_RIGHT` alinha dentro de
+  [`pos.x`, `pos.x + width`], e `pos.x` e a borda ESQUERDA.** Passando a borda
+  direita ali, o texto e desenhado INTEIRO para fora do painel: a coluna de
+  valores do diagnostico sumiu assim, e o rotulo `ATIVA` do slot tambem. Nao ha
+  erro nenhum -- ha um painel pela metade que parece proposital, e portao de
+  logica nenhum pega isso. Quem pegou foi a captura.
+- **Largura maxima de tabela nao e gosto.** Esticada pela aba inteira (904 px),
+  cada linha do diagnostico vira um rotulo numa ponta e um numero na outra com
+  meio quadro de vazio no meio; e os dois cartoes de arma viram faixas em que o
+  nome e as barras da MESMA arma ficam a meia tela de distancia. Duas armas e
+  oito linhas nao preenchem uma tela, e fingir que preenchem e o que faz a aba
+  parecer vazia.
+- **Nome cortado por `width` le como texto QUEBRADO, e nao como abreviado.**
+  `draw_string` com largura maxima apenas CLIPA, no meio da palavra. O corte tem
+  de ser explicito -- e com `..` ASCII e nao com reticencia unicode, porque
+  glifo que a fonte nao tem some sem erro e o nome volta a parecer quebrado.
+  Mesma armadilha do losango da moeda no preco da bancada.
 - **`DadosArma.Comportamento` e gravado como INT no .tres.** Valor novo entra
   sempre NO FIM do enum; inserir no meio reescreve em silencio o significado de
   toda arma ja salva. Mesma armadilha que ja vale para `DadosItem`.

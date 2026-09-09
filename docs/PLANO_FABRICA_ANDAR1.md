@@ -159,7 +159,7 @@ Fase A ja estava especificada. Ver `docs/REFERENCIA_FABRICA.md` secoes 2.1 e 2.4
 
 | # | o que | briefing | arte |
 |---|---|---|---|
-| **FAB 20** | Biblioteca de prompts | 19 | nao |
+| **FAB 20** | Biblioteca de prompts -- entregue em `docs/PROMPTS_FABRICA.md` | 19 | nao |
 | **FAB 21** | **Batch 1: 12 assets**, montar sala de teste, validar perspectiva e paleta | 20-23 | **SIM** |
 | **FAB 22** | Tubulacao (10 pecas) | 24 | **SIM** |
 | **FAB 23** | Tanques (5-6) | 25 | **SIM** |

@@ -34,18 +34,46 @@ const NEUTROS: Dictionary = {
 	&"N7": Color("5a6480"), # aresta iluminada (raro) -- teto do brilho
 }
 
-## Uma rampa por tipo de sala. Cada uma e a versao REBAIXADA do `cor_mapa` que
-## o tipo_*.tres declara: minimapa e mundo falam da mesma cor em intensidades
-## diferentes. O cor_mapa puro nunca e pintado no mundo.
-##   A0  fundo de acento (quase neutro)
+## Uma rampa por tipo de sala. Ela ja foi a versao REBAIXADA do `cor_mapa` do
+## `tipo_*.tres` -- minimapa e mundo falando da mesma cor em intensidades
+## diferentes --, e a FAB 08 desfez isso: hoje as tres cores sao GUNMETAL, e o
+## tipo sobrevive so como um vies de matiz de poucos graus.
+##   A0  campo de acento: a chapa pintada (quase neutro)
 ##   A1  acento medio (luz apagada, conduite)
-##   A2  filete (o neon da parede)
+##   A2  a MARCA: o traco de 2 a 4 px, a unica que guarda croma
+##
+## **O alvo nao foi escolhido, foi medido.** O topo da parede -- a superficie
+## neutra que da a volta na sala -- mede 215,0 de matiz e 0,289 de saturacao,
+## contra 216,5 / 0,284 do centro de `docs/fabrica_01.png`. Ele ja estava certo
+## e virou o ponto para onde os acentos convergem.
+##
+## O que eles eram: **S 0,65 a 0,73 nas cinco rampas**, com `item` em 165 graus
+## (verde), `arma` em 37 (laranja) e `combate` em 193 (teal). Isso e o mesmo
+## defeito que a FAB 09/10 tirou das texturas -- cor chapada por tipo de sala --
+## sobrevivendo no gerador, e ele so nao gritava porque hoje os `ACENTOS`
+## alcancam UMA textura: as duas celulas de acento do `props_atlas.png`.
+##
+## **A leitura passa a ser por VALOR, e nao por croma.** A0 (0,19) cai sobre o
+## N5 do painel (0,30) e A1 (0,42) cai sobre o A0: a peca continua tendo tres
+## degraus, e nenhum deles precisa de saturacao para existir. Foi assim que a
+## referencia sempre fez.
+##
+## **A2 e a excecao, e ela e o que a secao 111 do briefing pede.** Ela nunca
+## pinta area -- e um traco de 4 px numa peca e uma marca de 4x2 na outra --,
+## entao ela fica em S 0,55 para continuar lendo como LUZ. Marca e indicador;
+## campo e tinta. Ela passa no G2 pelo valor (0,52 contra o teto de 0,55), que
+## e a mesma folga do N7.
+##
+## **`boss` mantem o magenta**, pelo mesmo motivo que o chao dele nao girou na
+## FAB 09: a secao 11 reserva aquela familia para a sala do chefe, e ela e a
+## unica do andar que PODE se anunciar de longe. O que mudou nela foi a
+## saturacao, que caiu junto com as outras quatro.
 const ACENTOS: Dictionary = {
-	&"combate": {&"A0": Color("0e2b33"), &"A1": Color("1e5a6b"), &"A2": Color("2a7285")},
-	&"boss": {&"A0": Color("33101c"), &"A1": Color("6b1f36"), &"A2": Color("8a2a47")},
-	&"arma": {&"A0": Color("332512"), &"A1": Color("6b4d1e"), &"A2": Color("8a6528")},
-	&"item": {&"A0": Color("0e332a"), &"A1": Color("1e6b57"), &"A2": Color("288a71")},
-	&"inicial": {&"A0": Color("1a1e2b"), &"A1": Color("333b52"), &"A2": Color("48546f")},
+	&"combate": {&"A0": Color("222830"), &"A1": Color("47566b"), &"A2": Color("3c5a85")},
+	&"boss": {&"A0": Color("302227"), &"A1": Color("6b4755"), &"A2": Color("853c58")},
+	&"arma": {&"A0": Color("222530"), &"A1": Color("474e6b"), &"A2": Color("3c4a85")},
+	&"item": {&"A0": Color("222a30"), &"A1": Color("475c6b"), &"A2": Color("3c6685")},
+	&"inicial": {&"A0": Color("222730"), &"A1": Color("47536b"), &"A2": Color("3c5485")},
 }
 
 ## Registro do que ja esta em uso nos .tscn e .tres de ator. Nao e a fonte

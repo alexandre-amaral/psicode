@@ -36,6 +36,7 @@ documentos abaixo — leia antes de propor mecanica nova:
 | `docs/PIVO_LOW_TOPDOWN.md` | O levantamento por tras do plano: o que ja esta conforme, as decisoes e o inventario do que os testes recusam |
 | `docs/PIVO_PAREDES.md` | O levantamento por tras do epico das PAREDES: o que o plano pede e o codigo ja faz, as nove formas de sala medidas, e as tres decisoes que precedem o codigo |
 | `docs/BRIEFING_PAREDES_FABRICA.md` | **O pedido de arte das paredes**: onde a arte entra no renderizador, os sete portoes que ela tem de passar, os numeros do funil e o prompt de cada modulo. O andar 1 e uma fabrica abandonada e a parede nao diz isso |
+| `docs/PROMPTS_FABRICA.md` | **Os prompts do PixelLab para o cenario do andar 1**: o prompt base, um bloco por familia, os parametros de geracao e o funil de cada porte. Prompt novo entra la ANTES de consumir geracao |
 | `docs/PLANO_INVENTARIO_CORPORAL.md` | **O plano do inventario corporal e dos dois slots de arma**, em 32 issues `[INV nn]`. Ele registra as tres correcoes que o projeto fez no pedido original -- nomes em portugues, nao existe `RunInventory`, e o F entra sem tirar o Q -- e a medicao que dissolveu o maior risco dele |
 
 Quando o codigo e o texto discordarem, **o codigo ganha e o texto se

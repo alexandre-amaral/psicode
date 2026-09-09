@@ -50,6 +50,7 @@ func executar() -> void:
 	_o_CORPO_fica_fora_da_area_util_e_a_MANCHA_entra_nela()
 	_nenhuma_peca_de_decoracao_tem_COLISAO()
 	_a_peca_de_PAREDE_so_existe_onde_ha_FACE()
+	_nada_desenhado_passa_do_ALCANCE_da_parede()
 
 
 ## Metade 1 do contrato: a arte de cada celula encosta no FUNDO dela.
@@ -278,6 +279,113 @@ func _o_CORPO_fica_fora_da_area_util_e_a_MANCHA_entra_nela() -> void:
 	entre(fracao, 0.25, 0.85,
 		"o decalque cai nos dois lugares -- miolo e perimetro (%d de %d no miolo)"
 			% [manchas_no_miolo, manchas])
+
+
+## NENHUM pixel desenhado passa do alcance da parede -- o ENVELOPE.
+##
+## **Era o defeito mais visivel do andar, e nao havia portao nenhum sobre ele.**
+## O decorador colocava a peca olhando so a POSICAO da base: `_no_lugar()` exigia
+## `fundura <= faixa` e mais nada. Nada, em lugar nenhum, olhava `regiao.size.y`
+## -- nem a pegada, que e `largura x 24` fixo, nem esta suite. A regra de encaixe
+## era planar, e a altura desenhada nunca entrou na conta.
+##
+## Com peca de 64 px isso nao aparecia: ancorada a 8 px do contorno ela sobe 56,
+## e a parede desenha 60. Com o vaso de pressao de 96x160 do commit da escala de
+## fabrica, a mesma ancora poe o topo 152 px alem do contorno -- 92 px de arte no
+## VAZIO PRETO, alem de tudo que a sala desenha. O dono viu antes de qualquer
+## teste: *"o armario por exemplo esta vazando/maior que as paredes"*.
+##
+## ## Por que ele mede o PONTO e nao a desigualdade
+##
+## A tentacao e cobrar `altura <= fundura + alcance`. Ela esta errada nos dois
+## sentidos, porque `fundura` e a distancia a aresta MAIS PROXIMA em QUALQUER
+## direcao e o vazamento e VERTICAL: uma peca no meio da parede leste tem
+## fundura 8 e 400 px de sala acima dela, e nao vaza nada. O que se afirma aqui e
+## o que se ve: o topo do sprite, recuado do alcance, ainda cai dentro da sala.
+##
+## ## As duas pontas
+##
+## `ok(medidos > 0)` sozinho seria um carimbo. A segunda ponta e exigir que a
+## peca MAIS ALTA medida de fato passe do contorno -- se nenhuma passar, o atlas
+## virou raso e o portao esta aprovando sem ter tocado na regra que ele cobra.
+func _nada_desenhado_passa_do_ALCANCE_da_parede() -> void:
+	var medidos := 0
+	var vazando := 0
+	var maior_avanco := -1.0
+	var pior := ""
+	for caminho in TIPOS_COM_VOLUME:
+		var dados: DadosSala = load(caminho)
+		if dados == null:
+			continue
+		for semente in 6:
+			var sala := _montar_com_semente(dados, semente + 1, false)
+			var aberto := sala.contorno_local()
+			# O alcance sai do MESMO perfil que desenhou a parede. Um numero
+			# cravado aqui envelheceria junto com `corpo` e `cap`, e o portao
+			# passaria a afirmar uma espessura que o jogo ja nao usa.
+			var perfil := sala.perfil_de_parede()
+			var alcance: float = perfil.alcance() if perfil != null 				else PerfilDeParede.new().alcance()
+			for corpo in _props_volumetricos(sala):
+				var sprite := _sprite_do_corpo(corpo)
+				if sprite == null:
+					continue
+				medidos += 1
+				var altura := float(sprite.region_rect.size.y)
+				var topo := corpo.position.y - altura
+				# Quanto a peca avanca ALEM do contorno, na vertical.
+				var borda := _contorno_acima(aberto, corpo.position.x)
+				var avanco := borda - topo
+				if avanco > maior_avanco:
+					maior_avanco = avanco
+				if avanco > alcance + 1.0:
+					vazando += 1
+					if pior == "":
+						pior = "%s celula %dx%d avanca %.0f px (alcance %.0f)" % [
+							dados.id, sprite.region_rect.size.x,
+							sprite.region_rect.size.y, avanco, alcance]
+			sala.free()
+
+	ok(medidos > 0, "houve prop volumetrico para medir (%d)" % medidos)
+	igual(vazando, 0,
+		"nenhuma peca desenha alem do que a parede desenha -- alem dela e vazio (%d de %d; %s)"
+			% [vazando, medidos, pior])
+	# A ponta que impede o carimbo: se NADA chega perto do contorno, a regra nao
+	# foi exercitada e este caso esta verde por acidente.
+	ok(maior_avanco > 0.0,
+		"e alguma peca de fato sobe alem do contorno, senao a regra nao foi tocada (%.0f px)"
+			% maior_avanco)
+
+
+## O y do contorno logo ACIMA daquele x -- a linha que a peca nao pode ultrapassar
+## sem entrar na faixa de parede.
+##
+## Ele varre as arestas em vez de usar a caixa envolvente porque numa sala em L
+## a borda de cima depende de onde se esta: no braco do L ela e o degrau interno,
+## e nao o topo da caixa. Medir pela caixa aprovaria uma peca que sobe pelo vao.
+func _contorno_acima(aberto: PackedVector2Array, x: float) -> float:
+	var melhor := INF
+	for i in aberto.size():
+		var a := aberto[i]
+		var b := aberto[(i + 1) % aberto.size()]
+		if is_equal_approx(a.x, b.x):
+			continue
+		var esquerda := minf(a.x, b.x)
+		var direita := maxf(a.x, b.x)
+		if x < esquerda or x > direita:
+			continue
+		var t := (x - esquerda) / (direita - esquerda)
+		var y := lerpf(a.y, b.y, t) if a.x < b.x else lerpf(b.y, a.y, t)
+		if y < melhor:
+			melhor = y
+	return melhor
+
+
+func _sprite_do_corpo(corpo: Node2D) -> Sprite2D:
+	for filho in corpo.get_children():
+		var sprite := filho as Sprite2D
+		if sprite != null:
+			return sprite
+	return null
 
 
 ## A largura desenhada de um prop volumetrico, lida do sprite dele.

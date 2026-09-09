@@ -380,6 +380,54 @@ func faixa_de_props_volume() -> Vector2i:
 	return soma
 
 
+## Que CELULAS do atlas cada porte pode usar, em faixas de area.
+##
+## **Ela saiu da `Sala`, e a mudanca nao e arrumacao.** `Sala._regiao_do_porte()`
+## sorteava a regiao DEPOIS de o `DecoradorDeSala` ja ter decidido a vaga: o
+## decorador escolhia ONDE sem saber o TAMANHO, e a `Sala` escolhia o tamanho sem
+## poder mudar o lugar. Nenhum dos dois podia responder "esta peca cabe aqui?", e
+## e por isso que o vaso de pressao de 96x160 desenhava 92 px fora da parede sem
+## um erro no console.
+##
+## Com o catalogo na mao, o decorador passa a escolher o GABARITO QUE CABE
+## naquele ponto -- e o HERO de 160 px continua existindo no sul, no leste e no
+## oeste, onde nada vaza, enquanto a parede norte recebe a peca mais baixa. Um
+## teto global de altura teria custado a peca de leitura da sala nos quatro
+## lados para salvar um deles.
+##
+## As quatro faixas sobre a lista ordenada por AREA sao as mesmas de antes, e
+## fatiar em vez de cravar tamanhos e o que faz o mapeamento sobreviver a um
+## atlas que cresca: com dez pecas ou com quarenta, HERO continua pegando do topo.
+##
+## Por AREA e nao por largura: com as celulas altas (96x160, 64x128) a largura
+## deixou de ordenar -- uma esteira de 96x64 e mais larga que um armario de
+## 64x128 e muito menor que ele.
+func gabaritos_de_volume() -> Dictionary:
+	var saida := {}
+	if regioes_props_volume.is_empty():
+		return saida
+	var por_area: Array[Rect2i] = regioes_props_volume.duplicate()
+	por_area.sort_custom(
+		func(a: Rect2i, b: Rect2i) -> bool:
+			return a.size.x * a.size.y > b.size.x * b.size.y)
+	var n := por_area.size()
+	var faixas := [
+		Vector2i(0, maxi(1, n / 4)),
+		Vector2i(n / 4, maxi(n / 4 + 1, n / 2)),
+		Vector2i(n / 2, maxi(n / 2 + 1, n * 3 / 4)),
+		Vector2i(n * 3 / 4, n),
+	]
+	for porte in 4:
+		var faixa: Vector2i = faixas[porte]
+		var inicio := clampi(faixa.x, 0, n - 1)
+		var fim := clampi(faixa.y, inicio + 1, n)
+		var lote: Array[Rect2i] = []
+		for i in range(inicio, fim):
+			lote.append(por_area[i])
+		saida[porte] = lote
+	return saida
+
+
 func faixa_de_decalques() -> Vector2i:
 	return DecoradorDeSala.faixa_de_porte(perfil_de_decoracao, DecoradorDeSala.Porte.DECALQUE)
 

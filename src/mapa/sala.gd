@@ -1238,6 +1238,19 @@ func perfil_de_parede() -> PerfilDeParede:
 	return _perfil()
 
 
+## Quanto a parede desenha para fora do contorno, com o default como piso.
+##
+## `_perfil()` devolve `null` quando a sala nao tem `EstiloDeParede` -- e o caso
+## da sala montada a mao numa suite. Ler `.alcance()` de null aborta
+## `_montar_decoracao()` INTEIRA, e o sintoma nao e um erro visivel: e a sala
+## chegando sem prop animado, sem volume e sem decalque, com o portao daquela
+## familia reprovando por um motivo que nao tem nada a ver com ela. Cair no
+## default e o mesmo caminho que `_chanfrar()` ja faz duas telas acima.
+func _alcance_da_parede() -> float:
+	var perfil := _perfil()
+	return perfil.alcance() if perfil != null else PerfilDeParede.new().alcance()
+
+
 func _perfil() -> PerfilDeParede:
 	if perfil_de_teste != null:
 		return perfil_de_teste
@@ -1441,6 +1454,21 @@ func _montar_decoracao() -> void:
 			"zona_livre": area_spawn,
 			"bocas": bocas,
 			"raio_de_boca": PROP_DISTANCIA_DE_PORTA,
+			# O CATALOGO DE CELULAS e o ALCANCE DA PAREDE, que juntos deixam o
+			# decorador responder "esta peca cabe aqui?".
+			#
+			# Antes disso, ONDE e QUE TAMANHO eram decididos por lados
+			# diferentes: `decorar()` escolhia a vaga sem saber o tamanho, e a
+			# `Sala` sorteava a celula depois, sem poder mudar o lugar. Nenhum
+			# dos dois podia recusar a combinacao, e por isso o vaso de pressao
+			# de 96x160 desenhava dezenas de pixels fora da parede sem uma linha
+			# no console.
+			#
+			# O alcance sai do MESMO `PerfilDeParede` que desenhou a parede -- um
+			# numero cravado aqui seria a segunda copia da espessura, e este
+			# repositorio ja pagou tres vezes por isso.
+			"gabaritos": dados.gabaritos_de_volume(),
+			"alcance_da_parede": _alcance_da_parede(),
 		})
 
 	_montar_props_chapados(dados, contorno, aberto, bocas, colocados, rng)
@@ -1781,20 +1809,18 @@ func _montar_props_volumetricos(
 	if _props_raros:
 		pendentes.assign(dados.regioes_props_raras)
 
-	# As regioes em FAIXAS DE AREA, para o porte escolher a peca.
+	# O TAMANHO ja vem decidido, e essa e a metade que faltava.
 	#
-	# Por area e nao por largura: com as celulas altas (96x160, 64x128) a
-	# largura deixou de ordenar -- uma esteira de 96x64 e mais larga que um
-	# armario de 64x128 e muito menor que ele. O que separa HERO de PEQUENO e
-	# quanto a peca ocupa da tela.
-	var por_area := regioes.duplicate()
-	por_area.sort_custom(
-		func(a: Rect2i, b: Rect2i) -> bool:
-			return a.size.x * a.size.y > b.size.x * b.size.y)
-
+	# `_regiao_do_porte()` morava aqui e sorteava a celula DEPOIS de o decorador
+	# ja ter fechado a vaga -- duas decisoes independentes sobre a mesma peca, e
+	# nenhuma das duas podia recusar a outra. Hoje o catalogo vai junto do pedido
+	# (`gabaritos_de_volume()`), o decorador escolhe a celula que CABE naquele
+	# ponto, e aqui so se procura a regiao daquele tamanho.
+	#
+	# Faixa por AREA continua sendo o criterio -- ele so mudou de arquivo, para
+	# `DadosSala`, que e quem conhece o atlas.
 	for vaga in vagas:
-		var porte := int(vaga["porte"])
-		var regiao := _regiao_do_porte(porte, por_area, rng)
+		var regiao := _regiao_do_tamanho(regioes, vaga.get("tamanho", Vector2i.ZERO), rng)
 		if not pendentes.is_empty():
 			regiao = pendentes.pop_back()
 		var largura := float(regiao.size.x)
@@ -1831,32 +1857,29 @@ func _montar_props_volumetricos(
 		colocados.append(ponto)
 
 
-## A peca que um PORTE pede: grande para o que carrega a leitura, estreita para
-## o que se acomoda em volta.
+## A regiao do atlas que tem exatamente o TAMANHO que o decorador escolheu.
 ##
-## O fallback e cruzado de propósito -- um tipo de sala que so declare celulas
-## estreitas continua funcionando, com o cluster perdendo hierarquia mas nao
-## perdendo pecas. Reprovar ali deixaria a sala vazia, que e sempre pior.
-func _regiao_do_porte(
-	porte: int, por_area: Array[Rect2i], rng: RandomNumberGenerator
+## Ela substitui `_regiao_do_porte()`, que fatiava o atlas em quartis de area
+## aqui dentro. O fatiamento nao sumiu -- ele virou `DadosSala.gabaritos_de_volume()`,
+## que e quem conhece o atlas e agora entrega o catalogo ao decorador ANTES de a
+## vaga ser fechada. Aqui sobrou a parte mecanica: achar qual das celulas daquele
+## tamanho usar, quando ha mais de uma.
+##
+## O fallback devolve a PRIMEIRA regiao em vez de reprovar. Sala com uma peca
+## trocada e uma sala; sala sem peca nenhuma e sempre pior, e o caso so acontece
+## se alguem editar o `.tres` entre o pedido e a montagem.
+func _regiao_do_tamanho(
+	regioes: Array[Rect2i], tamanho: Vector2i, rng: RandomNumberGenerator
 ) -> Rect2i:
-	if por_area.is_empty():
+	if regioes.is_empty():
 		return Rect2i()
-	# Quatro faixas sobre a lista ordenada, do maior para o menor. Fatiar em vez
-	# de cravar tamanhos faz o mapeamento sobreviver a um atlas que cresca: com
-	# dez pecas ou com quarenta, HERO continua pegando do topo.
-	var n := por_area.size()
-	var faixas := [
-		Vector2i(0, maxi(1, n / 4)),
-		Vector2i(n / 4, maxi(n / 4 + 1, n / 2)),
-		Vector2i(n / 2, maxi(n / 2 + 1, n * 3 / 4)),
-		Vector2i(n * 3 / 4, n),
-	]
-	var indice := clampi(porte, 0, 3)
-	var faixa: Vector2i = faixas[indice]
-	var inicio := clampi(faixa.x, 0, n - 1)
-	var fim := clampi(faixa.y, inicio + 1, n)
-	return por_area[rng.randi_range(inicio, fim - 1)]
+	var candidatas: Array[Rect2i] = []
+	for r: Rect2i in regioes:
+		if r.size == tamanho:
+			candidatas.append(r)
+	if candidatas.is_empty():
+		return regioes[0]
+	return candidatas[rng.randi_range(0, candidatas.size() - 1)]
 
 
 ## A camada FOREGROUND (LTD 10): o que passa POR CIMA do ator.

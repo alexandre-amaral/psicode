@@ -193,6 +193,15 @@ const PECAS_NO_LADO_VAZIO := 2
 ## ficou calmo estaria reimplementando o decorador para testa-lo.
 const CHAVE_DO_LADO_VAZIO := 0x5f3a97
 
+## Desvio da semente para o sorteio do GABARITO.
+##
+## Mesmo desenho do `CHAVE_DO_LADO_VAZIO`, e pela mesma razao virada do avesso:
+## escolher a celula consome saques, e saques consumidos DESLOCAM todas as
+## posicoes seguintes. `teste_decoracao.gd` cobra 57 pecas colocadas em 60
+## pedidas -- tolerancia de tres --, entao um fluxo compartilhado faria o portao
+## reprovar por causa de uma mudanca que nao mexeu em colocacao nenhuma.
+const CHAVE_DO_GABARITO := 0x2b7d15
+
 ## Quanto se anda para dentro ao decidir de que lado de uma aresta fica a sala.
 const EPSILON_INTERNO := 1.0
 
@@ -247,6 +256,21 @@ static func decorar(
 		# vez: refaze-la a cada tentativa varreria o contorno inteiro por ponto.
 		"caixa": _caixa_de(aberto),
 		"vazio": lado_vazio(perfil, semente),
+		# O CATALOGO DE CELULAS, por porte, vindo do `DadosSala` do tipo.
+		#
+		# Ele e o que permite ao decorador responder "esta peca cabe aqui?" -- a
+		# pergunta que nenhum dos dois lados podia responder antes, porque o
+		# tamanho era sorteado pela `Sala` DEPOIS de a vaga ja existir. Chega
+		# vazio no laboratorio e na suite, e ai o comportamento e o de sempre:
+		# sem gabarito nao ha altura a conferir, e a colocacao volta a ser
+		# planar.
+		"gabaritos": restricoes.get("gabaritos", {}),
+		# Quanto a PAREDE desenha para fora do contorno (`PerfilDeParede.alcance()`).
+		# E o teto do que uma peca pode desenhar alem da linha da sala -- alem
+		# dele e vazio preto.
+		"alcance_da_parede": float(restricoes.get("alcance_da_parede", 0.0)),
+		# Fluxo SEPARADO para o gabarito, ver `CHAVE_DO_GABARITO`.
+		"rng_gabarito": _rng_de(semente ^ CHAVE_DO_GABARITO),
 		"saida": saida,
 		"ids": ids,
 		"proximo_id": 0,
@@ -627,21 +651,28 @@ static func _tentar_avulso(ctx: Dictionary, porte: int, hero: bool) -> bool:
 			return true
 		return false
 
+	var perfil: PerfilDeDecoracao = ctx["perfil"]
 	for _t in TENTATIVAS:
 		var lado := _sortear_lado(ctx, porte, hero)
 		if lado < 0:
 			return false
-		var fundura := PROFUNDIDADE_DE_PAREDE if porte == Porte.PAREDE else -1.0
-		var ancora := _ancorar(ctx, lado, fundura)
-		if ancora.is_empty():
-			continue
-		var posicao: Vector2 = ancora["posicao"]
-		if not _no_lugar(ctx, posicao, porte):
-			continue
-		if not _longe_o_bastante(ctx, posicao, porte, -1):
-			continue
-		_registrar(ctx, posicao, porte, &"", lado, _novo_id(ctx))
-		return true
+		# Peca AVULSA nao tem ninguem atras dela, entao ela pode usar a faixa
+		# ate onde a pegada encosta na area de combate. E o que da lugar a uma
+		# peca alta: quanto mais funda a ancora, mais a arte cabe antes de passar
+		# do alcance da parede.
+		var teto := PROFUNDIDADE_DE_PAREDE if porte == Porte.PAREDE 			else fundura_maxima(perfil)
+		for tamanho in _tamanhos_a_tentar(ctx, porte):
+			var piso := -1.0 if tamanho.x <= 0 else float(tamanho.x) * 0.5
+			var ancora := _ancorar(ctx, lado, teto, piso)
+			if ancora.is_empty():
+				continue
+			var posicao: Vector2 = ancora["posicao"]
+			if not _no_lugar(ctx, posicao, porte, tamanho):
+				continue
+			if not _longe_o_bastante(ctx, posicao, porte, -1):
+				continue
+			_registrar(ctx, posicao, porte, &"", lado, _novo_id(ctx), tamanho)
+			return true
 	return false
 
 
@@ -660,6 +691,12 @@ static func _tentar_agrupamento(ctx: Dictionary, agrupamento: AgrupamentoDeDecor
 		var lado := _sortear_lado(ctx, Porte.GRANDE, false)
 		if lado < 0:
 			return false
+		# O CLUSTER mantem o teto de `FRACAO_DA_ANCORA`: os deslocamentos ainda
+		# empurram pecas para dentro a partir daqui, e ancorar no fundo da faixa
+		# faria o conjunto estourar pela peca de tras. Consequencia declarada: a
+		# peca mais larga que `2 x FRACAO_DA_ANCORA x faixa` nao cabe num
+		# conjunto, e o sorteio de gabarito cai para a proxima -- massa de
+		# cluster vem de pecas encostadas, nao de uma peca gigante.
 		var ancora := _ancorar(ctx, lado)
 		if ancora.is_empty():
 			continue
@@ -677,10 +714,20 @@ static func _tentar_agrupamento(ctx: Dictionary, agrupamento: AgrupamentoDeDecor
 			var deslocamento := agrupamento.deslocamento_da_peca(i)
 			var posicao := origem + tangente * deslocamento.x + normal * deslocamento.y
 			var porte := agrupamento.porte_da_peca(i)
-			if not _no_lugar(ctx, posicao, porte) or not _longe_o_bastante(ctx, posicao, porte, -1):
+			var escolhido := Vector2i.ZERO
+			var coube := false
+			for tamanho in _tamanhos_a_tentar(ctx, porte):
+				if not _no_lugar(ctx, posicao, porte, tamanho):
+					continue
+				if not _longe_o_bastante(ctx, posicao, porte, -1):
+					continue
+				escolhido = tamanho
+				coube = true
+				break
+			if not coube:
 				todas_cabem = false
 				break
-			propostas.append([posicao, porte])
+			propostas.append([posicao, porte, escolhido])
 		if not todas_cabem:
 			continue
 
@@ -688,13 +735,29 @@ static func _tentar_agrupamento(ctx: Dictionary, agrupamento: AgrupamentoDeDecor
 		for proposta in propostas:
 			var onde: Vector2 = proposta[0]
 			var qual_porte: int = proposta[1]
-			_registrar(ctx, onde, qual_porte, agrupamento.nome, lado, id)
+			_registrar(ctx, onde, qual_porte, agrupamento.nome, lado, id, proposta[2])
 		return true
 	return false
 
 
+## Os gabaritos a experimentar naquele ponto, do primeiro ao ultimo.
+##
+## Sem catalogo devolve `[Vector2i.ZERO]`, que e "uma tentativa, sem tamanho" --
+## o comportamento planar de sempre. E o que mantem o laboratorio e as suites que
+## chamam `decorar()` sem `DadosSala` medindo exatamente o que mediam antes.
+static func _tamanhos_a_tentar(ctx: Dictionary, porte: int) -> Array:
+	var lote := _gabaritos_do_porte(ctx, porte)
+	if lote.is_empty():
+		return [Vector2i.ZERO]
+	var saida: Array = []
+	for regiao: Rect2i in lote:
+		saida.append(regiao.size)
+	return saida
+
+
 static func _registrar(
-	ctx: Dictionary, posicao: Vector2, porte: int, nome: StringName, lado: int, id: int
+	ctx: Dictionary, posicao: Vector2, porte: int, nome: StringName, lado: int,
+	id: int, tamanho := Vector2i.ZERO
 ) -> void:
 	var saida: Array = ctx["saida"]
 	saida.append({
@@ -702,11 +765,46 @@ static func _registrar(
 		"porte": porte,
 		"agrupamento": nome,
 		"lado": lado,
+		# A CELULA escolhida. `Vector2i.ZERO` = quem chamou nao passou catalogo,
+		# e ai quem monta sorteia como antes.
+		"tamanho": tamanho,
 	})
 	var ids: Array = ctx["ids"]
 	ids.append(id)
 	if lado == int(ctx["vazio"]):
 		ctx["no_lado_vazio"] = int(ctx["no_lado_vazio"]) + 1
+
+
+static func _rng_de(semente: int) -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = semente
+	return rng
+
+
+## As celulas que este porte pode usar, embaralhadas.
+##
+## Embaralhadas e nao sorteadas UMA: quem chama tenta a primeira que couber e cai
+## para a seguinte. E isso que faz o HERO de 96x160 continuar existindo no sul,
+## no leste e no oeste -- onde nada vaza -- e a parede norte receber a peca mais
+## baixa do mesmo porte, em vez de o andar inteiro perder a peca de leitura da
+## sala para salvar um lado.
+##
+## Lista vazia = sem catalogo, e ai a colocacao e planar como sempre foi.
+static func _gabaritos_do_porte(ctx: Dictionary, porte: int) -> Array:
+	var catalogo: Dictionary = ctx.get("gabaritos", {})
+	if catalogo.is_empty() or porte > Porte.PEQUENO:
+		return []
+	var lote: Array = catalogo.get(clampi(porte, 0, 3), [])
+	if lote.is_empty():
+		return []
+	var copia := lote.duplicate()
+	var rng: RandomNumberGenerator = ctx["rng_gabarito"]
+	for i in range(copia.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var troca = copia[i]
+		copia[i] = copia[j]
+		copia[j] = troca
+	return copia
 
 
 static func _novo_id(ctx: Dictionary) -> int:
@@ -733,7 +831,9 @@ static func _novo_id(ctx: Dictionary) -> int:
 ##   porque ele esta na parede por construcao; numa sala pequena o contorno pode
 ##   passar a menos de `raio_da_zona_livre` do centro, e ali a regra recusaria
 ##   uma peca que nao esta na area de combate coisa nenhuma.
-static func _no_lugar(ctx: Dictionary, posicao: Vector2, porte: int) -> bool:
+static func _no_lugar(
+	ctx: Dictionary, posicao: Vector2, porte: int, tamanho := Vector2i.ZERO
+) -> bool:
 	var aberto: PackedVector2Array = ctx["aberto"]
 	if not Geometry2D.is_point_in_polygon(posicao, aberto):
 		return false
@@ -758,15 +858,54 @@ static func _no_lugar(ctx: Dictionary, posicao: Vector2, porte: int) -> bool:
 		return fundura <= PROFUNDIDADE_DE_PAREDE
 
 	# A AREA UTIL autorada tem prioridade sobre o raio, quando ela chega.
+	#
+	# **E ela e testada contra a PEGADA, e nao contra o ponto.** As duas versoes
+	# desta mesma regra conviveram: aqui era `zona.has_point(posicao)` e em
+	# `_cabe()` era `zona.intersects(pegada_no_chao(...))`. Elas nunca
+	# discordaram por acidente -- `FRACAO_DA_ANCORA` prendia a ancora em 37 px e
+	# `37 + 12 = 49` cabe folgado nos 96 da faixa --, e `teste_props.gd` passava
+	# por causa dessa margem e nao por causa da regra. Subir o teto da ancora
+	# reprovaria o portao sem ninguem ter tocado nesta funcao.
+	var largura := float(tamanho.x)
 	var zona: Rect2 = ctx.get("zona_livre", Rect2())
 	if zona.size != Vector2.ZERO:
-		if zona.has_point(posicao):
+		if zona.intersects(pegada_no_chao(posicao, largura)):
 			return false
 	else:
 		var centro: Vector2 = ctx["centro"]
 		if posicao.distance_to(centro) < perfil.raio_da_zona_livre:
 			return false
-	return fundura <= perfil.largura_da_faixa_de_perimetro
+	if fundura > perfil.largura_da_faixa_de_perimetro:
+		return false
+
+	if largura <= 0.0:
+		return true
+	# Folga de MEIO prop contra a parede -- a regra que `_cabe()` sempre teve e
+	# que este caminho nunca aplicou, porque ele nao conhecia a largura.
+	if fundura < largura * 0.5:
+		return false
+
+	# O ENVELOPE: nenhum pixel desenhado passa do alcance da parede.
+	#
+	# **Ele e um teste de PONTO, e nao a desigualdade `fundura >= altura -
+	# alcance`.** `fundura` e a distancia a aresta MAIS PROXIMA, em qualquer
+	# direcao; o vazamento e VERTICAL. A desigualdade erra nos dois sentidos:
+	# rejeita uma peca no meio da parede leste que tem 400 px de sala acima dela
+	# e nao vaza nada, e na parede SUL -- onde a peca cresce para dentro e nada
+	# pode vazar -- empurraria toda peca alta para 84 px de profundidade, colada
+	# na `area_spawn`, que e justamente o chao que a colisao vai transformar em
+	# solido.
+	#
+	# O ponto testado e o topo do sprite recuado do alcance: se ELE ainda cai
+	# dentro do poligono, o que sobrar por cima morre dentro da faixa que a
+	# parede desenha. De graca isso vale no L e no chanfro, porque a pergunta e
+	# feita ao poligono e nao a uma aresta.
+	var altura := float(tamanho.y)
+	if altura <= 0.0:
+		return true
+	var alcance: float = ctx.get("alcance_da_parede", 0.0)
+	var topo := Vector2(posicao.x, posicao.y - altura + alcance)
+	return Geometry2D.is_point_in_polygon(topo, aberto)
 
 
 ## A regra 5 vista do lado de quem chega: distancia contra tudo que nao e do
@@ -829,15 +968,43 @@ static func _cabe_no_lado_vazio(ctx: Dictionary, porte: int) -> bool:
 	return int(ctx["no_lado_vazio"]) < PECAS_NO_LADO_VAZIO
 
 
+## O teto de profundidade em que a PEGADA ainda nao toca a area de combate.
+##
+## A pegada e centrada no ponto, entao ela avanca meia profundidade alem dele: a
+## ancora mais funda legal fica a `faixa - PROFUNDIDADE_NO_CHAO / 2` do contorno.
+## Publica porque o portao precisa da mesma conta -- duas formas de medir o mesmo
+## limite divergem, e aqui a divergencia seria o jogo colocando uma peca que a
+## suite chama de invasora.
+static func fundura_maxima(perfil: PerfilDeDecoracao) -> float:
+	if perfil == null:
+		return 0.0
+	return maxf(
+		BORDA_MINIMA + 1.0,
+		perfil.largura_da_faixa_de_perimetro - PROFUNDIDADE_NO_CHAO * 0.5)
+
+
 ## Um ponto na FAIXA de perimetro daquele lado, mais a moldura local dele.
 ##
-## A ancora fica na METADE interna da faixa no maximo, porque os deslocamentos
-## do cluster ainda vao empurrar pecas para dentro a partir dela -- ancorar no
-## fundo da faixa faria todo conjunto estourar a regra 1 pela peca de tras.
-## `profundidade_maxima` negativa = metade da faixa de perimetro, que e o
-## default de sempre. Quem passa numero e o porte PAREDE, que mora colado na
-## face.
-static func _ancorar(ctx: Dictionary, lado: int, profundidade_maxima: float = -1.0) -> Dictionary:
+## **A profundidade e uma JANELA, e nao um teto.** Ela ganhou um piso no dia em
+## que a colocacao passou a conhecer a largura da peca: uma peca de 96 px precisa
+## de 48 de folga contra a parede, entao ancora-la a 8 px desenha metade dela
+## dentro do muro. Sem o piso, a regra de meia largura de `_no_lugar()` recusaria
+## toda peca larga em silencio, e a sala perderia justamente as pecas grandes que
+## este epico existe para colocar.
+##
+## O TETO continua sendo `FRACAO_DA_ANCORA` para CLUSTER, e por um motivo que nao
+## mudou: os deslocamentos do conjunto ainda empurram pecas para dentro a partir
+## da ancora, e ancorar no fundo da faixa faria o conjunto inteiro estourar pela
+## peca de tras. Para peca AVULSA o teto e `fundura_maxima()`, que e onde a
+## pegada encosta na area de combate -- ela nao tem ninguem atras dela.
+##
+## `{}` = a janela e vazia, e desistir e o certo. Quem chama tenta o proximo
+## gabarito; e o que faz o HERO de 160 px continuar existindo nos lados em que
+## nada vaza.
+static func _ancorar(
+	ctx: Dictionary, lado: int,
+	profundidade_maxima: float = -1.0, profundidade_minima: float = -1.0
+) -> Dictionary:
 	var perfil: PerfilDeDecoracao = ctx["perfil"]
 	var rng: RandomNumberGenerator = ctx["rng"]
 	var por_lado: Array = ctx["por_lado"]
@@ -866,8 +1033,13 @@ static func _ancorar(ctx: Dictionary, lado: int, profundidade_maxima: float = -1
 		BORDA_MINIMA + (perfil.largura_da_faixa_de_perimetro - BORDA_MINIMA) * FRACAO_DA_ANCORA)
 	if profundidade_maxima > 0.0:
 		fundo = maxf(BORDA_MINIMA + 1.0, profundidade_maxima)
+	var raso := BORDA_MINIMA
+	if profundidade_minima > 0.0:
+		raso = maxf(BORDA_MINIMA, profundidade_minima)
+	if raso > fundo:
+		return {}
 	return {
-		"posicao": a.lerp(b, t) + normal * rng.randf_range(BORDA_MINIMA, fundo),
+		"posicao": a.lerp(b, t) + normal * rng.randf_range(raso, fundo),
 		"normal": normal,
 		"tangente": normal.orthogonal(),
 	}

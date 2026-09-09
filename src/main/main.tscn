@@ -62,3 +62,6 @@ pool_da_loja = ExtResource("14_pool")
 planta = ExtResource("60_planta")
 
 [node name="Player" parent="Mundo" unique_id=220117599 groups=["player"] instance=ExtResource("10_km7bn")]
+
+
+[node name="ContainerProjeteis" type="Node2D" parent="." groups=["container_projeteis"]]

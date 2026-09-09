@@ -275,8 +275,7 @@ func _a_loja_nasce_uma_vez_e_no_meio_do_andar() -> void:
 			sem_loja += 1
 		elif quantas != 1:
 			fora += 1
-		mapa.get_parent().remove_child(mapa)
-		mapa.free()
+		_desmontar(mapa)
 	igual(sem_loja, 0, "todo andar tem Loja (%d sem)" % sem_loja)
 	igual(fora, 0, "e nunca mais de uma (%d andares com outra contagem)" % fora)
 
@@ -371,15 +370,13 @@ func _o_que_foi_vendido_continua_vendido() -> void:
 			achou = true
 	ok(achou, "o andar tem uma Loja")
 	if not achou:
-		mapa.get_parent().remove_child(mapa)
-		mapa.free()
+		_desmontar(mapa)
 		return
 
 	var ofertas: Array = mapa._ofertas_por_celula.get(celula, [])
 	ok(ofertas.size() > 0, "e ela tem estoque (%d ofertas)" % ofertas.size())
 	if ofertas.is_empty():
-		mapa.get_parent().remove_child(mapa)
-		mapa.free()
+		_desmontar(mapa)
 		return
 
 	# Vende a primeira, e pede o estoque de novo -- que e o que a sala faz ao ser
@@ -391,8 +388,7 @@ func _o_que_foi_vendido_continua_vendido() -> void:
 	igual(de_novo.size(), ofertas.size(),
 		"e o estoque nao e reposto (%d ofertas)" % de_novo.size())
 
-	mapa.get_parent().remove_child(mapa)
-	mapa.free()
+	_desmontar(mapa)
 
 
 ## O SUCATEIRO NAO ATRAPALHA A COMPRA (#287).
@@ -475,3 +471,24 @@ func _os_gestos_do_sucateiro_existem() -> void:
 		"a venda termina e ele volta ao parado (%s)" % npc._clipe)
 
 	npc.free()
+
+
+## Libera a cena principal INTEIRA, e nao so o pedaco que interessava.
+##
+## `mapa.free()` (ou `mapa.get_parent().free()`, que e o `Mundo`) deixa o no
+## `Main` na arvore para sempre -- e com ele o `ContainerProjeteis`, que esta num
+## GRUPO. A partir dali toda suite que dispara uma arma tem os projeteis dela
+## caindo neste container esquecido, porque `Arma._container()` resolve por
+## `get_first_node_in_group()` e a ordem de um grupo nao e a de insercao. Sete
+## casos de `teste_arma.gd` e `teste_boss_ataques.gd` passaram a medir ZERO
+## projeteis com o codigo certo no instante em que aquele no nasceu.
+##
+## E a mesma armadilha que o cabecalho de `teste_arma.gd` ja registra para quem
+## CRIA um container -- vista do outro lado: aqui ninguem criou nada, so deixou
+## de limpar.
+func _desmontar(no: Node) -> void:
+	var raiz: Node = Engine.get_main_loop().root
+	var alvo := no
+	while alvo.get_parent() != null and alvo.get_parent() != raiz:
+		alvo = alvo.get_parent()
+	alvo.free()

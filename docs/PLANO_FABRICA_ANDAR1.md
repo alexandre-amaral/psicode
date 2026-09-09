@@ -446,6 +446,30 @@ As duas metades falham em silencio e nenhuma aparece no console -- colisao
 esquecida vira esbarrao fantasma, e prop sem colisao dentro da area util e
 cobertura que nao cobre. A politica esta escrita no `GEMINI.md`.
 
+### `[FAB 43]`: o projetil acima do cenario, declarado em vez de sorteado
+
+A secao 90 pede que o projetil continue legivel na sala densa, e a primeira
+pergunta nao e de contraste: e de ORDEM DE DESENHO. Ela estava respondida por
+acidente. Nao havia no nenhum no grupo `container_projeteis`, entao
+`Arma._container()` caia em `current_scene` -- o proprio `Main` -- e projetil
+adicionado depois do `Mundo` desenha depois dele.
+
+O resultado era o certo e a razao nao existia em lugar nenhum. Com a sala de
+combate indo de 4 para ~15 corpos volumetricos, "projetil atras de um caixote"
+deixou de ser hipotese. Hoje o `ContainerProjeteis` esta declarado na cena --
+irmao do `Mundo`, depois dele, sem Y-sort -- e as tres propriedades sao
+cobradas.
+
+**E o no novo achou um vazamento de sete casos.** `teste_loja` e
+`teste_conexoes` instanciavam `main.tscn` e liberavam so o `mapa`, deixando o
+`Main` na arvore para sempre. Isso era invisivel enquanto o `Main` nao tinha
+nenhum no em grupo; no instante em que passou a ter, `teste_arma.gd` e
+`teste_boss_ataques.gd` comecaram a medir ZERO projeteis com o codigo certo.
+
+O que o `[FAB 43]` NAO cobre ainda: o contraste do projetil contra a arte do
+prop. A ordem de desenho garante que ele esta na frente; se ele LE na frente e
+outra medicao, e ela depende da arte dos batches 22 a 27.
+
 **O que a migracao NAO resolveu:** o quadro continua **37,7 pontos mais escuro**
 que a referencia (era 41,3 antes das pecas novas). O proprio `medir_ambiente`
 recusa gatear isso e diz por que -- a referencia tem sete a oito lampadas por

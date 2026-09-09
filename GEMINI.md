@@ -236,6 +236,7 @@ docs/
 | **Quanto tempo a abertura do inventario dura** | `TelaInventario.DURACAO_ABERTURA`; abaixo de 0,25 s por decisao |
 | Regras de onde cada sala nasce | `@export` do `tipo_*.tres` (beco, distancia da origem, prioridade) |
 | Cor e icone de uma sala no minimapa | `cor_mapa` e `icone` do `tipo_*.tres` |
+| **Onde o projetil desenha** | `ContainerProjeteis` em `src/main/main.tscn`: IRMAO do `Mundo`, DEPOIS dele, sem Y-sort. Acima de todo cenario ordenado por Y, abaixo so do Foreground |
 | **Se um prop tem COLISAO** | NAO tem. A politica do andar 1 e: **decorativo sem colisao, obstaculo com colisao EXPLICITA na cena**, e hoje o andar so tem o primeiro tipo. Quem cobra e `teste_props.gd:_nenhuma_peca_de_decoracao_tem_COLISAO` |
 | **ONDE um prop pode ficar** | `DecoradorDeSala.posicoes()`. **Fonte unica**: a `Sala` NAO decide mais isso. Faixa, folga de meia peca, `area_spawn`, bocas de porta e espaco entre pecas moram todos la |
 | **QUANTOS props uma sala recebe** | `src/mapa/decoracao_*.tres` (`PerfilDeDecoracao`), apontado por `perfil_de_decoracao` no `tipo_*.tres`. Os `quantidade_props*` do `DadosSala` SAIRAM; a traducao familia -> porte esta nos `DadosSala.faixa_de_*()` |
@@ -328,6 +329,26 @@ em qualquer erro de script.
   passaram a reprovar apontando para o DECORADOR, com o defeito no helper. E a
   mesma familia do `regeneracao_por_segundo = 0.02` que fazia todo `.tres` de
   classe mentir.
+- **O projetil desenhava acima do cenario por ACIDENTE, e o acidente durou ate a
+  sala ficar cheia.** Nao havia no nenhum no grupo `container_projeteis`, entao
+  `Arma._container()` caia em `current_scene` -- o proprio `Main` -- e projetil
+  adicionado depois do `Mundo` desenha depois dele. Certo por ORDEM DE ARVORE,
+  que se perde no dia em que alguem arrasta um no. Com a sala de combate indo de
+  4 para ~15 corpos volumetricos, projetil passando ATRAS de um caixote deixou
+  de ser hipotese. Hoje `main.tscn` declara o `ContainerProjeteis` como IRMAO do
+  `Mundo`, depois dele e sem Y-sort, e `teste_camada_visual.gd` cobra as tres
+  coisas. A unica camada que ainda cobre um projetil e o Foreground, que ja e
+  declarada como capaz de esconder o jogador.
+- **Suite que instancia `main.tscn` tem de liberar a RAIZ, e liberar o `mapa`
+  nao e isso.** `teste_loja` e `teste_conexoes` faziam
+  `mapa.get_parent().remove_child(mapa)` e depois `mapa.free()`: o `Main` ficava
+  na arvore para sempre. Isso era invisivel ate o dia em que o `Main` passou a
+  ter um no em GRUPO -- ai sete casos de `teste_arma.gd` e
+  `teste_boss_ataques.gd` passaram a medir ZERO projeteis com o codigo certo,
+  porque `Arma._container()` achava o container esquecido. E a armadilha do
+  `container_projeteis` vista do outro lado: aqui ninguem criou container
+  nenhum, so deixou de limpar. E note a ordem -- desligar o no do pai ANTES de
+  procurar a raiz faz a busca parar nele mesmo.
 - **Prop decorativo NAO tem colisao, e o que o impede de parecer obstaculo e a
   POSICAO.** A politica das secoes 86-88 do briefing e "decorativo sem colisao,
   obstaculo com colisao explicita", e as duas metades falham em silencio: um

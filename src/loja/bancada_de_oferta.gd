@@ -91,8 +91,16 @@ const SUBIDA_DO_PROMPT_COM_ICONE := 16.0
 
 var oferta: OfertaDeLoja = null
 
+## Para onde a arma substituida cai. AO LADO da bancada e nao em cima dela: o
+## jogador esta encostado no balcao no instante da troca, e um pickup embaixo
+## dele disputaria a tecla `interagir` com a propria bancada.
+const OFFSET_DESCARTE := Vector2(0.0, 40.0)
+
 var _jogador: Node2D = null
 var _perto: bool = false
+## Ha uma tela de escolha aberta por ESTA bancada? `comprar()` sai do
+## `_process`, entao sem a guarda a tecla segurada abriria uma tela por frame.
+var _escolhendo: bool = false
 var _t: float = 0.0
 
 
@@ -147,10 +155,26 @@ func pode_comprar() -> bool:
 ## e devolve `false` exatamente para quem chama nao consumir o pickup -- este e
 ## o caso vivo, e nao um cenario hipotetico.
 func comprar() -> bool:
+	if _escolhendo:
+		return false
 	if not pode_comprar():
 		if oferta != null and not oferta.vendida:
 			Audio.tocar(load(SOM_FALHA) as AudioStream)
 			EventBus.compra_recusada.emit(oferta)
+		return false
+
+	# **A arma que nao cabe sai desta funcao inteira.** Ela precisa de uma
+	# escolha do jogador, e escolha e `await` -- mas `comprar()` e chamada do
+	# `_process` e devolve `bool` para `teste_loja.gd`. Transformando-a em
+	# corrotina, o `not bancada.comprar()` daquelas asercoes passaria a comparar
+	# um `Signal` com `false` e o portao da ordem da transacao viraria carimbo.
+	#
+	# Entao ela DELEGA e devolve `false`: nada foi comprado NESTE frame, o que e
+	# a verdade. Quem fecha a transacao e `_comprar_com_escolha()`, e o contrato
+	# da ordem continua o mesmo -- so ganha um passo na frente:
+	# escolha -> entrega -> debito.
+	if _precisa_escolher_slot():
+		_comprar_com_escolha()
 		return false
 
 	if not _entregar():
@@ -182,11 +206,70 @@ func comprar() -> bool:
 func _entregar() -> bool:
 	if oferta.tipo == OfertaDeLoja.Tipo.ARMA:
 		var jogador := get_tree().get_first_node_in_group("player")
-		if jogador == null or not jogador.has_method("equipar_arma_loot"):
+		if jogador == null or not jogador.has_method("pedir_arma"):
 			return false
-		jogador.equipar_arma_loot(oferta.conteudo as DadosArma)
-		return true
+		# Aqui ha vaga por construcao: `comprar()` desviou o caso sem vaga antes
+		# de chegar nesta linha. Conferir o retorno mesmo assim e o que impede a
+		# entrega de "acontecer" em silencio se aquele desvio se perder um dia --
+		# e a compra sem entrega e o unico defeito que uma economia nao desfaz.
+		var resultado: int = jogador.pedir_arma(oferta.conteudo as DadosArma)
+		return resultado == InventarioDeArmas.Resultado.ACEITA
 	return Modificadores.aplicar(oferta.conteudo as DadosItem)
+
+
+## A oferta e uma arma e o jogador ja carrega duas?
+func _precisa_escolher_slot() -> bool:
+	if oferta == null or oferta.tipo != OfertaDeLoja.Tipo.ARMA:
+		return false
+	var jogador := get_tree().get_first_node_in_group("player")
+	if jogador == null or not jogador.has_method("inventario"):
+		return false
+	var inv: InventarioDeArmas = jogador.inventario()
+	return not inv.tem_vaga() and not inv.carrega(oferta.conteudo as DadosArma)
+
+
+## A compra que passa por uma escolha.
+##
+## **Cancelar nao custa credito, e essa e a unica coisa que esta funcao existe
+## para garantir.** O debito acontece na ultima linha do caminho de sucesso, e o
+## `return` do cancelamento esta acima dele -- e nao ha caminho que passe pelo
+## `gastar_creditos` sem passar pela substituicao.
+func _comprar_com_escolha() -> void:
+	_escolhendo = true
+	var jogador := get_tree().get_first_node_in_group("player")
+	var nova := oferta.conteudo as DadosArma
+	var tela := TelaTrocaDeArma.abrir(get_tree().current_scene, nova, jogador.inventario())
+	var indice: int = await tela.decidida
+	_escolhendo = false
+
+	if indice < 0:
+		# Nem crédito, nem arma, nem oferta consumida. A prateleira fica como
+		# estava e o jogador pode voltar depois.
+		return
+
+	# A oferta pode ter sido comprada por outro caminho enquanto a tela estava
+	# aberta -- a arvore esta pausada, mas o portao custa uma linha e o
+	# alternativo e o jogador pagar duas vezes pelo mesmo slot.
+	if not pode_comprar():
+		EventBus.compra_recusada.emit(oferta)
+		return
+
+	var saiu: DadosArma = jogador.substituir_arma(indice, nova)
+	if not GameState.gastar_creditos(oferta.preco):
+		return
+
+	if saiu != null:
+		# **A arma antiga vira pickup normal, e nao volta a ser mercadoria.**
+		# Ela cai AO LADO da bancada e nao em cima: o jogador esta encostado no
+		# balcao, e um pickup embaixo dele disputa o `interagir` com a propria
+		# oferta seguinte. A trava de recoleta ja vem de `soltar_no_chao`.
+		PickupArma.soltar_no_chao(saiu, get_parent(), global_position + OFFSET_DESCARTE)
+
+	oferta.vendida = true
+	Audio.tocar(load(SOM_OK) as AudioStream)
+	comprada.emit(oferta)
+	EventBus.compra_concluida.emit(oferta)
+	queue_redraw()
 
 
 ## O icone do que esta a venda, ou `null` quando nao ha.

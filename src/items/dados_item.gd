@@ -57,7 +57,52 @@ enum Comportamento {
 ## Quantas vezes o mesmo implante pode acumular numa run. 0 = sem limite.
 @export var maximo_por_run: int = 0
 
+## Em que regiao do corpo este implante estaria instalado.
+##
+## **ELE ESTA DORMENTE, e a dormencia e declarada.** A primeira aba de itens
+## desenhava uma silhueta tecnica com os implantes pendurados por regiao; a
+## ideia foi reprovada e a aba virou uma grade, que **nao le este campo**.
+##
+## Ele ficou por duas razoes. A primeira: e a semente daquela ideia, e refazer
+## as dezesseis escolhas no dia em que ela voltar e o mesmo trabalho feito duas
+## vezes. A segunda: campo dormente que ninguem confere apodrece em silencio --
+## por isso `teste_inventario.gd` continua cobrando os dois lados (todo `.tres`
+## esta na tabela, e a tabela concorda com o `.tres`), pelo mesmo motivo que a
+## suite da Diretora continua no runner com ela engavetada.
+##
+## **E se ele voltar a ser desenhado, ele continua sem LIMITAR nada.** O risco
+## obvio de um inventario corporal e virar equipamento por localizacao -- um
+## slot neural, um de braco, um de torso -- e passar a RECUSAR implante. Isso
+## mudaria o sistema de builds inteiro: hoje os implantes sao acumulativos,
+## `Modificadores` os soma sem teto por regiao, e as 16 pecas foram balanceadas
+## assim.
+##
+## **Valor novo entra NO FIM.** Enum e gravado como INT no `.tres`: inserir no
+## meio reescreve em silencio a regiao de todo implante ja salvo. Mesma
+## armadilha de `DadosArma.Comportamento`.
+##
+## E o valor ZERO e o neutro (`SISTEMA`) de proposito. Um implante que nascesse
+## sem declarar categoria diria "eu sou neural" se `NEURAL` fosse o primeiro --
+## afirmando uma regiao que ninguem escolheu.
+enum CategoriaCorporal {
+	## Sistemas internos, sem regiao propria. O default: um implante que nao se
+	## encaixa em lugar nenhum aparece aqui em vez de mentir sobre onde esta.
+	SISTEMA,
+	## Cabeca: processamento, mira assistida, defesa cognitiva.
+	NEURAL,
+	## Cabeca: leitura do ambiente, deteccao, alcance de percepcao.
+	SENSORIAL,
+	## Torso: vida, energia, o que sustenta o corpo.
+	NUCLEO,
+	## Bracos: o que toca a arma -- dano, municao, cadencia.
+	BRACOS,
+	## Pernas: velocidade, rolamento, o que move o corpo.
+	MOBILIDADE,
+}
+
 @export_group("Apresentacao")
+## Em que regiao do corpo esta peca aparece na tela de inventario.
+@export var categoria_corporal: CategoriaCorporal = CategoriaCorporal.SISTEMA
 @export var cor: Color = Color("7cf7c4")
 ## Marca curta desenhada no pickup e na lista da HUD.
 ##

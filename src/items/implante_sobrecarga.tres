@@ -26,6 +26,7 @@ efeitos = Array[ExtResource("2_ef")]([SubResource("EfeitoItem_0"), SubResource("
 comportamento = 5
 parametro = 0.3
 maximo_por_run = 1
+categoria_corporal = 3
 cor = Color(1, 0.55, 0.15, 1)
 sigla = "X"
 icone = ExtResource("9_ico")

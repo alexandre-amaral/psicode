@@ -4,8 +4,11 @@ extends Area2D
 ## Decisao de design: este pickup NAO chama metodo no Player. Ele entrega o
 ## implante ao autoload Modificadores e quem sofre o efeito le de la no frame
 ## em que precisa. E o mesmo caminho da Deterioracao, e e mais fiel a regra do
-## EventBus que o `corpo.equipar_arma_loot()` do pickup de arma -- que so ficou
-## assim porque arma equipada e estado do proprio Player.
+## EventBus que o `corpo.pedir_arma()` do pickup de arma -- que so ficou assim
+## porque o que o jogador CARREGA e estado do proprio Player, e nao um efeito
+## global. E porque a arma pode ser RECUSADA: com os dois slots cheios o pickup
+## precisa da resposta para saber se continua no chao, e um autoload que so
+## recebe nao tem o que responder.
 ##
 ## A segunda decisao que ele carrega e sobre APRESENTACAO: quem tem arte mostra
 ## a arte, quem nao tem mostra a letra -- e nunca os dois. Ver `_vestir_icone()`.

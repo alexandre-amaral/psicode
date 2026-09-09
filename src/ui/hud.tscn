@@ -145,6 +145,11 @@ modulate = Color(0.7, 0.78, 0.9, 1)
 theme_override_font_sizes/font_size = 11
 text = "INFINITA"
 
+[node name="Reserva" type="Label" parent="Rodape"]
+modulate = Color(0.5, 0.58, 0.68, 1)
+theme_override_font_sizes/font_size = 9
+text = ""
+
 [node name="DicaPreditiva" type="Label" parent="."]
 modulate = Color(1, 0.25, 0.4, 1)
 anchor_left = 0.5

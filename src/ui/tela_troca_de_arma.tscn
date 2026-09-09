@@ -1,0 +1,20 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/ui/tela_troca_de_arma.gd" id="1_troca"]
+[ext_resource type="Script" path="res://src/ui/painel_de_troca.gd" id="2_painel"]
+
+[node name="TelaTrocaDeArma" type="CanvasLayer"]
+layer = 20
+script = ExtResource("1_troca")
+
+[node name="Escurecimento" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.03, 0.05, 0.78)
+
+[node name="Painel" type="Control" parent="."]
+mouse_filter = 2
+script = ExtResource("2_painel")

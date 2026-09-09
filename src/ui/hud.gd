@@ -29,6 +29,8 @@ var _tween_leitura: Tween = null
 @onready var _rotulo_fase: Label = $Topo/Esquerda/Fase
 @onready var _rotulo_arma: Label = $Rodape/Arma
 @onready var _rotulo_municao: Label = $Rodape/Municao
+## A arma GUARDADA. Vazio enquanto o jogador so carrega uma.
+@onready var _rotulo_reserva: Label = $Rodape/Reserva
 @onready var _rotulo_tempo: Label = $Tempo
 ## O saldo da run. Canto oposto ao da municao de proposito: os dois sao numeros
 ## que o jogador consulta, e lado a lado eles competem -- municao decide o
@@ -133,6 +135,35 @@ func _ao_equipar_arma(dados: Resource, _slot: int) -> void:
 		return
 	_rotulo_arma.text = dados.nome
 	_rotulo_arma.modulate = dados.cor_projetil
+	_atualizar_reserva()
+
+
+## A ARMA GUARDADA, sempre visivel enquanto houver uma.
+##
+## **Sem ela o `[F]` nao tem para onde apontar.** Uma tecla de troca cujo destino
+## o jogador nao consegue ver e uma tecla que ele aperta para descobrir o que
+## acontece -- no meio de um combate, isso e uma troca que ele nao vai fazer. A
+## linha some inteira quando ha uma arma so, que e o estado do inicio de toda
+## run: uma dica de tecla que nao faz nada e pior que nenhuma.
+##
+## Ela LE o inventario do jogador em vez de acumular o proprio par de armas. Uma
+## copia aqui divergiria na primeira substituicao feita pela Loja, que nao passa
+## por `arma_equipada` para o slot que saiu.
+func _atualizar_reserva() -> void:
+	if _rotulo_reserva == null:
+		return
+	var jogador := get_tree().get_first_node_in_group("player")
+	if jogador == null or not jogador.has_method("inventario"):
+		_rotulo_reserva.text = ""
+		return
+	var inv: InventarioDeArmas = jogador.inventario()
+	var guardada := inv.reserva()
+	if guardada == null or guardada.dados == null:
+		_rotulo_reserva.text = ""
+		return
+	_rotulo_reserva.text = "[F] %s  %d/%d" % [
+		tr(guardada.dados.nome), guardada.pente, guardada.dados.pente(),
+	]
 
 
 func _ao_municao(no_pente: int, reserva: int) -> void:

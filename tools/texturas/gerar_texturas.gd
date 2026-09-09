@@ -892,7 +892,13 @@ static func _prop_terminal(img: Image, o: Vector2i) -> void:
 	_ret(img, o.x + 11, o.y + 8, 10, 7, n0)
 	_ret(img, o.x + 10, o.y + 19, 12, 2, n4)
 	_ret(img, o.x + 10, o.y + 23, 12, 1, n4)
-	_pintar(img, o.x + 21, o.y + 25, n7)
+	_pintar(img, o.x + 10, o.y + 25, n7)
+	# O visor grande fica APAGADO (o N0 la em cima) e a luz do andar cabe em
+	# dois pixels: o unico LED aceso de todo o atlas, com a carcaca escura em
+	# volta para ele nao ler como pixel solto. E a secao 77 do briefing --
+	# "a maioria dos visores INATIVA" -- desenhada em vez de escrita.
+	_ret(img, o.x + 19, o.y + 24, 4, 3, Paleta.luz(&"led_ambar_base"))
+	_ret(img, o.x + 20, o.y + 25, 2, 1, Paleta.luz(&"led_ambar"))
 
 
 static func _prop_entulho(img: Image, o: Vector2i, semente: int) -> void:

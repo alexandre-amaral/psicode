@@ -158,6 +158,27 @@ const SINAL: Dictionary = {
 	&"pickup_item": Color(0.49, 0.97, 0.77),
 }
 
+## A EXCECAO quente do ambiente: a lampada de trabalho que ainda funciona.
+##
+## Ela existe porque a regua achou um buraco. `medir_ambiente.tscn` pede ambar
+## como ACENTO do andar e mede **0,00%** nas 56 texturas, contra 0,41% da
+## referencia -- o andar tinha zero luz quente em textura, e o que sobrava era a
+## luz de engine da `LuzDeFabrica`, que nao aparece em pasta nenhuma.
+##
+## **Ela e ambar APAGADO, e o numero e o portao.** `AMBAR_VALOR_MINIMO` da regua
+## e 0,45 (abaixo disso o pixel conta como ferrugem) e o G2 recusa saturada E
+## clara ao mesmo tempo: sobra a faixa de 0,45 a 0,55 de valor, e o LED fica em
+## **0,52**. Ele nao brilha na textura -- quem brilha e a luz de engine por cima
+## dele --, e essa e a divisao certa: textura e materia, luz e luz.
+##
+## `led_ambar_base` e a carcaca em volta, escura o bastante para cair em
+## FERRUGEM na regua. Ela e o que impede o LED de parecer um pixel solto: um
+## ponto quente sem soquete le como ruido de compressao.
+const LUZES: Dictionary = {
+	&"led_ambar": Color("855f14"),
+	&"led_ambar_base": Color("3d2f1c"),
+}
+
 ## Portao G2. Uma cor de AMBIENTE pode ser saturada OU clara, nunca as duas.
 ## N7 (S=0.30, V=0.50) e o teto e passa de raspao de proposito.
 const LIMITE_SATURACAO := 0.35
@@ -177,6 +198,10 @@ static func ambiente() -> Array[Color]:
 			var cor: Color = ACENTOS[tipo][faixa]
 			if not pertence(cor, lista):
 				lista.append(cor)
+	for chave in LUZES:
+		var luz: Color = LUZES[chave]
+		if not pertence(luz, lista):
+			lista.append(luz)
 	return lista
 
 
@@ -196,6 +221,10 @@ static func sinal() -> Array[Color]:
 
 static func neutro(nome: StringName) -> Color:
 	return NEUTROS[nome]
+
+
+static func luz(nome: StringName) -> Color:
+	return LUZES[nome]
 
 
 ## Acento de um tipo de sala. Tipo desconhecido cai em `combate`, que e a rampa

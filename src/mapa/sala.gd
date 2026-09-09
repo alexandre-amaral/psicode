@@ -254,6 +254,13 @@ const PROP_DISTANCIA_DE_PORTA := 96.0
 ## Distancia minima entre dois props, para nao empilharem.
 const PROP_ESPACO := 40.0
 
+## Tentativas por peca de PAREDE antes de desistir dela.
+##
+## Menor que as 24 do decorador porque o espaco de busca e menor: uma linha, e
+## nao uma faixa. Desistir continua sendo o certo -- uma parede com uma peca a
+## menos e uma parede.
+const PROP_TENTATIVAS_NA_FACE := 12
+
 ## Pegada de uma luminaria, para o decorador espacar duas na mesma parede.
 ##
 ## Maior que a carcaca desenhada (18 px) de proposito: o que nao pode empilhar
@@ -1413,7 +1420,130 @@ func _montar_decoracao() -> void:
 	_montar_props_volumetricos(dados, contorno, aberto, bocas, colocados, rng)
 	_montar_props_frente(dados, contorno, aberto, bocas, colocados, rng)
 	_montar_luminarias(dados, contorno, bocas, rng)
+	_montar_props_parede(dados, contorno, aberto, rng)
 	_montar_decalques(dados, contorno, aberto, bocas, colocados, rng)
+
+
+## As pecas PRESAS NA FACE: a quinta familia, e a que faltava (`[FAB 22]`).
+##
+## Tubo que corre pela parede, caixa de juncao, duto. **Na referencia medida
+## (`docs/fabrica_01.png`) quase nenhum trecho de parede aparece limpo**, e sem
+## esta camada a parede continua sendo um plano em vez de uma estante -- por
+## mais prop de chao que a sala receba.
+##
+## ## As tres regras dela, e nenhuma e a das outras quatro
+##
+## 1. **So o lado NORTE recebe.** `Sala._montar_visual` so veste de FACE o lado
+##    virado para a camera (`LIMIAR_LADO_NORTE`); os outros tres mostram TOPO,
+##    que e a espessura vista de cima. Um tubo colado ali seria um tubo deitado
+##    sobre a espessura da parede, e a perspectiva que o
+##    `LOW_TOPDOWN_SQUARED.md` defende cairia junto.
+## 2. **Ela pula o VAO DA PORTA.** `_vaos_no_trecho()` corta o lado nas portas,
+##    e a face ja abre neles desde a `[PAR 01]` -- desenhar por cima poria um
+##    tubo atravessando a passagem. E a mesma regra, no mesmo lugar: quem tem
+##    abertura e a face.
+## 3. **Ela NAO espelha.** As outras familias sorteiam `flip_h` para multiplicar
+##    variedade de graca; aqui isso quebraria o acordo de luz. Toda arte do jogo
+##    e iluminada do canto SUPERIOR ESQUERDO, e espelhar em x poe a luz vindo da
+##    direita -- numa peca colada na parede, ao lado de uma face que continua
+##    iluminada da esquerda. Espelhar REFLETE onde girar TRANSPOE, e a `[PORTA
+##    03]` ja pagou essa licao.
+##
+## ## Onde ela desenha, e por que ali
+##
+## Um pixel acima da fita de parede (`RenderizadorParedes.Z_FITA`), o que a poe
+## SOBRE a face e ainda abaixo de `Z_MUNDO`. E o unico lugar coerente: acima ela
+## cobriria telegrafo e projetil, abaixo ela sumiria dentro da propria parede.
+## Ela nao entra em `colocados` -- prop de chao e peca de parede nao disputam
+## chao nenhum, pelo mesmo motivo que a luminaria tambem nao entra.
+func _montar_props_parede(
+	dados: DadosSala, contorno: PackedVector2Array, aberto: PackedVector2Array,
+	rng: RandomNumberGenerator
+) -> void:
+	if dados.atlas_props_parede == null or dados.regioes_props_parede.is_empty():
+		return
+	var quantos := _quantos(dados.faixa_de_props_parede(), rng)
+	if quantos <= 0:
+		return
+	var trechos := _trechos_com_face(aberto)
+	if trechos.is_empty():
+		return
+
+	var raiz := Node2D.new()
+	raiz.name = "ParedePecas"
+	raiz.z_index = RenderizadorParedes.Z_FITA + 1
+	add_child(raiz)
+
+	var ocupados: Array[float] = []
+	for _i in quantos:
+		var regiao: Rect2i = dados.regioes_props_parede[
+			rng.randi_range(0, dados.regioes_props_parede.size() - 1)]
+		var largura := float(regiao.size.x)
+		var ponto := _ponto_na_face(trechos, largura, rng, ocupados)
+		if ponto == Vector2.INF:
+			continue
+		var sprite := Sprite2D.new()
+		sprite.texture = dados.atlas_props_parede
+		sprite.region_enabled = true
+		sprite.region_rect = Rect2(regiao)
+		# A base da peca encosta na linha do contorno e ela cresce para FORA --
+		# que na tela e para cima, sobre a face. Mesma ancora dos volumetricos,
+		# pela mesma razao: a base e o ponto de contato.
+		sprite.position = ponto - Vector2(0.0, float(regiao.size.y) * 0.5)
+		raiz.add_child(sprite)
+		ocupados.append(ponto.x)
+
+
+## Os trechos de contorno que GANHAM face, ja descontadas as bocas de porta.
+##
+## Ele reusa `_subtrechos()`, que e quem corta um lado nas portas -- a mesma
+## funcao que a colisao e a face consomem. Uma segunda resposta para "onde ha
+## parede" e a armadilha que a `[PAR 01]` custou seis issues: enquanto
+## `_montar_faces` usava o par de vertices cru, o quad de face atravessava a
+## porta inteira e a passagem lia como uma janela.
+func _trechos_com_face(aberto: PackedVector2Array) -> Array[PackedVector2Array]:
+	var saida: Array[PackedVector2Array] = []
+	for i in aberto.size():
+		var a := aberto[i]
+		var b := aberto[(i + 1) % aberto.size()]
+		if _normal_externa(aberto, a, b).y > LIMIAR_LADO_NORTE:
+			continue
+		for trecho in _subtrechos(a, b):
+			if trecho.size() >= 2:
+				saida.append(trecho)
+	return saida
+
+
+## Um ponto na linha da face, guardando distancia do que ja foi colocado.
+##
+## `Vector2.INF` = nao achou, e desistir e o certo: uma parede com uma peca a
+## menos e uma parede; duas pecas sobrepostas na mesma linha viram uma mancha.
+func _ponto_na_face(
+	trechos: Array[PackedVector2Array], largura: float,
+	rng: RandomNumberGenerator, ocupados: Array[float]
+) -> Vector2:
+	for _t in PROP_TENTATIVAS_NA_FACE:
+		var trecho: PackedVector2Array = trechos[rng.randi_range(0, trechos.size() - 1)]
+		var a := trecho[0]
+		var b := trecho[1]
+		var comprimento := a.distance_to(b)
+		# Meia peca de folga em cada ponta: uma peca ancorada na quina desenha
+		# metade dela sobre o lado vizinho, que mostra TOPO e nao face.
+		if comprimento <= largura:
+			continue
+		var t := rng.randf_range(largura * 0.5, comprimento - largura * 0.5)
+		var ponto := a + (b - a).normalized() * t
+		# Grade do projeto: a face e uma fita de celulas de 32, e peca fora dela
+		# encosta na juncao de duas celulas.
+		ponto.x = roundf(ponto.x / PROP_GRADE) * PROP_GRADE
+		var colide := false
+		for x in ocupados:
+			if absf(x - ponto.x) < largura:
+				colide = true
+				break
+		if not colide:
+			return ponto
+	return Vector2.INF
 
 
 ## A familia CHAPADA, como sempre foi: uma raiz so, numa faixa de z propria.

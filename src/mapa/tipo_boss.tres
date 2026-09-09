@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="DadosSala" load_steps=19 format=3]
+[gd_resource type="Resource" script_class="DadosSala" load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
 [ext_resource type="Texture2D" path="res://assets/texturas/decalques_boss.png" id="99_dec"]
@@ -19,6 +19,8 @@
 [ext_resource type="Resource" path="res://src/fx/perfil_ambar.tres" id="90_amb"]
 
 [ext_resource type="Resource" path="res://src/mapa/decoracao_boss.tres" id="95_dec"]
+
+[ext_resource type="Texture2D" path="res://assets/texturas/props_parede.png" id="96_ppar"]
 
 [resource]
 script = ExtResource("1_ds")
@@ -48,6 +50,8 @@ atlas_decalques = ExtResource("99_dec")
 regioes_decalques = Array[Rect2i]([Rect2i(0, 0, 64, 64), Rect2i(64, 0, 64, 64)])
 atlas_props_volume = ExtResource("24_pvol")
 regioes_props_volume = Array[Rect2i]([Rect2i(64, 64, 64, 64), Rect2i(192, 64, 64, 64), Rect2i(0, 64, 64, 64), Rect2i(0, 128, 32, 64), Rect2i(32, 128, 32, 64), Rect2i(64, 128, 32, 64), Rect2i(96, 128, 32, 64), Rect2i(160, 128, 32, 64), Rect2i(0, 256, 64, 64), Rect2i(128, 256, 32, 64), Rect2i(160, 256, 32, 64), Rect2i(32, 320, 32, 64), Rect2i(128, 320, 64, 64)])
+atlas_props_parede = ExtResource("96_ppar")
+regioes_props_parede = Array[Rect2i]([Rect2i(0, 0, 64, 32), Rect2i(64, 0, 64, 32), Rect2i(128, 0, 32, 32)])
 chance_de_premio = 1.0
 premio_minimo = 8
 premio_maximo = 12

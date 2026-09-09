@@ -49,6 +49,7 @@ func executar() -> void:
 	_o_decalque_industrial_e_POUCO_e_nao_espelha()
 	_o_CORPO_fica_fora_da_area_util_e_a_MANCHA_entra_nela()
 	_nenhuma_peca_de_decoracao_tem_COLISAO()
+	_a_peca_de_PAREDE_so_existe_onde_ha_FACE()
 
 
 ## Metade 1 do contrato: a arte de cada celula encosta no FUNDO dela.
@@ -334,6 +335,84 @@ func _todos_os_nos(raiz: Node) -> Array[Node]:
 	for filho in raiz.get_children():
 		saida.append_array(_todos_os_nos(filho))
 	return saida
+
+
+## A peca de PAREDE so existe onde ha FACE, e ela nao espelha (`[FAB 22]`).
+##
+## Esta e a quinta familia de decoracao e a que faltava: o porte `PAREDE` existe
+## no `DecoradorDeSala` desde a `[FAB 07]` e ate aqui so a luminaria o consumia.
+## O plano registrava a divida com todas as letras -- "peca presa na FACE nao e
+## nem prop de chao nem foreground".
+##
+## As tres coisas que ela cobra falham em silencio, e nenhuma da erro:
+##
+## 1. **So o lado NORTE recebe.** `_montar_visual` so veste de face o lado
+##    virado para a camera; os outros tres mostram TOPO, que e a espessura vista
+##    de cima. Um tubo colado ali seria um tubo deitado sobre a espessura da
+##    parede -- e a perspectiva que o `LOW_TOPDOWN_SQUARED.md` defende cairia
+##    junto, sem uma linha no console.
+## 2. **Ela desenha ABAIXO de `Z_MUNDO` e ACIMA da fita.** Acima do mundo ela
+##    cobriria telegrafo e projetil; abaixo da fita ela sumiria dentro da propria
+##    parede, e o sintoma seria arte em disco que nao aparece -- o mesmo defeito
+##    que a `AreaDePerigo` pagou desenhando em z -4.
+## 3. **Ela NAO espelha.** Toda arte do jogo e iluminada do canto superior
+##    esquerdo, e `flip_h` poe a luz vindo da direita numa peca colada ao lado de
+##    uma face que continua iluminada da esquerda. As outras familias espelham
+##    para multiplicar variedade; esta nao pode.
+func _a_peca_de_PAREDE_so_existe_onde_ha_FACE() -> void:
+	var dados: DadosSala = load("res://src/mapa/tipo_combate.tres")
+	if dados == null:
+		return
+	ok(dados.faixa_de_props_parede().y > 0,
+		"a sala de combate pede peca de parede (%d)" % dados.faixa_de_props_parede().y)
+
+	var pecas := 0
+	var fora_do_norte := 0
+	var espelhadas := 0
+	for x in 12:
+		var sala := CENA_SALA.instantiate() as Sala
+		sala.coordenadas_grid = Vector2i(x * 3, x)
+		sala.definir_visual(dados)
+		sala.position = LONGE
+		Engine.get_main_loop().root.add_child(sala)
+
+		var raiz := sala.get_node_or_null("ParedePecas") as Node2D
+		if raiz != null:
+			igual(raiz.z_index, RenderizadorParedes.Z_FITA + 1,
+				"a camada de parede desenha logo acima da fita")
+			ok(raiz.z_index < Sala.Z_MUNDO,
+				"e abaixo do mundo -- ela nunca cobre telegrafo nem projetil")
+			var caixa := _caixa_do_contorno(sala.contorno_local())
+			for filho in raiz.get_children():
+				var sprite := filho as Sprite2D
+				if sprite == null:
+					continue
+				pecas += 1
+				if sprite.flip_h or sprite.flip_v:
+					espelhadas += 1
+				# O lado NORTE e o topo da caixa envolvente. Uma peca na metade
+				# de baixo esta num lado que mostra TOPO, e nao face.
+				if sprite.position.y > caixa.position.y + caixa.size.y * 0.25:
+					fora_do_norte += 1
+		sala.free()
+
+	ok(pecas > 0, "houve peca de parede para conferir (%d)" % pecas)
+	igual(fora_do_norte, 0,
+		"toda peca de parede fica no lado que TEM face (%d de %d fora)"
+			% [fora_do_norte, pecas])
+	igual(espelhadas, 0,
+		"nenhuma peca de parede espelha -- a luz do jogo vem do canto superior esquerdo (%d)"
+			% espelhadas)
+
+
+## A caixa envolvente de um contorno, em coordenadas locais.
+func _caixa_do_contorno(pontos: PackedVector2Array) -> Rect2:
+	if pontos.is_empty():
+		return Rect2()
+	var caixa := Rect2(pontos[0], Vector2.ZERO)
+	for i in range(1, pontos.size()):
+		caixa = caixa.expand(pontos[i])
+	return caixa
 
 
 # ------------------------------------------------------------------ apoio ----

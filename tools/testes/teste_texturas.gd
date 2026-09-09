@@ -738,6 +738,12 @@ const AUTORADAS: Dictionary = {
 	# GERADO e trancado pelo determinismo -- sao dois arquivos justamente
 	# para cada um ficar no regime que sabe provar o que ele e.
 	"props_volume.png": {&"familia": &"prop", &"tipo": &"andar1"},
+	# O atlas das pecas PRESAS NA FACE (`[FAB 22]`). Arquivo proprio e nao
+	# uma lista a mais no volumetrico: as celulas dele sao mais LARGAS que
+	# altas -- um tubo corre na horizontal e a face tem 32 px --, e o portao
+	# do volumetrico cobra exatamente o contrario ("prop com volume sobe,
+	# nao deita"). Mesma familia de funil, regime de forma oposto.
+	"props_parede.png": {&"familia": &"prop", &"tipo": &"andar1"},
 	# As FACES da parede, autoradas na identidade industrial do andar 1. Elas
 	# sao a superficie que carrega a identidade do setor: o chao fica quase
 	# liso porque e onde o combate e lido, e a informacao visual desce para as

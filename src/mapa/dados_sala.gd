@@ -307,6 +307,27 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 @export var perfil_de_luz_fria: Resource
 @export var quantidade_luminarias_frias: int = 0
 
+## O atlas das pecas PRESAS NA FACE da parede, e as celulas que esta sala usa.
+##
+## Tubo que corre pela parede, caixa de juncao, duto. **Elas nao sao prop de
+## chao nem Foreground**, e e por isso que precisaram de lista propria: o prop
+## de chao mora em `Z_CHAO_DETALHE` ou `Z_MUNDO` e se ordena contra o jogador; o
+## Foreground mora acima de tudo. Uma peca presa na parede fica ENTRE os dois --
+## sobre a face, e atras de qualquer ator.
+##
+## O porte `PAREDE` existe no `DecoradorDeSala` desde a `[FAB 07]` e ate aqui so
+## a luminaria o consumia. O plano registrava a divida com todas as letras:
+## "peca presa na FACE nao e nem prop de chao nem foreground. Liga-lo ao atlas
+## errado seria pior que deixa-lo esperando."
+##
+## **As celulas sao mais LARGAS que altas, ao contrario das volumetricas.** Um
+## tubo corre na horizontal ao longo da parede, e a face tem `Sala.ALTURA_FACE`
+## = 32 px de altura -- uma celula de 32x64 nao caberia nela sem invadir o topo,
+## que e a espessura vista de cima e nao superficie vertical. Por isso este
+## atlas e separado do volumetrico, cujo portao cobra exatamente o contrario.
+@export var atlas_props_parede: Texture2D
+@export var regioes_props_parede: Array[Rect2i] = []
+
 ## Props que aparecem em UMA sala do andar, e so.
 ##
 ## O caso vivo e o Robo Desativado: ele e o que faz o jogador perceber que o
@@ -365,6 +386,10 @@ func faixa_de_decalques() -> Vector2i:
 
 func faixa_de_props_frente() -> Vector2i:
 	return perfil_de_decoracao.contagem_frente if perfil_de_decoracao != null else Vector2i.ZERO
+
+
+func faixa_de_props_parede() -> Vector2i:
+	return DecoradorDeSala.faixa_de_porte(perfil_de_decoracao, DecoradorDeSala.Porte.PAREDE)
 
 
 ## Quao fundo, a partir do contorno, a decoracao desta sala pode entrar.

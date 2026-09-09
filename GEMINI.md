@@ -237,6 +237,7 @@ docs/
 | Regras de onde cada sala nasce | `@export` do `tipo_*.tres` (beco, distancia da origem, prioridade) |
 | Cor e icone de uma sala no minimapa | `cor_mapa` e `icone` do `tipo_*.tres` |
 | **Onde o projetil desenha** | `ContainerProjeteis` em `src/main/main.tscn`: IRMAO do `Mundo`, DEPOIS dele, sem Y-sort. Acima de todo cenario ordenado por Y, abaixo so do Foreground |
+| **Peca presa na PAREDE (tubo, caixa de juncao, duto)** | `regioes_props_parede` no `tipo_*.tres`, sobre `assets/texturas/props_parede.png`. So o lado NORTE recebe (e o unico com FACE), ela desenha em `RenderizadorParedes.Z_FITA + 1` e NAO espelha |
 | **Se um prop tem COLISAO** | NAO tem. A politica do andar 1 e: **decorativo sem colisao, obstaculo com colisao EXPLICITA na cena**, e hoje o andar so tem o primeiro tipo. Quem cobra e `teste_props.gd:_nenhuma_peca_de_decoracao_tem_COLISAO` |
 | **ONDE um prop pode ficar** | `DecoradorDeSala.posicoes()`. **Fonte unica**: a `Sala` NAO decide mais isso. Faixa, folga de meia peca, `area_spawn`, bocas de porta e espaco entre pecas moram todos la |
 | **QUANTOS props uma sala recebe** | `src/mapa/decoracao_*.tres` (`PerfilDeDecoracao`), apontado por `perfil_de_decoracao` no `tipo_*.tres`. Os `quantidade_props*` do `DadosSala` SAIRAM; a traducao familia -> porte esta nos `DadosSala.faixa_de_*()` |
@@ -406,6 +407,19 @@ em qualquer erro de script.
   `container_projeteis` vista do outro lado: aqui ninguem criou container
   nenhum, so deixou de limpar. E note a ordem -- desligar o no do pai ANTES de
   procurar a raiz faz a busca parar nele mesmo.
+- **A peca presa na PAREDE nao e prop de chao nem Foreground, e por isso ela
+  ficou seis issues sem existir.** O porte `PAREDE` esta no `DecoradorDeSala`
+  desde a `[FAB 07]` e so a luminaria o consumia; o plano registrava a divida
+  ("liga-lo ao atlas errado seria pior que deixa-lo esperando"). Ela tem tres
+  regras que nenhuma das outras quatro familias tem: **so o lado NORTE recebe**
+  (e o unico que ganha FACE -- os outros mostram TOPO, e um tubo ali seria um
+  tubo deitado sobre a espessura da parede); ela desenha em
+  `RenderizadorParedes.Z_FITA + 1`, que e o unico lugar acima da face e abaixo
+  de `Z_MUNDO`; e **ela NAO espelha**, porque toda arte do jogo e iluminada do
+  canto superior esquerdo e `flip_h` poria a luz vindo da direita ao lado de uma
+  face que continua iluminada da esquerda. As celulas dela sao mais LARGAS que
+  altas -- o oposto do que o portao do atlas volumetrico cobra --, e e por isso
+  que ela tem arquivo proprio.
 - **Prop decorativo NAO tem colisao, e o que o impede de parecer obstaculo e a
   POSICAO.** A politica das secoes 86-88 do briefing e "decorativo sem colisao,
   obstaculo com colisao explicita", e as duas metades falham em silencio: um

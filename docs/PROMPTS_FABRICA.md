@@ -28,7 +28,8 @@ rust around bolts and edges, oil stains, old functional industrial technology,
 visible top surface and front face, upper-left lighting, restrained warm amber
 work lights, subtle cold blue ambient shadows, compact readable silhouette,
 game-ready isolated asset, transparent background, no text, no character,
-no scenery, no clean futuristic design, no bright green
+no scenery, no clean futuristic design, no bright green,
+no loose cables, no hanging wires, no hoses, no rubber tubing
 ```
 
 Tres pedacos dele nao sao decoracao e nao saem:
@@ -206,6 +207,13 @@ com o bloco em `low top-down` e em `side`, e os dois ficaram frontais -- o
 primeiro com a base mais reta e a banda de topo mais rasa, que e o que assenta a
 peca. O que resolve e o BLOCO, e nao o parametro.
 
+> **CORRIGIDO na 4.4, e a conclusao acima so vale para peca RADIALMENTE
+> SIMETRICA.** Um tanque nao tem "frente"; um motor tem. Refeito com um motor
+> deitado, `low top-down` devolveu isometrico COM o bloco inteiro no prompt --
+> e o painel eletrico plano, na mesma leva, veio de quina com face lateral
+> visivel. **Para peca alongada, o parametro manda e o bloco nao alcanca.** Seis
+> geracoes foram gastas provando isso.
+
 E ele explica por que as pecas de PAREDE ja tinham saido bem: elas pediam
 `flat frontal elevation view` desde a primeira geracao.
 
@@ -267,6 +275,71 @@ larga sem desfazer isso.
 mesmo de `preparar_icone.py` e com a mesma tolerancia medida (24). Imagem que ja
 tem alfa passa intacta: reprocessar leria o RGB dos pixels transparentes, que e
 preto, e comeria o contorno.
+
+---
+
+## 4.4 A ORIENTACAO, que e a terceira correcao do dono e a mais dura
+
+Terceiro retorno, olhando as salas montadas:
+
+> *"para as geracoes usar a orientacao 180 grau, reta, norte-sul ou leste-oeste
+> para que caiba encostado na parede na maioria das vezes -- so assim a gente se
+> aproxima mais da inspiracao e do objetivo do visual"*
+
+**Ela e mais forte que o bloco de enquadramento da 4.2, e nao a repeticao dele.**
+Aquele bloco resolveu a PERSPECTIVA -- a peca deixou de vir girada de tres
+quartos com a base em losango. Este resolve o EIXO: a peca tem de ter **costas
+retas** e o comprimento correndo **paralelo a parede**, senao ela nao encosta.
+
+O contato do pool de combate mostra a diferenca sem regua: as quatro pecas do
+regime v3 (vaso, armario, esteira, tanque) tem costas planas e assentam contra o
+muro; as **nove restantes -- motor, bomba, engradado, barril, painel, compressor
+-- vieram todas na diagonal**. Um motor desenhado em angulo nao encosta em parede
+nenhuma: ele fica com uma quina para dentro da sala e um vao atras.
+
+E isso vale duas vezes desde a `[FAB 47]`, porque a peca agora TEM COLISAO e a
+`Sala` monta BANCADAS. Peca diagonal encostada numa vizinha reta produz um vao
+que o solido nao preenche, e o jogador ve dois moveis que nao se tocam.
+
+O bloco entra POR ULTIMO, depois da descricao e depois da linha de escala -- a
+ordem da 4.3 continua valendo, e pelo mesmo motivo medido: o que vem por ultimo
+pesa mais.
+
+### O que de fato resolve: `view: side`
+
+O bloco de prompt sozinho **nao alcanca** uma peca alongada. Medido na mesma
+leva: com `view: low top-down` e o bloco inteiro, o motor voltou isometrico com a
+base em losango e o painel plano voltou de quina. Trocado so o parametro para
+`side` -- mesma descricao, mesmo bloco --, o motor saiu com eixo reto
+leste-oeste, costas planas e a base numa linha horizontal.
+
+Faz sentido com o que ja estava escrito: as pecas de PAREDE (a 5.1) sairam bem
+desde a primeira geracao **porque pediam `flat frontal elevation view`**, e a
+porta paga a mesma distincao entre face autorada e vista de cima. O que faltava
+era estender isso a peca de chao que precisa encostar.
+
+**Receita:** `view: side`, `flat frontal elevation` na linha de estilo do prompt
+base, e o bloco abaixo POR ULTIMO.
+
+```
+CRITICAL ORIENTATION, THIS OVERRIDES EVERYTHING ELSE: this is a flat straight-on
+front elevation, like a technical drawing seen from directly in front. The object
+is perfectly axis-aligned, square to the camera, its long axis running straight
+left-to-right across the frame. Its back is a single flat vertical plane that
+could sit flush against a wall. There is NO three-quarter rotation, NO diagonal or
+corner angle, NO isometric projection, NO diamond-shaped base, NO visible side
+face. The base is one straight horizontal line resting flat on the ground.
+```
+
+Para peca de conjunto (fileira de tambores, cilindros num rack) acrescente a
+negativa que impede a profundidade: `NO drum placed behind another`. Sem ela o
+gerador enfileira para o fundo e a base volta a ser um losango.
+
+**E o que o eixo NAO pode ser:** nada de peca em "L", nada de conjunto montado em
+quina, nada de tubo saindo pela frente na diagonal. Se a peca precisa de um cano,
+ele sai reto para os lados ou para cima -- e de preferencia ele nem vem no asset,
+porque a conexao e peca separada (`[FAB 22]`, e ver a linha `no loose cables`
+abaixo).
 
 ---
 

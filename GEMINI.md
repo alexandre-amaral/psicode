@@ -244,6 +244,11 @@ docs/
 | **QUAO FUNDO a decoracao entra na sala** | `largura_da_faixa_de_perimetro` no `decoracao_*.tres`. Era `Sala.PROP_AFASTAMENTO_MAXIMO = 44` em paralelo, e o 44 era quem valia |
 | **Ver quanto da decoracao pedida a sala REAL coloca** | `godot --headless --path . tools/fabrica/medir_sala.tscn` -- pedido contra colocado, por tipo e por familia. O `laboratorio_decoracao` mede o DECORADOR; este mede a `Sala` montada |
 | **A composicao de uma sala decorada (clusters, hero, vazio)** | `src/mapa/decoracao_*.tres` (`PerfilDeDecoracao`) e `src/mapa/agrupamento_*.tres` |
+| **Quao ALTA uma peca de cenario pode ser** | ninguem crava: e `PerfilDeParede.alcance()` mais a profundidade da ancora. Quem escolhe a celula que cabe e `DecoradorDeSala`, com o catalogo de `DadosSala.gabaritos_de_volume()` |
+| **Quanto da massa vem de BANCADA e quanto vem de peca solta** | `quantos_agrupamentos` contra as `contagem_*` no `decoracao_*.tres`. Subir o primeiro esvazia o completamento avulso por construcao |
+| **A COLISAO de uma maquina de cenario** | `Sala.forma_de_colisao_do_prop()` -- ela e a SOMBRA, e cresce para tras ate encostar na parede. Layer 3, a mesma da parede |
+| **Onde uma LUMINARIA nasce** | `Sala._pontos_de_luminaria()`: uma por bancada, o resto espalhado pelo perimetro. Ela nunca entra na faixa de decoracao |
+| **Quanto a poca de luz desce para dentro da sala** | `LuminariaDeParede.DESCIDA_DA_LUZ` -- a carcaca esta na parede e a luz precisa cair no piso |
 | **Ver a decoracao antes de existir arte** | `godot --path . tools/fabrica/laboratorio_decoracao.tscn`; sem janela ele mede 288 salas |
 | **Decidir a LUZ do andar com numero** | `godot --path . tools/fabrica/prova_de_leitura.tscn --resolution 960x544 -- --luz` -- cruza `AmbienteDaFabrica.luminosidade` com a contagem de luminarias e mede as duas contra a referencia |
 | **Ver e medir a luz da fabrica** | `godot --path . tools/fabrica/laboratorio_luz.tscn` |
@@ -407,6 +412,24 @@ em qualquer erro de script.
   `container_projeteis` vista do outro lado: aqui ninguem criou container
   nenhum, so deixou de limpar. E note a ordem -- desligar o no do pai ANTES de
   procurar a raiz faz a busca parar nele mesmo.
+- **A pegada QUADRADA era o que impedia o andar de ter objeto grande.**
+  `posicoes()` testava a peca contra a `area_spawn` como um quadrado de lado
+  igual a largura: um armario de 96 px reservava 96x96 de piso e, com a folga de
+  meio prop contra a parede, nao cabia na faixa de 96 -- e a saida foi encolher a
+  peca ate ela ficar MENOR QUE O JOGADOR (80 px de moldura). O quadrado nunca
+  descreveu objeto nenhum: armario e largo e raso, tanque apoia numa base
+  estreita. Hoje ha `DecoradorDeSala.pegada_no_chao()`, e o que se protege e a
+  CAMINHADA -- altura desenhada cresce para cima da tela, atras de todo mundo, e
+  nao tira area jogavel.
+- **O bloco de enquadramento do prompt tem de vir POR ULTIMO.** Com a linha de
+  escala inserida antes dele, o armario e a esteira voltaram isometricos na mesma
+  leva em que o vaso saiu frontal. E a licao "o gerador desenha o que a frase
+  sugere" vista pelo lado da ORDEM: o que vem por ultimo pesa mais.
+- **`transparent background` no prompt nao garante alfa nem em PROP.** Medido na
+  mesma leva: o armario voltou com alfa e o vaso de pressao 100% opaco. Quem
+  resolve e o chaveamento por preenchimento a partir da borda em
+  `enquadrar_prop.py` -- por CONEXAO e nunca por cor, senao um fundo cinza da
+  familia do aco abre buraco dentro da peca.
 - **O sistema de CLUSTERS existia, era testado, era medido -- e o jogo nunca o
   chamava.** `DecoradorDeSala.decorar()` monta conjuntos (o barril na frente do
   tanque, o tubo encostando na valvula), aplica os pesos por lado, guarda o lado
@@ -1680,6 +1703,54 @@ em qualquer erro de script.
   Recompor centralizando, ou remanejar celulas, faz TODOS os props flutuarem sem
   erro no console. Ao acrescentar props, copie as linhas antigas byte a byte e
   confira o hash -- foi assim que o atlas foi de 256x128 para 256x192.
+- **ONDE e QUE TAMANHO eram decididos por lados diferentes, e nenhum dos dois
+  podia recusar o outro.** `DecoradorDeSala.decorar()` fechava a vaga olhando so
+  a posicao da base (`fundura <= faixa`) e `Sala._regiao_do_porte()` sorteava a
+  celula DEPOIS. Nada, em lugar nenhum, olhava `regiao.size.y` -- nem a pegada,
+  que e `largura x 24` fixo, nem a suite. Com pecas de 64 px isso nao aparecia;
+  com o vaso de pressao de 96x160, a mesma ancora punha o topo **111 px alem do
+  contorno num alcance de parede de 60**. Hoje o catalogo viaja junto do pedido
+  (`DadosSala.gabaritos_de_volume()`) e o decorador escolhe a celula que CABE ali.
+- **A LARGURA e tangencial e a ALTURA e vertical: nenhuma das duas se confere
+  contra `fundura`.** `_distancia_as_arestas()` responde "a que distancia esta a
+  aresta MAIS PROXIMA, em qualquer direcao", e as duas perguntas tem direcao
+  propria. A altura vira um teste de PONTO (o topo recuado do alcance ainda cai
+  no poligono); a largura vira dois (os extremos horizontais da base). A versao
+  errada da largura -- `fundura < largura * 0.5`, herdada de `_cabe()` -- deixava
+  uma janela de CINCO pixels para uma peca de 64 dentro de um cluster: metade dos
+  conjuntos falhava inteira, a sala de combate caiu de 16 para 9,9 pecas de
+  volume, e portao nenhum acusou. **Conjunto que nao cabe simplesmente nao
+  aparece.**
+- **Solido de cenario que nao encosta na parede vira armadilha de 4 a 23 px.**
+  Medido: com a caixa de colisao sempre centrada na ancora, **92 de 311 pecas**
+  deixavam uma fresta larga demais para ler como encostado e estreita demais para
+  o corpo passar. Quem se estica e o SOLIDO, para tras, na direcao em que nao ha
+  nada a perder -- afastar a peca resolveria o vao e desfaria a ideia de que a
+  maquina e uma saliencia da parede. E o recuo segue a NORMAL real: `-y` cravado
+  faria o solido da parede SUL crescer para dentro da sala.
+- **O solido de um prop e a SOMBRA, e nao a pegada.** `pegada_no_chao()` usa a
+  largura cheia da celula porque ela e a RESERVA -- ela decide se a peca cabe, e e
+  conservadora de proposito. Como solido, ela pararia o corpo 28% mais largo que a
+  sombra desenhada, que e o que o jogador le como o pe da maquina. Sao duas
+  perguntas: "cabe aqui?" e "onde o corpo para?".
+- **Lampada de parede tem de jogar a poca PARA DENTRO da sala.** A carcaca nasce
+  fora do contorno, na espessura que a parede desenha; com a `LuzDeFabrica` na
+  origem dela, metade da poca cai sobre o muro e sobre o vazio. Medido: preto
+  68,37% e ambar 0,14% contra 64,98% e 0,20% com a poca descendo 120 px. E a
+  descida segue a normal interna -- `+y` cravado desenharia o reflexo da lampada
+  SUL sobre o topo do muro.
+- **Espalhar N pecas por SORTEIO com recusa perde pecas em silencio.**
+  `_ponto_na_face()` sorteia um x e recusa se colidir; com doze tentativas e
+  reserva de 64 px, a Loja entregava **8,6 lampadas de 12, e ja chegou a 5**. Nao
+  faltava parede, faltava sorte, e o sintoma era uma sala mais escura que a
+  vizinha sem motivo. Dividir o comprimento em fatias e sortear DENTRO de cada
+  uma garante a colocacao e ainda nao vira uma regua.
+- **`decorar()` calcula e JOGA FORA as posicoes de MICRO, DECALQUE e PAREDE.**
+  `Sala._montar_props_volumetricos` filtra `porte <= PEQUENO`, e as tres familias
+  sao montadas por `posicoes()` -- cujo proprio docstring diz existir "para acabar
+  com o segundo sistema de colocacao". Ela virou o segundo sistema. Sintoma
+  concreto: `agrupamento_hidraulico.tres` declara 6 pecas, duas delas desses
+  portes, e entrega **4 de 6**, sem erro nenhum.
 - **Prop novo passa pelo funil SOZINHO, e nao junto do atlas inteiro.**
   `preparar_textura.py` processa a imagem toda: rodar no atlas completo mexeria
   no valor e na saturacao dos doze props ja aprovados. Prepare a tira nova, e so

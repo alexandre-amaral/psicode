@@ -1724,17 +1724,34 @@ func _montar_props_volumetricos(
 	# de um prop comum. Somar um a mais faria a sala escolhida ser tambem a mais
 	# cheia, e o jogador leria a mobilia extra antes de reparar no robo.
 	var regioes := dados.regioes_props_volume.duplicate()
-	if _props_raros:
-		regioes.append_array(dados.regioes_props_raras)
 	if regioes.is_empty():
 		return
 	var quantos := _quantos(dados.faixa_de_props_volume(), rng)
 	if quantos <= 0:
 		return
 
+	# O RARO E COLOCADO PRIMEIRO, e nao sorteado junto com o resto.
+	#
+	# Ele era mais uma entrada no pool, e isso funcionava enquanto o pool era
+	# pequeno. Com o Batch 2 o pool da sala de combate foi a 49 regioes: um raro
+	# sorteado uniformemente aparecia em ~26% das salas autorizadas, e a garantia
+	# "uma por andar" virava "uma a cada quatro andares" -- sem erro nenhum, e
+	# com a sala autorizada parecendo igual as outras.
+	#
+	# Ele continua OCUPANDO A VAGA de um prop comum, que e a regra original: a
+	# sala escolhida nao fica mais cheia, ela fica DIFERENTE. O que mudou e que
+	# a vaga agora e certa. Quem escolhe a sala continua sendo o `GerenciadorMapa`
+	# -- "uma por ANDAR" nao e pergunta que a sala consiga responder sozinha --,
+	# e o portao daqui continua sendo o de baixo.
+	var pendentes: Array[Rect2i] = []
+	if _props_raros:
+		pendentes.assign(dados.regioes_props_raras)
+
 	var faixa := dados.largura_da_faixa_de_decoracao()
 	for _i in quantos:
 		var regiao: Rect2i = regioes[rng.randi_range(0, regioes.size() - 1)]
+		if not pendentes.is_empty():
+			regiao = pendentes.pop_back()
 		var largura := float(regiao.size.x)
 		var ponto := _ponto_de_prop(contorno, largura, faixa, rng, bocas, colocados)
 		if ponto != Vector2.INF:

@@ -407,6 +407,16 @@ em qualquer erro de script.
   `container_projeteis` vista do outro lado: aqui ninguem criou container
   nenhum, so deixou de limpar. E note a ordem -- desligar o no do pai ANTES de
   procurar a raiz faz a busca parar nele mesmo.
+- **Pool que cresce dilui GARANTIA, e o prop raro foi o primeiro a cair.** O
+  Robo Desativado era mais uma entrada em `regioes_props_volume`, sorteada
+  uniformemente -- e isso funcionava enquanto o pool tinha 28 regioes. Com o
+  Batch 2 ele foi a 49: um raro sorteado assim aparece em ~26% das salas
+  AUTORIZADAS, e a regra "uma por andar" vira "uma a cada quatro andares", sem
+  erro nenhum e com a sala escolhida parecendo igual as outras. Hoje ele e
+  colocado PRIMEIRO e continua ocupando a vaga de um prop comum -- a sala nao
+  fica mais cheia, fica DIFERENTE. Quem pegou foi
+  `teste_props.gd:_o_prop_raro_aparece_numa_sala_por_andar`, e o caso existe
+  exatamente porque "o portao seria um mute" sem ele.
 - **A peca presa na PAREDE nao e prop de chao nem Foreground, e por isso ela
   ficou seis issues sem existir.** O porte `PAREDE` esta no `DecoradorDeSala`
   desde a `[FAB 07]` e so a luminaria o consumia; o plano registrava a divida

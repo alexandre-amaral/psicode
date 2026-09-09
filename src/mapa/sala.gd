@@ -261,6 +261,15 @@ const PROP_ESPACO := 40.0
 ## menos e uma parede.
 const PROP_TENTATIVAS_NA_FACE := 12
 
+## A partir de que largura uma celula do atlas conta como peca GRANDE.
+##
+## Ela e o que liga o PORTE que o decorador decidiu a peca que se desenha. Sem
+## ela o porte nao chegava ao desenho: a regiao era sorteada do pool inteiro, e
+## uma vaga de HERO podia receber um barril de 32 px -- o cluster saia com cinco
+## pecas do mesmo tamanho, que e justamente o que impede um conjunto de ler como
+## conjunto.
+const PROP_LARGURA_GRANDE := 64.0
+
 ## Pegada de uma luminaria, para o decorador espacar duas na mesma parede.
 ##
 ## Maior que a carcaca desenhada (18 px) de proposito: o que nao pode empilhar
@@ -1415,9 +1424,28 @@ func _montar_decoracao() -> void:
 	var bocas := _bocas_locais()
 	var colocados: Array[Vector2] = []
 
+	# A COMPOSICAO da sala, pedida ao decorador de uma vez.
+	#
+	# **Ate aqui o jogo nunca chamou `decorar()`.** Ele existe desde a `[FAB 03]`,
+	# monta CLUSTERS -- o barril na frente do tanque, o tubo encostando na
+	# valvula --, aplica os pesos por lado, guarda o lado calmo e lembra dos
+	# agrupamentos recentes; e era chamado so pelo `laboratorio_decoracao` e pela
+	# suite. A `Sala` montava tudo por `posicoes()`, que devolve pontos ISOLADOS
+	# com distancia minima entre si -- exatamente o oposto de um conjunto.
+	#
+	# O sintoma nao era um erro: era a sala parecer movel jogado nos cantos, com
+	# cinco `agrupamento_*.tres` em disco sem nenhum efeito. Mesma familia dos
+	# `PerfilDeDecoracao` orfaos que a migracao das contagens achou.
+	var composicao := DecoradorDeSala.decorar(
+		aberto, dados.perfil_de_decoracao, hash(coordenadas_grid), [], {
+			"zona_livre": area_spawn,
+			"bocas": bocas,
+			"raio_de_boca": PROP_DISTANCIA_DE_PORTA,
+		})
+
 	_montar_props_chapados(dados, contorno, aberto, bocas, colocados, rng)
 	_montar_props_animados(dados, contorno, aberto, bocas, colocados, rng)
-	_montar_props_volumetricos(dados, contorno, aberto, bocas, colocados, rng)
+	_montar_props_volumetricos(dados, composicao, colocados, rng)
 	_montar_props_frente(dados, contorno, aberto, bocas, colocados, rng)
 	_montar_luminarias(dados, contorno, bocas, rng)
 	_montar_props_parede(dados, contorno, aberto, rng)
@@ -1715,8 +1743,8 @@ func _montar_props_animados(
 ## `Direcoes.BASE_NO_QUADRO` carrega para os atores, e pelo mesmo motivo -- duas
 ## copias do numero divergiriam com o sintoma so aparecendo em tela.
 func _montar_props_volumetricos(
-	dados: DadosSala, contorno: PackedVector2Array, aberto: PackedVector2Array,
-	bocas: Array[Vector2], colocados: Array[Vector2], rng: RandomNumberGenerator
+	dados: DadosSala, composicao: Array[Dictionary],
+	colocados: Array[Vector2], rng: RandomNumberGenerator
 ) -> void:
 	if dados.atlas_props_volume == null:
 		return
@@ -1726,8 +1754,14 @@ func _montar_props_volumetricos(
 	var regioes := dados.regioes_props_volume.duplicate()
 	if regioes.is_empty():
 		return
-	var quantos := _quantos(dados.faixa_de_props_volume(), rng)
-	if quantos <= 0:
+	# A partir daqui QUANTOS e ONDE vem da composicao, e nao de um sorteio local:
+	# quem os decide e `DecoradorDeSala.decorar()`, que ja leu as contagens do
+	# perfil ao montar os clusters.
+	var vagas: Array[Dictionary] = []
+	for colocacao in composicao:
+		if int(colocacao["porte"]) <= DecoradorDeSala.Porte.PEQUENO:
+			vagas.append(colocacao)
+	if vagas.is_empty():
 		return
 
 	# O RARO E COLOCADO PRIMEIRO, e nao sorteado junto com o resto.
@@ -1747,44 +1781,78 @@ func _montar_props_volumetricos(
 	if _props_raros:
 		pendentes.assign(dados.regioes_props_raras)
 
-	var faixa := dados.largura_da_faixa_de_decoracao()
-	for _i in quantos:
-		var regiao: Rect2i = regioes[rng.randi_range(0, regioes.size() - 1)]
+	# As regioes separadas por TAMANHO, para o porte escolher a peca.
+	#
+	# Ate aqui a regiao era sorteada do pool inteiro e a largura dela virava a
+	# folga -- ou seja, o porte que o decorador decidiu nao chegava ao desenho, e
+	# uma vaga de HERO podia receber um barril de 32 px. Com a hierarquia
+	# aplicada, o conjunto ganha o que faz um cluster ler como cluster: uma peca
+	# grande com peças menores em volta, e nao cinco do mesmo tamanho.
+	var largas: Array[Rect2i] = []
+	var estreitas: Array[Rect2i] = []
+	for r: Rect2i in regioes:
+		if r.size.x >= int(PROP_LARGURA_GRANDE):
+			largas.append(r)
+		else:
+			estreitas.append(r)
+
+	for vaga in vagas:
+		var porte := int(vaga["porte"])
+		var regiao := _regiao_do_porte(porte, largas, estreitas, rng)
 		if not pendentes.is_empty():
 			regiao = pendentes.pop_back()
 		var largura := float(regiao.size.x)
-		var ponto := _ponto_de_prop(contorno, largura, faixa, rng, bocas, colocados)
-		if ponto != Vector2.INF:
-			var corpo := Node2D.new()
-			corpo.name = "PropVolume"
-			# GRUPO, e nao so o nome. O volumetrico e a unica familia sem raiz
-			# propria -- ele PRECISA ser filho direto da sala para se ordenar por
-			# Y --, entao quem quiser conta-lo so tem o nome para procurar. E o
-			# nome nao sobrevive: `add_child` renomeia o segundo em diante para
-			# a forma `@PropVolume@<id>`, e um filtro por `name == "PropVolume"`
-			# acha SEMPRE exatamente um, por mais que a sala tenha colocado
-			# vinte. Nao ha erro nenhum, e o portao que os conta fica verde
-			# medindo o primeiro para sempre.
-			corpo.add_to_group(GRUPO_PROP_VOLUME)
-			corpo.position = ponto
-			# Sem z_index proprio: Z_MUNDO e o default, e e o unico jeito de ele
-			# se ordenar por Y contra jogador e inimigo.
-			add_child(corpo)
+		var ponto: Vector2 = vaga["posicao"]
+		var corpo := Node2D.new()
+		corpo.name = "PropVolume"
+		# GRUPO, e nao so o nome. O volumetrico e a unica familia sem raiz
+		# propria -- ele PRECISA ser filho direto da sala para se ordenar por
+		# Y --, entao quem quiser conta-lo so tem o nome para procurar. E o
+		# nome nao sobrevive: `add_child` renomeia o segundo em diante para
+		# a forma `@PropVolume@<id>`, e um filtro por `name == "PropVolume"`
+		# acha SEMPRE exatamente um, por mais que a sala tenha colocado
+		# vinte. Nao ha erro nenhum, e o portao que os conta fica verde
+		# medindo o primeiro para sempre.
+		corpo.add_to_group(GRUPO_PROP_VOLUME)
+		corpo.position = ponto
+		# Sem z_index proprio: Z_MUNDO e o default, e e o unico jeito de ele
+		# se ordenar por Y contra jogador e inimigo.
+		add_child(corpo)
 
-			# A sombra entra ANTES do sprite para desenhar por baixo dele. Ela
-			# nasce na origem do corpo, que ja e o ponto de contato com o chao.
-			var sombra := Sombra.criar(largura * PROP_FRACAO_SOMBRA, 0.0)
-			corpo.add_child(sombra)
+		# A sombra entra ANTES do sprite para desenhar por baixo dele. Ela
+		# nasce na origem do corpo, que ja e o ponto de contato com o chao.
+		var sombra := Sombra.criar(largura * PROP_FRACAO_SOMBRA, 0.0)
+		corpo.add_child(sombra)
 
-			var sprite := Sprite2D.new()
-			sprite.texture = dados.atlas_props_volume
-			sprite.region_enabled = true
-			sprite.region_rect = Rect2(regiao)
-			sprite.flip_h = rng.randf() < 0.5
-			sprite.position = Vector2(0.0, -float(regiao.size.y) * 0.5)
-			corpo.add_child(sprite)
+		var sprite := Sprite2D.new()
+		sprite.texture = dados.atlas_props_volume
+		sprite.region_enabled = true
+		sprite.region_rect = Rect2(regiao)
+		sprite.flip_h = rng.randf() < 0.5
+		sprite.position = Vector2(0.0, -float(regiao.size.y) * 0.5)
+		corpo.add_child(sprite)
 
-			colocados.append(ponto)
+		colocados.append(ponto)
+
+
+## A peca que um PORTE pede: grande para o que carrega a leitura, estreita para
+## o que se acomoda em volta.
+##
+## O fallback e cruzado de propósito -- um tipo de sala que so declare celulas
+## estreitas continua funcionando, com o cluster perdendo hierarquia mas nao
+## perdendo pecas. Reprovar ali deixaria a sala vazia, que e sempre pior.
+func _regiao_do_porte(
+	porte: int, largas: Array[Rect2i], estreitas: Array[Rect2i],
+	rng: RandomNumberGenerator
+) -> Rect2i:
+	var preferidas := largas
+	var reservas := estreitas
+	if porte >= DecoradorDeSala.Porte.MEDIO:
+		preferidas = estreitas
+		reservas = largas
+	if preferidas.is_empty():
+		preferidas = reservas
+	return preferidas[rng.randi_range(0, preferidas.size() - 1)]
 
 
 ## A camada FOREGROUND (LTD 10): o que passa POR CIMA do ator.

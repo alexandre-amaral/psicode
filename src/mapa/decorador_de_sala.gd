@@ -133,6 +133,20 @@ const COMPRIMENTO_MINIMO_DE_ARESTA := 64.0
 ## cluster nao nascer em cima da quina.
 const MARGEM_DE_QUINA := 48.0
 
+## Que fracao da faixa a ANCORA de um cluster pode usar.
+##
+## **O conjunto comeca NA parede e cresce para dentro.** Ancorar no meio da
+## faixa -- que era o comportamento -- produz o cluster flutuando no vao entre a
+## parede e a area util: as pecas ficam proximas UMAS DAS OUTRAS e longe de
+## tudo, e o olho le movel jogado no canto em vez de equipamento instalado.
+##
+## Na referencia medida (`docs/fabrica_01.png`) nao ha um unico objeto solto no
+## meio do vao: tanque, armario e engradado encostam na parede, e o que avanca
+## para dentro sao os tubos que saem deles. Um terco deixa a ancora colada e
+## ainda da aos deslocamentos do cluster espaco para empurrar peca para dentro
+## sem estourar a faixa.
+const FRACAO_DA_ANCORA := 0.33
+
 ## Quanto pesa um agrupamento que apareceu nas ultimas salas.
 ##
 ## REDUZIDO, e nao proibido. Proibir deixaria o andar sem opcao no dia em que a
@@ -171,7 +185,7 @@ const EPSILON_INTERNO := 1.0
 ##   lado        int, um `Lado`
 static func decorar(
 	contorno: PackedVector2Array, perfil: PerfilDeDecoracao, semente: int,
-	recentes: Array = []
+	recentes: Array = [], restricoes: Dictionary = {}
 ) -> Array[Dictionary]:
 	var saida: Array[Dictionary] = []
 	if perfil == null:
@@ -194,6 +208,19 @@ static func decorar(
 		"arestas": arestas,
 		"por_lado": _arestas_por_lado(arestas),
 		"centro": centro_de(aberto),
+		# As duas restricoes que so a SALA REAL tem, e que `posicoes()` ja
+		# recebia. Elas chegam aqui porque a sala passou a consumir `decorar()`
+		# -- ate entao esta funcao so era chamada pelo laboratorio e pela suite,
+		# e o jogo montava a decoracao peca a peca, sem cluster nenhum.
+		#
+		# `zona_livre` e MELHOR que `raio_da_zona_livre`: ela e a area jogavel
+		# AUTORADA na cena, e num contorno em L o raio mede a partir do centro
+		# da caixa envolvente, que pode cair fora da sala. Quando ela chega
+		# vazia -- o laboratorio, a suite -- o raio continua valendo, e por isso
+		# os numeros historicos daqueles portoes nao mudam.
+		"zona_livre": restricoes.get("zona_livre", Rect2()),
+		"bocas": restricoes.get("bocas", []),
+		"raio_de_boca": restricoes.get("raio_de_boca", 0.0),
 		# A caixa envolvente, para o decalque sortear dentro dela. Calculada uma
 		# vez: refaze-la a cada tentativa varreria o contorno inteiro por ponto.
 		"caixa": _caixa_de(aberto),
@@ -679,6 +706,17 @@ static func _no_lugar(ctx: Dictionary, posicao: Vector2, porte: int) -> bool:
 	var aberto: PackedVector2Array = ctx["aberto"]
 	if not Geometry2D.is_point_in_polygon(posicao, aberto):
 		return false
+
+	# A BOCA DE PORTA vale para TODOS os portes, decalque incluido: uma seta
+	# pintada metade para dentro do vao le como erro de montagem, e um tanque na
+	# frente da passagem e pior. `posicoes()` ja cobrava isso; sem esta linha a
+	# troca por `decorar()` teria perdido a regra em silencio.
+	var raio_de_boca: float = ctx.get("raio_de_boca", 0.0)
+	if raio_de_boca > 0.0:
+		for boca in (ctx.get("bocas", []) as Array):
+			if (boca as Vector2).distance_to(posicao) < raio_de_boca:
+				return false
+
 	if porte == Porte.DECALQUE:
 		return true
 
@@ -688,9 +726,15 @@ static func _no_lugar(ctx: Dictionary, posicao: Vector2, porte: int) -> bool:
 	if porte == Porte.PAREDE:
 		return fundura <= PROFUNDIDADE_DE_PAREDE
 
-	var centro: Vector2 = ctx["centro"]
-	if posicao.distance_to(centro) < perfil.raio_da_zona_livre:
-		return false
+	# A AREA UTIL autorada tem prioridade sobre o raio, quando ela chega.
+	var zona: Rect2 = ctx.get("zona_livre", Rect2())
+	if zona.size != Vector2.ZERO:
+		if zona.has_point(posicao):
+			return false
+	else:
+		var centro: Vector2 = ctx["centro"]
+		if posicao.distance_to(centro) < perfil.raio_da_zona_livre:
+			return false
 	return fundura <= perfil.largura_da_faixa_de_perimetro
 
 
@@ -786,7 +830,9 @@ static func _ancorar(ctx: Dictionary, lado: int, profundidade_maxima: float = -1
 	var b: Vector2 = aresta["b"]
 	var t := rng.randf_range(margem, comprimento - margem) / comprimento
 	var normal: Vector2 = aresta["normal"]
-	var fundo := maxf(BORDA_MINIMA + 1.0, perfil.largura_da_faixa_de_perimetro * 0.5)
+	var fundo := maxf(
+		BORDA_MINIMA + 1.0,
+		BORDA_MINIMA + (perfil.largura_da_faixa_de_perimetro - BORDA_MINIMA) * FRACAO_DA_ANCORA)
 	if profundidade_maxima > 0.0:
 		fundo = maxf(BORDA_MINIMA + 1.0, profundidade_maxima)
 	return {

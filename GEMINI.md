@@ -407,6 +407,25 @@ em qualquer erro de script.
   `container_projeteis` vista do outro lado: aqui ninguem criou container
   nenhum, so deixou de limpar. E note a ordem -- desligar o no do pai ANTES de
   procurar a raiz faz a busca parar nele mesmo.
+- **O sistema de CLUSTERS existia, era testado, era medido -- e o jogo nunca o
+  chamava.** `DecoradorDeSala.decorar()` monta conjuntos (o barril na frente do
+  tanque, o tubo encostando na valvula), aplica os pesos por lado, guarda o lado
+  calmo e lembra dos agrupamentos recentes. Ele era chamado so pelo
+  `laboratorio_decoracao` e pela suite: a `Sala` montava tudo por `posicoes()`,
+  que devolve pontos ISOLADOS com distancia minima entre si -- exatamente o
+  oposto de um conjunto. O sintoma nao era erro nenhum: era a sala parecer
+  movel jogado nos cantos, com cinco `agrupamento_*.tres` em disco sem efeito.
+  Mesma familia dos `PerfilDeDecoracao` orfaos.
+- **E o PORTE nao chegava ao desenho.** A regiao do atlas era sorteada do pool
+  inteiro e a largura dela virava a folga, entao uma vaga de HERO podia receber
+  um barril de 32 px -- o cluster saia com cinco pecas do mesmo tamanho, que e
+  o que impede um conjunto de ler como conjunto. Hoje o porte escolhe entre
+  celulas largas e estreitas.
+- **Ancorar o cluster no MEIO da faixa o faz flutuar.** As pecas ficam proximas
+  umas das outras e longe de tudo, e o olho le movel no canto em vez de
+  equipamento instalado. Na referencia nao ha um objeto solto no vao: tanque,
+  armario e engradado encostam na parede, e o que avanca para dentro sao os
+  tubos que saem deles. `FRACAO_DA_ANCORA` mantem a ancora no primeiro terco.
 - **Pool que cresce dilui GARANTIA, e o prop raro foi o primeiro a cair.** O
   Robo Desativado era mais uma entrada em `regioes_props_volume`, sorteada
   uniformemente -- e isso funcionava enquanto o pool tinha 28 regioes. Com o

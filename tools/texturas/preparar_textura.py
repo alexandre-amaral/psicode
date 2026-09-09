@@ -513,6 +513,37 @@ def regra_de(familia, tipo):
     return regra
 
 
+## Reduzir INVENTA cor, e numa arte paletizada isso e destruir a paleta.
+##
+## O BOX preserva massa -- e por isso ele reduz --, mas ele MEDEIA cor: o pixel
+## na fronteira entre o contorno e o corpo sai como a media dos dois, que e uma
+## cor que a fonte nao tem. Medido no primeiro prop gerado: 128x128 com 60 cores
+## virou 64x64 com **467**, contra as 358 do atlas inteiro que ele ia acompanhar
+## -- vinte vezes mais densidade de cor que a arte ao lado.
+##
+## E a mesma armadilha que `gerar_projeteis.py` ja paga desde a arte de
+## projetil, onde ela derrubou a fracao que compete de 52% para 41%. A saida e
+## a mesma: reduzir e depois GRUDAR na paleta da FONTE, que mantem as duas
+## coisas -- a silhueta que o BOX preserva e a paleta que o pixel art declara.
+def grudar_na_fonte(im, fonte):
+    origem = np.asarray(fonte.convert("RGBA"), dtype=np.int16)
+    paleta = np.unique(
+        origem[..., :3][origem[..., 3] > 127].reshape(-1, 3), axis=0
+    ).astype(np.int32)
+    if paleta.size == 0:
+        return im
+    a = np.asarray(im.convert("RGBA"), dtype=np.uint8).copy()
+    plano = a[..., :3].reshape(-1, 3).astype(np.int32)
+    # Distancia em RGB e o bastante: a pergunta e "qual cor da fonte esta mais
+    # perto", e nao "quanto o olho percebe". Um espaco perceptual mudaria a
+    # escolha em empates e nao mudaria o resultado em nenhum outro lugar.
+    indices = np.argmin(
+        ((plano[:, None, :] - paleta[None, :, :]) ** 2).sum(axis=2), axis=1
+    )
+    a[..., :3] = paleta[indices].astype(np.uint8).reshape(a.shape[0], a.shape[1], 3)
+    return Image.fromarray(a, "RGBA")
+
+
 def forcar_gamut(im, familia, tipo="andar1"):
     regra = regra_de(familia, tipo)
     rgb, alpha = _canais(im)
@@ -733,12 +764,24 @@ def main():
     pr.add_argument("--familia", choices=list(FAMILIAS), default=None)
     pr.add_argument("--tipo", choices=list(MATIZ_POR_TIPO), default=None)
     pr.add_argument("--lado", type=int, default=256)
+    pr.add_argument("--tamanho", default=None, metavar="LARGURAxALTURA",
+                    help="reduz para um retangulo, e nao para um quadrado. O funil "
+                         "nasceu para ladrilho, que e sempre quadrado; PROP nao e -- "
+                         "um tanque cabe numa celula 64x128 e forcar 128x128 nele "
+                         "esticaria a peca. A reducao continua acontecendo ANTES de "
+                         "tudo, que e a ordem que a costura e a requantizacao exigem")
     pr.add_argument("--manter-tamanho", action="store_true",
                     help="nao redimensiona: usa a imagem no tamanho em que ela chegou. "
                          "O funil nasceu para textura de ladrilho, que e sempre quadrada, "
                          "e por isso --lado forca lado x lado. Um ATLAS nao e ladrilho: "
                          "ele e uma grade de celulas, e esticar 256x128 para 256x256 "
                          "deforma cada prop e desalinha todas as regioes dos tipo_*.tres.")
+    pr.add_argument("--grudar-na-fonte", action="store_true",
+                    help="depois de reduzir, devolve cada pixel a cor mais proxima "
+                         "da FONTE. Para arte PALETIZADA (prop, peca gerada) e "
+                         "praticamente obrigatorio: sem isso o BOX inventa a media "
+                         "entre contorno e corpo e a peca chega com dez vezes mais "
+                         "cores que a arte ao lado dela")
     pr.add_argument("--sem-costura", action="store_true",
                     help="pula a costura (para arte que ja nasceu ladrilhavel)")
     # Pre-passo: DESLIGADO por default, para nenhuma textura ja preparada mudar
@@ -785,8 +828,18 @@ def main():
         # depois nao sobrevive a reamostragem. Medido no piloto -- a junta em y
         # saiu de 0,28 para 1,27 so por causa do BOX. A costura tem de ser feita
         # nos pixels que vao para o disco.
-        if not a.manter_tamanho and im.size != (a.lado, a.lado):
+        fonte = im
+        if a.tamanho is not None:
+            largura, _sep, altura = a.tamanho.partition("x")
+            alvo_wh = (int(largura), int(altura))
+            if im.size != alvo_wh:
+                im = im.resize(alvo_wh, Image.BOX)
+        elif not a.manter_tamanho and im.size != (a.lado, a.lado):
             im = im.resize((a.lado, a.lado), Image.BOX)
+        # Grudar vem LOGO depois de reduzir, e antes de qualquer coisa que mexa
+        # em cor: a paleta a que se gruda e a da fonte como ela chegou.
+        if a.grudar_na_fonte and im.size != fonte.size:
+            im = grudar_na_fonte(im, fonte)
         # O pre-passo vem ANTES da costura: costurar mistura a periferia com a
         # copia deslocada, entao desvinhetar depois dela espalharia a vinheta em
         # vez de apaga-la.

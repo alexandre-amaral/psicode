@@ -96,14 +96,16 @@ A arte crua **nao entra no jogo**. Ela passa por `preparar_textura.py`, que e
 quem poe a peca na paleta do andar e responde o portao de gamut.
 
 ```bash
-# volume (HERO, GRANDE, MEDIO, PEQUENO) -- o atlas de props
-python tools/texturas/preparar_textura.py ORIGEM assets/texturas/props_volume.png \
-    --familia prop --manter-tamanho
+# volume (HERO, GRANDE, MEDIO, PEQUENO): a peca que vai para o atlas de props
+python tools/texturas/preparar_textura.py preparar ORIGEM PRONTO.png --familia prop --tamanho 64x64 --sem-costura --grudar-na-fonte
 
-# decalque (DECALQUE, MICRO) -- chao pintado
-python tools/texturas/preparar_textura.py ORIGEM DESTINO \
-    --familia decalque --alvo-v 0.055 --compressao-v 0.30
+# decalque (DECALQUE, MICRO): chao pintado
+python tools/texturas/preparar_textura.py preparar ORIGEM PRONTO.png --familia decalque --tamanho 64x32 --alvo-v 0.055 --compressao-v 0.30
 ```
+
+E ela **nunca e escrita direto no atlas**: quem cola e
+`tools/texturas/colar_no_atlas.py`, que cresce o arquivo para baixo, ancora o
+recorte no fundo da celula e imprime as regioes para os `tipo_*.tres`.
 
 Dois numeros do decalque nao sao gosto. Com o default da familia ele sai com
 luma mediana **0,080** contra **0,079** do `chao_andar1_a`: ele nao fica mais
@@ -117,6 +119,53 @@ processa a imagem toda: rodar no atlas completo mexeria no valor e na saturacao
 de todos os props ja aprovados. Prepare a tira nova, e so entao cole -- e o
 atlas CRESCE para baixo, nunca se recompoe, porque as regioes ja declaradas nos
 `tipo_*.tres` sao coordenadas cruas.
+
+---
+
+## 4.1 Os tres numeros que o Batch 1 mediu
+
+Eles nao estavam no plano e sairam da primeira leva de arte gerada. Valem para
+todas as levas seguintes.
+
+**1. Reduzir INVENTA cor, e prop e arte paletizada.** O tanque veio 128x128 com
+60 cores e saiu 64x64 com **467** -- contra as 358 do atlas inteiro que ele ia
+acompanhar. E a mesma armadilha que `gerar_projeteis.py` ja paga desde a arte de
+projetil. `--grudar-na-fonte` devolve cada pixel a cor mais proxima da FONTE
+depois da reducao: as 467 viraram **71**.
+
+**2. A peca chega com a cor do gerador, e o funil nao gira matiz sozinho.** A
+familia `prop` esta em `SEM_FAIXA_DE_MATIZ`, entao nada clampa o matiz dela --
+medido, o tanque chegou em **186 graus (ciano)** e a caixa em **28 (laranja)**.
+Quem resolve e `--tingir 228 --saturacao 0.40 --limiar-neon 0.9`, que poe a peca
+no mesmo lugar do atlas existente (H 230 / S 0,42 medidos). O `--limiar-neon`
+alto e o ponto: com o default de 0,30 os aneis vermelhos do tubo sobrevivem ao
+tingimento e a peca sai sendo a unica quente da leva.
+
+**3. Ela tambem chega CENTRADA na propria tela, e o vazio vai para o chao.** O
+`teste_props.gd` cobra que a arte encoste no fundo da celula (sobra maxima de 1
+px), porque a `Sala` trata a base da regiao como o ponto de contato. Colada
+inteira, o tanque sobrava 3 px e a bancada 6 -- os dois flutuando, sem erro
+nenhum. `colar_no_atlas.py` recorta no alfa e ancora o RECORTE.
+
+Os comandos exatos do Batch 1, para a proxima leva copiar:
+
+```bash
+COMUM="--familia prop --sem-costura --grudar-na-fonte --tingir 228 --saturacao 0.40 --limiar-neon 0.9"
+
+python tools/texturas/preparar_textura.py preparar tools/art_sources/fabrica/tanques/tanque_pressao.png PRONTO/tanque.png $COMUM --tamanho 64x64
+
+python tools/texturas/colar_no_atlas.py assets/texturas/props_volume.png PRONTO/tanque.png@64x64 PRONTO/barril.png@32x64
+```
+
+O decalque leva o mesmo tingimento, com a familia e os alvos dele:
+
+```bash
+python tools/texturas/preparar_textura.py preparar ORIGEM DESTINO --familia decalque --sem-costura --grudar-na-fonte --tamanho 64x32 --tingir 225 --saturacao 0.25 --limiar-neon 0.9 --alvo-v 0.055 --compressao-v 0.30
+```
+
+Sem o `--tingir` ali a mancha reprovou o matiz por **cinco graus** (achado
+180-320 contra a faixa 185-320): o realce azulado que o gerador desenhou nela,
+mesmo depois de escurecida, ainda apontava para o ciano.
 
 ---
 

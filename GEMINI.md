@@ -264,6 +264,7 @@ docs/
 | **Baixar a energia de uma textura sem achatar a faixa dinamica** | `--acalmar CORTE_ALTO REALCE_BAIXO` em `preparar_textura.py`: corta a banda alta (rebite, junta) e realca a baixa (a chapa). Desligado por default |
 | **Arte de chao ou parede que nao nasceu na paleta** | o pre-passo de `preparar_textura.py`: `--desvinheta` (chapa a iluminacao), `--tingir GRAUS` + `--limiar-neon` (tinge o metal apagado e deixa o acento aceso intacto), `--grampear-matiz`, `--alvo-v`. Tudo desligado por default |
 | **Prop volumetrico novo** | desenhar na celula do `props_volume.png` ancorado no FUNDO dela, e declarar a regiao em `regioes_props_volume` do `tipo_*.tres` |
+| **Peca que voltou do gerador com FUNDO CHAPADO** | `python tools/texturas/chavear_celula.py assets/texturas/props_volume.png --celula X,Y,L,A` -- ele apaga so o fundo daquela celula, por CONEXAO a partir da borda, e nao toca no resto da folha. `--conferir` mede sem escrever |
 | **Prop que so pode aparecer uma vez por andar (o Robo Desativado)** | `regioes_props_raras` do `tipo_*.tres`; quem escolhe a sala e `GerenciadorMapa._sortear_celula_de_prop_raro()` |
 | **Quanto CADA LADO da parede desenha** | `src/mapa/perfil_de_parede.gd`: norte `face 48 / cap 12 / sombra 4`, lateral `face 28 / reveal 8 / sombra 4`, sul `labio 4 / ledge 20 / queda 8`. Os quatro lados sao perfis DIFERENTES, e a simetria era o defeito |
 | **O chanfro das quinas** | `chanfro_de_canto` no mesmo perfil; quem o aplica e `Sala._chanfrar()`, em codigo -- as cenas continuam retangulares |
@@ -1796,6 +1797,26 @@ em qualquer erro de script.
   atras dos volumes. Por isso `teste_props.gd` mede SOBREPOSICAO com as duas
   vizinhas mais proximas, e nao a presenca de um sprite em `Ligacoes` -- essa
   passaria com o cano desenhado no meio do nada.
+- **Fundo chapado nao e defeito de COR, e por isso os portoes de cor nao o
+  pegam.** Duas celulas do `props_volume.png` entraram no jogo com o cinza do
+  PixelLab ainda colado atras da peca -- a cadeira da estacao de modificacao
+  corporal, com **16,8% da celula**, e um resto na base da bancada de
+  ferramentas. Numa sala escura isso e uma moldura clara em volta do movel, que
+  le como bug de renderizacao. Nenhum dos tres portoes que ja olhavam aquele
+  arquivo podia acusar: o de paleta mede valor e saturacao do arquivo INTEIRO, e
+  um cinza de luma 0,42 cabe folgado no teto da familia `prop`; o de ancora mede
+  a ultima linha com arte, e fundo chapado tambem e arte para ele; e o de borda
+  opaca nao morde, porque o fundo nao alcanca as laterais da celula. O defeito
+  so aparecia em TELA. Hoje quem fecha isso e
+  `teste_props.gd:_nenhuma_celula_do_atlas_entra_com_FUNDO_CHAPADO`.
+- **E o que separa fundo de SOMBRA nao e um limiar escolhido a dedo: e a
+  paleta.** O funil do andar 1 grampeia o matiz, entao arte aprovada e azulada
+  por construcao e nunca cinza puro -- os dois fundos mediam saturacao 0,000 e
+  0,009, e a sombra legitima que encosta na borda das mesmas celulas fica entre
+  **0,14 e 0,52**. Recortar por COR seria fatal aqui: metal escovado tem
+  highlight quase branco, e **36 das 61 celulas** tem pixel de saturacao zero --
+  em 34 delas ele e o brilho da chapa, e nao fundo. So sai o que ALCANCA a
+  borda, a mesma regra que `preparar_icone.py` ja segue.
 - **Prop novo passa pelo funil SOZINHO, e nao junto do atlas inteiro.**
   `preparar_textura.py` processa a imagem toda: rodar no atlas completo mexeria
   no valor e na saturacao dos doze props ja aprovados. Prepare a tira nova, e so

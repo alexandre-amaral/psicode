@@ -33,6 +33,43 @@ const TIPOS_COM_VOLUME := [
 	"res://src/mapa/tipo_item.tres",
 ]
 
+## TODOS os tipos que DECLARAM regiao no atlas volumetrico, inclusive os que
+## hoje nao pedem prop nenhum.
+##
+## Ela e mais larga que `TIPOS_COM_VOLUME` de proposito, e a diferenca importa
+## para o portao de fundo chapado: regiao declarada e regiao que alguem pode
+## desenhar amanha -- o `tipo_boss.tres` lista 13 celulas com a faixa em zero, e
+## medir so quem pede HOJE deixaria essas 13 fora da conta em silencio. Mesmo
+## desenho de `_nenhum_png_fica_fora_de_regime`: arte que ninguem mede nao
+## reprova, ela SOME.
+const TIPOS_COM_REGIAO_DECLARADA := [
+	"res://src/mapa/tipo_combate.tres",
+	"res://src/mapa/tipo_inicial.tres",
+	"res://src/mapa/tipo_arma.tres",
+	"res://src/mapa/tipo_item.tres",
+	"res://src/mapa/tipo_loja.tres",
+	"res://src/mapa/tipo_boss.tres",
+]
+
+## Acima disto o fundo tem MATIZ e nao e fundo de gerador -- e sombra de
+## contato, que e desenho e tem de ficar. Medido nas celulas do andar 1: a
+## sombra legitima que encosta na borda fica entre 0,14 e 0,52 de saturacao, e
+## os dois fundos chapados que este portao achou mediam 0,000 e 0,009.
+const SATURACAO_MAXIMA_DE_FUNDO := 0.08
+
+## E abaixo deste valor o cinza e escuro demais para ser o fundo do gerador.
+const VALOR_MINIMO_DE_FUNDO := 0.235
+
+## Distancia L1 de RGB (em 0..1) ate a cor do fundo. Mesmo criterio de
+## `preparar_icone.py`: o gerador devolve o fundo em DOIS tons quase iguais, e
+## tolerancia apertada deixa o segundo para tras -- a peca sai com a moldura
+## colada em volta.
+const TOLERANCIA_DE_FUNDO := 0.095
+
+## O piso de area para o caso MORDER. Cinco pixels de fundo encostando na borda
+## sao ruido de recorte; um retangulo atras da peca comeca em 4%.
+const FRACAO_MINIMA_DE_FUNDO := 0.01
+
 
 func nome() -> String:
 	return "Props"
@@ -54,6 +91,7 @@ func executar() -> void:
 	_o_solido_nunca_deixa_um_BOLSAO_intransponivel_contra_a_parede()
 	_a_peca_mostra_a_VISTA_do_lado_em_que_ela_encosta()
 	_a_LIGACAO_toca_as_duas_pecas_que_ela_liga()
+	_nenhuma_celula_do_atlas_entra_com_FUNDO_CHAPADO()
 
 
 ## Metade 1 do contrato: a arte de cada celula encosta no FUNDO dela.
@@ -1133,3 +1171,153 @@ func _a_LIGACAO_toca_as_duas_pecas_que_ela_liga() -> void:
 			% [soltos, canos])
 	ok(salas_com_ligacao > 0,
 		"e as salas de fato montam bancada com vao para ligar (%d)" % salas_com_ligacao)
+
+
+## Nenhuma celula do atlas entra no jogo com o FUNDO DO GERADOR ainda colado.
+##
+## ## O defeito que este portao existe para pegar
+##
+## `transparent background` no prompt do PixelLab **nao garante alfa**, e este
+## repositorio ja pagou a licao duas vezes -- nos icones as 16 pecas voltaram
+## 100% opacas, e nos props "o armario voltou com alfa e o vaso de pressao 100%
+## opaco" na mesma leva. Quando passa, a peca entra no atlas com um RETANGULO
+## CINZA atras dela: numa sala escura o jogador ve uma moldura clara em volta do
+## movel, que le como bug de renderizacao e nao como decoracao.
+##
+## Duas celulas estavam assim quando este caso foi escrito -- a cadeira da
+## estacao de modificacao corporal (16,8% da celula) e um resto de fundo na base
+## da bancada de ferramentas. **Nenhum portao acusava**, e nao por descuido: o
+## de paleta mede valor e saturacao do ARQUIVO INTEIRO, e um cinza de luma 0,42
+## cabe folgado no teto da familia `prop`; o de ancora mede a ultima linha com
+## arte, e fundo chapado tambem e arte para ele. O defeito so aparecia em tela.
+##
+## ## Por que CONEXAO, e nunca cor
+##
+## Apagar "todo pixel parecido com o fundo" abriria buraco DENTRO da peca, e
+## aqui isso seria fatal: metal escovado tem highlight quase branco, e **36 das
+## 61 celulas** do atlas tem pixel de saturacao zero -- em 34 delas ele e o
+## brilho da chapa. So conta o que ALCANCA a borda da celula.
+##
+## E o que separa fundo de sombra nao e um limiar escolhido a dedo: e a PALETA.
+## O funil do andar 1 grampeia o matiz, entao arte aprovada e azulada por
+## construcao e nunca cinza puro.
+##
+## Quem conserta e `tools/texturas/chavear_celula.py`, com esta mesma definicao
+## de fundo -- portao e conserto discordarem seria pior que nao ter nenhum dos
+## dois.
+func _nenhuma_celula_do_atlas_entra_com_FUNDO_CHAPADO() -> void:
+	var imagem := _abrir_atlas()
+	if imagem == null:
+		ok(false, "props_volume.png abre")
+		return
+
+	var vistas := {}
+	var sujas := 0
+	for caminho: String in TIPOS_COM_REGIAO_DECLARADA:
+		var dados: DadosSala = load(caminho)
+		if dados == null:
+			continue
+		var regioes: Array[Rect2i] = []
+		regioes.append_array(dados.regioes_props_volume)
+		regioes.append_array(dados.regioes_props_raras)
+		for regiao: Rect2i in regioes:
+			if vistas.has(regiao):
+				continue
+			vistas[regiao] = true
+			var area := float(maxi(regiao.size.x * regiao.size.y, 1))
+			var fundo := _fundo_chapado_da_celula(imagem, regiao)
+			var fracao := float(fundo) / area
+			if fracao >= FRACAO_MINIMA_DE_FUNDO:
+				sujas += 1
+				ok(
+					false,
+					"a celula %s entra com o fundo do gerador colado (%d px, %.1f%% dela)"
+						% [regiao, fundo, fracao * 100.0]
+				)
+
+	# A segunda ponta: um portao que nunca olhou celula nenhuma tambem diria
+	# "nenhuma suja". Tabela vazia nao e aprovacao.
+	ok(vistas.size() >= 40,
+		"o portao varreu o atlas inteiro (%d celulas declaradas)" % vistas.size())
+	igual(sujas, 0, "nenhuma celula do atlas volumetrico tem fundo chapado")
+
+
+## Os pixels de fundo chapado de uma celula: opacos, de cor NEUTRA, e ligados a
+## borda dela. Zero quando a celula esta limpa. Ver o bloco do caso acima.
+func _fundo_chapado_da_celula(imagem: Image, regiao: Rect2i) -> int:
+	var larg := regiao.size.x
+	var alt := regiao.size.y
+	if larg <= 0 or alt <= 0:
+		return 0
+
+	# A cor do fundo e a mais comum NA BORDA, e nao na celula: a peca ocupa o
+	# miolo, entao a moda da celula inteira seria a cor do movel.
+	var contagem := {}
+	var borda: Array[Vector2i] = []
+	for i in larg:
+		borda.append(Vector2i(i, 0))
+		borda.append(Vector2i(i, alt - 1))
+	for j in alt:
+		borda.append(Vector2i(0, j))
+		borda.append(Vector2i(larg - 1, j))
+
+	var opacas: Array[Vector2i] = []
+	for p: Vector2i in borda:
+		var cor := imagem.get_pixelv(regiao.position + p)
+		if cor.a <= 0.78:
+			continue
+		opacas.append(p)
+		var chave := Vector3i(
+			roundi(cor.r * 255.0), roundi(cor.g * 255.0), roundi(cor.b * 255.0))
+		contagem[chave] = int(contagem.get(chave, 0)) + 1
+	if opacas.is_empty():
+		return 0
+
+	var moda := Vector3i.ZERO
+	var melhor := 0
+	for chave: Vector3i in contagem:
+		var n: int = contagem[chave]
+		if n > melhor:
+			melhor = n
+			moda = chave
+	var fundo := Color8(moda.x, moda.y, moda.z)
+	var maior := maxf(fundo.r, maxf(fundo.g, fundo.b))
+	var menor := minf(fundo.r, minf(fundo.g, fundo.b))
+	var saturacao := 0.0 if maior <= 0.0 else (maior - menor) / maior
+	if saturacao > SATURACAO_MAXIMA_DE_FUNDO or maior < VALOR_MINIMO_DE_FUNDO:
+		return 0
+
+	# Preenchimento a partir da borda. `visto` e um PackedByteArray e nao um
+	# Dictionary porque a varredura roda em 61 celulas de ate 96x128.
+	var visto := PackedByteArray()
+	visto.resize(larg * alt)
+	var fila: Array[Vector2i] = []
+	for p: Vector2i in opacas:
+		if visto[p.y * larg + p.x] == 0 and _e_fundo(imagem, regiao, p, fundo):
+			visto[p.y * larg + p.x] = 1
+			fila.append(p)
+
+	var total := 0
+	while not fila.is_empty():
+		var atual: Vector2i = fila.pop_back()
+		total += 1
+		for passo: Vector2i in [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOWN, Vector2i.UP]:
+			var vizinho := atual + passo
+			if vizinho.x < 0 or vizinho.y < 0 or vizinho.x >= larg or vizinho.y >= alt:
+				continue
+			var indice := vizinho.y * larg + vizinho.x
+			if visto[indice] != 0:
+				continue
+			if _e_fundo(imagem, regiao, vizinho, fundo):
+				visto[indice] = 1
+				fila.append(vizinho)
+	return total
+
+
+func _e_fundo(imagem: Image, regiao: Rect2i, ponto: Vector2i, fundo: Color) -> bool:
+	var cor := imagem.get_pixelv(regiao.position + ponto)
+	if cor.a <= 0.78:
+		return false
+	var distancia := (
+		absf(cor.r - fundo.r) + absf(cor.g - fundo.g) + absf(cor.b - fundo.b))
+	return distancia <= TOLERANCIA_DE_FUNDO

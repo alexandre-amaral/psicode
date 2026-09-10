@@ -249,6 +249,87 @@ caminho delas:
 > script fora do pacote, e o `mcp_runtime_bridge` lê `user://` todo frame. O
 > `BUILD.md` passou a ter esse passo no pré-voo, que era onde ele faltava.
 
+**`v0.5.1-alpha`.** O andar 1 deixou de ser **um plano com móveis nos cantos**: a
+fábrica ganhou decoração, luz e volume, o inventário passou a caber duas armas, e
+os 26 itens de prateleira ganharam **ícone**. É a versão em que a arte chegou aos
+três lugares em que o jogo mais mentia sobre si mesmo — a peça, a parede e o
+pickup.
+
+**Os ícones vieram com a régua ANTES da arte.** As 26 peças — 16 implantes e as
+10 armas de prateleira — foram medidas em par (325 pares) antes de existir a
+primeira: cruas, **doze das dezesseis** reprovavam a faixa de leitura e três
+passavam do teto de competição com projétil. O funil **assenta o valor e só
+desce**; as duas peças escuras demais foram **redesenhadas**, não clareadas —
+clarear para passar num número é inventar iluminação.
+
+- **Prateleira metade ilustrada não lê como duas categorias: lê como ícone
+  quebrado.** Os ícones entraram só nos implantes, e o dono jogou e reportou
+  *"alguns ícones não estão funcionando na Loja"*. Medido: **303 de 600** ofertas
+  são arma. Cada metade estava certa sozinha, e portão nenhum pegava isso —
+  família visual só pode ser entregue **inteira**.
+- O losango sólido **saiu de baixo** do ícone: sendo opaco ele emoldurava o
+  desenho e roubava a silhueta, que é justamente o que a régua mede. A cor passou
+  ao halo, que já existia e nunca tinha recebido a cor da peça.
+- `no_background` do PixelLab **não devolve alfa**: as 16 voltaram 100% opacas,
+  com o fundo em dois tons quase iguais. O recorte é por **preenchimento a partir
+  da borda**, nunca por cor — o fundo do `vampirico` é da mesma família do aço da
+  própria seringa.
+
+**O inventário corporal e os dois slots de arma** (INV 01–28): três abas — ITENS
+sem teto, ARMAMENTO com exatamente dois, STATUS **derivado** dos outros dois. Não
+é arrumação: são três perguntas com regras diferentes, e fundir duas obriga o
+jogador a descobrir sozinho qual delas vale para o que ele acabou de pegar.
+
+- **O pente virou estado do SLOT.** `equipar()` enchia o pente toda vez, então
+  sair da Mantis com 3/32 e voltar devolvia 32/32 de graça — uma arma que nunca
+  precisa recarregar desde que você alterne antes.
+- `Arma.ficou_sem_municao` **nunca disparou**: as 21 armas têm reserva infinita, e
+  o código que ele executava afirmava uma regra morta (voltar para o slot 0, que
+  não existe mais). Código morto que afirma regra falsa é pior que código morto.
+- Quatro defeitos de layout que portão nenhum pega saíram da **captura**, e não
+  da lógica: `draw_string` alinhado à direita desenhando **fora** do painel, nome
+  entrando por cima da coluna de barras, nome cortado no meio da palavra, e
+  tabelas esticadas por 904 px.
+
+**A fábrica do andar 1.** A sala montava tudo por posições isoladas — o sistema
+de **clusters existia, era testado, era medido, e o jogo nunca o chamava**, com
+cinco `agrupamento_*.tres` em disco sem efeito. Ligado, a massa passou a vir de
+bancada e não de peça solta: **29% → 69%**.
+
+- **Duas fontes para a mesma densidade, e a que valia era a errada.** Os perfis do
+  `[FAB 18]` não eram apontados por ninguém; a `Sala` lia um `44` paralelo, e a
+  fatia útil de uma peça de 64 media **doze pixels**. A sala de combate foi de ~16
+  para **33,8 peças**.
+- **A pegada quadrada era o que impedia o andar de ter objeto grande** — um
+  armário de 96 reservava 96×96 de piso, e a saída tinha sido encolher a peça até
+  ela ficar **menor que o jogador**. Hoje há envelope: a peça escolhe a célula que
+  **cabe**, e o que se protege é a caminhada.
+- **A máquina é parede**: colisão na layer 3, e o sólido **cresce para trás** até
+  encostar no muro — 92 de 311 peças deixavam uma fresta de 4 a 23 px, larga
+  demais para ler como encostada e estreita demais para o corpo passar.
+- A **lâmpada saiu do chão** e foi para a parede, com a poça descendo para o piso;
+  e o **cano** corre atrás da bancada e reaparece nos vãos, que é o que a
+  referência mostra — ligar peça a peça produzia zero canos, porque as peças de um
+  conjunto se sobrepõem de propósito.
+- **A câmera é única, e o acervo foi refeito.** As 38 peças antigas voltaram no
+  eixo reto: `low top-down` devolve isométrico em peça alongada por mais bloco que
+  o prompt tenha, e quem resolve é `view: side` com *flat frontal elevation*. Cada
+  peça tem **duas artes** — frente e ponta —, porque girar arte de face destrói a
+  perspectiva, decisão já fechada na porta.
+
+**E o projétil desenhava acima do cenário por ACIDENTE.** Não havia nó no grupo
+`container_projeteis`, então `Arma._container()` caía no `Main` e a ordem certa
+vinha da árvore — que se perde no dia em que alguém arrasta um nó. Com a sala indo
+de 4 para ~15 corpos volumétricos, projétil passando **atrás** de um caixote
+deixou de ser hipótese.
+
+> **A lâmpada não é a alavanca da escuridão do andar, e a nota do
+> `medir_ambiente` apontava para o botão errado.** Dobrar as lâmpadas (5 → 11) move
+> **3,2 pontos** de preto; o ambiente (0,45 → 0,85) move **46,9**. E a régua que
+> media isso montava a sala **sem o `AmbienteDaFabrica`** — 17,4% de preto onde o
+> jogo dá 95%. As três réguas de razão sobreviveram ao defeito; quem o denunciou
+> foi a única que compara com um número absoluto.
+
 **`v0.5.0-alpha`.** A sala virou **caixa**, o inimigo ganhou **classe**, e o
 crédito ganhou **para onde ir** — o M1 fecha o loop que estava aberto desde a
 v0.2.0, quando `GameState.creditos` passou a acumular e nada consumia.

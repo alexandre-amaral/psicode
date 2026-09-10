@@ -15,10 +15,10 @@ Para lançar uma versão:
 
 ```bash
 # 1. confira que o project.godot NAO tem os autoloads do godot_mcp (ver abaixo)
-# 2. suba o config/version no project.godot (ex.: 0.5.0-alpha)
+# 2. suba o config/version no project.godot (ex.: 0.5.1-alpha)
 # 3. com o main já atualizado e verde:
-git tag v0.5.0-alpha
-git push origin v0.5.0-alpha
+git tag v0.5.1-alpha
+git push origin v0.5.1-alpha
 ```
 
 > ### Antes de taguear: os autoloads do `godot_mcp`

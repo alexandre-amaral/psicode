@@ -892,7 +892,13 @@ static func _prop_terminal(img: Image, o: Vector2i) -> void:
 	_ret(img, o.x + 11, o.y + 8, 10, 7, n0)
 	_ret(img, o.x + 10, o.y + 19, 12, 2, n4)
 	_ret(img, o.x + 10, o.y + 23, 12, 1, n4)
-	_pintar(img, o.x + 21, o.y + 25, n7)
+	_pintar(img, o.x + 10, o.y + 25, n7)
+	# O visor grande fica APAGADO (o N0 la em cima) e a luz do andar cabe em
+	# dois pixels: o unico LED aceso de todo o atlas, com a carcaca escura em
+	# volta para ele nao ler como pixel solto. E a secao 77 do briefing --
+	# "a maioria dos visores INATIVA" -- desenhada em vez de escrita.
+	_ret(img, o.x + 19, o.y + 24, 4, 3, Paleta.luz(&"led_ambar_base"))
+	_ret(img, o.x + 20, o.y + 25, 2, 1, Paleta.luz(&"led_ambar"))
 
 
 static func _prop_entulho(img: Image, o: Vector2i, semente: int) -> void:
@@ -953,12 +959,16 @@ static func _prop_painel_acento(img: Image, o: Vector2i, tipo: StringName) -> vo
 	_ret(img, o.x + 8, o.y + 22, 16, 2, n4)
 
 
+## A marcacao de piso do tipo, e o unico lugar do atlas onde o tipo de sala
+## ainda pode aparecer em COR. Ela le por `Paleta.marca()`: `arma` recebe a
+## faixa de galao envelhecida e `item` a marca tecnica fria, e todo o resto cai
+## na rampa gunmetal -- que e a FAB 12 desenhada em vez de escrita.
 static func _prop_marcacao_acento(img: Image, o: Vector2i, tipo: StringName) -> void:
-	var a0 := Paleta.acento(tipo, &"A0")
-	var a1 := Paleta.acento(tipo, &"A1")
-	_ret(img, o.x + 2, o.y + 13, 28, 6, a0)
+	var faixa := Paleta.marca(tipo, &"faixa")
+	var tique := Paleta.marca(tipo, &"tique")
+	_ret(img, o.x + 2, o.y + 13, 28, 6, faixa)
 	for x in range(4, 28, 8):
-		_ret(img, o.x + x, o.y + 15, 4, 2, a1)
+		_ret(img, o.x + x, o.y + 15, 4, 2, tique)
 
 
 # --------------------------------------------------------------- helpers -----

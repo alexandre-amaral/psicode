@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="DadosArma" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+[ext_resource type="Texture2D" path="res://assets/armas/icone_plasma_arc.png" id="9_ico"]
 
 [resource]
 script = ExtResource("1_dados")
@@ -23,6 +24,7 @@ velocidade_projetil = 880.0
 alcance = 330.0
 raio_projetil = 5.5
 cor_projetil = Color(0.28, 1, 0.47, 1)
+icone = ExtResource("9_ico")
 familia_impacto = 2
 familia_silhueta = 3
 raio_explosao = 76.0

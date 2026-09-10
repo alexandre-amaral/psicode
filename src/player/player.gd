@@ -71,9 +71,20 @@ var _t_ciclo: float = 0.0
 var _personagem: DadosPersonagem = null
 var _camera: Camera2D
 
-## Slot 0 e sempre a pistola infinita; slot 1 e o loot. Q alterna.
-var _slots: Array[DadosArma] = [null, null]
-var _slot_ativo: int = 0
+## O QUE O JOGADOR CARREGA. Dois slots simetricos, o pente de cada um, e quem
+## esta na mao. O Player e o ADAPTADOR: ele traduz o que o inventario decidiu em
+## `Arma.equipar()` e em sinal do EventBus, e nao guarda uma segunda copia do
+## estado -- os dois `var` soltos que moravam aqui (`_slots` e `_slot_ativo`)
+## eram exatamente isso, com a regra dos slots espalhada por quatro funcoes.
+var _inventario := InventarioDeArmas.new()
+
+## Freio de troca. Existe so para impedir spam tecnico -- o jogo depende de
+## resposta rapida, entao o numero e o menor que resolve e nao uma animacao
+## disfarcada de custo. `const` e nao `@export` pela mesma razao que
+## `Porta.TEMPO_DE_ABERTURA`: limite de design nao e botao de tuning, e um botao
+## seria girado para cima na primeira vez que alguem achasse a troca "nervosa".
+const COOLDOWN_TROCA := 0.15
+var _t_troca: float = 0.0
 
 
 ## Sobrescreve os @export da cena com o que o personagem escolhido pede.
@@ -131,7 +142,7 @@ func _ready() -> void:
 	# atual teria de ser reescalada junto e o dano viraria fracao. Entao ela
 	# reage ao evento, uma vez por implante.
 	EventBus.modificadores_mudaram.connect(_ao_modificadores_mudarem)
-	_slots[0] = arma_inicial
+	_inventario.definir_inicial(arma_inicial)
 	_arma.hostil = false
 
 	# Conectar ANTES de equipar: equipar() emite municao_alterada, e ligar o
@@ -147,14 +158,16 @@ func _ready() -> void:
 	# cura -- mesmo padrao de pedido_shake e pedido_hitstop.
 	EventBus.pedido_cura.connect(curar)
 
-	if arma_inicial != null:
-		_arma.equipar(arma_inicial)
+	# `_equipar_ativa()` ja emite `arma_equipada`, e por isso a emissao solta que
+	# ficava no fim deste `_ready` saiu: duas emissoes para o mesmo equipamento
+	# fariam a HUD desenhar duas vezes e a animacao de troca acontecer no boot.
+	if _inventario.ativa() != null:
+		_equipar_ativa()
 
-	# A camera agora e gerenciada pelo mapa ou sala. 
+	# A camera agora e gerenciada pelo mapa ou sala.
 	EventBus.player_pronto.emit(self)
 	vida_alterada.emit(vida, vida_maxima)
 	EventBus.player_dano_recebido.emit(vida, vida_maxima)
-	EventBus.arma_equipada.emit(_slots[0], 0)
 
 
 func _physics_process(delta: float) -> void:
@@ -163,6 +176,7 @@ func _physics_process(delta: float) -> void:
 
 	_t_roll_cd = maxf(_t_roll_cd - delta, 0.0)
 	_t_invuln = maxf(_t_invuln - delta, 0.0)
+	_t_troca = maxf(_t_troca - delta, 0.0)
 
 	_mirar(delta)
 
@@ -400,30 +414,103 @@ func _morrer() -> void:
 
 # ----------------------------------------------------------------- armas ---
 
-func equipar_arma_loot(dados: DadosArma) -> void:
-	_slots[1] = dados
-	_slot_ativo = 1
-	_arma.equipar(dados)
-	EventBus.arma_equipada.emit(dados, 1)
-	# Depois de equipar, e so aqui: e a unica das quatro emissoes de
-	# arma_equipada em que a arma e NOVA para o jogador.
+## O inventario, para quem precisa LER o que o jogador carrega -- a HUD, a tela
+## de inventario, a tela de troca. Devolvido cru de proposito: ele nao tem
+## metodo nenhum que mexa na arvore, entao nao ha o que proteger, e uma copia
+## seria uma segunda verdade.
+func inventario() -> InventarioDeArmas:
+	return _inventario
+
+
+## O UNICO caminho de aquisicao: chao, sala de recompensa e Loja passam por
+## aqui. Devolve o `InventarioDeArmas.Resultado`, e e QUEM PEDIU que decide o
+## que fazer com `PRECISA_ESCOLHER` -- o Player nao abre tela, pela mesma razao
+## que o inventario nao abre.
+func pedir_arma(dados: DadosArma) -> int:
+	var resultado := _inventario.pedir_aquisicao(dados)
+	if resultado != InventarioDeArmas.Resultado.ACEITA:
+		return resultado
+	_equipar_ativa()
+	# Depois de equipar, e so aqui: e a unica das emissoes de `arma_equipada` em
+	# que a arma e NOVA para o jogador.
 	EventBus.arma_adquirida.emit(dados)
+	return resultado
+
+
+## Troca a arma de um slot cheio pela nova e devolve o molde que saiu, para
+## quem chamou poder larga-lo no chao. `null` se nada saiu.
+##
+## Quem escolheu foi o jogador, na tela de troca -- este metodo executa e nao
+## decide.
+func substituir_arma(indice: int, dados: DadosArma) -> DadosArma:
+	# O pente da arma que esta na mao vive no componente `Arma`, e so volta para
+	# a instancia quando alguem pergunta. Sem esta linha, substituir o slot
+	# RESERVA guardaria o pente certo e substituir o ATIVO perderia os tiros
+	# dados desde a ultima troca.
+	_guardar_pente()
+	var saiu := _inventario.substituir(indice, dados)
+	_equipar_ativa()
+	var molde: DadosArma = saiu.dados if saiu != null else null
+	if molde != null:
+		EventBus.arma_substituida.emit(molde, dados, indice)
+	EventBus.arma_adquirida.emit(dados)
+	return molde
 
 
 func _alternar_slot() -> void:
-	if _slots[1] == null:
+	if _t_troca > 0.0:
 		return
-	_slot_ativo = 1 - _slot_ativo
-	_arma.equipar(_slots[_slot_ativo])
-	EventBus.arma_equipada.emit(_slots[_slot_ativo], _slot_ativo)
+	var saiu: DadosArma = _arma.dados
+	# O pente volta para a instancia ANTES de o slot ativo mudar: depois disso
+	# `_inventario.ativa()` ja e a outra arma, e o pente iria para a instancia
+	# errada -- as duas ficariam com o numero da que estava na mao.
+	_guardar_pente()
+	if not _inventario.alternar():
+		return
+	_t_troca = COOLDOWN_TROCA
+	_equipar_ativa()
+	EventBus.arma_trocada.emit(saiu, _arma.dados, _inventario.indice_ativo())
 
 
+## Equipa o que o inventario diz ser a arma ativa, com o PENTE dela.
+##
+## Ponto unico de contato entre o inventario e o componente `Arma`. Espalhar
+## este par de linhas pelos quatro chamadores e o que produzia a regra dos slots
+## escrita quatro vezes.
+func _equipar_ativa() -> void:
+	var inst := _inventario.ativa()
+	if inst == null or inst.dados == null:
+		return
+	_arma.equipar(inst.dados, inst.pente)
+	EventBus.arma_equipada.emit(inst.dados, _inventario.indice_ativo())
+
+
+## Copia o pente do componente `Arma` de volta para a instancia ativa.
+##
+## O componente e UM para dois slots e e ele quem decrementa a cada tiro, entao
+## a instancia so fica em dia quando alguem a atualiza. Chamado antes de toda
+## troca de equipamento.
+func _guardar_pente() -> void:
+	var inst := _inventario.ativa()
+	if inst != null and _arma.dados == inst.dados:
+		inst.pente = _arma.municao_pente
+
+
+## O slot ativo ficou sem nada para atirar.
+##
+## **Antes isto era "volta para a pistola do slot 0", e a regra morreu com a
+## simetria dos slots**: nao existe mais um slot privilegiado para onde voltar.
+## Hoje o slot esvazia e o outro assume, se houver.
+##
+## Ele nao roda hoje: as 21 armas do jogo tem reserva infinita, entao
+## `ficou_sem_municao` nunca dispara. Escrever a regra CERTA aqui e o que impede
+## que a primeira arma de reserva finita faca a coisa errada em silencio.
 func _ao_acabar_municao() -> void:
-	# Arma de loot sem municao e descartada e voltamos para a pistola.
-	_slots[1] = null
-	_slot_ativo = 0
-	_arma.equipar(_slots[0])
-	EventBus.arma_equipada.emit(_slots[0], 0)
+	_inventario.esvaziar(_inventario.indice_ativo())
+	var inst := _inventario.ativa()
+	if inst == null:
+		return
+	_equipar_ativa()
 
 
 func _ao_mudar_municao(no_pente: int, reserva: int) -> void:

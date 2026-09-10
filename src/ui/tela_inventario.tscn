@@ -1,0 +1,124 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/ui/tela_inventario.gd" id="1_inv"]
+[ext_resource type="Script" path="res://src/ui/aba_de_itens.gd" id="2_itens"]
+[ext_resource type="Script" path="res://src/ui/aba_de_armamento.gd" id="3_arma"]
+[ext_resource type="Script" path="res://src/ui/aba_de_status.gd" id="4_stat"]
+
+[node name="TelaInventario" type="CanvasLayer"]
+layer = 18
+script = ExtResource("1_inv")
+
+[node name="Escurecimento" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.03, 0.05, 0.9)
+
+[node name="Painel" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Titulo" type="Label" parent="Painel"]
+offset_left = 28.0
+offset_top = 14.0
+offset_right = 520.0
+offset_bottom = 34.0
+theme_override_colors/font_color = Color(0.42, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "INVENTÁRIO"
+
+[node name="Abas" type="HBoxContainer" parent="Painel"]
+offset_left = 28.0
+offset_top = 44.0
+offset_right = 520.0
+offset_bottom = 70.0
+theme_override_constants/separation = 6
+
+[node name="BtnItens" type="Button" parent="Painel/Abas"]
+custom_minimum_size = Vector2(120, 26)
+theme_override_font_sizes/font_size = 11
+text = "ITENS"
+
+[node name="BtnArmamento" type="Button" parent="Painel/Abas"]
+custom_minimum_size = Vector2(120, 26)
+theme_override_font_sizes/font_size = 11
+text = "ARMAMENTO"
+
+[node name="BtnStatus" type="Button" parent="Painel/Abas"]
+custom_minimum_size = Vector2(120, 26)
+theme_override_font_sizes/font_size = 11
+text = "STATUS"
+
+[node name="Conteudo" type="Control" parent="Painel"]
+offset_left = 28.0
+offset_top = 84.0
+offset_right = 932.0
+offset_bottom = 434.0
+mouse_filter = 2
+
+[node name="Itens" type="Control" parent="Painel/Conteudo"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+script = ExtResource("2_itens")
+
+[node name="Armamento" type="Control" parent="Painel/Conteudo"]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_arma")
+
+[node name="Status" type="Control" parent="Painel/Conteudo"]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("4_stat")
+
+[node name="Tooltip" type="Panel" parent="Painel"]
+offset_left = 28.0
+offset_top = 444.0
+offset_right = 932.0
+offset_bottom = 500.0
+
+[node name="Nome" type="Label" parent="Painel/Tooltip"]
+offset_left = 10.0
+offset_top = 5.0
+offset_right = 890.0
+offset_bottom = 25.0
+theme_override_font_sizes/font_size = 12
+
+[node name="Texto" type="Label" parent="Painel/Tooltip"]
+offset_left = 10.0
+offset_top = 25.0
+offset_right = 890.0
+offset_bottom = 52.0
+theme_override_colors/font_color = Color(0.7, 0.78, 0.86, 1)
+theme_override_font_sizes/font_size = 10
+autowrap_mode = 2
+
+[node name="Rodape" type="Label" parent="Painel"]
+offset_left = 28.0
+offset_top = 512.0
+offset_right = 700.0
+offset_bottom = 528.0
+theme_override_colors/font_color = Color(0.55, 0.7, 0.8, 1)
+theme_override_font_sizes/font_size = 9
+text = "[TAB] FECHAR"

@@ -47,6 +47,13 @@ func executar() -> void:
 	_o_prop_raro_aparece_numa_sala_por_andar()
 	_a_arena_reage_sem_cobrir_a_leitura()
 	_o_decalque_industrial_e_POUCO_e_nao_espelha()
+	_o_CORPO_fica_fora_da_area_util_e_a_MANCHA_entra_nela()
+	_so_o_prop_volumetrico_tem_colisao_e_a_forma_dele_e_a_SOMBRA()
+	_a_peca_de_PAREDE_so_existe_onde_ha_FACE()
+	_nada_desenhado_passa_do_ALCANCE_da_parede()
+	_o_solido_nunca_deixa_um_BOLSAO_intransponivel_contra_a_parede()
+	_a_peca_mostra_a_VISTA_do_lado_em_que_ela_encosta()
+	_a_LIGACAO_toca_as_duas_pecas_que_ela_liga()
 
 
 ## Metade 1 do contrato: a arte de cada celula encosta no FUNDO dela.
@@ -91,7 +98,7 @@ func _o_prop_volumetrico_nasce_com_base_sombra_e_y_sort() -> void:
 	ok(dados != null, "tipo_combate carrega")
 	if dados == null:
 		return
-	ok(dados.quantidade_props_volume > 0, "a sala de combate pede prop volumetrico")
+	ok(dados.faixa_de_props_volume().y > 0, "a sala de combate pede prop volumetrico")
 
 	var sala := _montar(dados)
 	var corpos := _props_volumetricos(sala)
@@ -187,9 +194,456 @@ func _a_arena_do_chefe_fica_limpa() -> void:
 	if dados == null:
 		return
 	igual(
-		dados.quantidade_props_volume, 0,
+		dados.faixa_de_props_volume(), Vector2i.ZERO,
 		"a arena do chefe nao recebe prop volumetrico (bullet hell le silhueta, nao decoracao)"
 	)
+
+
+## O que tem CORPO nunca entra na area util; o que e MANCHA entra.
+##
+## As duas metades sao o mesmo teste porque elas sao a mesma decisao, e medir so
+## uma aprova o erro oposto.
+##
+## **A primeira e a regra que protege o gameplay.** Prop volumetrico nao tem
+## colisao: um caixote dentro da area de combate e cobertura que nao cobre e
+## obstaculo que nao obstrui, e o jogador so descobre isso levando um tiro
+## atraves dele. A garantia e geometrica -- `posicoes()` recusa toda PEGADA que
+## toque a `area_spawn` --, e ela virou cobravel agora porque a migracao das
+## contagens triplicou a densidade e abriu a faixa de 44 px para os 96 do
+## perfil: os corpos passaram a nascer muito mais perto da area util, e "nao
+## toca" deixou de ser folgado por acidente.
+##
+## **A segunda e a `[FAB 06]`, e ela e uma excecao DECLARADA.** A referencia tem
+## marcacao de galao no meio da area livre e mais de dez grades espalhadas; a
+## primeira versao do decorador rejeitava tudo ali e o piso do miolo virava um
+## vazio. Sem este caso, alguem "conserta" o decalque para obedecer a area util
+## -- o codigo fica mais simples, nenhum portao reclama, e o centro da sala fica
+## chapado de novo.
+func _o_CORPO_fica_fora_da_area_util_e_a_MANCHA_entra_nela() -> void:
+	var dados: DadosSala = load("res://src/mapa/tipo_combate.tres")
+	if dados == null:
+		return
+	var corpos := 0
+	var invasores := 0
+	var manchas := 0
+	var manchas_no_miolo := 0
+	for x in 16:
+		var sala := CENA_SALA.instantiate() as Sala
+		sala.coordenadas_grid = Vector2i(x * 5, x)
+		sala.definir_visual(dados)
+		sala.position = LONGE
+		Engine.get_main_loop().root.add_child(sala)
+
+		for corpo in _props_volumetricos(sala):
+			corpos += 1
+			# A PEGADA NO CHAO, e nao um quadrado do tamanho da peca.
+			#
+			# A conta era `largura x largura`, e ela nunca descreveu objeto
+			# nenhum: um armario e largo e RASO, um tanque apoia numa base
+			# estreita. Pior, ela impedia peca grande de existir -- um hero de
+			# 96 px reservava 96x96 de piso e nao cabia na faixa de 96, entao a
+			# saida foi encolher a peca ate ela ficar menor que o jogador.
+			#
+			# O que nao pode entrar na area de combate e o chao que a peca
+			# ocupa, porque e nele que o jogador tentaria andar. A ALTURA
+			# desenhada cresce para cima da tela, atras de todo mundo, e nao
+			# tira area jogavel nenhuma.
+			#
+			# A conta vem do decorador, e nao daqui: duas formas de medir a
+			# mesma pegada divergem, e a divergencia seria o jogo colocando uma
+			# peca que a suite chama de invasora.
+			var largura := _largura_do_corpo(corpo)
+			var pegada := DecoradorDeSala.pegada_no_chao(corpo.position, largura)
+			if sala.area_spawn.intersects(pegada):
+				invasores += 1
+
+		var raiz := sala.get_node_or_null("Decalques") as Node2D
+		if raiz != null:
+			for filho in raiz.get_children():
+				var sprite := filho as Sprite2D
+				if sprite == null:
+					continue
+				manchas += 1
+				if sala.area_spawn.has_point(sprite.position):
+					manchas_no_miolo += 1
+		sala.free()
+
+	ok(corpos > 0, "houve prop volumetrico para conferir (%d)" % corpos)
+	igual(invasores, 0,
+		"nenhum corpo toca a area util -- prop sem colisao ali e cobertura que nao cobre (%d de %d)"
+			% [invasores, corpos])
+	ok(manchas > 0, "houve decalque para conferir (%d)" % manchas)
+	# As DUAS pontas, e nao so uma. "Alcanca o miolo" sozinho passaria com o
+	# piso do perimetro limpo, que foi o estado medido enquanto o decalque
+	# sorteava a partir de uma aresta: 89% no miolo e 11% na beirada. E "fica na
+	# beirada" sozinho e a `[FAB 06]` desfeita. O piso e folgado de proposito --
+	# o que ele pega e a distribuicao COLAPSAR para um lado.
+	var fracao := float(manchas_no_miolo) / maxf(float(manchas), 1.0)
+	entre(fracao, 0.25, 0.85,
+		"o decalque cai nos dois lugares -- miolo e perimetro (%d de %d no miolo)"
+			% [manchas_no_miolo, manchas])
+
+
+## NENHUM pixel desenhado passa do alcance da parede -- o ENVELOPE.
+##
+## **Era o defeito mais visivel do andar, e nao havia portao nenhum sobre ele.**
+## O decorador colocava a peca olhando so a POSICAO da base: `_no_lugar()` exigia
+## `fundura <= faixa` e mais nada. Nada, em lugar nenhum, olhava `regiao.size.y`
+## -- nem a pegada, que e `largura x 24` fixo, nem esta suite. A regra de encaixe
+## era planar, e a altura desenhada nunca entrou na conta.
+##
+## Com peca de 64 px isso nao aparecia: ancorada a 8 px do contorno ela sobe 56,
+## e a parede desenha 60. Com o vaso de pressao de 96x160 do commit da escala de
+## fabrica, a mesma ancora poe o topo 152 px alem do contorno -- 92 px de arte no
+## VAZIO PRETO, alem de tudo que a sala desenha. O dono viu antes de qualquer
+## teste: *"o armario por exemplo esta vazando/maior que as paredes"*.
+##
+## ## Por que ele mede o PONTO e nao a desigualdade
+##
+## A tentacao e cobrar `altura <= fundura + alcance`. Ela esta errada nos dois
+## sentidos, porque `fundura` e a distancia a aresta MAIS PROXIMA em QUALQUER
+## direcao e o vazamento e VERTICAL: uma peca no meio da parede leste tem
+## fundura 8 e 400 px de sala acima dela, e nao vaza nada. O que se afirma aqui e
+## o que se ve: o topo do sprite, recuado do alcance, ainda cai dentro da sala.
+##
+## ## As duas pontas
+##
+## `ok(medidos > 0)` sozinho seria um carimbo. A segunda ponta e exigir que a
+## peca MAIS ALTA medida de fato passe do contorno -- se nenhuma passar, o atlas
+## virou raso e o portao esta aprovando sem ter tocado na regra que ele cobra.
+func _nada_desenhado_passa_do_ALCANCE_da_parede() -> void:
+	var medidos := 0
+	var vazando := 0
+	var maior_avanco := -1.0
+	var pior := ""
+	for caminho in TIPOS_COM_VOLUME:
+		var dados: DadosSala = load(caminho)
+		if dados == null:
+			continue
+		for semente in 6:
+			var sala := _montar_com_semente(dados, semente + 1, false)
+			var aberto := sala.contorno_local()
+			# O alcance sai do MESMO perfil que desenhou a parede. Um numero
+			# cravado aqui envelheceria junto com `corpo` e `cap`, e o portao
+			# passaria a afirmar uma espessura que o jogo ja nao usa.
+			var perfil := sala.perfil_de_parede()
+			var alcance: float = perfil.alcance() if perfil != null 				else PerfilDeParede.new().alcance()
+			for corpo in _props_volumetricos(sala):
+				var sprite := _sprite_do_corpo(corpo)
+				if sprite == null:
+					continue
+				medidos += 1
+				var altura := float(sprite.region_rect.size.y)
+				var topo := corpo.position.y - altura
+				# Quanto a peca avanca ALEM do contorno, na vertical.
+				var borda := _contorno_acima(aberto, corpo.position.x)
+				var avanco := borda - topo
+				if avanco > maior_avanco:
+					maior_avanco = avanco
+				if avanco > alcance + 1.0:
+					vazando += 1
+					if pior == "":
+						pior = "%s celula %dx%d avanca %.0f px (alcance %.0f)" % [
+							dados.id, sprite.region_rect.size.x,
+							sprite.region_rect.size.y, avanco, alcance]
+			sala.free()
+
+	ok(medidos > 0, "houve prop volumetrico para medir (%d)" % medidos)
+	igual(vazando, 0,
+		"nenhuma peca desenha alem do que a parede desenha -- alem dela e vazio (%d de %d; %s)"
+			% [vazando, medidos, pior])
+	# A ponta que impede o carimbo: se NADA chega perto do contorno, a regra nao
+	# foi exercitada e este caso esta verde por acidente.
+	ok(maior_avanco > 0.0,
+		"e alguma peca de fato sobe alem do contorno, senao a regra nao foi tocada (%.0f px)"
+			% maior_avanco)
+
+
+## O y do contorno logo ACIMA daquele x -- a linha que a peca nao pode ultrapassar
+## sem entrar na faixa de parede.
+##
+## Ele varre as arestas em vez de usar a caixa envolvente porque numa sala em L
+## a borda de cima depende de onde se esta: no braco do L ela e o degrau interno,
+## e nao o topo da caixa. Medir pela caixa aprovaria uma peca que sobe pelo vao.
+func _contorno_acima(aberto: PackedVector2Array, x: float) -> float:
+	var melhor := INF
+	for i in aberto.size():
+		var a := aberto[i]
+		var b := aberto[(i + 1) % aberto.size()]
+		if is_equal_approx(a.x, b.x):
+			continue
+		var esquerda := minf(a.x, b.x)
+		var direita := maxf(a.x, b.x)
+		if x < esquerda or x > direita:
+			continue
+		var t := (x - esquerda) / (direita - esquerda)
+		var y := lerpf(a.y, b.y, t) if a.x < b.x else lerpf(b.y, a.y, t)
+		if y < melhor:
+			melhor = y
+	return melhor
+
+
+func _sprite_do_corpo(corpo: Node2D) -> Sprite2D:
+	for filho in corpo.get_children():
+		var sprite := filho as Sprite2D
+		if sprite != null:
+			return sprite
+	return null
+
+
+## A largura desenhada de um prop volumetrico, lida do sprite dele.
+##
+## Ela nao e uma constante: o atlas tem celulas de 32 e de 64, e `Sala` escolhe
+## a folga a partir da REGIAO sorteada. Cravar 64 aqui aprovaria o dobro do que
+## a sala de fato reserva para uma peca estreita.
+func _largura_do_corpo(corpo: Node2D) -> float:
+	for filho in corpo.get_children():
+		var sprite := filho as Sprite2D
+		if sprite != null:
+			return sprite.region_rect.size.x
+	return Sala.PROP_LADO
+
+
+## SO o prop volumetrico tem colisao, e a forma dele e a SOMBRA (`[FAB 49]`).
+##
+## **Este caso afirmava o contrario, e a inversao foi pedida jogando.** A politica
+## da `[FAB 46]` era "decorativo sem colisao, obstaculo com colisao explicita", e
+## na pratica nada tinha colisao: as pecas grandes PARECIAM obstaculo e o jogador
+## atravessava. O dono foi direto -- a maquina "vai possuir colisao" e "precisa
+## parecer conectada a sala". O docstring antigo daqui ja previa este dia, dizendo
+## que o obstaculo de verdade nasceria com colisao declarada e o caso passaria a
+## listar a excecao pelo nome; o que ele nao previu e que a excecao seria a
+## familia inteira.
+##
+## Ele morde dos DOIS lados, e e essa a diferenca entre inverter um portao e
+## perder um:
+##
+##   1. as cinco familias PLANAS continuam sem colisao nenhuma. Decalque, prop
+##      chapado, prop animado, foreground e luminaria sao desenho no chao ou na
+##      parede -- solido em qualquer um deles e esbarrao em coisa pintada.
+##   2. todo `prop_volume` PRECISA ter exatamente um solido, na layer da parede,
+##      sem mask. Sem esta metade, apagar a colisao inteira deixaria o caso verde.
+##
+## E a FORMA e cobrada contra a sombra, nao contra a pegada. `pegada_no_chao()` e
+## a RESERVA -- a largura cheia da celula, conservadora, que decide se a peca cabe
+## --, e usa-la como solido pararia o corpo 28% mais largo que a sombra desenhada.
+## O jogador le a sombra como o pe da maquina; treze pixels de esbarrao alem dela
+## e fantasma, e fantasma nao da erro no console. A relacao que se afirma e
+## colisao ⊆ reserva.
+func _so_o_prop_volumetrico_tem_colisao_e_a_forma_dele_e_a_SOMBRA() -> void:
+	var dados: DadosSala = load("res://src/mapa/tipo_combate.tres")
+	if dados == null:
+		return
+	var sala := _montar(dados)
+	var aberto := sala.contorno_local()
+
+	# 1. as familias planas continuam limpas.
+	var planas := 0
+	var com_corpo: Array[String] = []
+	for nome in ["Decoracao", "Decalques", "DecoracaoAnimada", "Frente", "Luminarias",
+			"ParedePecas"]:
+		var raiz := sala.get_node_or_null(nome)
+		if raiz == null:
+			continue
+		for peca in _todos_os_nos(raiz):
+			planas += 1
+			if peca is CollisionObject2D or peca is CollisionShape2D 				or peca is CollisionPolygon2D:
+				com_corpo.append("%s/%s" % [nome, peca.name])
+
+	# 2. todo volumetrico tem UM solido, e a forma dele bate com a sombra.
+	var volumes := 0
+	var sem_solido := 0
+	var layer_errada := 0
+	var forma_errada := 0
+	var fora_da_reserva := 0
+	for corpo in _props_volumetricos(sala):
+		volumes += 1
+		var solidos: Array[StaticBody2D] = []
+		for filho in corpo.get_children():
+			var solido := filho as StaticBody2D
+			if solido != null:
+				solidos.append(solido)
+		if solidos.size() != 1:
+			sem_solido += 1
+			continue
+		if solidos[0].collision_layer != Sala.LAYER_PAREDE or solidos[0].collision_mask != 0:
+			layer_errada += 1
+		var largura := _largura_do_corpo(corpo)
+		var perto := Sala.ponto_da_parede_mais_proxima(aberto, corpo.position)
+		var esperada := Sala.forma_de_colisao_do_prop(
+			largura, perto.distance_to(corpo.position))
+		var forma: CollisionShape2D = null
+		for filho in solidos[0].get_children():
+			var candidata := filho as CollisionShape2D
+			if candidata != null:
+				forma = candidata
+		var caixa: RectangleShape2D = null
+		if forma != null:
+			caixa = forma.shape as RectangleShape2D
+		if caixa == null or not caixa.size.is_equal_approx(esperada):
+			forma_errada += 1
+			continue
+		# O solido NUNCA toca a area de combate. Ele PODE ser mais fundo que a
+		# reserva -- ele cresce para TRAS, para dentro do muro, que ja e solido --,
+		# mas para a frente ele para onde a peca reservou.
+		var centro := corpo.position + forma.position
+		var solido_como_caixa := Rect2(centro - caixa.size * 0.5, caixa.size)
+		if sala.area_spawn.intersects(solido_como_caixa):
+			fora_da_reserva += 1
+
+	ok(planas > 0, "houve peca plana para conferir (%d)" % planas)
+	igual(com_corpo.size(), 0,
+		"nenhuma familia plana tem colisao -- solido em coisa pintada e esbarrao fantasma (%s)"
+			% ", ".join(com_corpo))
+	ok(volumes > 0, "houve prop volumetrico para conferir (%d)" % volumes)
+	igual(sem_solido, 0,
+		"todo prop volumetrico tem exatamente UM solido (%d de %d sem)" % [sem_solido, volumes])
+	igual(layer_errada, 0,
+		"o solido esta na layer da PAREDE e nao procura ninguem (%d errados)" % layer_errada)
+	igual(forma_errada, 0,
+		"a caixa do solido e a SOMBRA da peca, e nao a pegada cheia (%d errados)" % forma_errada)
+	igual(fora_da_reserva, 0,
+		"e ela nunca toca a area de combate (%d tocando)" % fora_da_reserva)
+	sala.free()
+
+
+## O solido nunca deixa um vao INTRANSPONIVEL entre ele e a parede.
+##
+## **E o unico risco que a colisao introduz e que nao se ve chegando.** Solido na
+## faixa de perimetro pode nascer a qualquer profundidade da janela de ancora, e
+## uma peca ancorada a meio caminho deixa uma fresta entre a parede e ela. Fresta
+## larga e um vao; fresta de dez pixels e um lugar em que o jogador enfia o
+## personagem, fica preso e nao entende por que -- e o inimigo, que nao tem
+## pathfinding, fica raspando ali.
+##
+## A regra e binaria e nao tem numero proprio: ou o solido ENCOSTA na parede (vao
+## zero ou negativo, e ai a peca e uma saliencia continua do muro), ou ele deixa
+## espaco para um corpo passar (`FOLGA_CORPO`, o mesmo raio que
+## `posicao_livre()` ja usa para decidir se cabe alguem). O meio termo e o que
+## nao pode existir.
+##
+## Ela e cobrada aqui e nao no decorador porque quem produz o vao e a soma de tres
+## decisoes -- janela de ancora, largura da peca e profundidade do solido -- e
+## nenhuma das tres sozinha sabe do resultado.
+func _o_solido_nunca_deixa_um_BOLSAO_intransponivel_contra_a_parede() -> void:
+	var medidos := 0
+	var bolsoes := 0
+	var pior := ""
+	for caminho in TIPOS_COM_VOLUME:
+		var dados: DadosSala = load(caminho)
+		if dados == null:
+			continue
+		for semente in 6:
+			var sala := _montar_com_semente(dados, semente + 1, false)
+			var aberto := sala.contorno_local()
+			for corpo in _props_volumetricos(sala):
+				var largura := _largura_do_corpo(corpo)
+				var ate_a_parede := Sala.ponto_da_parede_mais_proxima(
+					aberto, corpo.position).distance_to(corpo.position)
+				var caixa := Sala.forma_de_colisao_do_prop(largura, ate_a_parede)
+				# A distancia da BEIRADA DE TRAS do solido a parede, ja contado o
+				# recuo -- e ele que faz a peca encostar quando a fresta seria
+				# estreita demais para o corpo passar.
+				var recuo := Sala.recuo_do_solido(largura, ate_a_parede)
+				var vao := ate_a_parede - recuo - caixa.y * 0.5
+				medidos += 1
+				if vao > 0.5 and vao < Sala.FOLGA_CORPO:
+					bolsoes += 1
+					if pior == "":
+						pior = "%s: vao de %.0f px contra folga de %.0f" % [
+							dados.id, vao, Sala.FOLGA_CORPO]
+			sala.free()
+
+	ok(medidos > 0, "houve solido para medir (%d)" % medidos)
+	igual(bolsoes, 0,
+		"nenhum solido deixa fresta em que o corpo nao passa -- ou encosta, ou da caminho (%d de %d; %s)"
+			% [bolsoes, medidos, pior])
+
+
+## Todo no daquela sub-arvore, a raiz incluida.
+func _todos_os_nos(raiz: Node) -> Array[Node]:
+	var saida: Array[Node] = [raiz]
+	for filho in raiz.get_children():
+		saida.append_array(_todos_os_nos(filho))
+	return saida
+
+
+## A peca de PAREDE so existe onde ha FACE, e ela nao espelha (`[FAB 22]`).
+##
+## Esta e a quinta familia de decoracao e a que faltava: o porte `PAREDE` existe
+## no `DecoradorDeSala` desde a `[FAB 07]` e ate aqui so a luminaria o consumia.
+## O plano registrava a divida com todas as letras -- "peca presa na FACE nao e
+## nem prop de chao nem foreground".
+##
+## As tres coisas que ela cobra falham em silencio, e nenhuma da erro:
+##
+## 1. **So o lado NORTE recebe.** `_montar_visual` so veste de face o lado
+##    virado para a camera; os outros tres mostram TOPO, que e a espessura vista
+##    de cima. Um tubo colado ali seria um tubo deitado sobre a espessura da
+##    parede -- e a perspectiva que o `LOW_TOPDOWN_SQUARED.md` defende cairia
+##    junto, sem uma linha no console.
+## 2. **Ela desenha ABAIXO de `Z_MUNDO` e ACIMA da fita.** Acima do mundo ela
+##    cobriria telegrafo e projetil; abaixo da fita ela sumiria dentro da propria
+##    parede, e o sintoma seria arte em disco que nao aparece -- o mesmo defeito
+##    que a `AreaDePerigo` pagou desenhando em z -4.
+## 3. **Ela NAO espelha.** Toda arte do jogo e iluminada do canto superior
+##    esquerdo, e `flip_h` poe a luz vindo da direita numa peca colada ao lado de
+##    uma face que continua iluminada da esquerda. As outras familias espelham
+##    para multiplicar variedade; esta nao pode.
+func _a_peca_de_PAREDE_so_existe_onde_ha_FACE() -> void:
+	var dados: DadosSala = load("res://src/mapa/tipo_combate.tres")
+	if dados == null:
+		return
+	ok(dados.faixa_de_props_parede().y > 0,
+		"a sala de combate pede peca de parede (%d)" % dados.faixa_de_props_parede().y)
+
+	var pecas := 0
+	var fora_do_norte := 0
+	var espelhadas := 0
+	for x in 12:
+		var sala := CENA_SALA.instantiate() as Sala
+		sala.coordenadas_grid = Vector2i(x * 3, x)
+		sala.definir_visual(dados)
+		sala.position = LONGE
+		Engine.get_main_loop().root.add_child(sala)
+
+		var raiz := sala.get_node_or_null("ParedePecas") as Node2D
+		if raiz != null:
+			igual(raiz.z_index, RenderizadorParedes.Z_FITA + 1,
+				"a camada de parede desenha logo acima da fita")
+			ok(raiz.z_index < Sala.Z_MUNDO,
+				"e abaixo do mundo -- ela nunca cobre telegrafo nem projetil")
+			var caixa := _caixa_do_contorno(sala.contorno_local())
+			for filho in raiz.get_children():
+				var sprite := filho as Sprite2D
+				if sprite == null:
+					continue
+				pecas += 1
+				if sprite.flip_h or sprite.flip_v:
+					espelhadas += 1
+				# O lado NORTE e o topo da caixa envolvente. Uma peca na metade
+				# de baixo esta num lado que mostra TOPO, e nao face.
+				if sprite.position.y > caixa.position.y + caixa.size.y * 0.25:
+					fora_do_norte += 1
+		sala.free()
+
+	ok(pecas > 0, "houve peca de parede para conferir (%d)" % pecas)
+	igual(fora_do_norte, 0,
+		"toda peca de parede fica no lado que TEM face (%d de %d fora)"
+			% [fora_do_norte, pecas])
+	igual(espelhadas, 0,
+		"nenhuma peca de parede espelha -- a luz do jogo vem do canto superior esquerdo (%d)"
+			% espelhadas)
+
+
+## A caixa envolvente de um contorno, em coordenadas locais.
+func _caixa_do_contorno(pontos: PackedVector2Array) -> Rect2:
+	if pontos.is_empty():
+		return Rect2()
+	var caixa := Rect2(pontos[0], Vector2.ZERO)
+	for i in range(1, pontos.size()):
+		caixa = caixa.expand(pontos[i])
+	return caixa
 
 
 # ------------------------------------------------------------------ apoio ----
@@ -333,7 +787,11 @@ func _props_volumetricos(sala: Sala) -> Array[Node2D]:
 	# volta a uma variavel tipada explode em runtime (armadilha ja registrada).
 	var achados: Array[Node2D] = []
 	for filho in sala.get_children():
-		if filho.name == "PropVolume" and filho is Node2D:
+		# Pelo GRUPO e nao pelo nome: `add_child` renomeia o segundo em diante
+		# para `@PropVolume@<id>`, entao o filtro por nome achava exatamente UM
+		# por sala -- este helper media o primeiro prop e nada mais, verde, desde
+		# que nasceu.
+		if filho is Node2D and (filho as Node2D).is_in_group(Sala.GRUPO_PROP_VOLUME):
 			achados.append(filho as Node2D)
 	return achados
 
@@ -373,14 +831,15 @@ func _ultima_linha_com_arte(imagem: Image, regiao: Rect2i) -> int:
 ##
 ## Ele tambem cobra a DOSAGEM. A issue diz "usar com moderacao: o objetivo e
 ## aumentar profundidade, nao esconder constantemente o combate", e sem numero
-## isso e opiniao. O numero e `quantidade_props_frente`, e o teste prova que a
-## sala respeita o teto em vez de encher a margem.
+## isso e opiniao. O numero e o TETO de `PerfilDeDecoracao.contagem_frente`, e o
+## teste prova que a sala respeita o teto em vez de encher a margem.
 func _o_foreground_nunca_entra_na_area_util() -> void:
 	var dados: DadosSala = load("res://src/mapa/tipo_combate.tres")
 	ok(dados != null, "tipo_combate carrega")
 	if dados == null:
 		return
-	ok(dados.quantidade_props_frente > 0, "a sala de combate pede Foreground")
+	var teto_de_frente := dados.faixa_de_props_frente().y
+	ok(teto_de_frente > 0, "a sala de combate pede Foreground")
 
 	# Varre varias celulas: o sorteio e por celula, e uma celula so poderia
 	# passar por sorte. Se algum lugar do andar puser uma viga sobre a area
@@ -398,9 +857,9 @@ func _o_foreground_nunca_entra_na_area_util() -> void:
 		if raiz != null:
 			igual(raiz.z_index, Sala.Z_FRENTE, "a camada Frente esta na faixa dela")
 			ok(
-				raiz.get_child_count() <= dados.quantidade_props_frente,
+				raiz.get_child_count() <= teto_de_frente,
 				"a sala respeita o teto de Foreground (%d de %d)"
-					% [raiz.get_child_count(), dados.quantidade_props_frente]
+					% [raiz.get_child_count(), teto_de_frente]
 			)
 			for filho in raiz.get_children():
 				var sprite := filho as Sprite2D
@@ -474,8 +933,18 @@ func _o_decalque_industrial_e_POUCO_e_nao_espelha() -> void:
 		return
 	ok(dados.atlas_decalques != null and not dados.regioes_decalques.is_empty(),
 		"o tipo de combate declara o atlas de decalques")
-	entre(float(dados.quantidade_decalques), 1.0, 3.0,
-		"a sala pede POUCOS decalques (%d)" % dados.quantidade_decalques)
+	# POUCO deixou de ser o literal "1 a 3" e passou a ser uma REGRA contra o
+	# atlas: o teto pedido nao passa do numero de pecas declaradas, entao uma
+	# sala nunca estampa a mesma peca duas vezes em media. O numero cravado
+	# envelheceria com a arte -- e a mesma licao que o teto de fichas de credito
+	# ja pagou, afirmando "o chefe paga 60" em vez da regra. Quando a `[FAB 28]`
+	# entregar as 10 pecas novas, o teto sobe sozinho.
+	var faixa_decalque := dados.faixa_de_decalques()
+	var pecas := dados.regioes_decalques.size()
+	ok(faixa_decalque.x >= 1, "a sala pede ao menos um decalque (%d)" % faixa_decalque.x)
+	entre(float(faixa_decalque.y), 1.0, float(pecas),
+		"o teto de decalques cabe no atlas -- sem peca repetida em media (%d de %d)"
+			% [faixa_decalque.y, pecas])
 	if dados.atlas_decalques == null:
 		return
 
@@ -516,11 +985,151 @@ func _o_decalque_industrial_e_POUCO_e_nao_espelha() -> void:
 		"todo decalque fica na faixa de detalhe de chao e numa regiao declarada (%d)"
 			% fora_da_faixa)
 
-	var pedido := dados.quantidade_decalques * SALAS_MEDIDAS
-	# O piso e 60% do pedido, e nao o pedido inteiro: a margem entre a parede e a
-	# area de spawn e apertada e uma peca de 64 nem sempre cabe longe da porta.
-	# O que este numero pega e a decoracao sumir de vez -- que e o modo de falha
-	# real, porque `_sortear_ponto_de_prop()` desiste em silencio.
-	entre(float(total), float(pedido) * 0.6, float(pedido),
-		"as salas receberam os decalques pedidos (%d de %d em %d salas)"
-			% [total, pedido, SALAS_MEDIDAS])
+	# A faixa e um INTERVALO desde a migracao das contagens: cada sala sorteia
+	# dentro dela, entao o esperado do lote e o intervalo multiplicado pelas
+	# salas -- e nao um numero.
+	var piso := faixa_decalque.x * SALAS_MEDIDAS
+	var teto := faixa_decalque.y * SALAS_MEDIDAS
+	# O piso e 60% do minimo pedido, e nao o minimo inteiro: a margem entre a
+	# parede e a area de spawn e apertada e uma peca de 64 nem sempre cabe longe
+	# da porta. O que este numero pega e a decoracao sumir de vez -- que e o modo
+	# de falha real, porque `_ponto_de_prop()` desiste em silencio.
+	entre(float(total), float(piso) * 0.6, float(teto),
+		"as salas receberam os decalques pedidos (%d, faixa %d a %d em %d salas)"
+			% [total, piso, teto, SALAS_MEDIDAS])
+
+
+## A peca mostra a VISTA do lado em que ela encosta (`[FAB 50]`).
+##
+## **E a terceira correcao do dono, e a que so aparece em tela.** O pedido foi
+## *"usar a orientacao reta, norte-sul ou leste-oeste, para que caiba encostado na
+## parede na maioria das vezes"*. Uma peca desenhada de frente tem o eixo longo
+## correndo leste-oeste; colada na parede LESTE, esse eixo aponta para dentro da
+## sala -- ela fica com uma quina no muro e um vao atras, e nenhuma regua de cor
+## ou de posicao pega isso.
+##
+## Por isso cada gabarito tem DUAS artes, e o atlas as declara em pares:
+## `[frente_0, ponta_0, frente_1, ponta_1, ...]`. Norte e sul mostram a frente;
+## leste e oeste mostram a ponta, que e a mesma peca com o eixo longo virado.
+## Nao e a mesma arte girada -- girar arte de FACE destroi a perspectiva, e o
+## projeto ja fechou essa decisao na porta.
+##
+## O caso morde onde a divergencia moraria: ele deriva o LADO da geometria (a
+## aresta mais proxima da peca) e cobra que a regiao desenhada esteja na metade
+## certa do par. Uma tabela paralela de "que lado usa que vista" divergiria da do
+## `DadosSala`, e o sintoma seria a peca reservando o chao de uma silhueta e
+## desenhando outra.
+func _a_peca_mostra_a_VISTA_do_lado_em_que_ela_encosta() -> void:
+	var medidas := 0
+	var erradas := 0
+	var em_lateral := 0
+	var pior := ""
+	for caminho in TIPOS_COM_VOLUME:
+		var dados: DadosSala = load(caminho)
+		if dados == null or dados.regioes_props_volume.size() < 2:
+			continue
+		# As pontas sao os indices IMPARES, por construcao do par.
+		var pontas := {}
+		for i in range(1, dados.regioes_props_volume.size(), 2):
+			pontas[str(dados.regioes_props_volume[i])] = true
+		var frentes := {}
+		for i in range(0, dados.regioes_props_volume.size(), 2):
+			frentes[str(dados.regioes_props_volume[i])] = true
+
+		for semente in 6:
+			var sala := _montar_com_semente(dados, semente + 1, false)
+			var aberto := sala.contorno_local()
+			for corpo in _props_volumetricos(sala):
+				var sprite := _sprite_do_corpo(corpo)
+				if sprite == null:
+					continue
+				medidas += 1
+				var chave := str(Rect2i(sprite.region_rect))
+				var lado := DecoradorDeSala.lado_da_posicao(aberto, corpo.position)
+				var lateral := lado == DecoradorDeSala.Lado.LESTE 					or lado == DecoradorDeSala.Lado.OESTE
+				if lateral:
+					em_lateral += 1
+				# Peca simetrica de ponta a ponta declara a MESMA regiao nas duas
+				# metades do par -- ela e frente e ponta ao mesmo tempo, e passa
+				# em qualquer lado. E o caso do engradado e do duto.
+				var vale: bool = pontas.has(chave) if lateral else frentes.has(chave)
+				if not vale:
+					erradas += 1
+					if pior == "":
+						pior = "%s: %s numa parede %s" % [
+							dados.id, chave, "lateral" if lateral else "norte/sul"]
+			sala.free()
+
+	ok(medidas > 0, "houve peca para conferir (%d)" % medidas)
+	igual(erradas, 0,
+		"toda peca mostra a vista do lado em que ela encosta (%d de %d; %s)"
+			% [erradas, medidas, pior])
+	# A ponta que impede o carimbo: se NENHUMA peca cair numa lateral, o caso
+	# esta verde por nunca ter exercitado a metade que ele existe para cobrar.
+	ok(em_lateral > 0,
+		"e alguma peca de fato encostou numa parede lateral (%d)" % em_lateral)
+
+
+## A LIGACAO toca as DUAS pecas que ela liga (`[FAB 22]`).
+##
+## **E o unico dos cinco pedidos do dono que nao e sobre posicao:** *"as conexoes
+## com canos, com cantos e entre si dos moveis com a sala deve ser evidente"*. A
+## bancada e uma fileira de maquinas encostadas, e uma fileira sem nada
+## atravessando le como moveis lado a lado.
+##
+## O cano desenha em `Z_FITA + 1`, ATRAS dos volumes, e so aparece nos vaos --
+## ele entra em cada maquina por oclusao. Isso e barato e tem um modo de falha
+## proprio: um cano curto demais termina ANTES da vizinha e le como cano cortado,
+## e um cano no lugar errado nao aparece de jeito nenhum, porque tudo que nao cai
+## num vao fica escondido. **Nenhum dos dois da erro no console** -- os dois sao
+## um sprite existindo em disco sem nada em tela.
+##
+## Por isso o caso mede SOBREPOSICAO e nao presenca: a caixa do cano tem de
+## invadir a caixa das duas vizinhas mais proximas dele. Cobrar so "existe um
+## sprite em Ligacoes" passaria com o cano desenhado no meio do nada.
+func _a_LIGACAO_toca_as_duas_pecas_que_ela_liga() -> void:
+	var canos := 0
+	var soltos := 0
+	var salas_com_ligacao := 0
+	for caminho in TIPOS_COM_VOLUME:
+		var dados: DadosSala = load(caminho)
+		if dados == null or dados.atlas_canos == null:
+			continue
+		for semente in 8:
+			var sala := _montar_com_semente(dados, semente + 1, false)
+			var raiz := sala.get_node_or_null("Ligacoes") as Node2D
+			if raiz != null and raiz.get_child_count() > 0:
+				salas_com_ligacao += 1
+			if raiz != null:
+				var corpos := _props_volumetricos(sala)
+				for filho in raiz.get_children():
+					var cano := filho as Sprite2D
+					if cano == null:
+						continue
+					canos += 1
+					var caixa := Rect2(
+						cano.position - cano.region_rect.size * 0.5,
+						cano.region_rect.size)
+					# Quantas pecas de volume esta ligacao ATRAVESSA.
+					var tocadas := 0
+					for corpo in corpos:
+						var sprite := _sprite_do_corpo(corpo)
+						if sprite == null:
+							continue
+						var largura := float(sprite.region_rect.size.x)
+						var altura := float(sprite.region_rect.size.y)
+						var peca := Rect2(
+							corpo.position - Vector2(largura * 0.5, altura),
+							Vector2(largura, altura))
+						if peca.intersects(caixa):
+							tocadas += 1
+					if tocadas < 2:
+						soltos += 1
+			sala.free()
+
+	ok(canos > 0, "houve ligacao para conferir (%d)" % canos)
+	igual(soltos, 0,
+		"toda ligacao atravessa as DUAS vizinhas -- cano que nao entra le como cano cortado (%d de %d)"
+			% [soltos, canos])
+	ok(salas_com_ligacao > 0,
+		"e as salas de fato montam bancada com vao para ligar (%d)" % salas_com_ligacao)

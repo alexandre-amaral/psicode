@@ -36,6 +36,7 @@ func executar() -> void:
 	_a_sala_em_l_monta_as_camadas()
 	_a_corrente_do_y_sort_esta_inteira()
 	_o_mundo_da_cena_principal_ordena_por_y()
+	_o_projetil_desenha_ACIMA_de_todo_cenario_ordenado_por_y()
 	_as_camadas_de_cenario_ficam_fora_do_y_sort()
 	_o_ator_tem_sombra_na_base()
 	_todo_ator_com_arte_tem_origem_nos_pes()
@@ -258,6 +259,63 @@ func _o_mundo_da_cena_principal_ordena_por_y() -> void:
 	# o jogador nunca se ordenava contra os inimigos.
 	igual(pais.get("Player", ""), "./Mundo", "o Player mora dentro do Mundo")
 	igual(pais.get("GerenciadorMapa", ""), "./Mundo", "o GerenciadorMapa mora dentro do Mundo")
+
+
+## O PROJETIL desenha acima de tudo que se ordena por Y (`[FAB 43]`).
+##
+## **Isto estava certo por ACIDENTE ate agora.** Nao havia no nenhum no grupo
+## `container_projeteis`, entao `Arma._container()` caia em `current_scene` --
+## o proprio `Main` --, e projetil adicionado depois do `Mundo` desenha depois
+## dele. O resultado era o desejado e a razao nao existia em lugar nenhum: era
+## ordem de arvore, e ela se perde no dia em que alguem arrastar um no.
+##
+## Deixou de ser detalhe quando a migracao das contagens levou a sala de combate
+## de 4 para ~15 corpos volumetricos. Um projetil que passa ATRAS de um caixote
+## e o defeito que a secao 90 do briefing manda nao ter -- e ele nao da erro, so
+## some por meio segundo no meio de uma esquiva.
+##
+## O contrato tem tres partes, e as tres se cobram aqui:
+##
+## 1. o container EXISTE e esta no grupo, para o `_container()` nao depender do
+##    fallback;
+## 2. ele e IRMAO do `Mundo` e vem DEPOIS dele -- dentro do `Mundo` ele entraria
+##    no Y-sort e voltaria a sumir atras de quem esta mais abaixo na tela;
+## 3. ele NAO ordena por Y, pela mesma razao.
+##
+## O que continua podendo cobrir um projetil e o Foreground (`Z_FRENTE`), e isso
+## e declarado: ele ja e a unica camada do jogo que pode esconder o jogador, e
+## ele nunca entra na area util.
+func _o_projetil_desenha_ACIMA_de_todo_cenario_ordenado_por_y() -> void:
+	var cena: PackedScene = load("res://src/main/main.tscn")
+	if cena == null:
+		return
+	var estado := cena.get_state()
+	var indice_do_mundo := -1
+	var indice_do_container := -1
+	for i in estado.get_node_count():
+		match estado.get_node_name(i):
+			"Mundo":
+				indice_do_mundo = i
+			"ContainerProjeteis":
+				indice_do_container = i
+
+	ok(indice_do_container >= 0, "a cena principal declara o ContainerProjeteis")
+	if indice_do_container < 0:
+		return
+	var grupos: PackedStringArray = estado.get_node_groups(indice_do_container)
+	ok(grupos.has("container_projeteis"),
+		"o container esta no grupo que a Arma procura (%s)" % ", ".join(grupos))
+	igual(String(estado.get_node_path(indice_do_container, true)), ".",
+		"o container e IRMAO do Mundo -- dentro dele o projetil voltaria ao Y-sort")
+	ok(indice_do_container > indice_do_mundo,
+		"o container vem DEPOIS do Mundo na cena (%d > %d)"
+			% [indice_do_container, indice_do_mundo])
+	var ordena: Variant = _propriedade(estado, indice_do_container, "y_sort_enabled")
+	ok(ordena == null or ordena == false,
+		"o container NAO ordena por Y -- projetil nao e corpo no chao")
+	# E a camada que ainda pode cobrir um projetil e uma so, declarada.
+	ok(Sala.Z_FRENTE > Sala.Z_MUNDO,
+		"so o Foreground desenha acima da faixa do mundo")
 
 
 ## z_index tem prioridade sobre Y: so irmaos no MESMO z se ordenam por posicao.

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="PerfilDeLuz" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/fx/perfil_de_luz.gd" id="1_luz"]
+
+[resource]
+script = ExtResource("1_luz")
+id = &"ambar"
+cor = Color(0.784, 0.525, 0.247, 1)
+energia = 6.0
+raio = 160.0
+chance_de_estar_ligada = 0.7
+chance_de_instabilidade = 0.2
+velocidade_do_flicker = 0.7
+profundidade_do_flicker = 0.35

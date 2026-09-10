@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="DadosSala" load_steps=31 format=3]
+[gd_resource type="Resource" script_class="DadosSala" load_steps=34 format=3]
 
 [ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
 [ext_resource type="Texture2D" path="res://assets/texturas/decalques_andar1.png" id="99_dec"]
@@ -27,6 +27,13 @@
 [ext_resource type="Resource" path="res://src/enemies/grupo_hacker_parasita.tres" id="13_hacker"]
 [ext_resource type="Resource" path="res://src/mapa/estilo_industrial_velho.tres" id="91_estilo"]
 
+[ext_resource type="Resource" path="res://src/fx/perfil_ambar.tres" id="90_amb"]
+
+[ext_resource type="Resource" path="res://src/mapa/decoracao_combate.tres" id="95_dec"]
+
+[ext_resource type="Texture2D" path="res://assets/texturas/props_parede.png" id="96_ppar"]
+[ext_resource type="Texture2D" path="res://assets/texturas/canos.png" id="97_cano"]
+
 [resource]
 script = ExtResource("1_ds")
 id = &"combate"
@@ -50,18 +57,22 @@ texturas_face = Array[Texture2D]([ExtResource("40_fc"), ExtResource("90_fm0"), E
 estilo_de_parede = ExtResource("91_estilo")
 atlas_props = ExtResource("23_atlas")
 regioes_props = Array[Rect2i]([Rect2i(0, 0, 32, 32), Rect2i(32, 0, 32, 32), Rect2i(64, 0, 32, 32), Rect2i(96, 0, 32, 32), Rect2i(128, 0, 32, 32), Rect2i(160, 0, 32, 32), Rect2i(192, 0, 32, 32), Rect2i(224, 0, 32, 32), Rect2i(0, 32, 32, 32), Rect2i(32, 32, 32, 32), Rect2i(64, 32, 32, 32), Rect2i(96, 32, 32, 32), Rect2i(128, 32, 32, 32), Rect2i(160, 32, 32, 32), Rect2i(192, 32, 32, 32), Rect2i(224, 32, 32, 32), Rect2i(0, 64, 32, 32), Rect2i(0, 96, 32, 32)])
-quantidade_props = 10
+perfil_de_decoracao = ExtResource("95_dec")
 atlas_decalques = ExtResource("99_dec")
-regioes_decalques = Array[Rect2i]([Rect2i(0, 0, 64, 32), Rect2i(64, 0, 64, 32), Rect2i(0, 32, 64, 32), Rect2i(64, 32, 64, 64), Rect2i(0, 96, 64, 32), Rect2i(64, 96, 64, 32)])
-quantidade_decalques = 2
+regioes_decalques = Array[Rect2i]([Rect2i(0, 0, 64, 32), Rect2i(64, 0, 64, 32), Rect2i(0, 32, 64, 32), Rect2i(64, 32, 64, 64), Rect2i(0, 96, 64, 32), Rect2i(64, 96, 64, 32), Rect2i(0, 128, 64, 32)])
 atlas_props_volume = ExtResource("24_pvol")
-regioes_props_raras = Array[Rect2i]([Rect2i(128, 128, 32, 64)])
-regioes_props_volume = Array[Rect2i]([Rect2i(0, 0, 32, 64), Rect2i(64, 0, 32, 64), Rect2i(128, 0, 32, 64), Rect2i(192, 0, 32, 64), Rect2i(160, 0, 32, 64), Rect2i(128, 64, 64, 64), Rect2i(0, 64, 64, 64), Rect2i(0, 128, 32, 64), Rect2i(32, 128, 32, 64), Rect2i(64, 128, 32, 64), Rect2i(96, 128, 32, 64), Rect2i(160, 128, 32, 64), Rect2i(0, 192, 64, 64), Rect2i(64, 192, 64, 64), Rect2i(128, 192, 32, 64), Rect2i(160, 192, 32, 64), Rect2i(192, 192, 64, 64)])
-quantidade_props_volume = 4
+regioes_props_raras = Array[Rect2i]([Rect2i(192, 1312, 32, 64)])
+regioes_props_volume = Array[Rect2i]([Rect2i(0, 0, 96, 160), Rect2i(0, 0, 96, 160), Rect2i(96, 0, 64, 128), Rect2i(96, 0, 64, 128), Rect2i(160, 160, 96, 96), Rect2i(160, 160, 96, 96), Rect2i(192, 576, 64, 96), Rect2i(192, 576, 64, 96), Rect2i(0, 288, 96, 96), Rect2i(128, 672, 64, 96), Rect2i(96, 288, 96, 96), Rect2i(192, 672, 64, 96), Rect2i(0, 384, 96, 96), Rect2i(0, 768, 64, 96), Rect2i(96, 384, 96, 96), Rect2i(64, 768, 64, 96), Rect2i(0, 672, 64, 96), Rect2i(0, 1152, 32, 96), Rect2i(64, 672, 64, 96), Rect2i(128, 768, 64, 96), Rect2i(160, 0, 64, 128), Rect2i(128, 160, 32, 128), Rect2i(0, 1312, 64, 64), Rect2i(128, 1376, 32, 64), Rect2i(192, 1056, 32, 96), Rect2i(32, 1152, 32, 96), Rect2i(192, 1248, 64, 64), Rect2i(192, 1248, 64, 64), Rect2i(224, 1056, 32, 96), Rect2i(224, 1056, 32, 96), Rect2i(96, 1376, 32, 64), Rect2i(96, 1376, 32, 64), Rect2i(64, 960, 64, 96), Rect2i(64, 960, 64, 96), Rect2i(64, 1152, 32, 96), Rect2i(64, 1152, 32, 96), Rect2i(224, 1376, 32, 64), Rect2i(224, 1376, 32, 64), Rect2i(128, 960, 64, 96), Rect2i(128, 960, 64, 96)])
+atlas_canos = ExtResource("97_cano")
+regiao_cano_horizontal = Rect2i(0, 0, 192, 32)
+regiao_cano_vertical = Rect2i(0, 32, 32, 192)
+atlas_props_parede = ExtResource("96_ppar")
+regioes_props_parede = Array[Rect2i]([Rect2i(0, 32, 64, 32), Rect2i(64, 32, 64, 32), Rect2i(128, 32, 32, 32), Rect2i(160, 32, 32, 32), Rect2i(192, 32, 32, 32), Rect2i(224, 32, 32, 32), Rect2i(0, 0, 64, 32), Rect2i(64, 0, 64, 32), Rect2i(128, 0, 32, 32)])
 atlas_props_frente = ExtResource("25_pfr")
 regioes_props_frente = Array[Rect2i]([Rect2i(0, 0, 64, 32), Rect2i(64, 0, 64, 32), Rect2i(128, 0, 64, 32)])
-quantidade_props_frente = 2
 chance_de_aprimorada = 0.25
 chance_de_premio = 0.45
 premio_minimo = 2
 premio_maximo = 5
+perfil_de_luz = ExtResource("90_amb")
+quantidade_luminarias = 8

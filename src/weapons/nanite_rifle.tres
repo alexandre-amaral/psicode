@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="DadosArma" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+[ext_resource type="Texture2D" path="res://assets/armas/icone_nanite_rifle.png" id="9_ico"]
 
 [resource]
 script = ExtResource("1_dados")
@@ -23,6 +24,7 @@ velocidade_projetil = 1000.0
 alcance = 640.0
 raio_projetil = 3.0
 cor_projetil = Color(0.28, 0.33, 1, 1)
+icone = ExtResource("9_ico")
 familia_impacto = 7
 familia_silhueta = 5
 raio_explosao = 84.0

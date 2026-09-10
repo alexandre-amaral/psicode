@@ -16,6 +16,7 @@ extends Node
 ## Saida 0 = passou. Qualquer outra coisa = quebrou.
 
 const SUITES := [
+	"res://tools/testes/teste_scripts_carregam.gd",
 	"res://tools/testes/teste_deterioracao.gd",
 	"res://tools/testes/teste_aprimoramento.gd",
 	"res://tools/testes/teste_creditos.gd",
@@ -29,11 +30,17 @@ const SUITES := [
 	"res://tools/testes/teste_porta.gd",
 	"res://tools/testes/teste_modificadores.gd",
 	"res://tools/testes/teste_efeito_item.gd",
+	"res://tools/testes/teste_icones_de_item.gd",
 	"res://tools/testes/teste_grade.gd",
 	"res://tools/testes/teste_camada_visual.gd",
 	"res://tools/testes/teste_camera.gd",
 	"res://tools/testes/teste_enquadramento.gd",
 	"res://tools/testes/teste_arma.gd",
+	"res://tools/testes/teste_inventario_de_armas.gd",
+	"res://tools/testes/teste_troca_de_arma.gd",
+	"res://tools/testes/teste_inventario.gd",
+	"res://tools/testes/teste_decoracao.gd",
+	"res://tools/testes/teste_luz.gd",
 	"res://tools/testes/teste_gatilho_inimigo.gd",
 	"res://tools/testes/teste_configuracao.gd",
 	"res://tools/testes/teste_audio.gd",

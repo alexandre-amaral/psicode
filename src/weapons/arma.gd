@@ -72,10 +72,19 @@ func _process(delta: float) -> void:
 		_concluir_recarga()
 
 
-func equipar(novos_dados: DadosArma) -> void:
+## Equipa uma arma. `pente_inicial` negativo = pente cheio, que e o que esta
+## funcao sempre fez e continua sendo o default para os cinco inimigos, o chefe
+## e o `_ready` do Player -- todos eles continuam chamando com um argumento so.
+##
+## **Quem passa o pente e o `InventarioDeArmas`, e so ele.** O pente e estado do
+## SLOT e nao do componente: com um so `Arma` para dois slots, sair da Mantis
+## com 3/32 e voltar depois devolvia 32/32 de graca, porque `equipar()` enchia
+## o pente toda vez. O sintoma nao aparece no console -- aparece como uma arma
+## que nunca precisa recarregar desde que voce alterne antes.
+func equipar(novos_dados: DadosArma, pente_inicial: int = -1) -> void:
 	dados = novos_dados
 	municao = -1 if dados.municao_infinita() else dados.municao_maxima
-	municao_pente = dados.pente()
+	municao_pente = dados.pente() if pente_inicial < 0 else mini(pente_inicial, dados.pente())
 	_t_cadencia = 0.0
 	recarregando = false
 	_t_recarga = 0.0

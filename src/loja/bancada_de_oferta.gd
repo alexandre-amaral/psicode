@@ -25,6 +25,17 @@ extends Area2D
 ## flutua acima da chapa -- e ele nao pode subir para a faixa do telegrafo. Uma
 ## Loja nao tem combate, mas o jogador atravessa a sala com projetil na tela
 ## quando entra fugindo de uma porta que acabou de abrir.
+##
+## ## O ICONE, e por que so no ITEM
+##
+## Esta e a leitura mais cara do jogo: a bancada cobra ate 30 creditos de uma
+## renda de andar medida em 35-55, e o jogador decide olhando o que flutua sobre
+## a chapa. Um hexagono de cor nao sustenta essa decisao, e o icone de 64 px do
+## implante sustenta.
+##
+## A oferta de ARMA nao muda. Arma esta fora do epico dos icones -- ela ja tem
+## identidade propria (silhueta de projetil, cor, rastro) -- e um placeholder
+## naquele lugar seria pior que o losango de hoje, que ao menos e consistente.
 
 signal comprada(oferta: OfertaDeLoja)
 
@@ -51,10 +62,45 @@ const COR_PRECO := Color(0.62, 0.86, 0.72)
 const COR_SEM_SALDO := Color(0.86, 0.42, 0.44)
 const COR_VENDIDO := Color(0.38, 0.40, 0.46)
 
+## Onde o conteudo a venda flutua, e o quanto ele sobe e desce.
+const ALTURA_DO_CONTEUDO := -14.0
+const AMPLITUDE_DO_BOB := 2.0
+## As duas linhas do prompt, contadas do centro da bancada.
+const ALTURA_DO_NOME := -34.0
+const ALTURA_DO_PRECO := -22.0
+
+## O lado do icone desenhado, em px de tela -- e ele e METADE do arquivo.
+##
+## **Escala de pixel art e inteira**, e 64 -> 32 e a unica reducao aqui que nao
+## reamostra: cada pixel de tela cai sobre um pixel do arquivo. 48, o tamanho
+## que `tools/itens/laboratorio_icones.gd` supos para a bancada antes de este
+## layout existir, e 0,75 -- borra a peca e ainda cobriria o prompt inteiro.
+## E 32 e o pior contexto que a regua ja mede, entao nenhum icone chega aqui sem
+## ter provado que se distingue dos outros quinze neste tamanho.
+const ICONE_LADO := 32.0
+
+## Quanto o prompt sobe quando ha icone.
+##
+## O icone e mais alto que o losango, e o preco tem de continuar LEGIVEL: sem
+## esta subida a linha do preco cairia dentro da peca, e a ficha desenhada --
+## que existe porque o glifo da moeda nao existe na fonte -- sumiria no meio do
+## desenho. Ele sobe o bastante para o conteudo passar por baixo, e nem um pixel
+## alem: o prompt precisa continuar ancorado NESTA bancada e nao pairando entre
+## as tres.
+const SUBIDA_DO_PROMPT_COM_ICONE := 16.0
+
 var oferta: OfertaDeLoja = null
+
+## Para onde a arma substituida cai. AO LADO da bancada e nao em cima dela: o
+## jogador esta encostado no balcao no instante da troca, e um pickup embaixo
+## dele disputaria a tecla `interagir` com a propria bancada.
+const OFFSET_DESCARTE := Vector2(0.0, 40.0)
 
 var _jogador: Node2D = null
 var _perto: bool = false
+## Ha uma tela de escolha aberta por ESTA bancada? `comprar()` sai do
+## `_process`, entao sem a guarda a tecla segurada abriria uma tela por frame.
+var _escolhendo: bool = false
 var _t: float = 0.0
 
 
@@ -109,10 +155,26 @@ func pode_comprar() -> bool:
 ## e devolve `false` exatamente para quem chama nao consumir o pickup -- este e
 ## o caso vivo, e nao um cenario hipotetico.
 func comprar() -> bool:
+	if _escolhendo:
+		return false
 	if not pode_comprar():
 		if oferta != null and not oferta.vendida:
 			Audio.tocar(load(SOM_FALHA) as AudioStream)
 			EventBus.compra_recusada.emit(oferta)
+		return false
+
+	# **A arma que nao cabe sai desta funcao inteira.** Ela precisa de uma
+	# escolha do jogador, e escolha e `await` -- mas `comprar()` e chamada do
+	# `_process` e devolve `bool` para `teste_loja.gd`. Transformando-a em
+	# corrotina, o `not bancada.comprar()` daquelas asercoes passaria a comparar
+	# um `Signal` com `false` e o portao da ordem da transacao viraria carimbo.
+	#
+	# Entao ela DELEGA e devolve `false`: nada foi comprado NESTE frame, o que e
+	# a verdade. Quem fecha a transacao e `_comprar_com_escolha()`, e o contrato
+	# da ordem continua o mesmo -- so ganha um passo na frente:
+	# escolha -> entrega -> debito.
+	if _precisa_escolher_slot():
+		_comprar_com_escolha()
 		return false
 
 	if not _entregar():
@@ -144,11 +206,96 @@ func comprar() -> bool:
 func _entregar() -> bool:
 	if oferta.tipo == OfertaDeLoja.Tipo.ARMA:
 		var jogador := get_tree().get_first_node_in_group("player")
-		if jogador == null or not jogador.has_method("equipar_arma_loot"):
+		if jogador == null or not jogador.has_method("pedir_arma"):
 			return false
-		jogador.equipar_arma_loot(oferta.conteudo as DadosArma)
-		return true
+		# Aqui ha vaga por construcao: `comprar()` desviou o caso sem vaga antes
+		# de chegar nesta linha. Conferir o retorno mesmo assim e o que impede a
+		# entrega de "acontecer" em silencio se aquele desvio se perder um dia --
+		# e a compra sem entrega e o unico defeito que uma economia nao desfaz.
+		var resultado: int = jogador.pedir_arma(oferta.conteudo as DadosArma)
+		return resultado == InventarioDeArmas.Resultado.ACEITA
 	return Modificadores.aplicar(oferta.conteudo as DadosItem)
+
+
+## A oferta e uma arma e o jogador ja carrega duas?
+func _precisa_escolher_slot() -> bool:
+	if oferta == null or oferta.tipo != OfertaDeLoja.Tipo.ARMA:
+		return false
+	var jogador := get_tree().get_first_node_in_group("player")
+	if jogador == null or not jogador.has_method("inventario"):
+		return false
+	var inv: InventarioDeArmas = jogador.inventario()
+	return not inv.tem_vaga() and not inv.carrega(oferta.conteudo as DadosArma)
+
+
+## A compra que passa por uma escolha.
+##
+## **Cancelar nao custa credito, e essa e a unica coisa que esta funcao existe
+## para garantir.** O debito acontece na ultima linha do caminho de sucesso, e o
+## `return` do cancelamento esta acima dele -- e nao ha caminho que passe pelo
+## `gastar_creditos` sem passar pela substituicao.
+func _comprar_com_escolha() -> void:
+	_escolhendo = true
+	var jogador := get_tree().get_first_node_in_group("player")
+	var nova := oferta.conteudo as DadosArma
+	var tela := TelaTrocaDeArma.abrir(get_tree().current_scene, nova, jogador.inventario())
+	var indice: int = await tela.decidida
+	_escolhendo = false
+
+	if indice < 0:
+		# Nem crédito, nem arma, nem oferta consumida. A prateleira fica como
+		# estava e o jogador pode voltar depois.
+		return
+
+	# A oferta pode ter sido comprada por outro caminho enquanto a tela estava
+	# aberta -- a arvore esta pausada, mas o portao custa uma linha e o
+	# alternativo e o jogador pagar duas vezes pelo mesmo slot.
+	if not pode_comprar():
+		EventBus.compra_recusada.emit(oferta)
+		return
+
+	var saiu: DadosArma = jogador.substituir_arma(indice, nova)
+	if not GameState.gastar_creditos(oferta.preco):
+		return
+
+	if saiu != null:
+		# **A arma antiga vira pickup normal, e nao volta a ser mercadoria.**
+		# Ela cai AO LADO da bancada e nao em cima: o jogador esta encostado no
+		# balcao, e um pickup embaixo dele disputa o `interagir` com a propria
+		# oferta seguinte. A trava de recoleta ja vem de `soltar_no_chao`.
+		PickupArma.soltar_no_chao(saiu, get_parent(), global_position + OFFSET_DESCARTE)
+
+	oferta.vendida = true
+	Audio.tocar(load(SOM_OK) as AudioStream)
+	comprada.emit(oferta)
+	EventBus.compra_concluida.emit(oferta)
+	queue_redraw()
+
+
+## O icone do que esta a venda, ou `null` quando nao ha.
+##
+## Ela PERGUNTA a propriedade em vez de fingir interface, pelo mesmo caminho de
+## `OfertaDeLoja.nome()`: `DadosArma` e `DadosItem` nao tem base comum, e uma
+## oferta que ganhasse um campo `icone` passaria a carregar duas verdades sobre
+## o mesmo recurso -- a do `.tres` e a copiada.
+##
+## E o `null` nao e defensividade inutil. `DadosItem.icone` e OPCIONAL e tem de
+## continuar sendo: e ele que permite um implante novo nascer antes da arte
+## dele, e aqui a ausencia cai na forma de hoje em vez de deixar a bancada
+## vazia.
+func _icone_da_oferta() -> Texture2D:
+	if oferta == null or oferta.conteudo == null:
+		return null
+	# **Arma e item passam pelo MESMO caminho, e isso foi uma correcao.** Ele
+	# excluia `Tipo.ARMA` de proposito, enquanto so os implantes tinham arte --
+	# mas 303 de 600 ofertas medidas sao arma, entao mais de metade da prateleira
+	# mostrava a forma antiga ao lado de uma peca ilustrada. Prateleira metade
+	# ilustrada nao le como duas categorias; le como icone quebrado.
+	#
+	# Perguntar a propriedade, e nao o tipo, e o que faz os dois caberem numa
+	# linha so: `DadosArma` e `DadosItem` nao tem base comum, e e o mesmo motivo
+	# pelo qual `OfertaDeLoja.nome()` pergunta em vez de fingir uma interface.
+	return oferta.conteudo.get(&"icone") as Texture2D
 
 
 func _draw() -> void:
@@ -175,6 +322,13 @@ func _draw() -> void:
 	if oferta == null or not oferta.valida():
 		return
 
+	var icone := _icone_da_oferta()
+	# **O prompt sobe junto com o conteudo, e nunca o contrario.** O icone e mais
+	# alto que o losango, e cravar a linha do preco a deixaria DENTRO da peca --
+	# com a ficha desenhada, que existe porque o glifo da moeda nao existe na
+	# fonte, sumindo no meio do desenho.
+	var subida := SUBIDA_DO_PROMPT_COM_ICONE if icone != null else 0.0
+
 	# O PROMPT so aparece perto, e ele e a UI inteira da compra.
 	#
 	# **Nada de menu de tela cheia.** Abrir um painel para comprar tiraria o
@@ -193,19 +347,20 @@ func _draw() -> void:
 		var cor_do_custo := COR_PRECO if GameState.pode_pagar(oferta.preco) 			else COR_SEM_SALDO
 		var largura := fonte.get_string_size(titulo, HORIZONTAL_ALIGNMENT_LEFT,
 			-1.0, tamanho).x
-		draw_string(fonte, Vector2(-largura * 0.5, -34.0), titulo,
+		draw_string(fonte, Vector2(-largura * 0.5, ALTURA_DO_NOME - subida), titulo,
 			HORIZONTAL_ALIGNMENT_LEFT, -1.0, tamanho, Color(0.86, 0.88, 0.94))
 		var largura_custo := fonte.get_string_size(custo, HORIZONTAL_ALIGNMENT_LEFT,
 			-1.0, tamanho).x
-		draw_string(fonte, Vector2(-largura_custo * 0.5, -22.0), custo,
+		var linha := ALTURA_DO_PRECO - subida
+		draw_string(fonte, Vector2(-largura_custo * 0.5, linha), custo,
 			HORIZONTAL_ALIGNMENT_LEFT, -1.0, tamanho, cor_do_custo)
 		# A ficha, do mesmo tamanho do texto e na mesma cor: e ela que liga o
 		# preco ao que o jogador cata no chao.
 		var x := -largura_custo * 0.5 + fonte.get_string_size(
 			"%d " % oferta.preco, HORIZONTAL_ALIGNMENT_LEFT, -1.0, tamanho).x + 4.0
 		draw_colored_polygon(PackedVector2Array([
-			Vector2(x, -30.0), Vector2(x + 3.0, -26.0),
-			Vector2(x, -22.0), Vector2(x - 3.0, -26.0),
+			Vector2(x, linha - 8.0), Vector2(x + 3.0, linha - 4.0),
+			Vector2(x, linha), Vector2(x - 3.0, linha - 4.0),
 		]), cor_do_custo)
 
 	if oferta.vendida:
@@ -219,7 +374,16 @@ func _draw() -> void:
 	# O CONTEUDO flutua acima da chapa, com um bob curto. Ele nao sobe para a
 	# faixa do telegrafo -- este no desenha na propria faixa e o `z_index` da
 	# sala manda.
-	var altura := -14.0 + sin(_t * 2.2) * 2.0
+	var altura := ALTURA_DO_CONTEUDO + sin(_t * 2.2) * AMPLITUDE_DO_BOB
+	# O ICONE TOMA O LUGAR DA FORMA, e nao se soma a ela: dois desenhos do mesmo
+	# implante, um por cima do outro, sao ruido -- e a peca ja passou pela regua
+	# de distinguibilidade justamente para nao precisar de apoio.
+	if icone != null:
+		draw_texture_rect(icone, Rect2(
+			Vector2(-ICONE_LADO * 0.5, altura - ICONE_LADO * 0.5),
+			Vector2(ICONE_LADO, ICONE_LADO)), false)
+		return
+
 	var cor_do_conteudo := COR_PRECO if oferta.tipo == OfertaDeLoja.Tipo.ARMA \
 		else Color(0.72, 0.78, 0.95)
 	# ARMA e um losango deitado, ITEM e um hexagono: a forma diz o tipo antes de

@@ -36,6 +36,8 @@ documentos abaixo — leia antes de propor mecanica nova:
 | `docs/PIVO_LOW_TOPDOWN.md` | O levantamento por tras do plano: o que ja esta conforme, as decisoes e o inventario do que os testes recusam |
 | `docs/PIVO_PAREDES.md` | O levantamento por tras do epico das PAREDES: o que o plano pede e o codigo ja faz, as nove formas de sala medidas, e as tres decisoes que precedem o codigo |
 | `docs/BRIEFING_PAREDES_FABRICA.md` | **O pedido de arte das paredes**: onde a arte entra no renderizador, os sete portoes que ela tem de passar, os numeros do funil e o prompt de cada modulo. O andar 1 e uma fabrica abandonada e a parede nao diz isso |
+| `docs/PROMPTS_FABRICA.md` | **Os prompts do PixelLab para o cenario do andar 1**: o prompt base, um bloco por familia, os parametros de geracao e o funil de cada porte. Prompt novo entra la ANTES de consumir geracao |
+| `docs/PLANO_INVENTARIO_CORPORAL.md` | **O plano do inventario corporal e dos dois slots de arma**, em 32 issues `[INV nn]`. Ele registra as tres correcoes que o projeto fez no pedido original -- nomes em portugues, nao existe `RunInventory`, e o F entra sem tirar o Q -- e a medicao que dissolveu o maior risco dele |
 
 Quando o codigo e o texto discordarem, **o codigo ganha e o texto se
 atualiza**. Se um pedido contradiz o GDD — genero, camera, mecanica central —
@@ -197,6 +199,7 @@ docs/
 | **O Sucateiro (arte e prompt)** | `src/loja/sucateiro.gd` e `assets/npc/sucateiro/`. Gerado pelo PixelLab em `mode=v3`, 64 px, `low top-down` |
 | **A transacao de compra** | `src/loja/bancada_de_oferta.gd:comprar()` -- a ORDEM e o contrato: entrega antes do debito |
 | **Ver a Loja no enquadramento do jogo** | `godot --path . tools/loja/olhar_loja.tscn --resolution 960x544` |
+| **Ver as tres abas do inventario e a tela de troca** | `godot --path . tools/inventario/olhar_inventario.tscn --resolution 960x544` -- ele monta a build CHEIA (os 16 implantes de uma vez) e fotografa as TRES abas, e nao so a aberta. Foi ele que achou os quatro defeitos de layout que portao nenhum pega: `draw_string` alinhado a direita desenhando FORA do painel, o nome mais comprido da pool entrando por cima da coluna de barras, nome de implante cortado no meio da palavra, e as tabelas esticadas por 904 px |
 | **Onde a Loja pode nascer** | `distancia_minima_da_origem` e `distancia_maxima_da_origem` no `src/mapa/tipo_loja.tres`; o teto e ZERO em todos os outros tipos, e zero desliga |
 | **O que um CORREDOR_TECNICO representa** | `src/mapa/corredor_*.tres` (`PerfilDeCorredor`), na lista `perfis_de_corredor` do `GerenciadorMapa`. Ele decora pelo CHAO e pelo DECALQUE -- nunca pela face, que anunciaria a sala vizinha |
 | **Quao raro o corredor e** | `peso_corredor_*` em `src/mapa/planta_andar1.tres`; o do chefe e reservado a parte e nao passa pelo sorteio |
@@ -212,11 +215,49 @@ docs/
 | **Como o credito vira ficha no chao** | `src/items/drop_credito_andar1.tres` (`DadosDropCredito`): os tres valores, a fracao paga e o teto de fichas por abate |
 | **Quanto limpar uma sala paga** | `chance_de_premio`, `premio_minimo` e `premio_maximo` no `src/mapa/tipo_*.tres`; zero nas salas sem combate |
 | **Implante novo (so numeros)** | criar `src/items/implante_*.tres` com a lista de `efeitos` e listar em `pool_padrao.tres` |
+| **O ICONE de um implante** | `assets/itens/icone_<id>.png`, escrito por `tools/itens/preparar_icone.py` a partir do master de 256 em `tools/art_sources/itens/`. O `<id>` casa com `implante_<id>.tres` por construcao, e `teste_icones_de_item.gd` cobra os dois lados |
+| **Arma, item ou cosmetico NOVO que precisa de arte** | abrir issue pelo gabarito `.github/ISSUE_TEMPLATE/arte.md` ANTES da arte. A regra esta em `docs/CONVENCOES.md`; identidade nao informada se preenche por `docs/IDENTIDADE_VISUAL.md` e se DECLARA na issue |
+| **O regime de um ICONE (cor, vista, ancora, os numeros do portao)** | secao "O regime de ICONE" do `docs/IDENTIDADE_VISUAL.md` |
+| **O ICONE de uma arma** | `assets/armas/icone_<id>.png`, mesmo funil com `--familia arma`. Pasta SEPARADA da de item porque o portao de orfao e por pasta -- um icone de arma em `assets/itens/` nao tem implante que o aponte |
+| **Refazer os icones noutro tamanho** | `python tools/itens/refazer_icones.py --lado 48` (e `--familia arma` para as armas) -- ele le os masters versionados, sem uma geracao nova no PixelLab |
+| **Ver os icones lado a lado, e medir se dois se confundem** | `godot --path . tools/itens/laboratorio_icones.tscn --resolution 960x544`; sem janela ele mede os 120 pares e lista as colisoes |
+| **Quanto um icone pode brilhar** | `ALVO_VALOR_MIOLO` em `tools/itens/preparar_icone.py` (o funil ASSENTA) e a faixa `PISO_VALOR_MIOLO`/`TETO_VALOR_MIOLO` em `tools/itens/laboratorio_icones.gd` (o portao COBRA). Os dois tem de andar juntos |
 | **Implante com comportamento novo** | enum em `DadosItem.Comportamento` + o codigo que le, em quem sofre o efeito |
 | Pente, tempo de recarga e reserva | `tamanho_pente`, `tempo_recarga`, `municao_maxima` em `src/weapons/*.tres` |
 | **Arma que pode cair de loot** | listar o `.tres` em `src/items/pool_padrao.tres` |
+| **Quantas armas o jogador carrega** | `InventarioDeArmas.SLOTS`. E `const` e nao `@export` de proposito: "o que cabe nas maos" e decisao de design, e um botao seria girado para tres na primeira vez que alguem achasse que faltava espaco |
+| **Quanto a troca de arma demora** | `Player.COOLDOWN_TROCA` -- freio contra spam tecnico, e nao animacao. Mesma razao que faz `Porta.TEMPO_DE_ABERTURA` ser `const` |
+| **O que a tela de troca compara** | `PainelDeTroca` -- quatro barras de `DadosArma.perfil_*()` mais as tags de `tags_de()`. Quatro e nao vinte: o objetivo e decisao rapida, e lista longa faz o jogador escolher pelo nome |
+| **Em que regiao do corpo um implante aparece** | `categoria_corporal` em `src/items/implante_*.tres`. **Campo DORMENTE**: a aba de itens e uma grade e nao o le. Ele e a semente da ideia do corpo, que foi reprovada e pode voltar -- e `teste_inventario.gd` continua cobrando os dois lados justamente por ninguem o ler |
+| **As tres abas do inventario** | `src/ui/aba_de_itens.gd`, `aba_de_armamento.gd` e `aba_de_status.gd`; quem as troca e `tela_inventario.gd`. Aba nova = script novo + no na cena + entrada em `TelaInventario.Aba` |
+| **As linhas da aba STATUS** | `AbaDeStatus.linhas_de_diagnostico()` -- todas derivadas de `Modificadores`, nunca recalculadas |
+| **Quantos itens cabem por linha na aba ITENS** | `AbaDeItens.LARGURA_CELULA`; a contagem de colunas e CALCULADA do tamanho real, e nao cravada |
+| **Quanto a arma largada fica intocavel** | `PickupArma.TRAVA_APOS_LARGAR` |
+| **Quanto tempo a abertura do inventario dura** | `TelaInventario.DURACAO_ABERTURA`; abaixo de 0,25 s por decisao |
 | Regras de onde cada sala nasce | `@export` do `tipo_*.tres` (beco, distancia da origem, prioridade) |
 | Cor e icone de uma sala no minimapa | `cor_mapa` e `icone` do `tipo_*.tres` |
+| **Onde o projetil desenha** | `ContainerProjeteis` em `src/main/main.tscn`: IRMAO do `Mundo`, DEPOIS dele, sem Y-sort. Acima de todo cenario ordenado por Y, abaixo so do Foreground |
+| **Peca presa na PAREDE (tubo, caixa de juncao, duto)** | `regioes_props_parede` no `tipo_*.tres`, sobre `assets/texturas/props_parede.png`. So o lado NORTE recebe (e o unico com FACE), ela desenha em `RenderizadorParedes.Z_FITA + 1` e NAO espelha |
+| **Se um prop tem COLISAO** | NAO tem. A politica do andar 1 e: **decorativo sem colisao, obstaculo com colisao EXPLICITA na cena**, e hoje o andar so tem o primeiro tipo. Quem cobra e `teste_props.gd:_nenhuma_peca_de_decoracao_tem_COLISAO` |
+| **ONDE um prop pode ficar** | `DecoradorDeSala.posicoes()`. **Fonte unica**: a `Sala` NAO decide mais isso. Faixa, folga de meia peca, `area_spawn`, bocas de porta e espaco entre pecas moram todos la |
+| **QUANTOS props uma sala recebe** | `src/mapa/decoracao_*.tres` (`PerfilDeDecoracao`), apontado por `perfil_de_decoracao` no `tipo_*.tres`. Os `quantidade_props*` do `DadosSala` SAIRAM; a traducao familia -> porte esta nos `DadosSala.faixa_de_*()` |
+| **QUAO FUNDO a decoracao entra na sala** | `largura_da_faixa_de_perimetro` no `decoracao_*.tres`. Era `Sala.PROP_AFASTAMENTO_MAXIMO = 44` em paralelo, e o 44 era quem valia |
+| **Ver quanto da decoracao pedida a sala REAL coloca** | `godot --headless --path . tools/fabrica/medir_sala.tscn` -- pedido contra colocado, por tipo e por familia. O `laboratorio_decoracao` mede o DECORADOR; este mede a `Sala` montada |
+| **A composicao de uma sala decorada (clusters, hero, vazio)** | `src/mapa/decoracao_*.tres` (`PerfilDeDecoracao`) e `src/mapa/agrupamento_*.tres` |
+| **O CANO que liga as pecas de uma bancada** | `atlas_canos` + `regiao_cano_horizontal/vertical` no `tipo_*.tres`; quem desenha e `Sala._montar_ligacoes()`, no no `Ligacoes` |
+| **A ORIENTACAO de uma peca de cenario** | `regioes_props_volume` vem em PARES `[frente, ponta]` no `tipo_*.tres`. Norte e sul mostram a frente, leste e oeste a ponta -- `DadosSala.vista_do_lado()` |
+| **Gerar prop que ENCOSTA na parede** | `view: side` no PixelLab, mais `flat frontal elevation` no prompt. `low top-down` devolve isometrico em peca alongada, por mais bloco que o prompt tenha |
+| **Quao ALTA uma peca de cenario pode ser** | ninguem crava: e `PerfilDeParede.alcance()` mais a profundidade da ancora. Quem escolhe a celula que cabe e `DecoradorDeSala`, com o catalogo de `DadosSala.gabaritos_de_volume()` |
+| **Quanto da massa vem de BANCADA e quanto vem de peca solta** | `quantos_agrupamentos` contra as `contagem_*` no `decoracao_*.tres`. Subir o primeiro esvazia o completamento avulso por construcao |
+| **A COLISAO de uma maquina de cenario** | `Sala.forma_de_colisao_do_prop()` -- ela e a SOMBRA, e cresce para tras ate encostar na parede. Layer 3, a mesma da parede |
+| **Onde uma LUMINARIA nasce** | `Sala._pontos_de_luminaria()`: uma por bancada, o resto espalhado pelo perimetro. Ela nunca entra na faixa de decoracao |
+| **Quanto a poca de luz desce para dentro da sala** | `LuminariaDeParede.DESCIDA_DA_LUZ` -- a carcaca esta na parede e a luz precisa cair no piso |
+| **Ver a decoracao antes de existir arte** | `godot --path . tools/fabrica/laboratorio_decoracao.tscn`; sem janela ele mede 288 salas |
+| **Decidir a LUZ do andar com numero** | `godot --path . tools/fabrica/prova_de_leitura.tscn --resolution 960x544 -- --luz` -- cruza `AmbienteDaFabrica.luminosidade` com a contagem de luminarias e mede as duas contra a referencia |
+| **Ver e medir a luz da fabrica** | `godot --path . tools/fabrica/laboratorio_luz.tscn` |
+| **Provar que a sala se identifica SEM COR** | `godot --path . tools/fabrica/prova_de_leitura.tscn --resolution 960x544` -- as salas em quatro regimes (com tint, sem tint, cinza, miniatura) mais as reguas das `[FAB 39-42]`. Ele so roda COM janela: le pixel renderizado |
+| **Se o andar 1 esta na paleta nova** | `godot --headless --path . tools/texturas/medir_ambiente.tscn` -- ele REPROVA hoje, de proposito |
+| **Retingir uma textura sem passar pelo funil** | `python tools/texturas/retingir.py ARQ --matiz-alvo 216 --saturacao 0.30 --conferir` |
 | **Prop de cenario que se MEXE (ventilador, luz, pistao)** | `regioes_props_animados` no `src/mapa/tipo_*.tres`: uma regiao a mais na lista, e nada de cena nova |
 | **Quantos props podem se mexer numa sala** | `max_props_animados` no `tipo_*.tres` -- e o orcamento, e ele e baixo de proposito |
 | **Textura de chao, parede e props de um tipo de sala** | grupo `Visual` do `tipo_*.tres` para chao e face; o TOPO e os cantos vem do `estilo_de_parede`. Os PNGs sao arte autorada passada por `tools/texturas/preparar_textura.py`; porta, canto e props saem do gerador |
@@ -276,6 +317,221 @@ em qualquer erro de script.
 
 ## Armadilhas que ja custaram tempo aqui
 
+- **`--import` limpo NAO prova que os scripts compilam, e isso custou 6m54s de
+  runaway.** O import cuida de RECURSO (textura, cena, som); ele nao carrega
+  todo `.gd` para compilar. Dois laboratorios foram escritos com um erro de
+  parse cada -- um `const` recebendo `PackedVector2Array`, que nao e expressao
+  constante, e um `:=` inferindo de um Variant -- e o import passou limpo, o
+  runner passou (ele so confere as suites da lista dele) e o teste de fumaca
+  nunca abre ferramenta de `tools/`. O sintoma nao foi erro, foi SILENCIO:
+  script que nao carrega faz a cena subir **sem script**, o `_ready` nunca roda,
+  nada e impresso, e o processo fica ocioso no main loop para sempre a um sexto
+  de nucleo. Hoje quem fecha isso e `teste_scripts_carregam.gd`, que varre
+  `src/` e `tools/` (211 scripts) e exige `can_instantiate()` -- porque script
+  com erro de parse NAO volta `null`, volta um `GDScript` invalido.
+- **Array indexado por enum, dimensionado por literal, e uma bomba com timer.**
+  O laboratorio de decoracao tinha dois acumuladores `PackedInt32Array([0, 0,
+  0, 0, 0])`; no dia em que `DECALQUE` e `PAREDE` entraram no fim de `Porte` ele
+  morreu com *Out of bounds get index 5* -- **depois** de ja ter impresso o
+  cabecalho, entao a saida parecia meio certa. O tamanho sai de `Porte.size()`.
+- **Campo novo com default UTIL quebra todo helper de "vazio".**
+  `contagem_micro` e `contagem_parede` nasceram com default, e o
+  `_perfil_vazio()` da suite zerava so os cinco campos antigos: quatro casos
+  passaram a reprovar apontando para o DECORADOR, com o defeito no helper. E a
+  mesma familia do `regeneracao_por_segundo = 0.02` que fazia todo `.tres` de
+  classe mentir.
+- **Deslizar uma sala perpendicularmente a uma conexao quebra o encontro das
+  duas PORTAS, e o sintoma e um `push_warning`.** A `[SETOR 05]` pede que a sala
+  encoste na fronteira que compartilha em vez de ficar centrada na banda -- e a
+  leitura literal disso, deslizar sala a sala, desalinha as bocas.
+  `Corredor.configurar()` recebe as duas e, quando elas diferem nos dois eixos,
+  avisa e monta pelo EIXO DOMINANTE: o corredor sai torto, sem encostar em
+  nenhuma das duas, e o jogo continua rodando. Medido ao sabotar a regra de
+  proposito: tres conexoes desalinhadas num andar, **uma delas por 672 px**. E
+  `push_warning` nao reprova suite nenhuma. Por isso o deslize e por CORRENTE --
+  celulas ligadas no eixo perpendicular deslizam juntas -- e por isso existe
+  `teste_conexoes.gd:_as_bocas_das_duas_salas_se_ENCONTRAM`.
+- **"Sem tint" as cinco salas do andar 1 tem a MESMA assinatura, e isso e
+  medido.** A `prova_de_leitura` desliga o acento de tipo -- chao, familia de
+  face e luz fria -- e compara os pares contra um CONTROLE: a mesma sala noutra
+  celula, que e o ruido do proprio sorteio. Os dez pares ficam ABAIXO desse
+  ruido, enquanto tirar o tint move o quadro em 1,9x a 3,1x ele. Em portugues: o
+  acento de tipo mexe mais na sala do que a diferenca entre dois tipos, que e o
+  FAIL que a secao 110 descreve. Quem conserta isso e a arte propria de cada
+  sala (`[FAB 33/35/37]`), e nao codigo.
+- **A LAMPADA nao e a alavanca da escuridao do andar, e a nota do
+  `medir_ambiente` aponta para o botao errado.** Ela diz "a referencia tem sete a
+  oito lampadas por sala e o andar tem tres a cinco", e dai se conclui que faltam
+  lampadas. Medido pela varredura: dobrar as lampadas (5 -> 11) move **3,2
+  pontos** de preto; o ambiente (0,45 -> 0,85) move **46,9**. A lampada e uma
+  POCA -- soma brilho num circulo e deixa o resto do piso onde estava. E ha um
+  terceiro botao que nenhuma das duas alcanca: o ambar fica em 0,18% contra os
+  0,41% da referencia em TODAS as combinacoes, porque a poca em si e fraca, e
+  quem a governa e o `PerfilDeLuz`.
+- **Regua que monta sala sozinha NAO tem o `AmbienteDaFabrica`, e para uma
+  pergunta de PERCEPCAO isso e medir o que o jogador nunca ve.** Aquele
+  `CanvasModulate` mora em `main.tscn` de proposito -- se morasse na cena de
+  sala, `medir_moldura`, `comparar_caixa` e `formas_paredes` passariam a medir a
+  sala escurecida e os numeros historicos delas mudariam de significado de uma
+  vez. Mas a `prova_de_leitura` pergunta o que se VE, e sem o escurecimento ela
+  media **17,4% de preto onde o jogo da 95%**. As tres reguas de RAZAO
+  sobreviveram ao defeito (elas comparam dois quadros igualmente claros); quem o
+  denunciou foi a `[FAB 45]`, a unica que compara com um numero ABSOLUTO.
+- **Regua sem CONTROLE inventa o proprio piso.** A primeira versao daquela prova
+  comparava os pares contra um `0,12` escrito a mao e reprovou os DEZ -- e regua
+  que reprova tudo mede a si mesma. Um histograma de luminancia sobre um quadro
+  majoritariamente escuro varia pouco por construcao, entao o numero nao
+  significava nada. O controle (a mesma sala com outra semente) da a escala, e e
+  o mesmo conserto que o disco chapado faz no laboratorio de luz.
+- **E o piso de cinza NAO pode ser herdado de `medir_ambiente.gd`.** Aquele
+  `PISO_DESVIO_CINZA = 0,06` e sobre um ARQUIVO de textura, detalhe de ponta a
+  ponta; um quadro de jogo tem o vazio alem da parede e um piso escuro debaixo
+  do `AmbienteDaFabrica`, e mede 0,044 a 0,055 com a decoracao inteira em tela.
+  Aplicado ali, ele reprovaria as cinco salas sem dizer nada -- a mesma
+  armadilha da constante de transferencia que o `FATOR_DE_RENDER` registra. O
+  piso certo e RELATIVO: a mesma sala SEM decoracao nenhuma.
+- **Tabela vazia nao e aprovacao.** Aquele mesmo caso imprimiu "a decoracao soma
+  massa em todos os tipos" com ZERO linhas medidas, porque o controle nao tinha
+  sido tirado e o laco caiu inteiro no `continue`. Regua silenciosa que diz
+  PASSOU e pior que regua que reprova -- e por isso o laboratorio de decoracao
+  conta `_verificacoes` e reprova quando elas sao zero.
+- **O projetil desenhava acima do cenario por ACIDENTE, e o acidente durou ate a
+  sala ficar cheia.** Nao havia no nenhum no grupo `container_projeteis`, entao
+  `Arma._container()` caia em `current_scene` -- o proprio `Main` -- e projetil
+  adicionado depois do `Mundo` desenha depois dele. Certo por ORDEM DE ARVORE,
+  que se perde no dia em que alguem arrasta um no. Com a sala de combate indo de
+  4 para ~15 corpos volumetricos, projetil passando ATRAS de um caixote deixou
+  de ser hipotese. Hoje `main.tscn` declara o `ContainerProjeteis` como IRMAO do
+  `Mundo`, depois dele e sem Y-sort, e `teste_camada_visual.gd` cobra as tres
+  coisas. A unica camada que ainda cobre um projetil e o Foreground, que ja e
+  declarada como capaz de esconder o jogador.
+- **Suite que instancia `main.tscn` tem de liberar a RAIZ, e liberar o `mapa`
+  nao e isso.** `teste_loja` e `teste_conexoes` faziam
+  `mapa.get_parent().remove_child(mapa)` e depois `mapa.free()`: o `Main` ficava
+  na arvore para sempre. Isso era invisivel ate o dia em que o `Main` passou a
+  ter um no em GRUPO -- ai sete casos de `teste_arma.gd` e
+  `teste_boss_ataques.gd` passaram a medir ZERO projeteis com o codigo certo,
+  porque `Arma._container()` achava o container esquecido. E a armadilha do
+  `container_projeteis` vista do outro lado: aqui ninguem criou container
+  nenhum, so deixou de limpar. E note a ordem -- desligar o no do pai ANTES de
+  procurar a raiz faz a busca parar nele mesmo.
+- **A pegada QUADRADA era o que impedia o andar de ter objeto grande.**
+  `posicoes()` testava a peca contra a `area_spawn` como um quadrado de lado
+  igual a largura: um armario de 96 px reservava 96x96 de piso e, com a folga de
+  meio prop contra a parede, nao cabia na faixa de 96 -- e a saida foi encolher a
+  peca ate ela ficar MENOR QUE O JOGADOR (80 px de moldura). O quadrado nunca
+  descreveu objeto nenhum: armario e largo e raso, tanque apoia numa base
+  estreita. Hoje ha `DecoradorDeSala.pegada_no_chao()`, e o que se protege e a
+  CAMINHADA -- altura desenhada cresce para cima da tela, atras de todo mundo, e
+  nao tira area jogavel.
+- **O bloco de enquadramento do prompt tem de vir POR ULTIMO.** Com a linha de
+  escala inserida antes dele, o armario e a esteira voltaram isometricos na mesma
+  leva em que o vaso saiu frontal. E a licao "o gerador desenha o que a frase
+  sugere" vista pelo lado da ORDEM: o que vem por ultimo pesa mais.
+- **`transparent background` no prompt nao garante alfa nem em PROP.** Medido na
+  mesma leva: o armario voltou com alfa e o vaso de pressao 100% opaco. Quem
+  resolve e o chaveamento por preenchimento a partir da borda em
+  `enquadrar_prop.py` -- por CONEXAO e nunca por cor, senao um fundo cinza da
+  familia do aco abre buraco dentro da peca.
+- **O sistema de CLUSTERS existia, era testado, era medido -- e o jogo nunca o
+  chamava.** `DecoradorDeSala.decorar()` monta conjuntos (o barril na frente do
+  tanque, o tubo encostando na valvula), aplica os pesos por lado, guarda o lado
+  calmo e lembra dos agrupamentos recentes. Ele era chamado so pelo
+  `laboratorio_decoracao` e pela suite: a `Sala` montava tudo por `posicoes()`,
+  que devolve pontos ISOLADOS com distancia minima entre si -- exatamente o
+  oposto de um conjunto. O sintoma nao era erro nenhum: era a sala parecer
+  movel jogado nos cantos, com cinco `agrupamento_*.tres` em disco sem efeito.
+  Mesma familia dos `PerfilDeDecoracao` orfaos.
+- **E o PORTE nao chegava ao desenho.** A regiao do atlas era sorteada do pool
+  inteiro e a largura dela virava a folga, entao uma vaga de HERO podia receber
+  um barril de 32 px -- o cluster saia com cinco pecas do mesmo tamanho, que e
+  o que impede um conjunto de ler como conjunto. Hoje o porte escolhe entre
+  celulas largas e estreitas.
+- **Ancorar o cluster no MEIO da faixa o faz flutuar.** As pecas ficam proximas
+  umas das outras e longe de tudo, e o olho le movel no canto em vez de
+  equipamento instalado. Na referencia nao ha um objeto solto no vao: tanque,
+  armario e engradado encostam na parede, e o que avanca para dentro sao os
+  tubos que saem deles. `FRACAO_DA_ANCORA` mantem a ancora no primeiro terco.
+- **Pool que cresce dilui GARANTIA, e o prop raro foi o primeiro a cair.** O
+  Robo Desativado era mais uma entrada em `regioes_props_volume`, sorteada
+  uniformemente -- e isso funcionava enquanto o pool tinha 28 regioes. Com o
+  Batch 2 ele foi a 49: um raro sorteado assim aparece em ~26% das salas
+  AUTORIZADAS, e a regra "uma por andar" vira "uma a cada quatro andares", sem
+  erro nenhum e com a sala escolhida parecendo igual as outras. Hoje ele e
+  colocado PRIMEIRO e continua ocupando a vaga de um prop comum -- a sala nao
+  fica mais cheia, fica DIFERENTE. Quem pegou foi
+  `teste_props.gd:_o_prop_raro_aparece_numa_sala_por_andar`, e o caso existe
+  exatamente porque "o portao seria um mute" sem ele.
+- **A peca presa na PAREDE nao e prop de chao nem Foreground, e por isso ela
+  ficou seis issues sem existir.** O porte `PAREDE` esta no `DecoradorDeSala`
+  desde a `[FAB 07]` e so a luminaria o consumia; o plano registrava a divida
+  ("liga-lo ao atlas errado seria pior que deixa-lo esperando"). Ela tem tres
+  regras que nenhuma das outras quatro familias tem: **so o lado NORTE recebe**
+  (e o unico que ganha FACE -- os outros mostram TOPO, e um tubo ali seria um
+  tubo deitado sobre a espessura da parede); ela desenha em
+  `RenderizadorParedes.Z_FITA + 1`, que e o unico lugar acima da face e abaixo
+  de `Z_MUNDO`; e **ela NAO espelha**, porque toda arte do jogo e iluminada do
+  canto superior esquerdo e `flip_h` poria a luz vindo da direita ao lado de uma
+  face que continua iluminada da esquerda. As celulas dela sao mais LARGAS que
+  altas -- o oposto do que o portao do atlas volumetrico cobra --, e e por isso
+  que ela tem arquivo proprio.
+- **Prop decorativo NAO tem colisao, e o que o impede de parecer obstaculo e a
+  POSICAO.** A politica das secoes 86-88 do briefing e "decorativo sem colisao,
+  obstaculo com colisao explicita", e as duas metades falham em silencio: um
+  `CollisionShape2D` esquecido num prop vira esbarrao fantasma -- com 15
+  volumetricos por sala isso transforma a faixa de perimetro num labirinto, e o
+  jogo continua rodando --, e um prop sem colisao DENTRO da area util e
+  cobertura que nao cobre, que o jogador so descobre levando um tiro atraves
+  dela. Por isso ha dois portoes irmaos em `teste_props.gd` e nao um:
+  `_nenhuma_peca_de_decoracao_tem_COLISAO` e
+  `_o_CORPO_fica_fora_da_area_util_e_a_MANCHA_entra_nela`. Obstaculo de verdade,
+  quando existir, nasce com colisao declarada na CENA -- como a barreira da
+  porta -- e entra como excecao nomeada.
+- **Duas fontes para a mesma densidade, e a que valia era a errada.** O
+  `PerfilDeDecoracao` declarava faixa de perimetro 96 e contagens por porte; a
+  `Sala` lia `PROP_AFASTAMENTO_MAXIMO = 44` e `quantidade_props*` do
+  `DadosSala`, e os perfis do `[FAB 18]` nao eram apontados por NINGUEM -- seis
+  `.tres` orfaos em disco. As cenas de sala autoram exatamente 96 px entre o
+  contorno e a `area_spawn`, e `posicoes()` cobra meio prop de folga contra a
+  parede: com faixa 44, a fatia util de uma peca de 64 media **DOZE pixels**. A
+  sala montada com as 12 pecas do Batch 1 continuava parecendo vazia e a
+  conclusao natural era "falta arte". Medido depois da migracao, a sala de
+  combate foi de ~16 para **33,8 pecas**, entregando 97% do que o perfil pede.
+- **`add_child` renomeia o filho repetido, e contar por NOME acha sempre UM.**
+  O prop volumetrico e a unica familia sem raiz -- ele precisa ser filho direto
+  da sala para se ordenar por Y --, entao quem o conta so tem o nome. O segundo
+  em diante vira `@PropVolume@<id>`: `teste_props.gd` filtrava por
+  `name == "PropVolume"` e media **o primeiro prop e mais nada**, verde, desde
+  que nasceu. Hoje eles entram em `Sala.GRUPO_PROP_VOLUME` e a contagem e por
+  grupo. A primeira execucao da regua nova acusou "volume 1,00, min-max 1-1" em
+  todos os seis tipos -- o numero impossivel que denunciou o defeito.
+- **Sortear a partir de uma ARESTA nao serve para o que mora no chao todo.** O
+  decalque passou a poder cair no miolo (a `[FAB 06]`), e sortear a
+  profundidade a partir de um lado com faixa grande PARECE uniforme e nao e: o
+  disco de exclusao de cada porta come justamente a beirada, e medido deu
+  **89% no miolo contra 11% no perimetro** -- o piso com o centro sujo e a
+  parede limpa, o inverso da referencia. `posicoes()` ganhou
+  `"no_chao_todo"`, que sorteia na caixa da sala; a distribuicao foi para 72% /
+  28%, e `teste_props.gd` cobra as DUAS pontas.
+- **A ZONA LIVRE proibe VOLUME, e nao DECALQUE -- e confundir os dois deixa o
+  centro chapado.** Medida em `docs/fabrica_01.png`, a sala da referencia tem um
+  losango de galao no MEIO da area livre e mais de dez grades espalhadas. A
+  primeira versao do decorador rejeitava tudo ali e o piso virava um vazio. Hoje
+  volume e barrado, decalque passa, e `PAREDE` tambem passa -- porque ele esta
+  na parede por construcao, e numa sala em L o centro da caixa envolvente cai
+  perto da parede interna.
+- **A regra do VAZIO mede o que esta NA PAREDE.** Contando decalque, a sala em L
+  dava 11,8% de vao maximo contra o piso de 12% e reprovava por causa de mancha
+  PINTADA NO CHAO, com a parede vazia atras dela. Corrigido medindo so o que
+  ocupa parede: 14,0% / 14,1% / 16,3%.
+- **A luz da fabrica le TEMPO DE PAREDE, como o `PropAnimado`.** O `Juice`
+  congela `Engine.time_scale` no hitstop; luz que trava junto denuncia o truque.
+  E o flicker combina frequencias incomensuraveis em vez de uma senoide: medido,
+  ele repete 0,457 no periodo contra 1,000 de uma senoide pura, e nunca zera a
+  energia -- apagar por completo le como bug de renderizacao.
+- **Luz que le como CIRCULO DE ENGINE tem numero.** O laboratorio mede a queda
+  na borda da poca: o ambar cai 0,31 por pixel contra **15,81** de um disco
+  chapado, com borda 0,63 contra 0,01. E a secao 20 do briefing virada medicao.
 - **`custo` zero num `GrupoInimigo` giraria o sorteio para sempre.** Por isso o
   sorteio consome `custo_real()`, que tem piso 1, e nunca o campo cru.
 - **A porta por Deterioracao NAO pode ler `Deterioracao.valor`.** A composicao
@@ -1450,6 +1706,96 @@ em qualquer erro de script.
   Recompor centralizando, ou remanejar celulas, faz TODOS os props flutuarem sem
   erro no console. Ao acrescentar props, copie as linhas antigas byte a byte e
   confira o hash -- foi assim que o atlas foi de 256x128 para 256x192.
+- **ONDE e QUE TAMANHO eram decididos por lados diferentes, e nenhum dos dois
+  podia recusar o outro.** `DecoradorDeSala.decorar()` fechava a vaga olhando so
+  a posicao da base (`fundura <= faixa`) e `Sala._regiao_do_porte()` sorteava a
+  celula DEPOIS. Nada, em lugar nenhum, olhava `regiao.size.y` -- nem a pegada,
+  que e `largura x 24` fixo, nem a suite. Com pecas de 64 px isso nao aparecia;
+  com o vaso de pressao de 96x160, a mesma ancora punha o topo **111 px alem do
+  contorno num alcance de parede de 60**. Hoje o catalogo viaja junto do pedido
+  (`DadosSala.gabaritos_de_volume()`) e o decorador escolhe a celula que CABE ali.
+- **A LARGURA e tangencial e a ALTURA e vertical: nenhuma das duas se confere
+  contra `fundura`.** `_distancia_as_arestas()` responde "a que distancia esta a
+  aresta MAIS PROXIMA, em qualquer direcao", e as duas perguntas tem direcao
+  propria. A altura vira um teste de PONTO (o topo recuado do alcance ainda cai
+  no poligono); a largura vira dois (os extremos horizontais da base). A versao
+  errada da largura -- `fundura < largura * 0.5`, herdada de `_cabe()` -- deixava
+  uma janela de CINCO pixels para uma peca de 64 dentro de um cluster: metade dos
+  conjuntos falhava inteira, a sala de combate caiu de 16 para 9,9 pecas de
+  volume, e portao nenhum acusou. **Conjunto que nao cabe simplesmente nao
+  aparece.**
+- **Solido de cenario que nao encosta na parede vira armadilha de 4 a 23 px.**
+  Medido: com a caixa de colisao sempre centrada na ancora, **92 de 311 pecas**
+  deixavam uma fresta larga demais para ler como encostado e estreita demais para
+  o corpo passar. Quem se estica e o SOLIDO, para tras, na direcao em que nao ha
+  nada a perder -- afastar a peca resolveria o vao e desfaria a ideia de que a
+  maquina e uma saliencia da parede. E o recuo segue a NORMAL real: `-y` cravado
+  faria o solido da parede SUL crescer para dentro da sala.
+- **O solido de um prop e a SOMBRA, e nao a pegada.** `pegada_no_chao()` usa a
+  largura cheia da celula porque ela e a RESERVA -- ela decide se a peca cabe, e e
+  conservadora de proposito. Como solido, ela pararia o corpo 28% mais largo que a
+  sombra desenhada, que e o que o jogador le como o pe da maquina. Sao duas
+  perguntas: "cabe aqui?" e "onde o corpo para?".
+- **Lampada de parede tem de jogar a poca PARA DENTRO da sala.** A carcaca nasce
+  fora do contorno, na espessura que a parede desenha; com a `LuzDeFabrica` na
+  origem dela, metade da poca cai sobre o muro e sobre o vazio. Medido: preto
+  68,37% e ambar 0,14% contra 64,98% e 0,20% com a poca descendo 120 px. E a
+  descida segue a normal interna -- `+y` cravado desenharia o reflexo da lampada
+  SUL sobre o topo do muro.
+- **Espalhar N pecas por SORTEIO com recusa perde pecas em silencio.**
+  `_ponto_na_face()` sorteia um x e recusa se colidir; com doze tentativas e
+  reserva de 64 px, a Loja entregava **8,6 lampadas de 12, e ja chegou a 5**. Nao
+  faltava parede, faltava sorte, e o sintoma era uma sala mais escura que a
+  vizinha sem motivo. Dividir o comprimento em fatias e sortear DENTRO de cada
+  uma garante a colocacao e ainda nao vira uma regua.
+- **`decorar()` calcula e JOGA FORA as posicoes de MICRO, DECALQUE e PAREDE.**
+  `Sala._montar_props_volumetricos` filtra `porte <= PEQUENO`, e as tres familias
+  sao montadas por `posicoes()` -- cujo proprio docstring diz existir "para acabar
+  com o segundo sistema de colocacao". Ela virou o segundo sistema. Sintoma
+  concreto: `agrupamento_hidraulico.tres` declara 6 pecas, duas delas desses
+  portes, e entrega **4 de 6**, sem erro nenhum.
+- **O `view` do PixelLab MANDA sobre o bloco de prompt, e a licao antiga so
+  valia para peca simetrica.** A secao 4.2 do `PROMPTS_FABRICA.md` afirmava que
+  "o que resolve e o BLOCO, e nao o parametro" -- e aquilo foi medido num TANQUE,
+  que nao tem frente. Refeito com um motor deitado, `view: low top-down` devolveu
+  isometrico com o bloco inteiro no prompt, e o painel plano da mesma leva veio de
+  quina com face lateral visivel. Seis geracoes provaram. Quem resolve e
+  `view: side` mais `flat frontal elevation`, que e o que as pecas de PAREDE ja
+  pediam desde a primeira leva.
+- **Peca de cenario precisa de DUAS artes, e nao de uma girada.** De frente o eixo
+  longo corre leste-oeste; colada na parede LESTE esse eixo aponta para dentro da
+  sala, e a peca fica com uma quina no muro e um vao atras. As regioes vem em
+  PARES `[frente, ponta]`, e `DadosSala.vista_do_lado()` escolhe. Girar a de
+  frente nao serve: girar arte de FACE destroi a perspectiva, decisao ja fechada
+  na porta. **Leste e oeste compartilham a MESMA ponta** -- nos dois o eixo corre
+  norte-sul e e a mesma extremidade que aponta para a camera, entao nao ha
+  espelhamento e a luz do canto superior esquerdo continua valendo.
+- **A vista sai de ONDE A PECA TERMINOU, e nao da ancora do conjunto.** Os
+  deslocamentos do cluster empurram pecas pela tangente; perto de uma quina, a
+  peca da ponta pode acabar mais perto de OUTRA aresta que a ancorada. Usar o lado
+  sorteado ali faz ela mostrar a frente encostada numa parede lateral -- medido, 2
+  pecas em 264, e o unico sintoma e em tela. Quem responde e
+  `DecoradorDeSala.lado_da_posicao()`, pela NORMAL da aresta mais proxima: numa
+  sala em L um teste por quadrante chamaria de norte uma parede que aponta leste.
+- **A vista de COSTAS de uma maquina cilindrica sai quase igual a de frente.**
+  Medido no motor: gerar os quatro eixos produziria duas artes iguais e mais
+  atlas. O sul reusa a frente e o oeste reusa a ponta. Peca com frente FORTE
+  (armario, bancada, painel) merece costas proprias, e essa e divida declarada --
+  nao esquecimento.
+- **Ligar peca a peca de uma bancada produz ZERO canos, e o motivo e o desenho
+  do cluster.** As pecas de um conjunto se SOBREPOEM de proposito -- os
+  deslocamentos do `agrupamento_*.tres` sao menores que a soma das meias larguras
+  --, entao nao ha vao entre vizinhas para cobrir. A ligacao e uma corrida
+  INTEIRA por tras da bancada, que e o que a referencia mostra: o tubo nao vai de
+  maquina a maquina, ele passa atras de todas e reaparece onde o equipamento
+  deixa. Como ele desenha em `Z_FITA + 1`, abaixo do `Z_MUNDO` dos volumes, essa
+  oclusao e de graca -- e nao ha arte de flange a produzir.
+- **Cano que nao aparece nao da erro, e ele tem DOIS jeitos de sumir.** Curto
+  demais, ele termina antes da vizinha e le como cano cortado; no lugar errado,
+  ele nao aparece de jeito nenhum, porque tudo que nao cai num vao fica escondido
+  atras dos volumes. Por isso `teste_props.gd` mede SOBREPOSICAO com as duas
+  vizinhas mais proximas, e nao a presenca de um sprite em `Ligacoes` -- essa
+  passaria com o cano desenhado no meio do nada.
 - **Prop novo passa pelo funil SOZINHO, e nao junto do atlas inteiro.**
   `preparar_textura.py` processa a imagem toda: rodar no atlas completo mexeria
   no valor e na saturacao dos doze props ja aprovados. Prepare a tira nova, e so
@@ -1614,6 +1960,122 @@ em qualquer erro de script.
   em `paleta.gd` ou um traco em `gerar_texturas.gd`? Rode o gerador e o
   `--import` de novo, senao a suite reprova com "gerou e esqueceu de rodar?".
 
+- **`Arma.ficou_sem_municao` NUNCA disparou, e por isso a regra que ele executava
+  estava errada em silencio.** As 21 armas do jogo tem `municao_maxima = -1`
+  (reserva infinita), conferido arquivo a arquivo -- entao
+  `Player._ao_acabar_municao()` e codigo morto desde que as armas nasceram. Ele
+  dizia "arma vazia volta para a pistola do slot 0", e essa regra morreu no dia
+  em que os dois slots viraram simetricos: nao existe mais slot privilegiado
+  para onde voltar. Codigo morto que afirma uma regra falsa e pior que codigo
+  morto -- ele volta a rodar no dia em que alguem escrever a primeira arma de
+  reserva finita, e faz a coisa errada sem uma linha no console. Hoje ele
+  esvazia o slot e passa a mao para o outro.
+- **O PENTE e estado do SLOT, e o componente `Arma` e UM so.** `equipar()`
+  enchia o pente toda vez, entao sair da Mantis com 3/32 e voltar meio minuto
+  depois devolvia 32/32 de graca -- uma arma que nunca precisa recarregar desde
+  que voce alterne antes. Hoje `Arma.equipar(dados, pente_inicial)` recebe o
+  numero, e quem o guarda e a `InstanciaDeArma`. O default continua sendo "pente
+  cheio", entao os cinco inimigos e o chefe nao mudaram uma linha.
+- **`pedir_aquisicao()` com os dois slots cheios NAO PODE MEXER EM NADA.** Ele
+  devolve `PRECISA_ESCOLHER` e sai. Uma versao que ocupasse o slot antes de
+  perguntar faria o jogador perder uma arma toda vez que cancelasse a tela de
+  troca -- e cancelar e justamente a acao que nao pode custar nada, porque e ela
+  que permite sair, comparar e voltar depois.
+- **A arma substituida cai EXATAMENTE onde o jogador esta, e isso e um laco
+  fechado.** Ele acabou de encostar no pickup para disparar a troca, entao a
+  arma largada dispara o `body_entered` no frame seguinte, os dois slots
+  continuam cheios, e a tela reabre sobre uma arvore que ja esta pausada: um
+  painel que volta sozinho, para sempre, com o console limpo. Por isso
+  `PickupArma.soltar_no_chao()` ja nasce travada -- e por isso a trava entra
+  tambem no CANCELAMENTO, porque quem cancelou tambem nao saiu de cima do
+  pickup.
+- **Tela que pausa a arvore precisa de `PROCESS_MODE_ALWAYS`.** Sem isso ela
+  congela junto com o que ela mesma pausou e a escolha nunca chega -- o jogo
+  trava num painel que nao aceita tecla. Vale para a tela de troca e para a de
+  inventario, pela mesma razao que ja valia para o `menu_pausa` e para o
+  reticulo.
+- **Nenhuma das duas telas mexe em `Input.mouse_mode`.** O reticulo e o dono do
+  cursor e ele ja devolve a seta ao ver `get_tree().paused` -- um segundo dono
+  produziria uma seta que aparece ou some conforme a ordem das chamadas.
+- **Suite que abre a tela de troca tem de DESPAUSAR no fim.** Ela pausa a arvore
+  ao montar; deixada pausada, TODAS as suites seguintes que esperam passo de
+  fisica congelam, e o runner fica vivo ate o timeout do CI sem imprimir nada.
+- **`comprar()` da Loja continua SINCRONA, e a arma que nao cabe sai dela
+  inteira.** Transformar aquela funcao em corrotina faria o `not
+  bancada.comprar()` de `teste_loja.gd` comparar um `Signal` com `false`, e o
+  portao da ordem da transacao viraria carimbo. Ela delega para
+  `_comprar_com_escolha()` e devolve `false` -- nada foi comprado NAQUELE frame,
+  que e a verdade. O contrato so ganha um passo na frente: escolha, entrega,
+  debito.
+- **`categoria_corporal` e o pior tipo de campo deste projeto: um que so a UI
+  le.** Nada em jogo o consulta, entao um `.tres` que o esqueca funciona
+  perfeitamente e so aparece na regiao errada -- um desenho que parece
+  deliberado e nao e. Por isso `teste_inventario.gd` tem a tabela
+  `ESPERADO` com os 16 por id, e ela morde dos dois lados: implante fora dela
+  reprova em vez de SUMIR da conta, que e o defeito que
+  `_nenhum_png_fica_fora_de_regime` existiu para consertar.
+- **E o valor ZERO do enum de categoria e o NEUTRO (`SISTEMA`).** Um implante
+  criado no editor sem tocar no campo cai no valor 0; se ele fosse `NEURAL`,
+  toda peca esquecida AFIRMARIA uma regiao que ninguem escolheu. Afirmar errado
+  e pior que nao afirmar.
+- **O CORPO FOI REPROVADO, e `categoria_corporal` ficou.** A primeira versao da
+  aba de itens desenhava uma silhueta tecnica com os implantes pendurados por
+  regiao, ligados por linhas; o dono do projeto olhou e reprovou -- a ideia pode
+  voltar, mas por enquanto o inventario responde "o que eu tenho" e nao "no que
+  eu me transformei". O campo continua nos 16 `.tres` e continua cobrado, pelo
+  mesmo motivo que a suite da Diretora continua no runner sem que nenhuma run
+  passe por ela: **e justamente por nao ser lido em jogo que ele precisa
+  continuar conferido.** Sem o portao, os dezesseis apodreceriam em silencio ate
+  o dia em que a ideia voltasse -- e ai seriam reescolhidos do zero.
+- **Os implantes continuam ACUMULATIVOS, e a aba de itens NAO pode prometer o
+  contrario.** Ela desenha uma grade que cresce, e nao uma fileira de vagas:
+  vaga desenhada promete um limite que nao existe. `Modificadores` continua
+  somando sem teto, e as 16 pecas continuam balanceadas assim.
+  `_os_implantes_continuam_ACUMULATIVOS` cai no dia em que alguem transformar
+  isso em equipamento por localizacao sem perceber.
+- **As tres abas sao tres PERGUNTAS, e nao arrumacao.** ITENS nao tem teto,
+  ARMAMENTO tem exatamente dois, e STATUS e derivado dos outros dois. Fundir
+  duas delas obriga o jogador a descobrir sozinho qual das regras vale para o
+  que ele acabou de pegar -- e a lista, que e a mais importante, perde coluna
+  para a tabela derivada.
+- **A aba STATUS DERIVA, nunca recalcula.** Cada linha pergunta ao
+  `Modificadores` no instante do desenho. Uma UI que refizesse a conta dos
+  implantes viraria a segunda fonte de verdade sobre a build e divergiria na
+  primeira mexida num `EfeitoItem`: o painel diria +12% e o tiro entregaria
+  +10%, sem erro nenhum. `teste_inventario.gd` compara o texto com o
+  que o autoload responde no mesmo instante.
+- **`tags_de()` e `linhas_de_diagnostico()` sao `static` e devolvem a CHAVE em
+  portugues.** `tr()` e metodo de `Node` e nao existe em funcao estatica -- mas o
+  motivo maior e outro: uma suite que lesse texto ja traduzido passaria na
+  maquina de quem tem o SO em portugues e quebraria no CI, que roda em ingles.
+  Quem traduz e quem desenha.
+- **A geometria do clique sai de quem DESENHOU.** `TelaTrocaDeArma._slot_sob()`
+  pergunta a `PainelDeTroca.caixa_do_slot()` em vez de recalcular a caixa: dois
+  calculos da mesma geometria divergem, e o sintoma e a tela clicavel num lugar
+  e desenhada noutro, sem erro nenhum no console.
+- **A HUD LE o inventario em vez de acumular o proprio par de armas.** Uma copia
+  ali divergiria na primeira substituicao feita pela Loja, que nao emite
+  `arma_equipada` para o slot que saiu.
+- **O inventario nao abre sozinho ao pegar um implante.** Interromper o combate
+  para mostrar o que o jogador acabou de escolher e cobrar duas vezes pela mesma
+  decisao. Quem avisa e o `AvisoItem` da HUD, que pisca o nome e some em 3 s.
+- **`draw_string` com `HORIZONTAL_ALIGNMENT_RIGHT` alinha dentro de
+  [`pos.x`, `pos.x + width`], e `pos.x` e a borda ESQUERDA.** Passando a borda
+  direita ali, o texto e desenhado INTEIRO para fora do painel: a coluna de
+  valores do diagnostico sumiu assim, e o rotulo `ATIVA` do slot tambem. Nao ha
+  erro nenhum -- ha um painel pela metade que parece proposital, e portao de
+  logica nenhum pega isso. Quem pegou foi a captura.
+- **Largura maxima de tabela nao e gosto.** Esticada pela aba inteira (904 px),
+  cada linha do diagnostico vira um rotulo numa ponta e um numero na outra com
+  meio quadro de vazio no meio; e os dois cartoes de arma viram faixas em que o
+  nome e as barras da MESMA arma ficam a meia tela de distancia. Duas armas e
+  oito linhas nao preenchem uma tela, e fingir que preenchem e o que faz a aba
+  parecer vazia.
+- **Nome cortado por `width` le como texto QUEBRADO, e nao como abreviado.**
+  `draw_string` com largura maxima apenas CLIPA, no meio da palavra. O corte tem
+  de ser explicito -- e com `..` ASCII e nao com reticencia unicode, porque
+  glifo que a fonte nao tem some sem erro e o nome volta a parecer quebrado.
+  Mesma armadilha do losango da moeda no preco da bancada.
 - **`DadosArma.Comportamento` e gravado como INT no .tres.** Valor novo entra
   sempre NO FIM do enum; inserir no meio reescreve em silencio o significado de
   toda arma ja salva. Mesma armadilha que ja vale para `DadosItem`.
@@ -1920,6 +2382,90 @@ em qualquer erro de script.
   ainda nao foram coletados aparecem na busca, e quase todos ficam perto de
   (0,0). `teste_hack.gd` monta o cenario em (6000, 6000) por isso -- foi um dia
   de teste vermelho com o codigo certo.
+- **`no_background` do PixelLab NAO devolve alfa.** As 16 pecas de icone voltaram
+  **100% opacas**, com o fundo pintado de chapado -- e o passo "recorta no alfa"
+  do funil nao tinha no que morder. Pior que isso, o fundo vem em **dois tons
+  quase iguais** (medido: 73,6% de um e 26,4% de outro, a 9 de distancia), entao
+  uma tolerancia apertada deixa o segundo tom para tras e a peca sai com a
+  moldura inteira colada, bbox 256x256 onde o objeto tem 90x232. `preparar_icone.py`
+  recorta por PREENCHIMENTO A PARTIR DA BORDA com tolerancia 24 -- o MEIO do
+  plato medido, porque 24 e 32 dao resultado byte a byte identico.
+- **E o recorte tem de ser por conexao, nunca por cor.** O fundo do `vampirico` e
+  `(171,170,170)`, um cinza da mesma familia do aco da propria seringa: "apague
+  todo pixel igual a cor do fundo" abriria buraco DENTRO da peca. So sai o fundo
+  que ALCANCA a borda -- e de graca isso resolve os dois casos opostos, porque o
+  vao entre as metades do `fragmentador` alcanca a borda (e sai, certo) e o furo
+  cercado de um anel nao alcanca.
+- **Mas fundo CERCADO pelo desenho e furo, e nao desenho.** O miolo do anel do
+  `gatilho` saiu um disco BRANCO opaco, e o laco de cabo do `servo` tambem.
+  `--vazar-furos` apaga esses comparando por COR, e por isso nasce DESLIGADO e e
+  ligado peca a peca: `daemon` tem **12519 px** de fundo cercado que sao a face
+  lavanda do proprio chip, e vazar ali apagaria a peca inteira. A mesma bandeira
+  que salva uma arte destroi a vizinha.
+- **A arte generativa nasce clara demais para este jogo, e isso e um NUMERO.**
+  Cruas, **doze das dezesseis** reprovaram a faixa de leitura do
+  `laboratorio_icones`, e tres passaram do teto de competicao com projetil
+  (`gatilho` 82%, `dissipador` 80%, `celula_eco` 70%). Icone que compete com tiro
+  e o defeito que a ficha de credito ja existe em losango para evitar. O funil
+  assenta o VALOR ate a mediana do MIOLO cair em 0,42 -- e **so o valor**: girar
+  matiz faria o icone discordar do campo `cor` do `.tres`, que o pickup e a HUD ja
+  leem, e o jogador veria a ficha de uma cor e o aviso de outra.
+- **E o assentamento so DESCE.** As duas pecas que ficaram escuras demais
+  (`penetrador` 0,290 contra o piso de 0,30, `vampirico` 0,235) foram
+  REDESENHADAS com a cor do item pintando o corpo, e nao clareadas. Um funil que
+  clareia para passar num numero esta inventando iluminacao -- e o "suavizar para
+  caber num numero" que ja matou uma familia de textura aqui.
+- **Master que ja tem alfa nao pode ser rechaveado.** O master versionado e o que
+  faz `refazer_icones.py --lado 48` funcionar sem geracao nova; numa segunda
+  passada, `cor_de_fundo()` leria o RGB dos pixels TRANSPARENTES -- que e preto --
+  e o preenchimento comeria todo contorno escuro encostado na borda. A peca
+  perderia a silhueta com o arquivo intacto e sem uma linha no console. Com a
+  guarda, reprocessar o master e byte a byte identico.
+- **Prompt de icone descreve o OBJETO, e uma palavra de funcao vira outra coisa.**
+  "grupo de gatilho com solenoide" produziu uma **pistola inteira** -- e arma esta
+  fora do escopo, entao o jogador leria a ficha como pickup de arma. So
+  `"there is no gun, no barrel, no grip, only the trigger part"` resolveu. E o
+  mesmo defeito que "exploding into a charge" ja tinha produzido no chefe, visto
+  de outro angulo: o gerador desenha o que a frase diz, inclusive o que ela
+  sugere sem querer.
+- **Peca que "le otimo" pode estar errada pelo conjunto.** O `firewall` saiu um
+  escudo medieval bonito e legivel, e foi refeito: as 16 pecas sao hardware da
+  mesma fabrica, e um brasao ao lado de dezesseis modulos industriais quebra a
+  unica coisa que faz o conjunto parecer um conjunto. Nenhuma regua de cor ou de
+  silhueta pega isso -- ele passava em todas.
+- **Prateleira metade ilustrada nao le como duas categorias: le como icone
+  quebrado.** Os icones entraram so nos implantes, com as armas declaradas fora de
+  escopo -- e o dono jogou e reportou "alguns icones nao estao funcionando na
+  Loja". Medido: **303 de 600** ofertas sao ARMA, entao mais da metade da
+  prateleira mostrava a forma antiga ao lado de uma peca desenhada. Nenhum portao
+  pegava isso, porque cada metade estava certa sozinha. Familia visual so pode
+  ser entregue INTEIRA, ou o que era "ainda nao" vira "quebrado".
+- **Familia nova de icone = PASTA nova, e isso e o portao mandando.**
+  `teste_icones_de_item.gd` exige que todo PNG de uma pasta tenha um `.tres` que o
+  aponte, entao um icone de arma dentro de `assets/itens/` seria orfao e
+  reprovaria -- com razao. O que NAO se separa e a medicao: `laboratorio_icones`
+  le as duas pastas na MESMA matriz, porque item e arma dividem as tres bancadas
+  da Loja e e ali que dois icones viram a mesma mancha. Separar o dono do arquivo
+  nao pode virar separar a pergunta. Sao 26 pecas e **325 pares**.
+- **Icone e losango solido juntos empilham duas respostas para a mesma
+  pergunta.** O pickup desenhava os dois: o icone dizia QUAL item, e o solido
+  dizia a mesma coisa numa linguagem mais pobre -- e sendo opaco ele nao ficava
+  atras, ele emoldurava o desenho e roubava a silhueta, que e justamente o que a
+  regua mede. O solido saiu e a cor dele passou para o HALO, que ja existia, ja
+  pulsa junto e nunca tinha recebido a cor da peca (era mint fixo para os
+  dezesseis). A leitura a distancia continua e vira EFEITO em vez de peca.
+- **Arte que nao passa por `Visual` nao flutua sozinha.** O icone mora FORA do
+  `Visual` de proposito (aquele no GIRA, e arte girando em angulo quebrado
+  reamostra fora da grade), so que e o `Visual` que faz o bob -- entao o icone
+  ficava parado enquanto o halo subia e descia debaixo dele. Copiar so a ALTURA
+  no `_process` pega o unico dos dois movimentos que ele pode acompanhar sem
+  pagar por isso.
+- **Quem precisa de icone e quem tem PRECO, e nao quem esta na pasta.**
+  `src/weapons/` guarda tambem a `pistola` (inicial, nunca vendida) e as duas
+  armas do chefe. Cobrar arte delas encomendaria desenho que ninguem ve, e a
+  lista de divida ficaria com tres nomes permanentes -- que e como uma lista de
+  divida deixa de ser lida. O portao usa `valor_de_loja > 0`, o mesmo teste que
+  `GeradorDeLoja._sortear()` ja faz para decidir o que vai a prateleira.
 
 ## Ambiente
 

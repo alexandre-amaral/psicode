@@ -28,6 +28,16 @@ const ID_INICIAL: StringName = &"inicial"
 ## ajustar no Inspetor sem calculadora.
 const AREA_DE_REFERENCIA := 100000.0
 
+## A faixa de perimetro de uma sala que nao declara `PerfilDeDecoracao`.
+##
+## Era `Sala.PROP_AFASTAMENTO_MAXIMO`, e ela vem para ca junto com as contagens
+## -- deixar o numero na `Sala` seria manter o segundo dono da mesma verdade,
+## que e exatamente o que esta migracao veio desfazer.
+##
+## Ele so alcanca as LUMINARIAS: sem perfil nao ha prop nenhum para colocar, e
+## a luz tem contagem propria em `quantidade_luminarias`.
+const FAIXA_SEM_PERFIL := 44.0
+
 ## COMUM entra no sorteio normal do passeio aleatorio e preenche o andar.
 ## PENDURADA ganha uma celula propria encostada numa ancora ja existente. E o
 ## que o chefe precisa (ele so tem porta Sul, e quase nunca cairia numa celula
@@ -166,9 +176,26 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## recebe o painel de acento da sala de arma.
 @export var atlas_props: Texture2D
 @export var regioes_props: Array[Rect2i] = []
-## Quantos props a sala tenta colocar na margem entre a parede e a area de
-## spawn. Zero desliga a decoracao.
-@export var quantidade_props: int = 0
+
+## QUANTA decoracao esta sala recebe, e QUAO FUNDO ela entra.
+##
+## **Este recurso e o dono de QUANTOS; `DadosSala` continua dono de QUAIS.** A
+## divisao e a que a `[FAB 17]` deixou declarada como divida: ela trocou a REGRA
+## de colocacao por uma so (o `DecoradorDeSala`) e deixou as quatro contagens
+## -- `quantidade_props`, `quantidade_props_volume`, `quantidade_decalques` e
+## `quantidade_props_frente` -- aqui, para nao reescrever no mesmo passo os
+## portoes que as validam. Elas sairam agora, e o campo delas nao ficou para
+## tras: **campo que existe e campo que alguem gira**, e dois donos do mesmo
+## numero e a armadilha que o `EstiloDeParede` (uma copia do perfil vencia o
+## original) e a Loja (o `tipo` clonado mentia) ja cobraram deste repositorio.
+##
+## A traducao familia -> porte fica em `faixa_de_*()`, logo abaixo, num lugar so.
+##
+## Nulo = a sala nao recebe decoracao nenhuma. E o caso da sala montada a mao no
+## editor e o de qualquer `DadosSala.new()` de suite: nao ha default util aqui
+## de proposito, porque campo de decoracao com default util faz toda sala que o
+## esqueceu AFIRMAR uma densidade que ninguem escolheu.
+@export var perfil_de_decoracao: PerfilDeDecoracao = null
 
 ## O atlas de DECALQUES INDUSTRIAIS e as celulas dele que esta sala usa (#233).
 ##
@@ -185,14 +212,6 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## vive ONDE O COMBATE ACONTECE -- o jogador anda por cima dele.
 @export var atlas_decalques: Texture2D
 @export var regioes_decalques: Array[Rect2i] = []
-
-## Quantos decalques a sala tenta colocar.
-##
-## **Poucos, e o numero e a issue.** O piso e a regiao visualmente mais calma da
-## sala e essa e a regra que o epico nao negocia. Se toda sala tiver um numero
-## estampado, nenhuma sala tem identidade -- e a mesma ideia de
-## `max_props_animados`, cujo default e 2 de proposito.
-@export var quantidade_decalques: int = 0
 
 ## O atlas VOLUMETRICO e as celulas dele que esta sala pode usar (LTD 09).
 ##
@@ -259,17 +278,75 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## da sala.
 @export var atlas_props_frente: Texture2D
 @export var regioes_props_frente: Array[Rect2i] = []
-## Quantos elementos de Foreground a sala tenta colocar.
-##
-## O default e ZERO e a issue pede moderacao com todas as letras: "o objetivo e
-## aumentar profundidade, nao esconder constantemente o combate". Sala que quer
-## Foreground pede explicitamente.
-@export var quantidade_props_frente: int = 0
 
-## Quantos props volumetricos a sala tenta colocar. Contagem propria e nao uma
-## fracao de `quantidade_props`: sao ocupacoes diferentes do mesmo chao, e a
-## sala do chefe quer muitos chapados e quase nenhum corpo no caminho.
-@export var quantidade_props_volume: int = 0
+@export_group("Luz")
+## Quantas LUMINARIAS a sala tenta prender na parede.
+##
+## O numero saiu de MEDIR a referencia (`docs/fabrica_01.png`) e nao da secao 97
+## do briefing, e os dois discordam: ela pede "1 a 3 fontes funcionais" numa
+## sala de combate, e a imagem tem SETE ou OITO pontos ambar mais um ciano.
+##
+## A diferenca nao e de gosto, e estrutural: a sensacao de "fabrica que ainda
+## funciona precariamente" vem de a luz estar ESPALHADA E FRACA, e nao
+## concentrada e forte. Tres lampadas fortes fazem tres holofotes; oito fracas
+## fazem uma instalacao eletrica. A divergencia esta registrada em
+## `docs/REFERENCIA_FABRICA.md`, secao 2.2.
+##
+## Nem toda uma acende: `PerfilDeLuz.chance_de_estar_ligada` decide lampada a
+## lampada, e a carcaca APAGADA e metade do que conta a historia do abandono.
+@export var quantidade_luminarias: int = 0
+## O perfil da luz que estas luminarias usam. Nulo = a sala nao tem luz propria.
+@export var perfil_de_luz: Resource
+
+## Uma luminaria FRIA no lugar de uma ambar, quando a sala pede acento tecnico.
+##
+## Ela existe para o `[FAB 12]`: o tipo de sala deixou de ser separado por cor da
+## PAREDE, e volta como indicador. Uma unica luz ciano num terminal diz "aqui ha
+## equipamento" sem recolorir nada -- e a referencia tem exatamente UMA na sala
+## inteira, contra sete ambar.
+@export var perfil_de_luz_fria: Resource
+@export var quantidade_luminarias_frias: int = 0
+
+## O atlas das pecas PRESAS NA FACE da parede, e as celulas que esta sala usa.
+##
+## Tubo que corre pela parede, caixa de juncao, duto. **Elas nao sao prop de
+## chao nem Foreground**, e e por isso que precisaram de lista propria: o prop
+## de chao mora em `Z_CHAO_DETALHE` ou `Z_MUNDO` e se ordena contra o jogador; o
+## Foreground mora acima de tudo. Uma peca presa na parede fica ENTRE os dois --
+## sobre a face, e atras de qualquer ator.
+##
+## O porte `PAREDE` existe no `DecoradorDeSala` desde a `[FAB 07]` e ate aqui so
+## a luminaria o consumia. O plano registrava a divida com todas as letras:
+## "peca presa na FACE nao e nem prop de chao nem foreground. Liga-lo ao atlas
+## errado seria pior que deixa-lo esperando."
+##
+## **As celulas sao mais LARGAS que altas, ao contrario das volumetricas.** Um
+## tubo corre na horizontal ao longo da parede, e a face tem `Sala.ALTURA_FACE`
+## = 32 px de altura -- uma celula de 32x64 nao caberia nela sem invadir o topo,
+## que e a espessura vista de cima e nao superficie vertical. Por isso este
+## atlas e separado do volumetrico, cujo portao cobra exatamente o contrario.
+## O ATLAS DOS CANOS, e eles sao a LIGACAO entre as pecas de uma bancada.
+##
+## **Eles sao a resposta a "as conexoes com canos... entre si dos moveis com a
+## sala deve ser evidente".** Uma bancada e uma fileira de maquinas encostadas; o
+## que faz o olho ler "instalacao" em vez de "moveis lado a lado" e alguma coisa
+## ATRAVESSANDO as duas. O cano corre ATRAS delas (`Z_FITA + 1`, abaixo do
+## `Z_MUNDO` dos volumes) e so aparece nos vaos -- entao ele entra em cada
+## maquina por OCLUSAO, sem precisar de peca de encaixe desenhada.
+##
+## Sao dois trechos e nao um: numa parede norte a bancada corre leste-oeste e o
+## cano e horizontal, visto de FRENTE; numa lateral ela corre norte-sul e o cano
+## e visto de CIMA. Mesma razao que da duas vistas a cada prop, e a mesma que
+## impede girar a arte de face.
+##
+## Cada trecho e UNIFORME ao longo do comprimento de proposito: assim qualquer
+## recorte dele serve para qualquer vao, e nao ha uma peca por largura.
+@export var atlas_canos: Texture2D
+@export var regiao_cano_horizontal: Rect2i = Rect2i()
+@export var regiao_cano_vertical: Rect2i = Rect2i()
+
+@export var atlas_props_parede: Texture2D
+@export var regioes_props_parede: Array[Rect2i] = []
 
 ## Props que aparecem em UMA sala do andar, e so.
 ##
@@ -284,6 +361,161 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 ## porque "uma por ANDAR" e uma pergunta que nenhuma sala consegue responder
 ## sozinha.
 @export var regioes_props_raras: Array[Rect2i] = []
+
+
+## ------------------------------------------------- quanta decoracao ---------
+##
+## As quatro familias de prop da `Sala` traduzidas para os portes do
+## `PerfilDeDecoracao`. Elas devolvem a FAIXA (`min`, `max`) e nao um numero: o
+## perfil declara intervalo, e quem sorteia dentro dele e a `Sala`, com o `rng`
+## da propria celula -- assim a mesma sala devolve sempre a mesma densidade e
+## salas diferentes nao ficam todas com a mesma contagem.
+##
+## **Esta e a unica traducao familia -> porte do projeto**, pelo mesmo motivo
+## que `DecoradorDeSala.faixa_de_porte()` e a unica traducao porte -> campo:
+## duas copias divergem, e o sintoma aparece em TELA e nunca no console.
+##
+##   chapado      MICRO           -- o objeto pequeno visto de cima, sem volume
+##   volumetrico  HERO + GRANDE + MEDIO + PEQUENO  -- tudo que tem corpo
+##   decalque     DECALQUE        -- chao pintado
+##   frente       contagem_frente -- a camada que passa por cima do ator
+##
+## O volumetrico soma QUATRO portes porque a `Sala` nao separa por porte: o
+## tamanho de cada peca sai da REGIAO sorteada no atlas, e nao de um campo. Ate
+## a arte declarar o proprio porte (`[FAB 22-27]`), somar e o unico jeito
+## honesto de nao perder as quatro contagens dentro de uma so.
+func faixa_de_props_chapados() -> Vector2i:
+	return DecoradorDeSala.faixa_de_porte(perfil_de_decoracao, DecoradorDeSala.Porte.MICRO)
+
+
+func faixa_de_props_volume() -> Vector2i:
+	if perfil_de_decoracao == null:
+		return Vector2i.ZERO
+	var soma := Vector2i.ZERO
+	for porte in [
+		DecoradorDeSala.Porte.HERO, DecoradorDeSala.Porte.GRANDE,
+		DecoradorDeSala.Porte.MEDIO, DecoradorDeSala.Porte.PEQUENO,
+	]:
+		soma += DecoradorDeSala.faixa_de_porte(perfil_de_decoracao, porte)
+	return soma
+
+
+## Que CELULAS do atlas cada porte pode usar, em faixas de area.
+##
+## **Ela saiu da `Sala`, e a mudanca nao e arrumacao.** `Sala._regiao_do_porte()`
+## sorteava a regiao DEPOIS de o `DecoradorDeSala` ja ter decidido a vaga: o
+## decorador escolhia ONDE sem saber o TAMANHO, e a `Sala` escolhia o tamanho sem
+## poder mudar o lugar. Nenhum dos dois podia responder "esta peca cabe aqui?", e
+## e por isso que o vaso de pressao de 96x160 desenhava 92 px fora da parede sem
+## um erro no console.
+##
+## Com o catalogo na mao, o decorador passa a escolher o GABARITO QUE CABE
+## naquele ponto -- e o HERO de 160 px continua existindo no sul, no leste e no
+## oeste, onde nada vaza, enquanto a parede norte recebe a peca mais baixa. Um
+## teto global de altura teria custado a peca de leitura da sala nos quatro
+## lados para salvar um deles.
+##
+## As quatro faixas sobre a lista ordenada por AREA sao as mesmas de antes, e
+## fatiar em vez de cravar tamanhos e o que faz o mapeamento sobreviver a um
+## atlas que cresca: com dez pecas ou com quarenta, HERO continua pegando do topo.
+##
+## Por AREA e nao por largura: com as celulas altas (96x160, 64x128) a largura
+## deixou de ordenar -- uma esteira de 96x64 e mais larga que um armario de
+## 64x128 e muito menor que ele.
+## **As regioes vem em PARES: `[frente_0, ponta_0, frente_1, ponta_1, ...]`.**
+##
+## Uma peca encostada na parede NORTE mostra a FRENTE dela e corre com o eixo
+## longo leste-oeste, paralelo ao muro. A mesma peca na parede LESTE tem de
+## correr norte-sul para encostar -- e dai o que a camera ve e a PONTA dela, com
+## outra silhueta e outra largura. Sao duas artes, e nao uma girada: girar arte
+## de FACE destroi a perspectiva, e isso e decisao fechada do projeto.
+##
+## Sem o par, um motor largo colocado na parede leste aponta o comprimento para
+## DENTRO da sala, com uma quina no muro e um vao atras -- que e exatamente a
+## reclamacao do dono: *"usar a orientacao reta, norte-sul ou leste-oeste, para
+## que caiba encostado na parede"*.
+##
+## O SUL reusa a frente e o OESTE reusa a ponta. Medido numa peca de teste, a
+## vista de costas de uma maquina cilindrica sai quase identica a de frente --
+## gerar as quatro produziria duas artes iguais e mais atlas. Peca com frente
+## FORTE (armario, bancada, painel) ganha uma vista de costas propria quando ela
+## for desenhada; ate la a divida esta declarada aqui.
+func gabaritos_de_volume() -> Dictionary:
+	var saida := {}
+	if regioes_props_volume.size() < 2:
+		return saida
+	var pares: Array[Dictionary] = []
+	for i in range(0, regioes_props_volume.size() - 1, 2):
+		pares.append({
+			"frente": regioes_props_volume[i],
+			"ponta": regioes_props_volume[i + 1],
+		})
+	# Ordenadas pela area da FRENTE, que e a vista canonica da peca. Usar a maior
+	# das duas faria a mesma peca trocar de porte conforme o lado em que caisse.
+	pares.sort_custom(
+		func(a: Dictionary, b: Dictionary) -> bool:
+			var ra: Rect2i = a["frente"]
+			var rb: Rect2i = b["frente"]
+			return ra.size.x * ra.size.y > rb.size.x * rb.size.y)
+	var por_area := pares
+	var n := por_area.size()
+	var faixas := [
+		Vector2i(0, maxi(1, n / 4)),
+		Vector2i(n / 4, maxi(n / 4 + 1, n / 2)),
+		Vector2i(n / 2, maxi(n / 2 + 1, n * 3 / 4)),
+		Vector2i(n * 3 / 4, n),
+	]
+	for porte in 4:
+		var faixa: Vector2i = faixas[porte]
+		var inicio := clampi(faixa.x, 0, n - 1)
+		var fim := clampi(faixa.y, inicio + 1, n)
+		var lote: Array[Dictionary] = []
+		for i in range(inicio, fim):
+			lote.append(por_area[i])
+		saida[porte] = lote
+	return saida
+
+
+## A vista que uma peca mostra quando encosta naquele lado.
+##
+## Publica e estatica porque o portao precisa da mesma resposta: duas tabelas de
+## "que lado usa que vista" divergem, e a divergencia seria a peca desenhando uma
+## silhueta e reservando o chao de outra.
+static func vista_do_lado(gabarito: Dictionary, lado: int) -> Rect2i:
+	if lado == DecoradorDeSala.Lado.LESTE or lado == DecoradorDeSala.Lado.OESTE:
+		return gabarito.get("ponta", Rect2i())
+	return gabarito.get("frente", Rect2i())
+
+
+func faixa_de_decalques() -> Vector2i:
+	return DecoradorDeSala.faixa_de_porte(perfil_de_decoracao, DecoradorDeSala.Porte.DECALQUE)
+
+
+func faixa_de_props_frente() -> Vector2i:
+	return perfil_de_decoracao.contagem_frente if perfil_de_decoracao != null else Vector2i.ZERO
+
+
+func faixa_de_props_parede() -> Vector2i:
+	return DecoradorDeSala.faixa_de_porte(perfil_de_decoracao, DecoradorDeSala.Porte.PAREDE)
+
+
+## Quao fundo, a partir do contorno, a decoracao desta sala pode entrar.
+##
+## **Ela era a segunda metade da divida da `[FAB 17]`, e a mais cara das duas.**
+## A `Sala` tinha `PROP_AFASTAMENTO_MAXIMO = 44` enquanto o perfil declarava 96,
+## e as cenas de sala autoram uma margem de exatamente 96 px entre o contorno e
+## a `area_spawn` (medido em `sala_1_retangular`: contorno 768x640, area
+## 576x448). Com 44, e com a `posicoes()` exigindo meio prop de folga contra a
+## parede, a faixa util de uma peca de 64 media DOZE pixels -- praticamente uma
+## linha. Era isso, e nao a falta de arte, que fazia a sala montada com o Batch 1
+## continuar parecendo vazia.
+##
+## Sem perfil nao ha decoracao para colocar; o numero so serve as luminarias,
+## que tem contagem propria, e para elas a faixa antiga continua valendo.
+func largura_da_faixa_de_decoracao() -> float:
+	if perfil_de_decoracao == null:
+		return FAIXA_SEM_PERFIL
+	return perfil_de_decoracao.largura_da_faixa_de_perimetro
 
 
 func eh_pendurada() -> bool:

@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="DadosArma" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+[ext_resource type="Texture2D" path="res://assets/armas/icone_laser_cutter.png" id="9_ico"]
 
 [resource]
 script = ExtResource("1_dados")
@@ -21,6 +22,7 @@ dispersao_por_tiro = 0.0
 dispersao_recuperacao = 0.0
 alcance = 380.0
 cor_projetil = Color(0.99, 0.28, 1, 1)
+icone = ExtResource("9_ico")
 dano_por_segundo = 26.0
 largura_feixe = 6.0
 municao_maxima = -1

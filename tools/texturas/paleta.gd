@@ -34,18 +34,46 @@ const NEUTROS: Dictionary = {
 	&"N7": Color("5a6480"), # aresta iluminada (raro) -- teto do brilho
 }
 
-## Uma rampa por tipo de sala. Cada uma e a versao REBAIXADA do `cor_mapa` que
-## o tipo_*.tres declara: minimapa e mundo falam da mesma cor em intensidades
-## diferentes. O cor_mapa puro nunca e pintado no mundo.
-##   A0  fundo de acento (quase neutro)
+## Uma rampa por tipo de sala. Ela ja foi a versao REBAIXADA do `cor_mapa` do
+## `tipo_*.tres` -- minimapa e mundo falando da mesma cor em intensidades
+## diferentes --, e a FAB 08 desfez isso: hoje as tres cores sao GUNMETAL, e o
+## tipo sobrevive so como um vies de matiz de poucos graus.
+##   A0  campo de acento: a chapa pintada (quase neutro)
 ##   A1  acento medio (luz apagada, conduite)
-##   A2  filete (o neon da parede)
+##   A2  a MARCA: o traco de 2 a 4 px, a unica que guarda croma
+##
+## **O alvo nao foi escolhido, foi medido.** O topo da parede -- a superficie
+## neutra que da a volta na sala -- mede 215,0 de matiz e 0,289 de saturacao,
+## contra 216,5 / 0,284 do centro de `docs/fabrica_01.png`. Ele ja estava certo
+## e virou o ponto para onde os acentos convergem.
+##
+## O que eles eram: **S 0,65 a 0,73 nas cinco rampas**, com `item` em 165 graus
+## (verde), `arma` em 37 (laranja) e `combate` em 193 (teal). Isso e o mesmo
+## defeito que a FAB 09/10 tirou das texturas -- cor chapada por tipo de sala --
+## sobrevivendo no gerador, e ele so nao gritava porque hoje os `ACENTOS`
+## alcancam UMA textura: as duas celulas de acento do `props_atlas.png`.
+##
+## **A leitura passa a ser por VALOR, e nao por croma.** A0 (0,19) cai sobre o
+## N5 do painel (0,30) e A1 (0,42) cai sobre o A0: a peca continua tendo tres
+## degraus, e nenhum deles precisa de saturacao para existir. Foi assim que a
+## referencia sempre fez.
+##
+## **A2 e a excecao, e ela e o que a secao 111 do briefing pede.** Ela nunca
+## pinta area -- e um traco de 4 px numa peca e uma marca de 4x2 na outra --,
+## entao ela fica em S 0,55 para continuar lendo como LUZ. Marca e indicador;
+## campo e tinta. Ela passa no G2 pelo valor (0,52 contra o teto de 0,55), que
+## e a mesma folga do N7.
+##
+## **`boss` mantem o magenta**, pelo mesmo motivo que o chao dele nao girou na
+## FAB 09: a secao 11 reserva aquela familia para a sala do chefe, e ela e a
+## unica do andar que PODE se anunciar de longe. O que mudou nela foi a
+## saturacao, que caiu junto com as outras quatro.
 const ACENTOS: Dictionary = {
-	&"combate": {&"A0": Color("0e2b33"), &"A1": Color("1e5a6b"), &"A2": Color("2a7285")},
-	&"boss": {&"A0": Color("33101c"), &"A1": Color("6b1f36"), &"A2": Color("8a2a47")},
-	&"arma": {&"A0": Color("332512"), &"A1": Color("6b4d1e"), &"A2": Color("8a6528")},
-	&"item": {&"A0": Color("0e332a"), &"A1": Color("1e6b57"), &"A2": Color("288a71")},
-	&"inicial": {&"A0": Color("1a1e2b"), &"A1": Color("333b52"), &"A2": Color("48546f")},
+	&"combate": {&"A0": Color("222830"), &"A1": Color("47566b"), &"A2": Color("3c5a85")},
+	&"boss": {&"A0": Color("302227"), &"A1": Color("6b4755"), &"A2": Color("853c58")},
+	&"arma": {&"A0": Color("222530"), &"A1": Color("474e6b"), &"A2": Color("3c4a85")},
+	&"item": {&"A0": Color("222a30"), &"A1": Color("475c6b"), &"A2": Color("3c6685")},
+	&"inicial": {&"A0": Color("222730"), &"A1": Color("47536b"), &"A2": Color("3c5485")},
 }
 
 ## Registro do que ja esta em uso nos .tscn e .tres de ator. Nao e a fonte
@@ -130,6 +158,59 @@ const SINAL: Dictionary = {
 	&"pickup_item": Color(0.49, 0.97, 0.77),
 }
 
+## A MARCA de tipo de sala: a segunda metade do acento que a FAB 12 devolve.
+##
+## O briefing e explicito nas secoes 111 a 114: **depois** que a ambientacao
+## funcionar sem cor, o acento de tipo volta discreto -- luz tecnica no item,
+## marca ambar na arma, luz quente na loja. Nunca recolorindo a sala.
+##
+## A luz ja tinha voltado na FAB 19 (a luminaria FRIA do item e da arma contra
+## as ambar do resto). Isto aqui e a marca: a faixa pintada NO CHAO, que ocupa
+## 28x6 px numa celula de 32 e aparece uma vez ou outra por sala.
+##
+## **Ela nao desfaz a FAB 08.** O que aquela issue tirou foi a TINTA -- a rampa
+## de superficie que pintava painel e chapa de verde ou laranja. Marca e outra
+## coisa: e pequena, e no chao, e ela EXISTE para dizer o tipo. A diferenca
+## entre as duas e area, e nao matiz.
+##
+## Dois tipos so, e por eliminacao. `combate` e `inicial` sao a fabrica sem
+## adjetivo -- eles nao tem funcao para anunciar --, e `boss` ja se anuncia pelo
+## unico tingimento que sobreviveu. Quem nao esta aqui cai na rampa gunmetal, e
+## e assim que o campo continua sendo excecao em vez de virar tabela.
+##
+## A `loja` divide a celula da `arma` (a cena dela nasceu clonada) e por isso
+## herda esta faixa. Nao e descuido: a identidade dela vem do balcao, das tres
+## bancadas, do Sucateiro e das seis luminarias quentes -- ela e um posto
+## improvisado DENTRO da fabrica, e nao um setor proprio.
+##
+## O amarelo e ENVELHECIDO de proposito (S 0,42): amarelo aceso e paleta de
+## SINAL, e a barra de porta trancada e quem mora la.
+const MARCAS: Dictionary = {
+	&"arma": {&"faixa": Color("756a44"), &"tique": Color("857542")},
+	&"item": {&"faixa": Color("40596b"), &"tique": Color("466880")},
+}
+
+## A EXCECAO quente do ambiente: a lampada de trabalho que ainda funciona.
+##
+## Ela existe porque a regua achou um buraco. `medir_ambiente.tscn` pede ambar
+## como ACENTO do andar e mede **0,00%** nas 56 texturas, contra 0,41% da
+## referencia -- o andar tinha zero luz quente em textura, e o que sobrava era a
+## luz de engine da `LuzDeFabrica`, que nao aparece em pasta nenhuma.
+##
+## **Ela e ambar APAGADO, e o numero e o portao.** `AMBAR_VALOR_MINIMO` da regua
+## e 0,45 (abaixo disso o pixel conta como ferrugem) e o G2 recusa saturada E
+## clara ao mesmo tempo: sobra a faixa de 0,45 a 0,55 de valor, e o LED fica em
+## **0,52**. Ele nao brilha na textura -- quem brilha e a luz de engine por cima
+## dele --, e essa e a divisao certa: textura e materia, luz e luz.
+##
+## `led_ambar_base` e a carcaca em volta, escura o bastante para cair em
+## FERRUGEM na regua. Ela e o que impede o LED de parecer um pixel solto: um
+## ponto quente sem soquete le como ruido de compressao.
+const LUZES: Dictionary = {
+	&"led_ambar": Color("855f14"),
+	&"led_ambar_base": Color("3d2f1c"),
+}
+
 ## Portao G2. Uma cor de AMBIENTE pode ser saturada OU clara, nunca as duas.
 ## N7 (S=0.30, V=0.50) e o teto e passa de raspao de proposito.
 const LIMITE_SATURACAO := 0.35
@@ -149,6 +230,15 @@ static func ambiente() -> Array[Color]:
 			var cor: Color = ACENTOS[tipo][faixa]
 			if not pertence(cor, lista):
 				lista.append(cor)
+	for chave in LUZES:
+		var luz: Color = LUZES[chave]
+		if not pertence(luz, lista):
+			lista.append(luz)
+	for tipo in MARCAS:
+		for faixa in MARCAS[tipo]:
+			var traco: Color = MARCAS[tipo][faixa]
+			if not pertence(traco, lista):
+				lista.append(traco)
 	return lista
 
 
@@ -168,6 +258,19 @@ static func sinal() -> Array[Color]:
 
 static func neutro(nome: StringName) -> Color:
 	return NEUTROS[nome]
+
+
+static func luz(nome: StringName) -> Color:
+	return LUZES[nome]
+
+
+## A marca do tipo de sala, quando ele tem uma. Tipo sem marca devolve a rampa
+## gunmetal -- e o fallback e o que mantem `MARCAS` uma excecao curta em vez de
+## uma tabela que alguem preenche por simetria.
+static func marca(tipo: StringName, faixa: StringName) -> Color:
+	if not MARCAS.has(tipo):
+		return acento(tipo, &"A0" if faixa == &"faixa" else &"A1")
+	return MARCAS[tipo][faixa]
 
 
 ## Acento de um tipo de sala. Tipo desconhecido cai em `combate`, que e a rampa

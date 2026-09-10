@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="DadosArma" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+[ext_resource type="Texture2D" path="res://assets/armas/icone_swarm.png" id="9_ico"]
 
 [resource]
 script = ExtResource("1_dados")
@@ -23,6 +24,7 @@ velocidade_projetil = 380.0
 alcance = 620.0
 raio_projetil = 3.0
 cor_projetil = Color(0.57, 1, 0.28, 1)
+icone = ExtResource("9_ico")
 familia_silhueta = 2
 raio_busca = 260.0
 curva_graus = 260.0

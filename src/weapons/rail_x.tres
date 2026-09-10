@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="DadosArma" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="DadosArma" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/weapons/dados_arma.gd" id="1_dados"]
+[ext_resource type="Texture2D" path="res://assets/armas/icone_rail_x.png" id="9_ico"]
 
 [resource]
 script = ExtResource("1_dados")
@@ -23,6 +24,7 @@ velocidade_projetil = 2100.0
 alcance = 1100.0
 raio_projetil = 5.0
 cor_projetil = Color(0.28, 0.36, 1, 1)
+icone = ExtResource("9_ico")
 familia_impacto = 1
 familia_silhueta = 2
 rastro_comprimento = 6.0

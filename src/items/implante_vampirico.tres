@@ -1,7 +1,8 @@
-[gd_resource type="Resource" script_class="DadosItem" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="DadosItem" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://src/items/dados_item.gd" id="1_di"]
 [ext_resource type="Script" path="res://src/items/efeito_item.gd" id="2_ef"]
+[ext_resource type="Texture2D" path="res://assets/itens/icone_vampirico.png" id="9_ico"]
 
 [resource]
 script = ExtResource("1_di")
@@ -11,6 +12,8 @@ efeitos = Array[ExtResource("2_ef")]([])
 comportamento = 3
 parametro = 0.05
 maximo_por_run = 2
+categoria_corporal = 3
 cor = Color(0.9, 0.2, 0.35, 1)
 sigla = "W"
+icone = ExtResource("9_ico")
 valor_de_loja = 27

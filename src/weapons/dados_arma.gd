@@ -92,6 +92,20 @@ enum Comportamento {
 @export var raio_projetil: float = 4.0
 @export var cor_projetil: Color = Color("6ee7ff")
 
+@export_group("Apresentacao")
+## O icone que representa esta arma na Loja e no pickup do chao.
+##
+## **Opcional, e tem de continuar sendo** -- mesma decisao do `DadosItem.icone`.
+## Sem ele valem o losango de `cor_projetil` e o rotulo, que e o que o jogo
+## desenhava antes de existir arte: uma arma nova pode nascer com os numeros
+## prontos e o desenho vindo depois, sem quebrar caminho nenhum.
+##
+## Ele nasceu DEPOIS dos icones de implante, e por um motivo medido: com so os
+## implantes desenhados, 303 de 600 ofertas de Loja (as vagas de ARMA) mostravam
+## a forma antiga ao lado de uma peca ilustrada -- e prateleira com metade
+## ilustrada nao le como "estas sao armas", le como icone quebrado.
+@export var icone: Texture2D
+
 @export_group("Silhueta")
 ## A familia de silhueta deste projetil.
 ##

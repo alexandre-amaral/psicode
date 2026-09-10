@@ -89,6 +89,20 @@ const PASTAS_SEM_REGIME_AINDA: Array[String] = [
 	# ponto cego SILENCIOSO -- que e exatamente o que esta lista existe para
 	# trocar por um ponto cego declarado.
 	"res://assets/npc/",
+	# Os icones de implante. Eles sao arte de INTERFACE -- desenhada sobre a HUD
+	# e sobre o pickup, e nao dentro do mundo --, entao nem o gamut de ambiente
+	# nem o piso de miolo de ator descrevem o que se cobra deles; o regime
+	# proprio e outra issue. Declarar a pasta aqui e o que impede ela de virar
+	# ponto cego SILENCIOSO: a varredura de regime olha `assets/texturas/`, e
+	# pasta nova nao declarada nao reprova -- ela SOME da conta, que e pior.
+	# Cinco arquivos ja passaram exatamente assim, em tres ondas de arte.
+	# Quem confere os icones enquanto isso e `teste_icones_de_item.gd`.
+	"res://assets/itens/",
+	# Mesma familia, mesma razao: os icones de ARMA moram separados dos de item
+	# porque cada pasta responde pelo proprio portao de orfao em
+	# `teste_icones_de_item.gd`. O regime de leitura dos dois e o mesmo, e quem o
+	# cobra e `laboratorio_icones`, que le as duas pastas na MESMA matriz.
+	"res://assets/armas/",
 ]
 
 const PASTA_PROJETEIS := "res://assets/projeteis/"
@@ -724,6 +738,13 @@ const AUTORADAS: Dictionary = {
 	# GERADO e trancado pelo determinismo -- sao dois arquivos justamente
 	# para cada um ficar no regime que sabe provar o que ele e.
 	"props_volume.png": {&"familia": &"prop", &"tipo": &"andar1"},
+	# O atlas das pecas PRESAS NA FACE (`[FAB 22]`). Arquivo proprio e nao
+	# uma lista a mais no volumetrico: as celulas dele sao mais LARGAS que
+	# altas -- um tubo corre na horizontal e a face tem 32 px --, e o portao
+	# do volumetrico cobra exatamente o contrario ("prop com volume sobe,
+	# nao deita"). Mesma familia de funil, regime de forma oposto.
+	"props_parede.png": {&"familia": &"prop", &"tipo": &"andar1"},
+	"canos.png": {&"familia": &"prop", &"tipo": &"andar1"},
 	# As FACES da parede, autoradas na identidade industrial do andar 1. Elas
 	# sao a superficie que carrega a identidade do setor: o chao fica quase
 	# liso porque e onde o combate e lido, e a informacao visual desce para as
@@ -897,11 +918,37 @@ func _nenhum_png_fica_fora_de_regime() -> void:
 ## Gemeo de SEM_FAIXA_DE_MATIZ em preparar_textura.py, e muda junto.
 const SEM_FAIXA_DE_MATIZ: Array[StringName] = [&"prop"]
 
+## O tingimento por tipo de sala DESMONTADO, e a nova regra e a saturacao.
+##
+## A medicao que produziu estas faixas esta em `docs/PLANO_FABRICA_ANDAR1.md`:
+## os chaos saiam do funil com saturacao 0,77 (chefe), 0,89 (arma) e 0,95 (item),
+## contra os **0,284** do centro da referencia (`docs/fabrica_01.png`). Nao era
+## metal tingido, era cor chapada com textura por cima -- e o "excesso de verde"
+## que abriu o briefing era so a fatia do item nisso.
+##
+## O que mudou, e por que cada um:
+##
+## - **item** girou de 172 para 205 e **arma** de 37 para 228. Sao o verde e o
+##   laranja que o briefing manda sumir do AMBIENTE (secoes 10, 112 e 113): a
+##   sala de arma nao vira amarela, o ambar volta como luz de trabalho e faixa de
+##   perigo.
+## - **andar1 e boss NAO giraram.** O andar 1 ja estava em 235, a mesma familia do
+##   alvo, e `chao_andar1_c` tem pixels ate 310 que sairiam da banda se ele
+##   girasse -- o portao usa min/max ABSOLUTO, entao um pixel basta. O chefe
+##   mantem o magenta que a secao 11 reserva a ele.
+## - **Todos dessaturaram** para a casa de 0,30-0,34.
+##
+## **As faixas agora se SOBREPOEM, e isso e o ponto.** item (188-219) e arma
+## (213-243) invadem andar1 (185-320) de proposito: o tipo de sala deixou de ser
+## separado por cor, e passa a ser separado por props, luz e composicao. E
+## literalmente o que o briefing pede na secao 110 -- "se depender da cor: FAIL".
+## Elas continuam existindo para impedir DERIVA (uma textura nova nascer verde de
+## novo), e nao para separar sala.
 const MATIZ_POR_TIPO: Dictionary = {
 	&"andar1": Vector2(185.0, 320.0),
-	&"boss": Vector2(330.0, 355.0),
-	&"arma": Vector2(25.0, 50.0),
-	&"item": Vector2(150.0, 180.0),
+	&"boss": Vector2(315.0, 350.0),
+	&"arma": Vector2(198.0, 227.0),
+	&"item": Vector2(188.0, 219.0),
 }
 
 ## Teto de valor mais baixo no chao do chefe, e nao e capricho: e a sala mais
@@ -1231,7 +1278,7 @@ func _tipos_apontam_textura() -> void:
 			ok(t != null, "%s: nenhuma entrada nula na lista de face" % etiqueta)
 		for t in dados.texturas_chao:
 			ok(t != null, "%s: nenhuma entrada nula na lista de chao" % etiqueta)
-		if dados.quantidade_props > 0:
+		if dados.faixa_de_props_chapados().y > 0:
 			ok(dados.atlas_props != null, "%s pede props e tem atlas" % etiqueta)
 			ok(not dados.regioes_props.is_empty(), "%s pede props e lista regioes" % etiqueta)
 		if dados.atlas_props != null:
@@ -1249,7 +1296,7 @@ func _tipos_apontam_textura() -> void:
 		# por a base do prop na origem do no, e essa conta so fecha se a arte
 		# estiver ancorada no fundo da celula. Regiao de altura errada nao da
 		# erro nenhum -- o prop so flutua, ou afunda no chao.
-		if dados.quantidade_props_volume > 0:
+		if dados.faixa_de_props_volume().y > 0:
 			ok(dados.atlas_props_volume != null,
 				"%s pede prop volumetrico e tem atlas" % etiqueta)
 			ok(not dados.regioes_props_volume.is_empty(),
@@ -1350,6 +1397,28 @@ const DISTANCIA_ENTRE_TOPOS := 0.10
 ##
 ## Ela some com a FABRICA 03.
 const MODULOS_COLAPSADOS: Array[String] = []
+
+## Pares de modulo do CHEFE declarados COLAPSADOS.
+##
+## Gemea de `MODULOS_COLAPSADOS`, e ela morde dos dois lados pelo mesmo motivo:
+## nome que volta a passar do piso tem de SAIR da lista, senao a divida vira
+## decoracao.
+##
+## **`tecnica|motor` entrou aqui por medicao, e a medicao aponta ARTE.** Antes do
+## retingimento da FAB 09/10 ele media **0,2598** contra um piso de 0,25 --
+## **1,5% de margem**. Nao era um portao protegendo a arte: era arte raspando no
+## portao. Dessaturar o ambiente (que e o que o briefing pede) custou 0,015 e o
+## empurrou para baixo.
+##
+## Tentei tres saidas antes de declarar, e todas falharam por medicao:
+## fator 0,80 deu 0,246; fator 0,88 deu 0,246 e quebrou o matiz do chefe na
+## volta do circulo; subtracao de 0,07 -- que preserva a diferenca ABSOLUTA, e e
+## o transform certo para esta regua -- deu 0,245. A distancia que falta nao esta
+## na cor.
+##
+## O que tira este par daqui e o `[FAB 24]`: `tecnica` e `motor` precisam de
+## ESTRUTURA diferente, e nao de tinta diferente. Ate la ele fica visivel.
+const MODULOS_COLAPSADOS_DO_CHEFE: Array[String] = ["tecnica|motor"]
 
 ## Os topos ainda sao materiais diferentes? **Nao mais** -- a FABRICA 02 entregou.
 ##
@@ -1523,6 +1592,15 @@ func _os_sete_modulos_do_chefe_tambem_sao_distintos() -> void:
 			if d < pior:
 				pior = d
 				onde = "%s|%s" % [a, b]
+			if MODULOS_COLAPSADOS_DO_CHEFE.has("%s|%s" % [a, b]):
+				# A lista morde dos DOIS lados: se o par voltar a passar do piso,
+				# este caso reprova pedindo que ele SAIA de la.
+				ok(
+					d < DISTANCIA_ENTRE_MODULOS,
+					"chefe: %s|%s esta declarado colapsado e continua colapsado (%.3f)"
+						% [a, b, d]
+				)
+				continue
 			ok(
 				d >= DISTANCIA_ENTRE_MODULOS,
 				"chefe: %s|%s sao modulos diferentes (%.3f, minimo %.2f)"

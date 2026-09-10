@@ -1,10 +1,11 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://src/ui/hud.gd" id="1_hud"]
 [ext_resource type="Shader" path="res://assets/shaders/glitch.gdshader" id="2_glitch"]
 [ext_resource type="Script" path="res://src/ui/barra_vida.gd" id="3_vida"]
 [ext_resource type="Script" path="res://src/ui/barra_deterioracao.gd" id="4_det"]
 [ext_resource type="Script" path="res://src/ui/minimapa.gd" id="5_minimapa"]
+[ext_resource type="Script" path="res://src/ui/bandeja_implantes.gd" id="6_bandeja"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_glitch"]
 shader = ExtResource("2_glitch")
@@ -63,7 +64,7 @@ mouse_filter = 2
 offset_left = 20.0
 offset_top = 16.0
 offset_right = 244.0
-offset_bottom = 100.0
+offset_bottom = 148.0
 mouse_filter = 2
 theme_override_constants/separation = 8
 
@@ -89,6 +90,12 @@ script = ExtResource("4_det")
 [node name="Fase" type="Label" parent="Topo/Esquerda"]
 theme_override_font_sizes/font_size = 11
 text = "ESTÁVEL 0%"
+
+[node name="Implantes" type="Control" parent="Topo/Esquerda"]
+visible = false
+custom_minimum_size = Vector2(208, 36)
+mouse_filter = 2
+script = ExtResource("6_bandeja")
 
 [node name="Creditos" type="Label" parent="."]
 modulate = Color(0.62, 0.86, 0.72, 1)
@@ -137,6 +144,11 @@ text = "PST-9"
 modulate = Color(0.7, 0.78, 0.9, 1)
 theme_override_font_sizes/font_size = 11
 text = "INFINITA"
+
+[node name="Reserva" type="Label" parent="Rodape"]
+modulate = Color(0.5, 0.58, 0.68, 1)
+theme_override_font_sizes/font_size = 9
+text = ""
 
 [node name="DicaPreditiva" type="Label" parent="."]
 modulate = Color(1, 0.25, 0.4, 1)

@@ -26,6 +26,9 @@ polygon = PackedVector2Array(26, 0, 18.38, 18.38, 0, 26, -18.38, 18.38, -26, 0, 
 color = Color(1, 0.72, 0.29, 1)
 polygon = PackedVector2Array(14, 0, 0, 10, -14, 0, 0, -10)
 
+[node name="Icone" type="Sprite2D" parent="."]
+visible = false
+
 [node name="Rotulo" type="Label" parent="."]
 offset_left = -54.0
 offset_top = 18.0

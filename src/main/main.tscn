@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" path="res://src/ui/hud.tscn" id="3_hud"]
 [ext_resource type="PackedScene" path="res://src/ui/tela_fim.tscn" id="4_fim"]
 [ext_resource type="PackedScene" path="res://src/ui/menu_pausa.tscn" id="5_pausa"]
+[ext_resource type="PackedScene" path="res://src/ui/tela_inventario.tscn" id="6_inv"]
 [ext_resource type="Script" uid="uid://gtup6u4crmq2" path="res://src/mapa/gerenciador_mapa.gd" id="5_jkpqq"]
 [ext_resource type="Resource" path="res://src/mapa/tipo_combate.tres" id="6_combate"]
 [ext_resource type="Resource" path="res://src/mapa/tipo_boss.tres" id="7_boss"]
@@ -28,6 +29,7 @@
 [ext_resource type="Resource" path="res://src/mapa/tema_armazenamento.tres" id="54_tema"]
 [ext_resource type="Resource" path="res://src/mapa/tema_degradada.tres" id="55_tema"]
 [ext_resource type="PackedScene" path="res://src/player/player.tscn" id="10_km7bn"]
+[ext_resource type="Script" path="res://src/fx/ambiente_da_fabrica.gd" id="15_amb"]
 [ext_resource type="AudioStream" path="res://assets/audio/ambiente_setor.wav" id="40_amb"]
 
 [node name="Main" type="Node" unique_id=614128192]
@@ -39,8 +41,13 @@ script = ExtResource("1_main")
 
 [node name="MenuPausa" parent="." instance=ExtResource("5_pausa")]
 
+[node name="TelaInventario" parent="." instance=ExtResource("6_inv")]
+
 [node name="Mundo" type="Node2D" parent="."]
 y_sort_enabled = true
+
+[node name="Ambiente" type="CanvasModulate" parent="Mundo"]
+script = ExtResource("15_amb")
 
 [node name="GerenciadorMapa" type="Node2D" parent="Mundo" unique_id=2082792232]
 y_sort_enabled = true
@@ -55,3 +62,6 @@ pool_da_loja = ExtResource("14_pool")
 planta = ExtResource("60_planta")
 
 [node name="Player" parent="Mundo" unique_id=220117599 groups=["player"] instance=ExtResource("10_km7bn")]
+
+
+[node name="ContainerProjeteis" type="Node2D" parent="." groups=["container_projeteis"]]

@@ -20,6 +20,18 @@ signal arma_equipada(dados: Resource, slot: int)
 ## ao jogador so tem interesse no segundo. Pendurar a apresentacao em
 ## arma_equipada mostrava a pistola inicial toda run e a cada tecla Q.
 signal arma_adquirida(dados: Resource)
+## O jogador ALTERNOU entre as duas armas que carrega. Existe separado de
+## `arma_equipada` porque este e o unico dos quatro momentos em que a arma que
+## SAIU continua com o jogador -- quem anima a troca (a HUD desliza uma sobre a
+## outra) precisa das duas pontas, e `arma_equipada` so carrega a que chegou.
+signal arma_trocada(saiu: Resource, entrou: Resource, slot: int)
+## Uma arma foi trocada por outra num slot cheio. `saiu` deixa de ser carregada
+## e vira pickup no chao; quem a larga e quem escutou.
+signal arma_substituida(saiu: Resource, entrou: Resource, slot: int)
+## Uma arma deixou o inventario e foi parar no chao, na posicao dada. Separado
+## de `arma_substituida` porque a Loja tambem larga arma no chao, e ali a
+## posicao nao e a do jogador e sim a da bancada.
+signal arma_descartada(dados: Resource, posicao: Vector2)
 ## (balas no pente, reserva). Reserva -1 = infinita.
 signal municao_mudou(no_pente: int, reserva: int)
 signal recarga_iniciada(duracao: float)

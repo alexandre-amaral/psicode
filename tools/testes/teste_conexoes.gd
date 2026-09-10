@@ -39,6 +39,7 @@ func executar() -> void:
 	_o_perfil_de_corredor_nao_anuncia_a_vizinha()
 	await _o_corredor_e_raro_e_por_isso_significa_algo()
 	await _sem_chefe_nenhuma_conexao_veste_o_chefe()
+	await _as_bocas_das_duas_salas_se_ENCONTRAM()
 
 
 ## Sobe o andar inteiro e devolve o gerenciador ja montado.
@@ -84,7 +85,7 @@ func _a_planta_manda_e_sem_ela_nada_muda() -> void:
 			var tipo: int = ligacao["tipo"]
 			conta[tipo] = int(conta.get(tipo, 0)) + 1
 			arestas += 1
-		mapa.get_parent().free()
+		_desmontar(mapa)
 		await Engine.get_main_loop().process_frame
 
 	ok(arestas > 0, "houve aresta para classificar (%d em %d andares)" % [arestas, ANDARES])
@@ -110,7 +111,7 @@ func _a_planta_manda_e_sem_ela_nada_muda() -> void:
 	ok(vistas > 0, "o andar sem planta tambem tem arestas (%d)" % vistas)
 	igual(fora_do_padrao, 0,
 		"sem planta, toda conexao continua sendo corredor (%d fora)" % fora_do_padrao)
-	mapa_sem.get_parent().free()
+	_desmontar(mapa_sem)
 	await Engine.get_main_loop().process_frame
 
 
@@ -230,7 +231,7 @@ func _a_conexao_do_chefe_e_sempre_corredor() -> void:
 			conferidos += 1
 			if int(ligacao["tipo"]) != PlantaDoAndar.Conexao.CORREDOR_TECNICO:
 				fora += 1
-		mapa.get_parent().free()
+		_desmontar(mapa)
 		await Engine.get_main_loop().process_frame
 	ok(conferidos > 0, "houve conexao de chefe para conferir (%d)" % conferidos)
 	igual(fora, 0,
@@ -295,7 +296,7 @@ func _o_cluster_agrupa_sem_virar_gradiente() -> void:
 			else:
 				pares_entre += 1
 				compartilhadas_entre += 1 if compartilhada else 0
-		mapa.get_parent().free()
+		_desmontar(mapa)
 		await Engine.get_main_loop().process_frame
 
 	ok(n > 0, "houve celula para medir (%d)" % n)
@@ -459,8 +460,7 @@ func _o_corredor_e_raro_e_por_isso_significa_algo() -> void:
 		andares += 1
 		if quantos == 0:
 			sem_nenhum += 1
-		mapa.get_parent().remove_child(mapa)
-		mapa.free()
+		_desmontar(mapa)
 
 	ok(andares > 0, "os andares subiram (%d)" % andares)
 	if andares == 0:
@@ -529,5 +529,89 @@ func _sem_chefe_nenhuma_conexao_veste_o_chefe() -> void:
 	ok(not mapa._e_trecho_pre_chefe(Vector2i.ZERO, Vector2i(1, 0)),
 		"e a celula ZERO em especial nao anuncia -- ela e a INICIAL")
 
-	mapa.get_parent().remove_child(mapa)
-	mapa.free()
+	_desmontar(mapa)
+
+
+## As BOCAS das duas salas de uma conexao se encontram, sempre (`[SETOR 05]`).
+##
+## **Esta e a restricao que a issue nao previu, e ela e o que decide o desenho
+## do deslizamento.** A `[SETOR 05]` pede que a sala deixe de ficar centrada na
+## banda e encoste na fronteira que compartilha -- e deslizar uma sala
+## PERPENDICULARMENTE a uma conexao quebra o encontro das duas portas.
+##
+## O sintoma nao e um erro: `Corredor.configurar()` recebe as duas bocas, e se
+## elas desalinham nos dois eixos ele emite um `push_warning` e monta pelo eixo
+## DOMINANTE. O corredor sai torto, sem encostar em nenhuma das duas portas, e o
+## jogo continua rodando -- o jogador so encontra uma passagem que nao leva a
+## lugar nenhum. `push_warning` nao reprova suite nenhuma.
+##
+## Hoje isso e garantido por construcao: o deslize e por CORRENTE, e celulas
+## ligadas no eixo perpendicular deslizam juntas. Este caso e o que torna a
+## garantia cobravel -- sem ele, alguem "simplifica" o deslizamento para
+## sala-a-sala, o codigo fica mais curto, nada reclama, e o andar ganha
+## corredores tortos.
+##
+## A tolerancia e a do proprio `Corredor`, e nao um numero novo: dois donos do
+## mesmo limite divergem, e aqui a divergencia seria uma suite verde sobre um
+## corredor que o motor ja considera desalinhado.
+func _as_bocas_das_duas_salas_se_ENCONTRAM() -> void:
+	var mapa := _montar(true)
+	ok(mapa != null, "o andar sobe")
+	if mapa == null:
+		return
+	await Engine.get_main_loop().process_frame
+
+	# As salas vem da ARVORE e nao de uma API nova: `_salas` e privado, e abrir
+	# um acessor publico so para esta suite acrescentaria superficie que o jogo
+	# nao usa. Elas sao filhas diretas do gerenciador, com a celula declarada.
+	var por_celula: Dictionary = {}
+	for filho in mapa.get_children():
+		var sala := filho as Sala
+		if sala != null:
+			por_celula[sala.coordenadas_grid] = sala
+
+	var conferidas := 0
+	var tortas: Array[String] = []
+	for ligacao in mapa.ligacoes():
+		var a: Vector2i = ligacao["a"]
+		var b: Vector2i = ligacao["b"]
+		var sala_a := por_celula.get(a) as Sala
+		var sala_b := por_celula.get(b) as Sala
+		if sala_a == null or sala_b == null:
+			continue
+		var direcao := Vector2(b - a).normalized()
+		var boca_a := sala_a.boca_da_porta(direcao)
+		var boca_b := sala_b.boca_da_porta(-direcao)
+		conferidas += 1
+		# O desalinhamento e o que sobra no eixo PERPENDICULAR ao da conexao.
+		var delta := boca_b - boca_a
+		var perpendicular: float = absf(delta.x) if absf(direcao.y) > 0.5 else absf(delta.y)
+		if perpendicular > Corredor.TOLERANCIA_ALINHAMENTO:
+			tortas.append("%s -> %s (%.0f px)" % [a, b, perpendicular])
+
+	ok(conferidas > 0, "houve conexao para conferir (%d)" % conferidas)
+	igual(tortas.size(), 0,
+		"toda conexao tem as duas bocas alinhadas -- corredor torto so avisa, nao reprova (%s)"
+			% ", ".join(tortas))
+	_desmontar(mapa)
+
+
+## Libera a cena principal INTEIRA, e nao so o pedaco que interessava.
+##
+## `mapa.free()` (ou `mapa.get_parent().free()`, que e o `Mundo`) deixa o no
+## `Main` na arvore para sempre -- e com ele o `ContainerProjeteis`, que esta num
+## GRUPO. A partir dali toda suite que dispara uma arma tem os projeteis dela
+## caindo neste container esquecido, porque `Arma._container()` resolve por
+## `get_first_node_in_group()` e a ordem de um grupo nao e a de insercao. Sete
+## casos de `teste_arma.gd` e `teste_boss_ataques.gd` passaram a medir ZERO
+## projeteis com o codigo certo no instante em que aquele no nasceu.
+##
+## E a mesma armadilha que o cabecalho de `teste_arma.gd` ja registra para quem
+## CRIA um container -- vista do outro lado: aqui ninguem criou nada, so deixou
+## de limpar.
+func _desmontar(no: Node) -> void:
+	var raiz: Node = Engine.get_main_loop().root
+	var alvo := no
+	while alvo.get_parent() != null and alvo.get_parent() != raiz:
+		alvo = alvo.get_parent()
+	alvo.free()

@@ -1817,6 +1817,30 @@ em qualquer erro de script.
   highlight quase branco, e **36 das 61 celulas** tem pixel de saturacao zero --
   em 34 delas ele e o brilho da chapa, e nao fundo. So sai o que ALCANCA a
   borda, a mesma regra que `preparar_icone.py` ja segue.
+- **`view: side` nao endireita volume PRISMATICO, e negar a isometria nao
+  adianta.** A receita do eixo reto resolve peca com forma propria (motor,
+  cadeira, bomba); caixa, armario e rack voltam de quina. Medido em tres
+  formulacoes do mesmo pedido -- com o bloco `CRITICAL ORIENTATION` inteiro, com
+  a camera declarada no nivel do objeto, e com `FLAT WALL of crate fronts` --,
+  **as tres sairam isometricas**. A palavra `crate` carrega o prior de caixa 3D,
+  e e a licao "o gerador desenha o que a frase SUGERE" vista de novo. O que vira
+  a camera e nomear o objeto pela FACE (`a row of tall steel locker doors`, `a
+  vertical stack of six drawer fronts`) e, mais forte, exigir SIMETRIA
+  esquerda-direita: peca girada nunca e simetrica, entao o espelho fecha a porta
+  sem depender de o gerador entender projecao.
+- **Retificar a camera ENCOLHE a peca na celula, e o conserto e trocar o
+  OBJETO.** A isometria preenche a celula pela diagonal e a elevacao frontal
+  pelo lado: um compressor deitado que ocupava bem uma celula de 64x96 vira uma
+  tira no rodape dela depois de endireitado, sem nada de errado com a arte. O
+  compressor virou tanque VERTICAL e a maca virou pod de scanner em pe -- mesma
+  ficcao, mesma sala, proporcao que casa com a celula.
+- **Trocar a arte DENTRO da celula nao mexe em `.tres` nenhum.** A regra "o
+  atlas cresce para baixo e nunca se recompoe" vale para ACRESCENTAR peca, e o
+  motivo dela e que as regioes declaradas sao coordenadas cruas. Substituir a
+  arte na MESMA celula preserva essas coordenadas por construcao -- foi assim
+  que 17 pecas trocaram de camera sem uma linha mudada nos seis `tipo_*.tres`.
+  Quem substitui tem de LIMPAR a celula antes: colar por cima deixa o desenho
+  antigo aparecendo em todo pixel que a peca nova nao cobre.
 - **Prop novo passa pelo funil SOZINHO, e nao junto do atlas inteiro.**
   `preparar_textura.py` processa a imagem toda: rodar no atlas completo mexeria
   no valor e na saturacao dos doze props ja aprovados. Prepare a tira nova, e so

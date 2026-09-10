@@ -335,6 +335,66 @@ Para peca de conjunto (fileira de tambores, cilindros num rack) acrescente a
 negativa que impede a profundidade: `NO drum placed behind another`. Sem ela o
 gerador enfileira para o fundo e a base volta a ser um losango.
 
+### Mas `view: side` NAO alcanca volume PRISMATICO, e isso foi medido
+
+A receita acima resolve peca com forma propria -- motor, cadeira, bomba,
+esmeril. Ela **nao** resolve caixa, armario, rack: o volume retangular volta de
+quina por mais explicita que seja a negativa.
+
+Medido numa leva de retificacao, com o bloco `CRITICAL ORIENTATION` inteiro e
+`view: side` nos tres casos:
+
+| pedido | resultado |
+|---|---|
+| `stacked shipping crates` + `NO isometric projection` | isometrico |
+| o mesmo, com `the camera sits exactly level with the crates` e `top surfaces COMPLETELY INVISIBLE` | isometrico |
+| o mesmo, com `FLAT WALL of crate fronts seen head-on` | isometrico |
+
+Tres formulacoes, tres quinas. A palavra `crate` carrega o prior de caixa 3D, e
+negar a projecao nao o desfaz -- e a mesma familia da licao 2: **o gerador
+desenha o que a frase sugere, e nao o que ela pede**.
+
+### As duas alavancas que de fato viram a camera
+
+**1. Nomeie o objeto pela FACE, e nao pelo volume.** Peca cujo nome ja e uma
+superficie sai reta na primeira geracao:
+
+| em vez de | peca |
+|---|---|
+| `a steel cabinet` | `a row of tall steel locker doors` |
+| `a tool chest` | `the front of a tool chest: a vertical stack of six drawer fronts` |
+| `stacked crates` | `the front of a bank of steel storage bins: six compartment doors in two rows` |
+| `a shelving unit` | `the front of an open shelving unit: four shelf boards spanning between two posts` |
+
+`door`, `panel`, `front`, `wall`, `face` nao tem lado. `crate`, `cabinet`,
+`box`, `chest` tem.
+
+**2. Peca SIMETRIA, que e a alavanca mais forte.** Uma peca girada **nunca** e
+simetrica esquerda-direita, entao exigir o espelho fecha a porta da isometria
+sem depender de o gerador entender projecao:
+
+```
+FLAT ELEVATION: the object is PERFECTLY SYMMETRICAL from left to right, like a
+mirror image folded down the middle, because the viewer is looking at it exactly
+straight on.
+```
+
+Foi o unico pedido que endireitou o pod de scanner depois de a formulacao de
+FACE ainda ter deixado uma faixa lateral visivel. Use nas pecas que sao
+simetricas de verdade -- num torno ou numa bancada com morsa ela mentiria sobre
+a peca.
+
+### E a proporcao da celula muda de peca quando a camera muda
+
+A isometria preenche a celula pela DIAGONAL; a elevacao frontal preenche pelo
+lado. Um compressor horizontal que ocupava bem uma celula de 64x96 girado sai
+achatado no rodape dela quando fica reto -- a peca encolhe sem nada estar
+errado com ela.
+
+Quando isso acontecer, **troque o objeto e nao a arte**: o compressor deitado
+virou um tanque de ar VERTICAL, e a maca virou um pod de scanner em pe. Os dois
+preenchem a celula, contam a mesma coisa sobre a sala, e continuam retos.
+
 **E o que o eixo NAO pode ser:** nada de peca em "L", nada de conjunto montado em
 quina, nada de tubo saindo pela frente na diagonal. Se a peca precisa de um cano,
 ele sai reto para os lados ou para cima -- e de preferencia ele nem vem no asset,

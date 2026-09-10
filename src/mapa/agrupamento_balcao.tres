@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="AgrupamentoDeDecoracao" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/mapa/agrupamento_de_decoracao.gd" id="1_agr"]
+
+[resource]
+script = ExtResource("1_agr")
+nome = &"balcao"
+portes = PackedInt32Array(1, 2, 3, 2, 3)
+deslocamentos = PackedVector2Array(0, 0, 28, -8, 52, 6, -28, 6, -52, 16)

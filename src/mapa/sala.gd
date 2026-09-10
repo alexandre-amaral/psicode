@@ -2289,6 +2289,13 @@ func _montar_luminarias(
 	add_child(raiz)
 
 	var pontos := _pontos_de_luminaria(aberto, total, rng, bancadas)
+	# A luz de TRABALHO troca o PERFIL da vaga da bancada, e nao acrescenta uma
+	# lampada. O orcamento de luz do andar continua sendo
+	# `quantidade_luminarias + quantidade_luminarias_frias` -- se ela somasse
+	# vaga, toda sala com bancada ficaria mais clara que o `.tres` pede, e o
+	# numero que a `[FAB 19]` calibrou deixaria de valer sem ninguem ter mexido
+	# nele.
+	var trabalho := dados.perfil_de_luz_de_trabalho as PerfilDeLuz
 	var i := 0
 	for pedido in pedidos:
 		var perfil: PerfilDeLuz = pedido[0]
@@ -2300,6 +2307,9 @@ func _montar_luminarias(
 			var luminaria := LuminariaDeParede.new()
 			var onde: Vector2 = pontos[i][0]
 			var para_dentro: Vector2 = pontos[i][1]
+			var deste_ponto := perfil
+			if trabalho != null and bool(pontos[i][2]):
+				deste_ponto = trabalho
 			luminaria.position = onde
 			i += 1
 			raiz.add_child(luminaria)
@@ -2310,7 +2320,7 @@ func _montar_luminarias(
 			# devolver as mesmas lampadas acesas quando o jogador voltar. Uma
 			# luminaria que troca de estado a cada visita pisca, e isso le como
 			# defeito e nao como vida.
-			luminaria.configurar(perfil, _semente_da_luminaria(onde), para_dentro)
+			luminaria.configurar(deste_ponto, _semente_da_luminaria(onde), para_dentro)
 
 
 ## Onde as lampadas desta sala ficam: primeiro as bancadas, depois a face.
@@ -2334,7 +2344,14 @@ func _pontos_de_luminaria(
 		if ponto != Vector2.INF:
 			# A lampada da bancada aponta para BAIXO: ela esta acima da maquina,
 			# dentro da sala, e o chao dela e o piso a frente do conjunto.
-			pontos.append([ponto, Vector2.DOWN])
+			#
+			# O terceiro campo diz que este ponto e de BANCADA, e e o que deixa
+			# `_montar_luminarias` dar a ela o perfil de TRABALHO. Ele viaja
+			# junto do ponto em vez de ser uma contagem ("os N primeiros sao de
+			# bancada") porque contagem paralela e duas fontes para o mesmo
+			# fato: bastaria alguem reordenar esta lista para a luz forte cair
+			# na parede e a bancada voltar ao escuro, sem erro nenhum.
+			pontos.append([ponto, Vector2.DOWN, true])
 
 	if pontos.size() >= quantas:
 		return pontos
@@ -2357,7 +2374,10 @@ func _pontos_de_luminaria(
 		# de um barril.
 		# `ponto[1]` e a normal EXTERNA: a luminaria se afasta por ela e a poca
 		# desce pelo inverso, que e a direcao da sala.
-		pontos.append([ponto[0] + ponto[1] * recuo, -ponto[1]])
+		# `false`: ponto de PERIMETRO. Ele nunca recebe a luz de trabalho -- a
+		# lampada forte e a que esta sobre a maquina, e espalha-la pela parede
+		# desfaria o unico ponto claro que a sala tem.
+		pontos.append([ponto[0] + ponto[1] * recuo, -ponto[1], false])
 	return pontos
 
 

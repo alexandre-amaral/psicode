@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="DadosSala" load_steps=18 format=3]
+[gd_resource type="Resource" script_class="DadosSala" load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://src/mapa/dados_sala.gd" id="1_ds"]
 [ext_resource type="Texture2D" path="res://assets/texturas/decalques_andar1.png" id="99_dec"]
@@ -14,6 +14,7 @@
 [ext_resource type="Texture2D" path="res://assets/texturas/parede_face_item_ventilada.png" id="42_fm3"]
 
 [ext_resource type="Resource" path="res://src/fx/perfil_ambar.tres" id="90_amb"]
+[ext_resource type="Resource" path="res://src/fx/perfil_trabalho.tres" id="92_trab"]
 [ext_resource type="Resource" path="res://src/fx/perfil_frio.tres" id="91_fri"]
 
 [ext_resource type="Resource" path="res://src/mapa/decoracao_item.tres" id="95_dec"]
@@ -58,3 +59,4 @@ perfil_de_luz = ExtResource("90_amb")
 quantidade_luminarias = 5
 perfil_de_luz_fria = ExtResource("91_fri")
 quantidade_luminarias_frias = 2
+perfil_de_luz_de_trabalho = ExtResource("92_trab")

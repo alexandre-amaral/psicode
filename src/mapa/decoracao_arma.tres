@@ -1,17 +1,18 @@
-[gd_resource type="Resource" script_class="PerfilDeDecoracao" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="PerfilDeDecoracao" load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://src/mapa/perfil_de_decoracao.gd" id="1_perf"]
-[ext_resource type="Resource" path="res://src/mapa/agrupamento_manutencao.tres" id="2_manu"]
-[ext_resource type="Resource" path="res://src/mapa/agrupamento_armazenamento.tres" id="3_arma"]
+[ext_resource type="Resource" path="res://src/mapa/agrupamento_oficina.tres" id="2_ofic"]
+[ext_resource type="Resource" path="res://src/mapa/agrupamento_manutencao.tres" id="3_manu"]
+[ext_resource type="Resource" path="res://src/mapa/agrupamento_armazenamento.tres" id="4_arma"]
 
 [resource]
 script = ExtResource("1_perf")
 contagem_hero = Vector2i(1, 1)
-contagem_grande = Vector2i(1, 2)
-contagem_medio = Vector2i(2, 4)
-contagem_pequeno = Vector2i(3, 5)
-contagem_micro = Vector2i(4, 8)
+contagem_grande = Vector2i(2, 3)
+contagem_medio = Vector2i(3, 5)
+contagem_pequeno = Vector2i(4, 7)
+contagem_micro = Vector2i(4, 9)
 contagem_decalque = Vector2i(3, 7)
-contagem_parede = Vector2i(2, 5)
-quantos_agrupamentos = Vector2i(3, 5)
-agrupamentos = Array[Resource]([ExtResource("2_manu"), ExtResource("3_arma")])
+contagem_parede = Vector2i(3, 6)
+quantos_agrupamentos = Vector2i(4, 6)
+agrupamentos = Array[Resource]([ExtResource("2_ofic"), ExtResource("3_manu"), ExtResource("4_arma")])

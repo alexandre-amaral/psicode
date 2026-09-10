@@ -307,6 +307,30 @@ enum Colocacao { COMUM, PENDURADA, INICIAL }
 @export var perfil_de_luz_fria: Resource
 @export var quantidade_luminarias_frias: int = 0
 
+## A luz de TRABALHO: a lampada que fica sobre a bancada, e nao no perimetro.
+##
+## Ela nao acrescenta lampada nenhuma -- ela TROCA O PERFIL da vaga que a
+## bancada ja ocupava. `_pontos_de_luminaria()` sempre serviu as bancadas
+## primeiro, entao a lampada ja estava no lugar certo; o que faltava era ela ser
+## DIFERENTE das outras.
+##
+## Duas coisas mudam, e as duas sao a mesma decisao vista de angulos opostos:
+##
+## - ela e mais forte e mais larga, porque a secao 59 pede que a bancada seja o
+##   ponto mais claro da sala -- e com o perfil ambar comum ela era exatamente
+##   igual as lampadas de parede, entao a sala nao tinha ponto mais claro
+##   nenhum;
+## - e ela NUNCA nasce apagada. O ambar comum tem `chance_de_estar_ligada` 0,7,
+##   que e o que da ao andar o ar de coisa quebrada -- mas aplicado a lampada da
+##   bancada isso apagava a maquina em ~30% das salas, e a unica peca que diz
+##   "alguem trabalhava aqui" ficava no escuro. Quem carrega a ficcao de
+##   abandono e o PERIMETRO; a bancada carrega a ficcao de uso.
+##
+## Nulo = a sala nao distingue, e toda lampada dela usa `perfil_de_luz`. E o
+## caso da sala de combate e da inicial de proposito: elas ja passam a regua de
+## massa da `[FAB 41]`, e mexer na luz delas mudaria um numero que esta bom.
+@export var perfil_de_luz_de_trabalho: Resource
+
 ## O atlas das pecas PRESAS NA FACE da parede, e as celulas que esta sala usa.
 ##
 ## Tubo que corre pela parede, caixa de juncao, duto. **Elas nao sao prop de
